@@ -17,6 +17,9 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+    <!-- Proj4js (좌표계 변환) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -666,7 +669,7 @@
                 <p class="upload-text">클릭하거나 드래그앤드롭</p>
                 <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
             </div>
-            <input type="file" id="fileInput1" accept=".xlsx,.xls">
+            <input type="file" id="fileInput1" accept=".xlsx,.xls" multiple>
             <div class="loading" id="loading1">
                 <div class="spinner"></div>
                 <p>데이터 가공 중...</p>
@@ -942,66 +945,266 @@
             zone.onclick = () => input.click();
             zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
             zone.ondragleave = () => zone.classList.remove('dragover');
-            zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]); };
-            input.onchange = (e) => { if (e.target.files[0]) handler(e.target.files[0]); };
+            zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handler(e.dataTransfer.files); };
+            input.onchange = (e) => { if (e.target.files.length > 0) handler(e.target.files); };
         }
 
-        function handleRawFile(file) {
+        async function handleRawFile(files) {
             document.getElementById('loading1').classList.add('active');
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
+            document.getElementById('downloadBtn').disabled = true;
+
+            try {
+                const fileArray = Array.from(files);
+                const allRawData = [];
+
+                for (const file of fileArray) {
+                    const data = await readFileAsArrayBuffer(file);
                     const wb = XLSX.read(data, { type: 'array' });
                     const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                    processData(rawData);
-                } catch (err) {
-                    document.getElementById('loading1').classList.remove('active');
-                    showAlert('alert1', 'error', '❌ 오류: ' + err.message);
+                    allRawData.push(...rawData);
                 }
-            };
-            reader.readAsArrayBuffer(file);
+
+                console.log(`총 ${allRawData.length}건의 데이터 로드 완료`);
+                await processData(allRawData);
+            } catch (err) {
+                document.getElementById('loading1').classList.remove('active');
+                showAlert('alert1', 'error', '❌ 오류: ' + err.message);
+            }
         }
 
-        function processData(rawData) {
-            processedData = [];
-            const blacklist = ['편의점', 'GS25', 'CU', 'PC'];
-            const managerMap = { '남양주시': '이도현', '구리시': '이도현' };
-
-            rawData.forEach(row => {
-                const name = row['사업장명'] || '';
-                if (blacklist.some(kw => name.includes(kw))) return;
-
-                let type = row['업태구분명'] || '';
-                if (['커피숍', '제과점영업'].includes(type)) type = '카페/베이커리';
-
-                const area = parseFloat(row['소재지면적'] || 0);
-                const pyeong = (area / 3.3).toFixed(1);
-
-                let rank = '3순위';
-                if (pyeong >= 30 || pyeong == 0) rank = '1순위';
-                else if (pyeong >= 10) rank = '2순위';
-
-                const addr = row['지번주소'] || '';
-                const addr2 = addr.split(' ')[1] || '';
-
-                processedData.push({
-                    '인허가일자': row['인허가일자'] || '',
-                    '사업장명': name,
-                    '업태구분명': type,
-                    '실평수': pyeong,
-                    '도로명주소': row['도로명전체주소'] || addr,
-                    '주소2': addr2,
-                    '순위': rank,
-                    '담당자': managerMap[addr2] || '미지정',
-                    '위도': row['좌표정보(Y)'] || '',
-                    '경도': row['좌표정보(X)'] || ''
-                });
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
             });
+        }
 
-            document.getElementById('loading1').classList.remove('active');
-            document.getElementById('downloadBtn').disabled = false;
-            showAlert('alert1', 'success', '✅ ' + processedData.length + '건 완료');
+        async function processData(rawData) {
+            try {
+                console.log(`전처리 시작: ${rawData.length}건`);
+
+                // 1. 영업/정상만 필터링
+                let data = rawData.filter(row => {
+                    const status = (row['영업상태명'] || row['상세영업상태명'] || '').toString().trim();
+                    return status === '영업/정상' || status === '영업' || status === '정상';
+                });
+                console.log(`영업/정상 필터링 후: ${data.length}건`);
+
+                // 2. 업종 필터링 & 명칭 변경
+                const targetCategories = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
+                const categoryRenameMap = {
+                    '커피숍': '카페',
+                    '제과점영업': '베이커리',
+                    '기타 휴게음식점': 'FS기타',
+                    '기타': 'FS기타',
+                    '경양식': '레스토랑'
+                };
+
+                data = data.filter(row => {
+                    const category = (row['업태구분명'] || '').toString().trim();
+                    return targetCategories.includes(category);
+                });
+                console.log(`업종 필터링 후: ${data.length}건`);
+
+                // 3. 블랙리스트 필터링
+                const excludeKeywords = [
+                    '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
+                    'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
+                    '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
+                    '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치'
+                ];
+
+                data = data.filter(row => {
+                    const name = (row['사업장명'] || '').toString();
+                    return !excludeKeywords.some(keyword => name.includes(keyword));
+                });
+                console.log(`블랙리스트 필터링 후: ${data.length}건`);
+
+                // 4. 날짜 필터링 (최근 1년)
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+                data = data.filter(row => {
+                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
+                    if (dateStr.length < 8) return false;
+                    const year = parseInt(dateStr.substring(0, 4));
+                    const month = parseInt(dateStr.substring(4, 6)) - 1;
+                    const day = parseInt(dateStr.substring(6, 8));
+                    const date = new Date(year, month, day);
+                    return date >= oneYearAgo;
+                });
+                console.log(`날짜 필터링 후 (최근 1년): ${data.length}건`);
+
+                // 5. 데이터 가공
+                processedData = data.map(row => {
+                    // 기본 정보
+                    const name = (row['사업장명'] || '').toString().trim();
+                    let category = (row['업태구분명'] || '').toString().trim();
+                    category = categoryRenameMap[category] || category;
+
+                    // 날짜 포맷
+                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
+                    let formattedDate = '';
+                    if (dateStr.length >= 8) {
+                        formattedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+                    }
+
+                    // 평형 계산
+                    const area = parseFloat(row['소재지면적'] || row['시설총규모'] || 0);
+                    const pyeong = (area / 3.3).toFixed(1);
+
+                    // 주소 처리
+                    const jibunAddr = (row['소재지전체주소'] || '').toString().trim();
+                    const roadAddr = (row['도로명전체주소'] || jibunAddr).toString().trim();
+
+                    // 주소 3단계 분리 (고양시 특수처리)
+                    const tokens = jibunAddr.split(' ');
+                    let addr1 = '', addr2 = '', addr3 = '';
+
+                    if (tokens.length >= 2) {
+                        addr1 = tokens[0];
+                        addr2 = tokens[1];
+
+                        // 고양시 특수처리
+                        if (addr2.startsWith('고양시') && tokens.length > 2) {
+                            addr2 = `${tokens[1]} ${tokens[2]}`;
+                            addr3 = tokens[3] || '';
+                        } else {
+                            addr3 = tokens[2] || '';
+                        }
+                    } else {
+                        addr1 = '확인필요';
+                        addr2 = '확인필요';
+                        addr3 = '확인필요';
+                    }
+
+                    // 담당자 매핑
+                    const repMap = {
+                        '남양주시': '이도현', '구리시': '이도현', '가평군': '이도현', '의정부시': '이도현', '포천시': '이도현',
+                        '미추홀구': '김지훈', '동구': '김지훈', '서구': '김지훈', '남동구': '김지훈',
+                        '부평구': '김지훈', '계양구': '김지훈', '연수구': '김지훈', '중구': '김지훈',
+                        '부천시': '김지훈', '소사구': '김지훈', '원미구': '김지훈', '오정구': '김지훈',
+                        '양주시': '부대석', '파주시': '부대석', '연천군': '부대석', '철원군': '부대석', '동두천시': '부대석',
+                        '고양시 덕양구': '김재찬', '고양시 일산동구': '부대석', '고양시 일산서구': '부대석',
+                        '강화군': '김재찬', '김포시': '김재찬'
+                    };
+
+                    const manager = repMap[addr2] || '미지정';
+
+                    // 순위 계산
+                    let rank = '3순위';
+                    if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1순위';
+                    else if (parseFloat(pyeong) >= 10) rank = '2순위';
+
+                    // 좌표 (원본 그대로)
+                    const xCol = row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X'] || '';
+                    const yCol = row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y'] || '';
+
+                    // 앱시트등록일
+                    const uploadDate = new Date().toISOString().split('T')[0];
+
+                    return {
+                        '번호': row['번호'] || '',
+                        '인허가일자': formattedDate,
+                        '사업장명': name,
+                        '영업상태명': '인허가',
+                        '업태구분명': category,
+                        '시설총규모 : 평형': pyeong,
+                        '도로명전체주소': roadAddr,
+                        '주소1': addr1,
+                        '주소2': addr2,
+                        '주소3': addr3,
+                        '순위': rank,
+                        '담당자': manager,
+                        '앱시트등록일': uploadDate,
+                        '위도': yCol,
+                        '경도': xCol,
+                        '_pyeong_num': parseFloat(pyeong),
+                        '_sort_score': 99
+                    };
+                });
+
+                // 6. 한식 필터링 (100평 이상만)
+                processedData = processedData.filter(row => {
+                    if (row['업태구분명'] === '한식' && row['_pyeong_num'] < 100) {
+                        return false;
+                    }
+                    return true;
+                });
+                console.log(`한식 필터링 후: ${processedData.length}건`);
+
+                // 7. 담당자 미지정 제외
+                processedData = processedData.filter(row => row['담당자'] !== '미지정');
+                console.log(`담당자 미지정 제외 후: ${processedData.length}건`);
+
+                // 8. F/C 키워드 처리
+                const fcKeywords = [
+                    '스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피',
+                    '투썸플레이스', '투썸', '할리스', '파스쿠찌', '폴바셋', '풀바셋', '엔제리너스',
+                    '카페베네', '탐앤탐스', '설빙', '공차', '아마스빈', '더벤티', '쥬씨', '감성커피', '백억커피', '김준호의', '만랩',
+                    '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피',
+                    '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
+                ];
+
+                processedData.forEach(row => {
+                    const name = row['사업장명'];
+                    if (fcKeywords.some(keyword => name.includes(keyword))) {
+                        row['업태구분명'] = 'F/C';
+                    }
+                });
+
+                // 9. 인천공항 처리
+                processedData.forEach(row => {
+                    const addr = row['도로명전체주소'];
+                    const name = row['사업장명'];
+                    if (addr.includes('인천공항') || name.includes('인천공항')) {
+                        row['업태구분명'] = '인천공항';
+                    }
+                });
+
+                // 10. 정렬 점수 계산
+                processedData.forEach(row => {
+                    if (row['업태구분명'] === 'F/C') {
+                        row['_sort_score'] = 60;
+                    } else if (row['업태구분명'] === '인천공항') {
+                        row['_sort_score'] = 50;
+                    } else if (row['순위'] === '1순위') {
+                        row['_sort_score'] = 10;
+                    } else if (row['순위'] === '2순위') {
+                        row['_sort_score'] = 20;
+                    } else if (row['순위'] === '3순위') {
+                        row['_sort_score'] = 30;
+                    }
+                });
+
+                // 11. 정렬 (점수 오름차순 -> 평형 내림차순)
+                processedData.sort((a, b) => {
+                    if (a['_sort_score'] !== b['_sort_score']) {
+                        return a['_sort_score'] - b['_sort_score'];
+                    }
+                    return b['_pyeong_num'] - a['_pyeong_num'];
+                });
+
+                // 12. 임시 컬럼 제거
+                processedData.forEach(row => {
+                    delete row['_pyeong_num'];
+                    delete row['_sort_score'];
+                });
+
+                console.log(`최종 처리 완료: ${processedData.length}건`);
+                console.log('미리보기:', processedData.slice(0, 5));
+
+                document.getElementById('loading1').classList.remove('active');
+                document.getElementById('downloadBtn').disabled = false;
+                showAlert('alert1', 'success', `✅ ${processedData.length}건 완료`);
+
+            } catch (err) {
+                console.error('전처리 오류:', err);
+                document.getElementById('loading1').classList.remove('active');
+                showAlert('alert1', 'error', '❌ 전처리 오류: ' + err.message);
+            }
         }
 
         document.getElementById('downloadBtn').onclick = function () {
