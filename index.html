@@ -648,10 +648,10 @@
             <div class="map-controls">
                 <div class="filter-label">순위 필터</div>
                 <div class="filter-buttons">
-                    <button class="filter-btn active" data-filter="all">전체</button>
-                    <button class="filter-btn" data-filter="1순위">1순위</button>
-                    <button class="filter-btn" data-filter="2순위">2순위</button>
-                    <button class="filter-btn" data-filter="3순위">3순위</button>
+                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
+                    <button class="filter-btn" data-filter="1" onclick="setFilter('1')">1순위</button>
+                    <button class="filter-btn" data-filter="2" onclick="setFilter('2')">2순위</button>
+                    <button class="filter-btn" data-filter="3" onclick="setFilter('3')">3순위</button>
                 </div>
             </div>
         </div>
@@ -753,6 +753,26 @@
 
         function toggleDropdown(id) {
             document.getElementById(id).classList.toggle('open');
+        }
+
+        // ============================================================
+        // 필터 관리
+        // ============================================================
+
+        function setFilter(filter) {
+            currentFilter = filter;
+
+            // 버튼 활성화 상태 변경
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-filter') === filter) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // 대시보드 및 지도 업데이트
+            updateDashboard();
+            updateMap();
         }
 
         // ============================================================
@@ -972,20 +992,23 @@
         // ============================================================
 
         function updateDashboard() {
+            // 필터링된 데이터
+            const filteredData = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
+
             // 실제 Google Sheets 컬럼명 사용
-            document.getElementById('dealCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
-            document.getElementById('noDealCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
-            document.getElementById('licensedCount').textContent = allData.length || 0;
-            document.getElementById('dropCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
-            document.getElementById('constructionCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
+            document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
+            document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
+            document.getElementById('licensedCount').textContent = filteredData.length || 0;
+            document.getElementById('dropCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
+            document.getElementById('constructionCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
 
             // 순위는 "1", "2", "3" 형식으로 저장됨
-            document.getElementById('rank1Count').textContent = allData.filter(d => d['순위'] === '1').length || 0;
-            document.getElementById('rank2Count').textContent = allData.filter(d => d['순위'] === '2').length || 0;
-            document.getElementById('rank3Count').textContent = allData.filter(d => d['순위'] === '3').length || 0;
+            document.getElementById('rank1Count').textContent = filteredData.filter(d => d['순위'] === '1').length || 0;
+            document.getElementById('rank2Count').textContent = filteredData.filter(d => d['순위'] === '2').length || 0;
+            document.getElementById('rank3Count').textContent = filteredData.filter(d => d['순위'] === '3').length || 0;
 
             const regionCounts = {};
-            allData.forEach(item => {
+            filteredData.forEach(item => {
                 const region = item['주소2'] || '기타';
                 regionCounts[region] = (regionCounts[region] || 0) + 1;
             });
@@ -995,7 +1018,7 @@
                 .map(([r, c]) => '<div class="dropdown-item"><span class="dropdown-item-name">' + r + '</span><span class="dropdown-item-count">' + c + '건</span></div>').join('');
 
             const managerCounts = {};
-            allData.forEach(item => {
+            filteredData.forEach(item => {
                 const m = item['담당자'] || '미지정';
                 managerCounts[m] = (managerCounts[m] || 0) + 1;
             });
