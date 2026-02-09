@@ -968,7 +968,20 @@
                 await processData(allRawData);
             } catch (err) {
                 document.getElementById('loading1').classList.remove('active');
-                showAlert('alert1', 'error', '❌ 오류: ' + err.message);
+
+                // 암호화된 파일 오류 감지
+                if (err.message && err.message.includes('Encrypted')) {
+                    showAlert('alert1', 'error',
+                        '❌ 암호화된 파일입니다!<br><br>' +
+                        '<strong>해결 방법:</strong><br>' +
+                        '1. Excel에서 파일 열기<br>' +
+                        '2. [파일] → [다른 이름으로 저장]<br>' +
+                        '3. 새 파일로 저장 후 다시 업로드<br><br>' +
+                        '<small>※ 암호로 보호된 파일은 지원되지 않습니다</small>'
+                    );
+                } else {
+                    showAlert('alert1', 'error', '❌ 오류: ' + err.message);
+                }
             }
         }
 
