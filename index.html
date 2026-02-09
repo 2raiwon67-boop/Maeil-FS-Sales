@@ -876,13 +876,29 @@
 
                 if (lines.length > 1) {
                     const headers = lines[0];
-                    allData = lines.slice(1).map(values => {
-                        const obj = {};
-                        headers.forEach((h, i) => {
-                            obj[h] = values[i] || '';
+                    allData = lines.slice(1)
+                        .map(values => {
+                            const obj = {};
+                            headers.forEach((h, i) => {
+                                obj[h] = values[i] || '';
+                            });
+                            return obj;
+                        })
+                        .filter(row => {
+                            // 유효한 데이터만 필터링
+                            const manager = row['담당자'] || '';
+                            const name = row['사업장명'] || '';
+
+                            // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
+                            if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
+                            if (manager.includes('업로드일')) return false;
+                            if (manager.includes('등록일')) return false;
+
+                            // 사업장명이 비어있으면 제외
+                            if (!name || name.trim() === '') return false;
+
+                            return true;
                         });
-                        return obj;
-                    });
 
                     console.log(`Google Sheets 로드 완료: ${allData.length}건`);
                     updateDashboard();
