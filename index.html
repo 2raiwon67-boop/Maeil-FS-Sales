@@ -922,9 +922,10 @@
             document.getElementById('dropCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
             document.getElementById('constructionCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
 
-            document.getElementById('rank1Count').textContent = allData.filter(d => d['순위'] === '1순위').length || 0;
-            document.getElementById('rank2Count').textContent = allData.filter(d => d['순위'] === '2순위').length || 0;
-            document.getElementById('rank3Count').textContent = allData.filter(d => d['순위'] === '3순위').length || 0;
+            // 순위는 "1", "2", "3" 형식으로 저장됨
+            document.getElementById('rank1Count').textContent = allData.filter(d => d['순위'] === '1').length || 0;
+            document.getElementById('rank2Count').textContent = allData.filter(d => d['순위'] === '2').length || 0;
+            document.getElementById('rank3Count').textContent = allData.filter(d => d['순위'] === '3').length || 0;
 
             const regionCounts = {};
             allData.forEach(item => {
@@ -964,7 +965,7 @@
 
                 try {
                     const pos = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
-                    const color = item['순위'] === '1순위' ? '#ff3b30' : item['순위'] === '2순위' ? '#ff9500' : '#86868b';
+                    const color = item['순위'] === '1' ? '#ff3b30' : item['순위'] === '2' ? '#ff9500' : '#86868b';
 
                     const overlay = new kakao.maps.CustomOverlay({
                         position: pos,
