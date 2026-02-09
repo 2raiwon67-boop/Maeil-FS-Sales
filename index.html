@@ -822,18 +822,67 @@
                 }
 
                 const csvText = await response.text();
-                const lines = csvText.split('\n');
+
+                // CSV 파싱 (쉼표가 포함된 필드 처리)
+                function parseCSV(text) {
+                    const lines = [];
+                    let currentLine = [];
+                    let currentField = '';
+                    let inQuotes = false;
+
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
+                        const nextChar = text[i + 1];
+
+                        if (char === '"') {
+                            if (inQuotes && nextChar === '"') {
+                                currentField += '"';
+                                i++; // Skip next quote
+                            } else {
+                                inQuotes = !inQuotes;
+                            }
+                        } else if (char === ',' && !inQuotes) {
+                            currentLine.push(currentField.trim());
+                            currentField = '';
+                        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                            if (currentField || currentLine.length > 0) {
+                                currentLine.push(currentField.trim());
+                                if (currentLine.some(f => f)) { // Skip empty lines
+                                    lines.push(currentLine);
+                                }
+                                currentLine = [];
+                                currentField = '';
+                            }
+                            if (char === '\r' && nextChar === '\n') {
+                                i++; // Skip \n in \r\n
+                            }
+                        } else {
+                            currentField += char;
+                        }
+                    }
+
+                    // Add last field and line
+                    if (currentField || currentLine.length > 0) {
+                        currentLine.push(currentField.trim());
+                        if (currentLine.some(f => f)) {
+                            lines.push(currentLine);
+                        }
+                    }
+
+                    return lines;
+                }
+
+                const lines = parseCSV(csvText);
 
                 if (lines.length > 1) {
-                    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-                    allData = lines.slice(1)
-                        .filter(line => line.trim())
-                        .map(line => {
-                            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-                            const obj = {};
-                            headers.forEach((h, i) => { obj[h] = values[i] || ''; });
-                            return obj;
+                    const headers = lines[0];
+                    allData = lines.slice(1).map(values => {
+                        const obj = {};
+                        headers.forEach((h, i) => {
+                            obj[h] = values[i] || '';
                         });
+                        return obj;
+                    });
 
                     console.log(`Google Sheets 로드 완료: ${allData.length}건`);
                     updateDashboard();
