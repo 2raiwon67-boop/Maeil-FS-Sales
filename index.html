@@ -30,44 +30,39 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #ffffff;
             color: #1d1d1f;
-            line-height: 1.5;
+            overflow: hidden;
+            height: 100vh;
         }
 
         /* =============== 상단 네비게이션 =============== */
         .nav-bar {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: saturate(180%) blur(20px);
-            -webkit-backdrop-filter: saturate(180%) blur(20px);
-            border-bottom: 1px solid #d2d2d7;
+            background: #1d1d1f;
             padding: 0 24px;
             height: 52px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 1000;
         }
 
         .nav-logo {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 600;
-            color: #1d1d1f;
+            color: #ffffff;
         }
 
         .nav-actions {
             display: flex;
-            gap: 12px;
+            gap: 10px;
         }
 
         .btn {
-            padding: 10px 20px;
+            padding: 8px 18px;
             border: none;
             border-radius: 980px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
@@ -83,135 +78,112 @@
         }
 
         .btn-secondary {
-            background: #f5f5f7;
-            color: #1d1d1f;
+            background: #424245;
+            color: white;
         }
 
         .btn-secondary:hover {
-            background: #e8e8ed;
+            background: #515154;
         }
 
-        /* =============== 메인 컨테이너 =============== */
-        .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 40px 24px;
+        /* =============== 메인 레이아웃 =============== */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            height: calc(100vh - 52px);
         }
 
-        .page-title {
-            font-size: 48px;
+        /* =============== 좌측 사이드바 =============== */
+        .sidebar {
+            background: #f5f5f7;
+            overflow-y: auto;
+            padding: 20px;
+            border-right: 1px solid #d2d2d7;
+        }
+
+        .sidebar-title {
+            font-size: 22px;
             font-weight: 700;
-            text-align: center;
-            margin-bottom: 8px;
             color: #1d1d1f;
+            margin-bottom: 20px;
         }
 
-        .page-subtitle {
-            font-size: 21px;
-            font-weight: 400;
-            text-align: center;
-            color: #86868b;
-            margin-bottom: 48px;
+        .section {
+            margin-bottom: 20px;
         }
 
-        /* =============== 섹션 타이틀 =============== */
         .section-header {
-            margin-bottom: 24px;
-        }
-
-        .section-title {
-            font-size: 28px;
+            font-size: 12px;
             font-weight: 600;
-            color: #1d1d1f;
-            margin-bottom: 4px;
-        }
-
-        .section-subtitle {
-            font-size: 17px;
             color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
         }
 
-        /* =============== 방문 현황 카드 (5개) =============== */
-        .status-section {
-            margin-bottom: 56px;
-        }
-
-        .status-cards {
+        /* =============== 방문 현황 카드 (5개 가로) =============== */
+        .status-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 16px;
+            gap: 6px;
+            margin-bottom: 6px;
         }
 
         .status-card {
-            background: #f5f5f7;
-            border-radius: 18px;
-            padding: 24px;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 10px 6px;
             text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .status-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e8e8ed;
         }
 
         .status-card.deal {
-            background: linear-gradient(135deg, #0071e3, #40a9ff);
-            color: white;
+            border-left: 3px solid #0071e3;
         }
 
         .status-card.no-deal {
-            background: #1d1d1f;
-            color: white;
+            border-left: 3px solid #1d1d1f;
         }
 
         .status-card.licensed {
-            background: #f5f5f7;
-            color: #1d1d1f;
+            border-left: 3px solid #34c759;
         }
 
         .status-card.drop {
-            background: #ff3b30;
-            color: white;
+            border-left: 3px solid #ff3b30;
         }
 
         .status-card.construction {
-            background: #ff9500;
-            color: white;
+            border-left: 3px solid #ff9500;
         }
 
-        .status-card .card-label {
-            font-size: 14px;
+        .status-card .label {
+            font-size: 10px;
             font-weight: 500;
-            margin-bottom: 8px;
-            opacity: 0.9;
+            color: #86868b;
+            margin-bottom: 2px;
         }
 
-        .status-card .card-value {
-            font-size: 44px;
+        .status-card .value {
+            font-size: 20px;
             font-weight: 700;
-            line-height: 1;
+            color: #1d1d1f;
         }
 
         /* =============== 순위별 현황 =============== */
-        .priority-section {
-            margin-bottom: 56px;
-        }
-
-        .priority-cards {
+        .priority-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
+            gap: 8px;
         }
 
         .priority-card {
-            background: #f5f5f7;
-            border-radius: 18px;
-            padding: 32px 24px;
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 12px;
             text-align: center;
+            border: 1px solid #e8e8ed;
             position: relative;
-            overflow: hidden;
         }
 
         .priority-card::before {
@@ -220,7 +192,8 @@
             left: 0;
             top: 0;
             bottom: 0;
-            width: 4px;
+            width: 3px;
+            border-radius: 10px 0 0 10px;
         }
 
         .priority-card.rank1::before {
@@ -235,72 +208,62 @@
             background: #86868b;
         }
 
-        .priority-card .rank-label {
-            font-size: 14px;
+        .priority-card .label {
+            font-size: 11px;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
-        .priority-card.rank1 .rank-label {
+        .priority-card.rank1 .label {
             color: #ff3b30;
         }
 
-        .priority-card.rank2 .rank-label {
+        .priority-card.rank2 .label {
             color: #ff9500;
         }
 
-        .priority-card.rank3 .rank-label {
+        .priority-card.rank3 .label {
             color: #86868b;
         }
 
-        .priority-card .rank-value {
-            font-size: 56px;
+        .priority-card .value {
+            font-size: 28px;
             font-weight: 700;
             color: #1d1d1f;
         }
 
         /* =============== 드롭다운 섹션 =============== */
-        .dropdown-section {
-            margin-bottom: 32px;
-        }
-
-        .dropdown-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-
         .dropdown-card {
-            background: #f5f5f7;
-            border-radius: 18px;
+            background: #ffffff;
+            border-radius: 10px;
             overflow: hidden;
+            border: 1px solid #e8e8ed;
+            margin-bottom: 8px;
         }
 
         .dropdown-header {
-            padding: 20px 24px;
+            padding: 12px 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            transition: background 0.2s ease;
+            transition: background 0.2s;
         }
 
         .dropdown-header:hover {
-            background: #e8e8ed;
+            background: #f5f5f7;
         }
 
-        .dropdown-header h3 {
-            font-size: 17px;
+        .dropdown-header h4 {
+            font-size: 14px;
             font-weight: 600;
             color: #1d1d1f;
         }
 
         .dropdown-arrow {
-            font-size: 20px;
+            font-size: 12px;
             color: #86868b;
-            transition: transform 0.3s ease;
+            transition: transform 0.2s;
         }
 
         .dropdown-card.open .dropdown-arrow {
@@ -314,21 +277,21 @@
         }
 
         .dropdown-card.open .dropdown-content {
-            max-height: 500px;
+            max-height: 300px;
         }
 
         .dropdown-list {
-            padding: 0 24px 20px;
+            padding: 0 14px 12px;
         }
 
         .dropdown-item {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            padding: 14px 16px;
-            background: white;
-            border-radius: 12px;
-            margin-bottom: 8px;
+            padding: 8px 10px;
+            background: #f5f5f7;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            font-size: 13px;
         }
 
         .dropdown-item:last-child {
@@ -336,85 +299,73 @@
         }
 
         .dropdown-item-name {
-            font-size: 15px;
-            font-weight: 500;
             color: #1d1d1f;
+            font-weight: 500;
         }
 
         .dropdown-item-count {
-            font-size: 15px;
-            font-weight: 600;
             color: #0071e3;
+            font-weight: 600;
         }
 
         /* =============== 주간 추이 차트 =============== */
-        .chart-section {
-            margin-bottom: 56px;
-        }
-
-        .chart-container {
-            background: #f5f5f7;
-            border-radius: 18px;
-            padding: 32px;
+        .chart-card {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 14px;
+            border: 1px solid #e8e8ed;
         }
 
         .chart-wrapper {
-            height: 300px;
+            height: 120px;
+        }
+
+        /* =============== 우측 지도 영역 =============== */
+        .map-area {
             position: relative;
-        }
-
-        /* =============== 지도 섹션 =============== */
-        .map-section {
-            margin-bottom: 56px;
-        }
-
-        .map-wrapper {
             background: #f5f5f7;
-            border-radius: 18px;
-            overflow: hidden;
-            position: relative;
         }
 
         #map {
             width: 100%;
-            height: 500px;
+            height: 100%;
         }
 
         .map-controls {
             position: absolute;
-            top: 20px;
-            right: 20px;
+            top: 16px;
+            right: 16px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            padding: 16px;
+            padding: 14px 16px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
             z-index: 100;
         }
 
         .filter-label {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             color: #86868b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .filter-buttons {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
 
         .filter-btn {
-            padding: 8px 16px;
+            padding: 6px 14px;
             border: 1px solid #d2d2d7;
             background: white;
             border-radius: 980px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
         }
 
         .filter-btn:hover {
@@ -435,7 +386,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.5);
             backdrop-filter: blur(5px);
             z-index: 2000;
             align-items: center;
@@ -448,9 +399,9 @@
 
         .modal-content {
             background: white;
-            padding: 32px;
-            border-radius: 20px;
-            max-width: 500px;
+            padding: 28px;
+            border-radius: 16px;
+            max-width: 450px;
             width: 90%;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
         }
@@ -459,17 +410,17 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
         }
 
         .modal-header h2 {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 600;
             color: #1d1d1f;
         }
 
         .close-btn {
-            font-size: 28px;
+            font-size: 24px;
             cursor: pointer;
             color: #86868b;
             transition: color 0.2s;
@@ -482,11 +433,11 @@
 
         .upload-zone {
             border: 2px dashed #d2d2d7;
-            border-radius: 16px;
-            padding: 48px;
+            border-radius: 12px;
+            padding: 36px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
             background: #fafafa;
         }
 
@@ -497,26 +448,26 @@
         }
 
         .upload-icon {
-            font-size: 48px;
-            margin-bottom: 12px;
+            font-size: 40px;
+            margin-bottom: 10px;
         }
 
         .upload-text {
-            font-size: 17px;
+            font-size: 15px;
             font-weight: 500;
             color: #1d1d1f;
-            margin-bottom: 4px;
         }
 
         .upload-hint {
-            font-size: 14px;
+            font-size: 13px;
             color: #86868b;
+            margin-top: 4px;
         }
 
         .loading {
             display: none;
             text-align: center;
-            padding: 24px;
+            padding: 20px;
         }
 
         .loading.active {
@@ -527,10 +478,10 @@
             border: 3px solid #f5f5f7;
             border-top: 3px solid #0071e3;
             border-radius: 50%;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             animation: spin 0.8s linear infinite;
-            margin: 0 auto 12px;
+            margin: 0 auto 10px;
         }
 
         @keyframes spin {
@@ -544,10 +495,10 @@
         }
 
         .alert {
-            padding: 14px 18px;
-            border-radius: 12px;
-            margin: 16px 0;
-            font-size: 14px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin: 14px 0;
+            font-size: 13px;
             font-weight: 500;
         }
 
@@ -572,36 +523,22 @@
 
         .btn-full {
             width: 100%;
-            margin-top: 16px;
+            margin-top: 14px;
+            padding: 12px;
         }
 
-        /* =============== 반응형 =============== */
-        @media (max-width: 1024px) {
-            .status-cards {
-                grid-template-columns: repeat(3, 1fr);
-            }
-
-            .dropdown-grid {
-                grid-template-columns: 1fr;
-            }
+        /* =============== 스크롤바 스타일 =============== */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
         }
 
-        @media (max-width: 768px) {
-            .status-cards {
-                grid-template-columns: repeat(2, 1fr);
-            }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
 
-            .priority-cards {
-                grid-template-columns: 1fr;
-            }
-
-            .page-title {
-                font-size: 32px;
-            }
-
-            .page-subtitle {
-                font-size: 17px;
-            }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #d2d2d7;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -609,132 +546,113 @@
 <body>
     <!-- 상단 네비게이션 -->
     <nav class="nav-bar">
-        <div class="nav-logo">경기북부 FS</div>
+        <div class="nav-logo">📊 경기북부 FS 인허가 대시보드</div>
         <div class="nav-actions">
             <button class="btn btn-secondary" onclick="openUploadModal()">📤 RAW 업로드</button>
             <button class="btn btn-primary" onclick="openFinalUploadModal()">최종본 업로드</button>
         </div>
     </nav>
 
-    <!-- 메인 컨테이너 -->
-    <main class="main-container">
-        <!-- 타이틀 -->
-        <h1 class="page-title">인허가 대시보드</h1>
-        <p class="page-subtitle">경기북부 FS팀 영업 현황을 한눈에 확인하세요.</p>
+    <!-- 메인 레이아웃 -->
+    <div class="main-layout">
+        <!-- 좌측 사이드바 -->
+        <div class="sidebar">
+            <h1 class="sidebar-title">인허가 현황</h1>
 
-        <!-- 방문 현황 (5카드) -->
-        <section class="status-section">
-            <div class="section-header">
-                <h2 class="section-title">방문 현황</h2>
-                <p class="section-subtitle">영업 진행 상태별 분류</p>
-            </div>
-            <div class="status-cards">
-                <div class="status-card deal">
-                    <div class="card-label">거래</div>
-                    <div class="card-value" id="dealCount">0</div>
-                </div>
-                <div class="status-card no-deal">
-                    <div class="card-label">미거래</div>
-                    <div class="card-value" id="noDealCount">0</div>
-                </div>
-                <div class="status-card licensed">
-                    <div class="card-label">인허가</div>
-                    <div class="card-value" id="licensedCount">0</div>
-                </div>
-                <div class="status-card drop">
-                    <div class="card-label">DROP</div>
-                    <div class="card-value" id="dropCount">0</div>
-                </div>
-                <div class="status-card construction">
-                    <div class="card-label">공사중</div>
-                    <div class="card-value" id="constructionCount">0</div>
+            <!-- 방문 현황 -->
+            <div class="section">
+                <div class="section-header">📍 방문 현황</div>
+                <div class="status-grid">
+                    <div class="status-card deal">
+                        <div class="label">거래</div>
+                        <div class="value" id="dealCount">0</div>
+                    </div>
+                    <div class="status-card no-deal">
+                        <div class="label">미거래</div>
+                        <div class="value" id="noDealCount">0</div>
+                    </div>
+                    <div class="status-card licensed">
+                        <div class="label">인허가</div>
+                        <div class="value" id="licensedCount">0</div>
+                    </div>
+                    <div class="status-card drop">
+                        <div class="label">DROP</div>
+                        <div class="value" id="dropCount">0</div>
+                    </div>
+                    <div class="status-card construction">
+                        <div class="label">공사중</div>
+                        <div class="value" id="constructionCount">0</div>
+                    </div>
                 </div>
             </div>
-        </section>
 
-        <!-- 순위별 현황 -->
-        <section class="priority-section">
-            <div class="section-header">
-                <h2 class="section-title">순위별 현황</h2>
-                <p class="section-subtitle">우선순위에 따른 업체 분류</p>
-            </div>
-            <div class="priority-cards">
-                <div class="priority-card rank1">
-                    <div class="rank-label">1순위</div>
-                    <div class="rank-value" id="rank1Count">0</div>
-                </div>
-                <div class="priority-card rank2">
-                    <div class="rank-label">2순위</div>
-                    <div class="rank-value" id="rank2Count">0</div>
-                </div>
-                <div class="priority-card rank3">
-                    <div class="rank-label">3순위</div>
-                    <div class="rank-value" id="rank3Count">0</div>
+            <!-- 순위별 현황 -->
+            <div class="section">
+                <div class="section-header">🎯 순위별 현황</div>
+                <div class="priority-grid">
+                    <div class="priority-card rank1">
+                        <div class="label">1순위</div>
+                        <div class="value" id="rank1Count">0</div>
+                    </div>
+                    <div class="priority-card rank2">
+                        <div class="label">2순위</div>
+                        <div class="value" id="rank2Count">0</div>
+                    </div>
+                    <div class="priority-card rank3">
+                        <div class="label">3순위</div>
+                        <div class="value" id="rank3Count">0</div>
+                    </div>
                 </div>
             </div>
-        </section>
 
-        <!-- 지역별 & 담당자별 현황 (드롭다운) -->
-        <section class="dropdown-section">
-            <div class="dropdown-grid">
+            <!-- 지역별 현황 -->
+            <div class="section">
                 <div class="dropdown-card" id="regionDropdown">
                     <div class="dropdown-header" onclick="toggleDropdown('regionDropdown')">
-                        <h3>🗺️ 지역별 현황</h3>
+                        <h4>🗺️ 지역별 현황</h4>
                         <span class="dropdown-arrow">▼</span>
                     </div>
                     <div class="dropdown-content">
-                        <div class="dropdown-list" id="regionList">
-                            <!-- 동적 생성 -->
-                        </div>
+                        <div class="dropdown-list" id="regionList"></div>
                     </div>
                 </div>
+
                 <div class="dropdown-card" id="managerDropdown">
                     <div class="dropdown-header" onclick="toggleDropdown('managerDropdown')">
-                        <h3>👥 담당자별 현황</h3>
+                        <h4>👥 담당자별 현황</h4>
                         <span class="dropdown-arrow">▼</span>
                     </div>
                     <div class="dropdown-content">
-                        <div class="dropdown-list" id="managerList">
-                            <!-- 동적 생성 -->
-                        </div>
+                        <div class="dropdown-list" id="managerList"></div>
                     </div>
                 </div>
             </div>
-        </section>
 
-        <!-- 주간 추이 -->
-        <section class="chart-section">
-            <div class="section-header">
-                <h2 class="section-title">주간 추이</h2>
-                <p class="section-subtitle">최근 일주일간 신규 인허가 현황</p>
-            </div>
-            <div class="chart-container">
-                <div class="chart-wrapper">
-                    <canvas id="weeklyChart"></canvas>
-                </div>
-            </div>
-        </section>
-
-        <!-- 지도 -->
-        <section class="map-section">
-            <div class="section-header">
-                <h2 class="section-title">위치 지도</h2>
-                <p class="section-subtitle">인허가 업체 위치 확인</p>
-            </div>
-            <div class="map-wrapper">
-                <div id="map"></div>
-                <div class="map-controls">
-                    <div class="filter-label">순위 필터</div>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active" data-filter="all">전체</button>
-                        <button class="filter-btn" data-filter="1순위">1순위</button>
-                        <button class="filter-btn" data-filter="2순위">2순위</button>
-                        <button class="filter-btn" data-filter="3순위">3순위</button>
+            <!-- 주간 추이 -->
+            <div class="section">
+                <div class="section-header">📈 주간 추이</div>
+                <div class="chart-card">
+                    <div class="chart-wrapper">
+                        <canvas id="weeklyChart"></canvas>
                     </div>
                 </div>
             </div>
-        </section>
-    </main>
+        </div>
+
+        <!-- 우측 지도 -->
+        <div class="map-area">
+            <div id="map"></div>
+            <div class="map-controls">
+                <div class="filter-label">순위 필터</div>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all">전체</button>
+                    <button class="filter-btn" data-filter="1순위">1순위</button>
+                    <button class="filter-btn" data-filter="2순위">2순위</button>
+                    <button class="filter-btn" data-filter="3순위">3순위</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- RAW 파일 업로드 모달 -->
     <div class="modal" id="uploadModal">
@@ -813,19 +731,17 @@
             setupUploadZones();
             setupFilters();
 
-            // 카카오 지도 로드
             if (typeof kakao !== 'undefined' && kakao.maps) {
                 kakao.maps.load(function () {
                     console.log('카카오 지도 SDK 로드 완료');
                     initKakaoMap();
                 });
             } else {
-                console.error('카카오 지도 SDK를 불러올 수 없습니다. 도메인 등록을 확인해주세요.');
+                console.error('카카오 지도 SDK를 불러올 수 없습니다.');
             }
 
-            // Google Sheets 데이터 로드
             if (SHEETS_CONFIG.apiKey.startsWith('AIza') === false) {
-                showAlert('alert1', 'info', 'ℹ️ Google Sheets API 키를 올바르게 설정해주세요 (AIza...)');
+                showAlert('alert1', 'info', 'ℹ️ Google Sheets API 키를 설정해주세요');
             } else {
                 loadDataFromSheets();
             }
@@ -834,35 +750,31 @@
         };
 
         // ============================================================
-        // 드롭다운 토글
+        // 드롭다운
         // ============================================================
 
         function toggleDropdown(id) {
-            const card = document.getElementById(id);
-            card.classList.toggle('open');
+            document.getElementById(id).classList.toggle('open');
         }
 
         // ============================================================
-        // 카카오 지도 초기화
+        // 카카오 지도
         // ============================================================
 
         function initKakaoMap() {
             try {
-                console.log('카카오 지도 초기화 시작');
                 const container = document.getElementById('map');
-                const options = {
+                kakaoMap = new kakao.maps.Map(container, {
                     center: new kakao.maps.LatLng(37.5, 127.3),
                     level: 9
-                };
-                kakaoMap = new kakao.maps.Map(container, options);
-                console.log('카카오 지도 초기화 완료');
+                });
             } catch (error) {
-                console.error('카카오 지도 오류:', error);
+                console.error('지도 오류:', error);
             }
         }
 
         // ============================================================
-        // 차트 초기화
+        // 차트
         // ============================================================
 
         let weeklyChart;
@@ -874,55 +786,40 @@
                 data: {
                     labels: ['월', '화', '수', '목', '금', '토', '일'],
                     datasets: [{
-                        label: '신규 인허가',
+                        label: '신규',
                         data: [12, 19, 15, 25, 22, 8, 5],
                         borderColor: '#0071e3',
                         backgroundColor: 'rgba(0, 113, 227, 0.1)',
                         fill: true,
                         tension: 0.4,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#0071e3',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 5
+                        borderWidth: 2,
+                        pointRadius: 3
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
+                        y: { display: false },
+                        x: { grid: { display: false }, ticks: { font: { size: 10 } } }
                     }
                 }
             });
         }
 
         // ============================================================
-        // Google Sheets 데이터 로드
+        // 데이터 로드
         // ============================================================
 
         async function loadDataFromSheets() {
             try {
-                console.log('Google Sheets 로드 시작');
                 const url = 'https://sheets.googleapis.com/v4/spreadsheets/' +
                     SHEETS_CONFIG.spreadsheetId + '/values/' +
                     SHEETS_CONFIG.range + '?key=' + SHEETS_CONFIG.apiKey;
 
                 const response = await fetch(url);
-
-                if (!response.ok) {
-                    console.error('API 응답 오류:', response.status);
-                    return;
-                }
+                if (!response.ok) return;
 
                 const data = await response.json();
                 if (data.values && data.values.length > 1) {
@@ -932,12 +829,11 @@
                         headers.forEach((h, i) => { obj[h] = row[i] || ''; });
                         return obj;
                     });
-                    console.log('로드된 데이터:', allData.length);
                     updateDashboard();
                     updateMap();
                 }
             } catch (error) {
-                console.error('시트 로드 오류:', error);
+                console.error('로드 오류:', error);
             }
         }
 
@@ -946,46 +842,35 @@
         // ============================================================
 
         function updateDashboard() {
-            // 방문 현황 카운트 (예시: 실제 데이터에 맞게 수정 필요)
             document.getElementById('dealCount').textContent = allData.filter(d => d['상태'] === '거래').length || 0;
             document.getElementById('noDealCount').textContent = allData.filter(d => d['상태'] === '미거래').length || 0;
             document.getElementById('licensedCount').textContent = allData.length || 0;
             document.getElementById('dropCount').textContent = allData.filter(d => d['상태'] === 'DROP').length || 0;
             document.getElementById('constructionCount').textContent = allData.filter(d => d['상태'] === '공사중').length || 0;
 
-            // 순위별 카운트
             document.getElementById('rank1Count').textContent = allData.filter(d => d['순위'] === '1순위').length || 0;
             document.getElementById('rank2Count').textContent = allData.filter(d => d['순위'] === '2순위').length || 0;
             document.getElementById('rank3Count').textContent = allData.filter(d => d['순위'] === '3순위').length || 0;
 
-            // 지역별
             const regionCounts = {};
             allData.forEach(item => {
                 const region = item['주소2'] || '기타';
                 regionCounts[region] = (regionCounts[region] || 0) + 1;
             });
 
-            const regionList = document.getElementById('regionList');
-            regionList.innerHTML = Object.entries(regionCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 8)
-                .map(([region, count]) =>
-                    '<div class="dropdown-item"><span class="dropdown-item-name">' + region + '</span><span class="dropdown-item-count">' + count + '건</span></div>'
-                ).join('');
+            document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
+                .sort((a, b) => b[1] - a[1]).slice(0, 6)
+                .map(([r, c]) => '<div class="dropdown-item"><span class="dropdown-item-name">' + r + '</span><span class="dropdown-item-count">' + c + '건</span></div>').join('');
 
-            // 담당자별
             const managerCounts = {};
             allData.forEach(item => {
-                const manager = item['담당자'] || '미지정';
-                managerCounts[manager] = (managerCounts[manager] || 0) + 1;
+                const m = item['담당자'] || '미지정';
+                managerCounts[m] = (managerCounts[m] || 0) + 1;
             });
 
-            const managerList = document.getElementById('managerList');
-            managerList.innerHTML = Object.entries(managerCounts)
+            document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
                 .sort((a, b) => b[1] - a[1])
-                .map(([manager, count]) =>
-                    '<div class="dropdown-item"><span class="dropdown-item-name">' + manager + '</span><span class="dropdown-item-count">' + count + '건</span></div>'
-                ).join('');
+                .map(([m, c]) => '<div class="dropdown-item"><span class="dropdown-item-name">' + m + '</span><span class="dropdown-item-count">' + c + '건</span></div>').join('');
         }
 
         // ============================================================
@@ -993,45 +878,33 @@
         // ============================================================
 
         function updateMap() {
-            if (!kakaoMap) {
-                console.log('지도가 초기화되지 않았습니다');
-                return;
-            }
+            if (!kakaoMap) return;
 
             markers.forEach(m => m.setMap(null));
             markers = [];
 
-            let filtered = allData;
-            if (currentFilter !== 'all') {
-                filtered = allData.filter(d => d['순위'] === currentFilter);
-            }
+            let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
 
             filtered.forEach(item => {
                 if (!item['위도'] || !item['경도']) return;
 
                 try {
-                    const position = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
+                    const pos = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
+                    const color = item['순위'] === '1순위' ? '#ff3b30' : item['순위'] === '2순위' ? '#ff9500' : '#86868b';
 
-                    let markerColor = item['순위'] === '1순위' ? '#ff3b30' : item['순위'] === '2순위' ? '#ff9500' : '#86868b';
-
-                    const content = '<div style="background: ' + markerColor + '; color: white; padding: 6px 12px; border-radius: 980px; font-size: 12px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.2); white-space: nowrap;">' + item['사업장명'] + '</div>';
-
-                    const customOverlay = new kakao.maps.CustomOverlay({
-                        position: position,
-                        content: content,
+                    const overlay = new kakao.maps.CustomOverlay({
+                        position: pos,
+                        content: '<div style="background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2)">' + item['사업장명'] + '</div>',
                         yAnchor: 1
                     });
-                    customOverlay.setMap(kakaoMap);
-
-                    markers.push(customOverlay);
-                } catch (error) {
-                    console.error('마커 생성 오류:', error);
-                }
+                    overlay.setMap(kakaoMap);
+                    markers.push(overlay);
+                } catch (e) { }
             });
         }
 
         // ============================================================
-        // 필터 설정
+        // 필터
         // ============================================================
 
         function setupFilters() {
@@ -1046,7 +919,7 @@
         }
 
         // ============================================================
-        // 모달 함수
+        // 모달
         // ============================================================
 
         function openUploadModal() { document.getElementById('uploadModal').classList.add('active'); }
@@ -1055,7 +928,7 @@
         function closeFinalUploadModal() { document.getElementById('finalUploadModal').classList.remove('active'); }
 
         // ============================================================
-        // 업로드 존 설정
+        // 업로드
         // ============================================================
 
         function setupUploadZones() {
@@ -1066,15 +939,10 @@
         function setupUploadZone(zoneId, inputId, handler) {
             const zone = document.getElementById(zoneId);
             const input = document.getElementById(inputId);
-
             zone.onclick = () => input.click();
             zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
             zone.ondragleave = () => zone.classList.remove('dragover');
-            zone.ondrop = (e) => {
-                e.preventDefault();
-                zone.classList.remove('dragover');
-                if (e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]);
-            };
+            zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]); };
             input.onchange = (e) => { if (e.target.files[0]) handler(e.target.files[0]); };
         }
 
@@ -1084,13 +952,12 @@
             reader.onload = function (e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const rawData = XLSX.utils.sheet_to_json(firstSheet);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
                     processData(rawData);
-                } catch (error) {
+                } catch (err) {
                     document.getElementById('loading1').classList.remove('active');
-                    showAlert('alert1', 'error', '❌ 파일 읽기 오류: ' + error.message);
+                    showAlert('alert1', 'error', '❌ 오류: ' + err.message);
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -1099,36 +966,34 @@
         function processData(rawData) {
             processedData = [];
             const blacklist = ['편의점', 'GS25', 'CU', 'PC'];
-            const managerMap = { '남양주시': '이도현', '구리시': '이도현', '미추홀구': '김지훈' };
+            const managerMap = { '남양주시': '이도현', '구리시': '이도현' };
 
             rawData.forEach(row => {
-                const 사업장명 = row['사업장명'] || '';
-                if (blacklist.some(kw => 사업장명.includes(kw))) return;
+                const name = row['사업장명'] || '';
+                if (blacklist.some(kw => name.includes(kw))) return;
 
-                let 업태 = row['업태구분명'] || '';
-                if (['커피숍', '제과점영업'].includes(업태)) 업태 = '카페/베이커리';
+                let type = row['업태구분명'] || '';
+                if (['커피숍', '제과점영업'].includes(type)) type = '카페/베이커리';
 
-                const 면적 = parseFloat(row['소재지면적'] || 0);
-                const 실평수 = (면적 / 3.3).toFixed(1);
+                const area = parseFloat(row['소재지면적'] || 0);
+                const pyeong = (area / 3.3).toFixed(1);
 
-                let 순위 = '3순위';
-                if (실평수 >= 30 || 실평수 == 0) 순위 = '1순위';
-                else if (실평수 >= 10) 순위 = '2순위';
+                let rank = '3순위';
+                if (pyeong >= 30 || pyeong == 0) rank = '1순위';
+                else if (pyeong >= 10) rank = '2순위';
 
-                const 주소 = row['지번주소'] || '';
-                const tokens = 주소.split(' ');
-                const 주소2 = tokens[1] || '';
-                const 담당자 = managerMap[주소2] || '미지정';
+                const addr = row['지번주소'] || '';
+                const addr2 = addr.split(' ')[1] || '';
 
                 processedData.push({
                     '인허가일자': row['인허가일자'] || '',
-                    '사업장명': 사업장명,
-                    '업태구분명': 업태,
-                    '실평수': 실평수,
-                    '도로명주소': row['도로명전체주소'] || 주소,
-                    '주소2': 주소2,
-                    '순위': 순위,
-                    '담당자': 담당자,
+                    '사업장명': name,
+                    '업태구분명': type,
+                    '실평수': pyeong,
+                    '도로명주소': row['도로명전체주소'] || addr,
+                    '주소2': addr2,
+                    '순위': rank,
+                    '담당자': managerMap[addr2] || '미지정',
                     '위도': row['좌표정보(Y)'] || '',
                     '경도': row['좌표정보(X)'] || ''
                 });
@@ -1136,7 +1001,7 @@
 
             document.getElementById('loading1').classList.remove('active');
             document.getElementById('downloadBtn').disabled = false;
-            showAlert('alert1', 'success', '✅ ' + processedData.length + '건 가공 완료!');
+            showAlert('alert1', 'success', '✅ ' + processedData.length + '건 완료');
         }
 
         document.getElementById('downloadBtn').onclick = function () {
@@ -1144,7 +1009,6 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "가공데이터");
             XLSX.writeFile(wb, '인허가_1차가공_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-            showAlert('alert1', 'success', '✅ 다운로드 완료!');
         };
 
         function handleFinalFile(file) {
@@ -1153,13 +1017,12 @@
             reader.onload = async function (e) {
                 try {
                     const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                    const finalData = XLSX.utils.sheet_to_json(firstSheet);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const finalData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
                     await uploadToSheets(finalData);
-                } catch (error) {
+                } catch (err) {
                     document.getElementById('loading2').classList.remove('active');
-                    showAlert('alert2', 'error', '❌ 파일 읽기 오류: ' + error.message);
+                    showAlert('alert2', 'error', '❌ 오류: ' + err.message);
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -1167,23 +1030,19 @@
 
         async function uploadToSheets(data) {
             try {
-                await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({ action: 'upload', data: data })
-                });
+                await fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'upload', data: data }) });
                 document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'success', '✅ 업로드 완료!');
+                showAlert('alert2', 'success', '✅ 업로드 완료');
                 closeFinalUploadModal();
                 setTimeout(loadDataFromSheets, 2000);
-            } catch (error) {
+            } catch (err) {
                 document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'error', '❌ 업로드 실패: ' + error.message);
+                showAlert('alert2', 'error', '❌ 실패: ' + err.message);
             }
         }
 
-        function showAlert(id, type, message) {
-            document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + message + '</div>';
+        function showAlert(id, type, msg) {
+            document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
             setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
         }
     </script>
