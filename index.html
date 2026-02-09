@@ -1227,8 +1227,17 @@
             XLSX.writeFile(wb, '인허가_1차가공_' + new Date().toISOString().slice(0, 10) + '.xlsx');
         };
 
-        function handleFinalFile(file) {
+        function handleFinalFile(files) {
             document.getElementById('loading2').classList.add('active');
+
+            // FileList에서 첫 번째 파일 추출
+            const file = files[0];
+            if (!file) {
+                document.getElementById('loading2').classList.remove('active');
+                showAlert('alert2', 'error', '❌ 파일을 선택해주세요');
+                return;
+            }
+
             const reader = new FileReader();
             reader.onload = async function (e) {
                 try {
