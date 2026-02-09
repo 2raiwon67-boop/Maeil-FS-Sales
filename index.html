@@ -653,6 +653,9 @@
                     <button class="filter-btn" data-filter="2" onclick="setFilter('2')">2순위</button>
                     <button class="filter-btn" data-filter="3" onclick="setFilter('3')">3순위</button>
                 </div>
+                <button onclick="resetFilters()"
+                    style="margin-top: 10px; width: 100%; padding: 8px; background: #ff3b30; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄
+                    모든 필터 초기화</button>
             </div>
         </div>
     </div>
@@ -724,6 +727,8 @@
         let kakaoMap;
         let markers = [];
         let currentFilter = 'all';
+        let currentRegion = null;
+        let currentManager = null;
 
         // ============================================================
         // 초기화
@@ -751,6 +756,7 @@
         // 드롭다운
         // ============================================================
 
+
         function toggleDropdown(id) {
             document.getElementById(id).classList.toggle('open');
         }
@@ -771,6 +777,47 @@
             });
 
             // 대시보드 및 지도 업데이트
+            updateDashboard();
+            updateMap();
+        }
+
+        function setRegionFilter(region) {
+            // 같은 지역 클릭 시 필터 해제
+            if (currentRegion === region) {
+                currentRegion = null;
+            } else {
+                currentRegion = region;
+            }
+
+            updateDashboard();
+            updateMap();
+        }
+
+        function setManagerFilter(manager) {
+            // 같은 담당자 클릭 시 필터 해제
+            if (currentManager === manager) {
+                currentManager = null;
+            } else {
+                currentManager = manager;
+            }
+
+            updateDashboard();
+            updateMap();
+        }
+
+        function resetFilters() {
+            currentFilter = 'all';
+            currentRegion = null;
+            currentManager = null;
+
+            // 순위 필터 버튼 초기화
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-filter') === 'all') {
+                    btn.classList.add('active');
+                }
+            });
+
             updateDashboard();
             updateMap();
         }
@@ -992,8 +1039,23 @@
         // ============================================================
 
         function updateDashboard() {
-            // 필터링된 데이터
-            const filteredData = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
+            // 다중 필터링 적용
+            let filteredData = allData;
+
+            // 순위 필터
+            if (currentFilter !== 'all') {
+                filteredData = filteredData.filter(d => d['순위'] === currentFilter);
+            }
+
+            // 지역 필터
+            if (currentRegion) {
+                filteredData = filteredData.filter(d => (d['주소2'] || '기타') === currentRegion);
+            }
+
+            // 담당자 필터
+            if (currentManager) {
+                filteredData = filteredData.filter(d => (d['담당자'] || '미지정') === currentManager);
+            }
 
             // 실제 Google Sheets 컬럼명 사용
             document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
@@ -1015,7 +1077,10 @@
 
             document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
                 .sort((a, b) => b[1] - a[1]).slice(0, 6)
-                .map(([r, c]) => '<div class="dropdown-item"><span class="dropdown-item-name">' + r + '</span><span class="dropdown-item-count">' + c + '건</span></div>').join('');
+                .map(([r, c]) => {
+                    const isActive = currentRegion === r ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
+                    return `<div class="dropdown-item" onclick="setRegionFilter('${r}')"${isActive}><span class="dropdown-item-name">${r}</span><span class="dropdown-item-count">${c}건</span></div>`;
+                }).join('');
 
             const managerCounts = {};
             filteredData.forEach(item => {
@@ -1025,7 +1090,10 @@
 
             document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
                 .sort((a, b) => b[1] - a[1])
-                .map(([m, c]) => '<div class="dropdown-item"><span class="dropdown-item-name">' + m + '</span><span class="dropdown-item-count">' + c + '건</span></div>').join('');
+                .map(([m, c]) => {
+                    const isActive = currentManager === m ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
+                    return `<div class="dropdown-item" onclick="setManagerFilter('${m}')"${isActive}><span class="dropdown-item-name">${m}</span><span class="dropdown-item-count">${c}건</span></div>`;
+                }).join('');
 
             updateChart();
         }
