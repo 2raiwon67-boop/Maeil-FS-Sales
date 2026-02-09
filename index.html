@@ -850,11 +850,12 @@
         // ============================================================
 
         function updateDashboard() {
-            document.getElementById('dealCount').textContent = allData.filter(d => d['상태'] === '거래').length || 0;
-            document.getElementById('noDealCount').textContent = allData.filter(d => d['상태'] === '미거래').length || 0;
+            // 실제 Google Sheets 컬럼명 사용
+            document.getElementById('dealCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
+            document.getElementById('noDealCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
             document.getElementById('licensedCount').textContent = allData.length || 0;
-            document.getElementById('dropCount').textContent = allData.filter(d => d['상태'] === 'DROP').length || 0;
-            document.getElementById('constructionCount').textContent = allData.filter(d => d['상태'] === '공사중').length || 0;
+            document.getElementById('dropCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
+            document.getElementById('constructionCount').textContent = allData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
 
             document.getElementById('rank1Count').textContent = allData.filter(d => d['순위'] === '1순위').length || 0;
             document.getElementById('rank2Count').textContent = allData.filter(d => d['순위'] === '2순위').length || 0;
