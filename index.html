@@ -608,18 +608,8 @@
                 </div>
             </div>
 
-            <!-- 지역별 현황 -->
+            <!-- 담당자별 현황 -->
             <div class="section">
-                <div class="dropdown-card" id="regionDropdown">
-                    <div class="dropdown-header" onclick="toggleDropdown('regionDropdown')">
-                        <h4>🗺️ 지역별 현황</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="regionList"></div>
-                    </div>
-                </div>
-
                 <div class="dropdown-card" id="managerDropdown">
                     <div class="dropdown-header" onclick="toggleDropdown('managerDropdown')">
                         <h4>👥 담당자별 현황</h4>
@@ -627,6 +617,16 @@
                     </div>
                     <div class="dropdown-content">
                         <div class="dropdown-list" id="managerList"></div>
+                    </div>
+                </div>
+
+                <div class="dropdown-card" id="regionDropdown">
+                    <div class="dropdown-header" onclick="toggleDropdown('regionDropdown')">
+                        <h4>🗺️ 지역별 현황</h4>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-list" id="regionList"></div>
                     </div>
                 </div>
             </div>
@@ -654,7 +654,7 @@
                     <button class="filter-btn" data-filter="3" onclick="setFilter('3')">3순위</button>
                 </div>
                 <button onclick="resetFilters()"
-                    style="margin-top: 10px; width: 100%; padding: 8px; background: #ff3b30; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄
+                    style="margin-top: 10px; width: 100%; padding: 8px; background: #000; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄
                     모든 필터 초기화</button>
             </div>
         </div>
