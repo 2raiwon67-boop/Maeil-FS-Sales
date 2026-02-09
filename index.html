@@ -743,12 +743,7 @@
                 console.error('카카오 지도 SDK를 불러올 수 없습니다.');
             }
 
-            if (SHEETS_CONFIG.apiKey.startsWith('AIza') === false) {
-                showAlert('alert1', 'info', 'ℹ️ Google Sheets API 키를 설정해주세요');
-            } else {
-                loadDataFromSheets();
-            }
-
+            loadDataFromSheets();
             initChart();
         };
 
@@ -817,26 +812,36 @@
 
         async function loadDataFromSheets() {
             try {
-                const url = 'https://sheets.googleapis.com/v4/spreadsheets/' +
-                    SHEETS_CONFIG.spreadsheetId + '/values/' +
-                    SHEETS_CONFIG.range + '?key=' + SHEETS_CONFIG.apiKey;
+                // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
 
-                const response = await fetch(url);
-                if (!response.ok) return;
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
+                    return;
+                }
 
-                const data = await response.json();
-                if (data.values && data.values.length > 1) {
-                    const headers = data.values[0];
-                    allData = data.values.slice(1).map(row => {
-                        const obj = {};
-                        headers.forEach((h, i) => { obj[h] = row[i] || ''; });
-                        return obj;
-                    });
+                const csvText = await response.text();
+                const lines = csvText.split('\n');
+
+                if (lines.length > 1) {
+                    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                    allData = lines.slice(1)
+                        .filter(line => line.trim())
+                        .map(line => {
+                            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+                            const obj = {};
+                            headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+                            return obj;
+                        });
+
+                    console.log(`Google Sheets 로드 완료: ${allData.length}건`);
                     updateDashboard();
                     updateMap();
                 }
             } catch (error) {
-                console.error('로드 오류:', error);
+                console.warn('Google Sheets 로드 실패:', error.message);
+                console.log('대시보드는 최종본 업로드 후 표시됩니다');
             }
         }
 
