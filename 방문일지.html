@@ -1033,20 +1033,22 @@
                 const normalizedName = normalize(accountName); // 비교용 이름
                 const status = (log['거래상태'] || '').trim();
 
-                // 3. 타입 판별 및 유효성 검사 (Strict Filtering)
+                // 3. 타입 판별 및 유효성 검사
                 let type = null;
                 if (accountNames.has(normalizedName)) type = 'major';
                 else if (licenseNames.has(normalizedName)) type = 'license';
 
-                // [중요] 목록에 없는 거래처는 제외 (사용자 요청)
-                if (!type) {
-                    return;
-                }
+                // [긴급 수정] 엄격한 필터링 잠시 해제 (디버깅용)
+                // if (!type) {
+                //    // console.log(`제외됨: ${accountName} (norm: ${normalizedName})`);
+                //    return;
+                // }
+                if (!type) type = 'other'; // 매칭 안 되면 기타로 분류
 
                 if (!grouped[accountName]) {
                     grouped[accountName] = {
                         accountName: accountName,
-                        type: type, // major, license
+                        type: type, // major, license, other
                         manager: log['작성자'] || '-',
                         // dealer: log['방문처(대리점)'] || '-', // 대리점 정보 제외
                         status: status || '-',
@@ -1098,7 +1100,14 @@
             });
 
             console.log(`거래처 그룹화 완료: ${groupedAccounts.length}개 거래처`);
-            console.log(`- 타입 분포: Major=${groupedAccounts.filter(a => a.type === 'major').length}, License=${groupedAccounts.filter(a => a.type === 'license').length}`);
+            console.log(`- 타입 분포: Major=${groupedAccounts.filter(a => a.type === 'major').length}, License=${groupedAccounts.filter(a => a.type === 'license').length}, Other=${groupedAccounts.filter(a => a.type === 'other').length}`);
+
+            // 디버깅: 매칭되지 않은 상위 5개 출력
+            const others = groupedAccounts.filter(a => a.type === 'other').slice(0, 5);
+            if (others.length > 0) {
+                console.log('매칭되지 않은 거래처 예시:', others.map(a => a.accountName));
+                console.log('-> 정규화된 이름:', others.map(a => normalize(a.accountName)));
+            }
         }
 
         async function loadAccounts() {
