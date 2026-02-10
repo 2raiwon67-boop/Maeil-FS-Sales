@@ -1492,7 +1492,32 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const wb = XLSX.read(data, { type: 'array' });
-                    const finalData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    // [수정] 데이터 읽기 (빈 셀은 빈 문자열로 처리)
+                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
+
+                    // 1. 데이터 정제 (헤더/값 공백 제거)
+                    const cleanedData = rawData.map(row => {
+                        const newRow = {};
+                        Object.keys(row).forEach(key => {
+                            const cleanKey = key.trim(); // 헤더 공백 제거
+                            let value = row[key];
+                            if (typeof value === 'string') value = value.trim(); // 값 공백 제거
+                            newRow[cleanKey] = value;
+                        });
+                        return newRow;
+                    });
+
+                    // 2. 1순위 필터링
+                    const finalData = cleanedData.filter(row => String(row['순위']) === '1');
+
+                    console.log(`전체 ${cleanedData.length}건 중 1순위 ${finalData.length}건 추출`);
+
+                    if (finalData.length === 0) {
+                        document.getElementById('loading2').classList.remove('active');
+                        showAlert('alert2', 'error', '❌ 업로드할 1순위 데이터가 없습니다.<br>(순위 컬럼을 확인해주세요)');
+                        return;
+                    }
+
                     await uploadToSheets(finalData);
                 } catch (err) {
                     document.getElementById('loading2').classList.remove('active');
