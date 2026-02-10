@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="origin">
+    <title>경기북부 FS 방문일지</title>
+
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Gemini Chatbot -->
+    <script src="gemini-chatbot.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            color: #1d1d1f;
+            overflow-x: hidden;
+        }
+
+        /* =============== 상단 네비게이션 =============== */
+        .nav-bar {
+            background: #1d1d1f;
+            padding: 0 24px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            font-size: 17px;
+            font-weight: 600;
+            color: #ffffff;
+        }
+
+        .nav-menu {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-link {
+            color: #f5f5f7;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #424245;
+        }
+
+        .nav-link.active {
+            background: #0071e3;
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border: none;
+            border-radius: 980px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: #0071e3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0077ed;
+        }
+
+        .btn-secondary {
+            background: #424245;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #515154;
+        }
+
+        /* =============== 메인 레이아웃 =============== */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            font-size: 15px;
+            color: #86868b;
+        }
+
+        /* =============== 통계 카드 =============== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: #f5f5f7;
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid #0071e3;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+
+        .stat-unit {
+            font-size: 18px;
+            color: #86868b;
+            margin-left: 4px;
+        }
+
+        /* =============== 검색/필터 바 =============== */
+        .filter-bar {
+            background: #f5f5f7;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px 10px 40px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .search-box::before {
+            content: '🔍';
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .filter-select {
+            padding: 10px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: white;
+            cursor: pointer;
+        }
+
+        /* =============== 데이터 테이블 =============== */
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #d2d2d7;
+            overflow: hidden;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table thead {
+            background: #f5f5f7;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .data-table th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #d2d2d7;
+        }
+
+        .data-table td {
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #1d1d1f;
+            border-bottom: 1px solid #f5f5f7;
+        }
+
+        .data-table tbody tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .data-table tbody tr:hover {
+            background: #fafafa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-normal {
+            background: #d1f2eb;
+            color: #0a6847;
+        }
+
+        .status-stopped {
+            background: #fce4e4;
+            color: #b91c1c;
+        }
+
+        .status-closed {
+            background: #e8e8ed;
+            color: #6e6e73;
+        }
+
+        /* =============== 모달 =============== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 32px;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            margin: 20px;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e8e8ed;
+        }
+
+        .modal-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .close-btn {
+            font-size: 28px;
+            cursor: pointer;
+            color: #86868b;
+            transition: color 0.2s;
+            line-height: 1;
+            background: none;
+            border: none;
+        }
+
+        .close-btn:hover {
+            color: #1d1d1f;
+        }
+
+        .detail-section {
+            margin-bottom: 20px;
+        }
+
+        .detail-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .detail-value {
+            font-size: 15px;
+            color: #1d1d1f;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        /* =============== Gemini 챗봇 =============== */
+        .chatbot-fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: transform 0.2s;
+            z-index: 1000;
+        }
+
+        .chatbot-fab:hover {
+            transform: scale(1.1);
+        }
+
+        .chatbot-icon {
+            font-size: 28px;
+        }
+
+        .chatbot-container {
+            position: fixed;
+            bottom: 100px;
+            right: 24px;
+            width: 420px;
+            height: 600px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            display: none;
+            flex-direction: column;
+            z-index: 999;
+        }
+
+        .chatbot-container.active {
+            display: flex;
+        }
+
+        .chatbot-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 16px 16px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chatbot-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chatbot-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            background: #fafafa;
+        }
+
+        .message {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .message.bot .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .message.user .message-avatar {
+            background: #0071e3;
+        }
+
+        .message-content {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            max-width: 70%;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .message.user .message-content {
+            background: #0071e3;
+            color: white;
+        }
+
+        .chatbot-input-container {
+            padding: 16px;
+            border-top: 1px solid #e8e8ed;
+            background: white;
+            border-radius: 0 0 16px 16px;
+        }
+
+        .chatbot-input {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chatbot-input input {
+            flex: 1;
+            padding: 10px 16px;
+            border: 1px solid #d2d2d7;
+            border-radius: 20px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .chatbot-input button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .chatbot-input button:hover {
+            opacity: 0.9;
+        }
+
+        .chatbot-suggestions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-btn {
+            padding: 6px 12px;
+            background: #f5f5f7;
+            border: 1px solid #d2d2d7;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .suggestion-btn:hover {
+            background: #e8e8ed;
+        }
+
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 12px;
+            color: #86868b;
+            font-size: 13px;
+        }
+
+        .loading-indicator.active {
+            display: block;
+        }
+
+        /* =============== 반응형 =============== */
+        @media (max-width: 768px) {
+            .chatbot-container {
+                width: calc(100% - 48px);
+                height: 500px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .filter-row {
+                flex-direction: column;
+            }
+
+            .search-box {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 상단 네비게이션 -->
+    <nav class="nav-bar">
+        <div class="nav-logo">📊 경기북부 FS 통합 대시보드</div>
+        <div class="nav-menu">
+            <a href="대시보드_통합완료.html" class="nav-link">인허가</a>
+            <a href="방문일지.html" class="nav-link active">방문일지</a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn btn-primary" onclick="toggleChatbot()">💬 AI 비서</button>
+        </div>
+    </nav>
+
+    <!-- 메인 컨테이너 -->
+    <div class="main-container">
+        <!-- 페이지 헤더 -->
+        <div class="page-header">
+            <h1 class="page-title">방문일지</h1>
+            <p class="page-subtitle">주요거래처 및 인허가 1순위 방문 기록 관리</p>
+        </div>
+
+        <!-- 통계 카드 -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">오늘</div>
+                <div class="stat-value" id="todayCount">0<span class="stat-unit">건</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">이번 주</div>
+                <div class="stat-value" id="weekCount">0<span class="stat-unit">건</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">이번 달</div>
+                <div class="stat-value" id="monthCount">0<span class="stat-unit">건</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">전체</div>
+                <div class="stat-value" id="totalCount">0<span class="stat-unit">건</span></div>
+            </div>
+        </div>
+
+        <!-- 검색/필터 바 -->
+        <div class="filter-bar">
+            <div class="filter-row">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="거래처명 또는 담당자 검색..." onkeyup="filterData()">
+                </div>
+                <select class="filter-select" id="managerFilter" onchange="filterData()">
+                    <option value="">전체 담당자</option>
+                </select>
+                <select class="filter-select" id="statusFilter" onchange="filterData()">
+                    <option value="">전체 상태</option>
+                    <option value="정상">정상</option>
+                    <option value="중지">중지</option>
+                    <option value="폐업">폐업</option>
+                </select>
+                <select class="filter-select" id="periodFilter" onchange="filterData()">
+                    <option value="all">전체 기간</option>
+                    <option value="today">오늘</option>
+                    <option value="week">이번 주</option>
+                    <option value="month">이번 달</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 데이터 테이블 -->
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>일정기간</th>
+                        <th>담당자</th>
+                        <th>거래처명</th>
+                        <th>대리점</th>
+                        <th>거래상태</th>
+                        <th>주요이슈</th>
+                    </tr>
+                </thead>
+                <tbody id="dataTableBody">
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #86868b;">
+                            데이터를 불러오는 중...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 상세 모달 -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">방문 상세</h2>
+                <button class="close-btn" onclick="closeDetailModal()">&times;</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Gemini 챗봇 -->
+    <div class="chatbot-fab" onclick="toggleChatbot()">
+        <span class="chatbot-icon">🤖</span>
+    </div>
+
+    <div class="chatbot-container" id="chatbotContainer">
+        <div class="chatbot-header">
+            <h3>🤖 FS 영업 비서</h3>
+            <button class="close-btn" onclick="toggleChatbot()" style="color: white;">&times;</button>
+        </div>
+
+        <div class="chatbot-messages" id="chatMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    안녕하세요! 방문일지와 거래처 정보에 대해 무엇이든 물어보세요. 😊
+                </div>
+            </div>
+        </div>
+
+        <div class="loading-indicator" id="chatLoading">
+            AI가 답변을 생성하는 중...
+        </div>
+
+        <div class="chatbot-input-container">
+            <div class="chatbot-input">
+                <input type="text" id="chatInput" placeholder="질문을 입력하세요..." onkeypress="handleChatEnter(event)">
+                <button onclick="sendChatMessage()">전송</button>
+            </div>
+            <div class="chatbot-suggestions">
+                <button class="suggestion-btn" onclick="askQuestion('이도현 담당자 이번 주 방문 일정은?')">
+                    이번 주 방문 일정
+                </button>
+                <button class="suggestion-btn" onclick="askQuestion('남양주시 1순위 미방문 업체는?')">
+                    미방문 업체
+                </button>
+                <button class="suggestion-btn" onclick="askQuestion('이번 달 방문 건수는?')">
+                    이번 달 통계
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // 전역 변수
+        // ============================================================
+
+        let allVisitLogs = [];
+        let filteredData = [];
+        let allAccounts = [];
+        let allLicenses = [];
+
+        const SHEETS_CONFIG = {
+            visitLogs: {
+                id: '1SuOT-Lb61S2vVa-AQdXRE1LYrr8c13Wo',
+                gid: '444575455'
+            },
+            accounts: {
+                id: '115RdNFitLpJQgSFYTKQxU5QE1msutWbZ',
+                gid: '912048257'
+            },
+            licenses: {
+                id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
+                gid: '0'
+            }
+        };
+
+        // ============================================================
+        // 초기화
+        // ============================================================
+
+        window.onload = async function () {
+            console.log('페이지 로드 시작');
+            await loadAllData();
+        };
+
+        // ============================================================
+        // 데이터 로드
+        // ============================================================
+
+        async function loadAllData() {
+            try {
+                console.log('데이터 로드 시작...');
+
+                // 방문일지 로드
+                await loadVisitLogs();
+
+                // 주요거래처 로드 (챗봇용)
+                await loadAccounts();
+
+                // 인허가 데이터 로드 (챗봇용)
+                await loadLicenses();
+
+                // Gemini 챗봇에 컨텍스트 설정
+                geminiBot.setContext(allVisitLogs, allAccounts, allLicenses);
+
+                console.log('모든 데이터 로드 완료');
+
+            } catch (error) {
+                console.error('데이터 로드 실패:', error);
+                document.getElementById('dataTableBody').innerHTML =
+                    '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #ff3b30;">데이터 로드 실패. 페이지를 새로고침해주세요.</td></tr>';
+            }
+        }
+
+        async function loadVisitLogs() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogs.id}/export?format=csv&gid=${SHEETS_CONFIG.visitLogs.gid}`;
+            const response = await fetch(url);
+            const csv = await response.text();
+            allVisitLogs = parseCSV(csv);
+
+            console.log(`방문일지 로드 완료: ${allVisitLogs.length}건`);
+
+            // 담당자 필터 옵션 생성
+            populateManagerFilter();
+
+            // 통계 업데이트
+            updateStatistics();
+
+            // 테이블 렌더링
+            filteredData = [...allVisitLogs];
+            renderTable();
+        }
+
+        async function loadAccounts() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.accounts.id}/export?format=csv&gid=${SHEETS_CONFIG.accounts.gid}`;
+            const response = await fetch(url);
+            const csv = await response.text();
+            allAccounts = parseCSV(csv);
+            console.log(`주요거래처 로드 완료: ${allAccounts.length}건`);
+        }
+
+        async function loadLicenses() {
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.licenses.id}/export?format=csv&gid=${SHEETS_CONFIG.licenses.gid}`;
+                const response = await fetch(url);
+                const csv = await response.text();
+                allLicenses = parseCSV(csv);
+                console.log(`인허가 데이터 로드 완료: ${allLicenses.length}건`);
+            } catch (e) {
+                console.warn('인허가 데이터 로드 실패 (선택사항)');
+                allLicenses = [];
+            }
+        }
+
+        // ============================================================
+        // CSV 파싱
+        // ============================================================
+
+        function parseCSV(text) {
+            const lines = [];
+            let currentLine = [];
+            let currentField = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const nextChar = text[i + 1];
+
+                if (char === '"') {
+                    if (inQuotes && nextChar === '"') {
+                        currentField += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    currentLine.push(currentField.trim());
+                    currentField = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    if (currentField || currentLine.length > 0) {
+                        currentLine.push(currentField.trim());
+                        if (currentLine.some(f => f)) {
+                            lines.push(currentLine);
+                        }
+                        currentLine = [];
+                        currentField = '';
+                    }
+                    if (char === '\r' && nextChar === '\n') {
+                        i++;
+                    }
+                } else {
+                    currentField += char;
+                }
+            }
+
+            if (currentField || currentLine.length > 0) {
+                currentLine.push(currentField.trim());
+                if (currentLine.some(f => f)) {
+                    lines.push(currentLine);
+                }
+            }
+
+            if (lines.length > 1) {
+                const headers = lines[0];
+                return lines.slice(1).map(values => {
+                    const obj = {};
+                    headers.forEach((h, i) => {
+                        obj[h] = values[i] || '';
+                    });
+                    return obj;
+                }).filter(row => row['작성자'] && row['작성자'].trim() !== '');
+            }
+
+            return [];
+        }
+
+        // ============================================================
+        // 통계 업데이트
+        // ============================================================
+
+        function updateStatistics() {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - today.getDay());
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            let todayCount = 0;
+            let weekCount = 0;
+            let monthCount = 0;
+
+            allVisitLogs.forEach(log => {
+                const visitDate = parseVisitDate(log['일정기간']);
+                if (!visitDate) return;
+
+                if (visitDate >= today) todayCount++;
+                if (visitDate >= weekStart) weekCount++;
+                if (visitDate >= monthStart) monthCount++;
+            });
+
+            document.getElementById('todayCount').innerHTML = `${todayCount}<span class="stat-unit">건</span>`;
+            document.getElementById('weekCount').innerHTML = `${weekCount}<span class="stat-unit">건</span>`;
+            document.getElementById('monthCount').innerHTML = `${monthCount}<span class="stat-unit">건</span>`;
+            document.getElementById('totalCount').innerHTML = `${allVisitLogs.length}<span class="stat-unit">건</span>`;
+        }
+
+        function parseVisitDate(dateStr) {
+            if (!dateStr) return null;
+            try {
+                const startDate = dateStr.split('~')[0].trim();
+                return new Date(startDate);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ============================================================
+        // 담당자 필터 옵션 생성
+        // ============================================================
+
+        function populateManagerFilter() {
+            const managers = new Set();
+            allVisitLogs.forEach(log => {
+                if (log['작성자']) managers.add(log['작성자']);
+            });
+
+            const select = document.getElementById('managerFilter');
+            Array.from(managers).sort().forEach(manager => {
+                const option = document.createElement('option');
+                option.value = manager;
+                option.textContent = manager;
+                select.appendChild(option);
+            });
+        }
+
+        // ============================================================
+        // 데이터 필터링
+        // ============================================================
+
+        function filterData() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const managerFilter = document.getElementById('managerFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            const periodFilter = document.getElementById('periodFilter').value;
+
+            filteredData = allVisitLogs.filter(log => {
+                // 검색어 필터
+                if (searchTerm) {
+                    const searchMatch =
+                        (log['방문처(거래처)'] || '').toLowerCase().includes(searchTerm) ||
+                        (log['작성자'] || '').toLowerCase().includes(searchTerm) ||
+                        (log['방문처(대리점)'] || '').toLowerCase().includes(searchTerm);
+                    if (!searchMatch) return false;
+                }
+
+                // 담당자 필터
+                if (managerFilter && log['작성자'] !== managerFilter) return false;
+
+                // 상태 필터
+                if (statusFilter && log['거래상태'] !== statusFilter) return false;
+
+                // 기간 필터
+                if (periodFilter !== 'all') {
+                    const visitDate = parseVisitDate(log['일정기간']);
+                    if (!visitDate) return false;
+
+                    const now = new Date();
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+                    if (periodFilter === 'today' && visitDate < today) return false;
+
+                    if (periodFilter === 'week') {
+                        const weekStart = new Date(today);
+                        weekStart.setDate(today.getDate() - today.getDay());
+                        if (visitDate < weekStart) return false;
+                    }
+
+                    if (periodFilter === 'month') {
+                        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                        if (visitDate < monthStart) return false;
+                    }
+                }
+
+                return true;
+            });
+
+            renderTable();
+        }
+
+        // ============================================================
+        // 테이블 렌더링
+        // ============================================================
+
+        function renderTable() {
+            const tbody = document.getElementById('dataTableBody');
+
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #86868b;">검색 결과가 없습니다.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filteredData.map((log, index) => {
+                const period = formatPeriod(log['일정기간']);
+                const manager = log['작성자'] || '-';
+                const account = log['방문처(거래처)'] || '-';
+                const dealer = log['방문처(대리점)'] || '-';
+                const status = log['거래상태'] || '-';
+                const issue = log['주요이슈'] === 'Y' ? '⚠️' : '';
+
+                const statusClass =
+                    status === '정상' ? 'status-normal' :
+                        status === '중지' ? 'status-stopped' :
+                            status === '폐업' ? 'status-closed' : '';
+
+                return `
+                    <tr onclick="showDetail(${index})">
+                        <td>${period}</td>
+                        <td>${manager}</td>
+                        <td>${account}</td>
+                        <td>${dealer}</td>
+                        <td><span class="status-badge ${statusClass}">${status}</span></td>
+                        <td style="text-align: center;">${issue}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function formatPeriod(periodStr) {
+            if (!periodStr) return '-';
+            try {
+                const start = periodStr.split('~')[0].trim();
+                const date = new Date(start);
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                return `${month}/${day} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+            } catch (e) {
+                return periodStr;
+            }
+        }
+
+        // ============================================================
+        // 상세 모달
+        // ============================================================
+
+        function showDetail(index) {
+            const log = filteredData[index];
+            const modal = document.getElementById('detailModal');
+            const modalBody = document.getElementById('modalBody');
+
+            document.getElementById('modalTitle').textContent = log['일정명'] || '방문 상세';
+
+            modalBody.innerHTML = `
+                <div class="detail-section">
+                    <div class="detail-label">일정 기간</div>
+                    <div class="detail-value">${log['일정기간'] || '-'}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">작성자 / 참여자</div>
+                    <div class="detail-value">${log['작성자'] || '-'} ${log['참여자'] ? '/ ' + log['참여자'] : ''}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">방문처</div>
+                    <div class="detail-value">
+                        ${log['방문처(거래처)'] || '-'}<br>
+                        <small style="color: #86868b;">${log['방문처(대리점)'] || ''}</small>
+                    </div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">거래 상태</div>
+                    <div class="detail-value">${log['거래상태'] || '-'}</div>
+                </div>
+                <div class="detail-section">
+                    <div class="detail-label">방문 내용</div>
+                    <div class="detail-value">${log['내용'] || '-'}</div>
+                </div>
+                ${log['TO-DO'] ? `
+                <div class="detail-section">
+                    <div class="detail-label">TO-DO</div>
+                    <div class="detail-value">${log['TO-DO']}</div>
+                </div>
+                ` : ''}
+                ${log['다음방문일'] ? `
+                <div class="detail-section">
+                    <div class="detail-label">다음 방문 예정일</div>
+                    <div class="detail-value">${log['다음방문일']}</div>
+                </div>
+                ` : ''}
+                ${log['사용품목'] ? `
+                <div class="detail-section">
+                    <div class="detail-label">사용 품목</div>
+                    <div class="detail-value">${log['사용품목']}</div>
+                </div>
+                ` : ''}
+            `;
+
+            modal.classList.add('active');
+        }
+
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+
+        // ============================================================
+        // Gemini 챗봇
+        // ============================================================
+
+        function toggleChatbot() {
+            const container = document.getElementById('chatbotContainer');
+            container.classList.toggle('active');
+
+            if (container.classList.contains('active')) {
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        function handleChatEnter(event) {
+            if (event.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const question = input.value.trim();
+
+            if (!question) return;
+
+            // 사용자 메시지 추가
+            addChatMessage(question, 'user');
+            input.value = '';
+
+            // 로딩 표시
+            document.getElementById('chatLoading').classList.add('active');
+
+            try {
+                // Gemini API 호출
+                const answer = await geminiBot.ask(question);
+
+                // 로딩 숨김
+                document.getElementById('chatLoading').classList.remove('active');
+
+                // AI 응답 추가
+                addChatMessage(answer, 'bot');
+
+            } catch (error) {
+                document.getElementById('chatLoading').classList.remove('active');
+                addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
+            }
+        }
+
+        function askQuestion(question) {
+            document.getElementById('chatInput').value = question;
+            sendChatMessage();
+        }
+
+        function addChatMessage(text, type) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const avatar = type === 'bot' ? '🤖' : '👤';
+
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${avatar}</div>
+                <div class="message-content">${text}</div>
+            `;
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    </script>
+</body>
+
+</html>
