@@ -1477,14 +1477,55 @@
 
         async function uploadToSheets(data) {
             try {
-                await fetch(APPS_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ action: 'upload', data: data }) });
+                // 데이터 검증
+                if (!data || data.length === 0) {
+                    throw new Error('업로드할 데이터가 없습니다');
+                }
+
+                // Apps Script로 전송
+                await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ action: 'upload', data: data })
+                });
+
+                // 성공 메시지
                 document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'success', '✅ 업로드 완료');
+                showAlert('alert2', 'success',
+                    '✅ 업로드에 성공하였습니다!<br><br>' +
+                    `<strong>${data.length}건</strong>의 데이터가 Google Sheets에 저장되었습니다.<br>` +
+                    '<small>※ D+14 대상이 있으면 자동으로 이메일이 발송됩니다.</small>'
+                );
+
                 closeFinalUploadModal();
+
+                // 2초 후 대시보드 새로고침
                 setTimeout(loadDataFromSheets, 2000);
+
             } catch (err) {
                 document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'error', '❌ 실패: ' + err.message);
+
+                // 상세한 오류 메시지
+                let errorMsg = '❌ 업로드 오류<br><br>';
+
+                if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                    errorMsg += '<strong>네트워크 오류</strong><br>' +
+                        '1. 인터넷 연결 확인<br>' +
+                        '2. Apps Script URL 확인<br>' +
+                        '3. 잠시 후 다시 시도';
+                } else if (err.message.includes('데이터가 없습니다')) {
+                    errorMsg += '<strong>파일 오류</strong><br>' +
+                        '엑셀 파일에 데이터가 없거나<br>' +
+                        '형식이 올바르지 않습니다.';
+                } else {
+                    errorMsg += '<strong>파일 점검 필요</strong><br>' +
+                        '1. 파일 보안 해제 확인<br>' +
+                        '2. 엑셀 파일 형식 확인<br>' +
+                        '3. 컬럼명 일치 여부 확인<br><br>' +
+                        `<small>오류 내용: ${err.message}</small>`;
+                }
+
+                showAlert('alert2', 'error', errorMsg);
             }
         }
 
