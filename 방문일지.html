@@ -1011,10 +1011,19 @@
         function groupAccountsByVisits() {
             const grouped = {};
 
-            // 1. 이름 정규화 함수 (공백 제거)
-            const normalize = (str) => (str || '').replace(/\s+/g, '').trim();
+            // 1. 이름 정규화 함수 (공백 및 특수문자, (주) 등 제거)
+            const normalize = (str) => {
+                if (!str) return '';
+                return str
+                    .replace(/\(주\)/g, '')
+                    .replace(/\（주\）/g, '')
+                    .replace(/주식회사/g, '')
+                    .replace(/[^\w\uAC00-\uD7A3]/g, '') // 한글, 영문, 숫자 외 제거
+                    .trim();
+            };
 
             // 2. 인허가/주요거래처 이름 세트 생성 (정규화된 이름 저장)
+            // 주요거래처: '거래처명', 인허가: '사업장명'
             const accountNames = new Set(allAccounts.map(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'])).filter(Boolean));
             const licenseNames = new Set(allLicenses.map(l => normalize(l['사업장명'] || l['업소명'] || l['상호명'])).filter(Boolean));
 
@@ -1039,7 +1048,7 @@
                         accountName: accountName,
                         type: type, // major, license
                         manager: log['작성자'] || '-',
-                        dealer: log['방문처(대리점)'] || '-',
+                        // dealer: log['방문처(대리점)'] || '-', // 대리점 정보 제외
                         status: status || '-',
                         visits: [],
                         visitCount: 0,
@@ -1056,7 +1065,7 @@
                     manager: log['작성자'],
                     issue: log['주요이슈'],
                     status: status,
-                    dealer: log['방문처(대리점)'],
+                    // dealer: log['방문처(대리점)'],
                     fullData: log
                 });
 
@@ -1251,9 +1260,10 @@
                 // 검색어 필터
                 if (searchTerm) {
                     const searchMatch =
-                        account.accountName.toLowerCase().includes(searchTerm) ||
-                        account.manager.toLowerCase().includes(searchTerm) ||
-                        account.dealer.toLowerCase().includes(searchTerm);
+                        (account.accountName && account.accountName.toLowerCase().includes(searchTerm)) ||
+                        (account.manager && account.manager.toLowerCase().includes(searchTerm));
+                    // (account.dealer && account.dealer.toLowerCase().includes(searchTerm)); // 대리점 제외
+
                     if (!searchMatch) return false;
                 }
 
@@ -1350,10 +1360,7 @@
                                 <span class="info-label">담당자:</span>
                                 <span>${account.manager}</span>
                             </div>
-                            <div class="info-row">
-                                <span class="info-label">대리점:</span>
-                                <span>${account.dealer}</span>
-                            </div>
+                            <!-- 대리점 정보 제거 (사용자 요청) -->
                         </div>
                         <div class="account-footer">
                             <div class="last-visit">최근 방문: ${lastVisitFormatted}</div>
