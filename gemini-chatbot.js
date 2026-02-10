@@ -4,8 +4,8 @@
 
 const GEMINI_CONFIG = {
     apiKey: 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60',
-    model: 'gemini-1.5-flash',
-    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent'
+    model: 'gemini-1.5-flash-latest',
+    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent'
 };
 
 class GeminiChatbot {
@@ -71,8 +71,8 @@ class GeminiChatbot {
 
         // 담당자 필터
         if (keywords.manager) {
-            relevantVisits = relevantVisits.filter(v => 
-                v['작성자'] === keywords.manager || 
+            relevantVisits = relevantVisits.filter(v =>
+                v['작성자'] === keywords.manager ||
                 v['참여자']?.includes(keywords.manager)
             );
         }
@@ -81,7 +81,7 @@ class GeminiChatbot {
         if (keywords.period) {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+
             relevantVisits = relevantVisits.filter(v => {
                 const visitDate = this.parseVisitDate(v['일정기간']);
                 if (!visitDate) return false;
@@ -93,8 +93,8 @@ class GeminiChatbot {
                     weekStart.setDate(today.getDate() - today.getDay());
                     return visitDate >= weekStart;
                 } else if (keywords.period === 'thisMonth') {
-                    return visitDate.getMonth() === now.getMonth() && 
-                           visitDate.getFullYear() === now.getFullYear();
+                    return visitDate.getMonth() === now.getMonth() &&
+                        visitDate.getFullYear() === now.getFullYear();
                 }
                 return true;
             });
@@ -102,7 +102,7 @@ class GeminiChatbot {
 
         // 지역 필터
         if (keywords.region) {
-            relevantVisits = relevantVisits.filter(v => 
+            relevantVisits = relevantVisits.filter(v =>
                 v['방문처(거래처)']?.includes(keywords.region)
             );
         }
@@ -153,7 +153,9 @@ class GeminiChatbot {
             );
 
             if (!response.ok) {
-                throw new Error(`API Error: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                console.error('API Error Details:', errorData);
+                throw new Error(`API Error: ${response.status} ${errorData.error?.message || response.statusText}`);
             }
 
             const data = await response.json();
