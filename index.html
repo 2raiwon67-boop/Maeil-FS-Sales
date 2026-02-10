@@ -1329,9 +1329,9 @@
                     const manager = repMap[addr2] || '미지정';
 
                     // 순위 계산
-                    let rank = '3순위';
-                    if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1순위';
-                    else if (parseFloat(pyeong) >= 10) rank = '2순위';
+                    let rank = '3';
+                    if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
+                    else if (parseFloat(pyeong) >= 10) rank = '2';
 
                     // 좌표 (원본 그대로)
                     const xCol = row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X'] || '';
@@ -1352,7 +1352,7 @@
                         '주소2': addr2,
                         '주소3': addr3,
                         '순위': rank,
-                        '담당자': manager,    
+                        '담당자': manager,
                         '앱시트등록일': uploadDate,
                         '위도': yCol,
                         '경도': xCol,
@@ -1405,11 +1405,11 @@
                         row['_sort_score'] = 60;
                     } else if (row['업태구분명'] === '인천공항') {
                         row['_sort_score'] = 50;
-                    } else if (row['순위'] === '1순위') {
+                    } else if (row['순위'] === '1') {
                         row['_sort_score'] = 10;
-                    } else if (row['순위'] === '2순위') {
+                    } else if (row['순위'] === '2') {
                         row['_sort_score'] = 20;
-                    } else if (row['순위'] === '3순위') {
+                    } else if (row['순위'] === '3') {
                         row['_sort_score'] = 30;
                     }
                 });
