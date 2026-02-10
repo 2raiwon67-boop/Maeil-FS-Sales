@@ -1341,18 +1341,18 @@
                     const uploadDate = new Date().toISOString().split('T')[0];
 
                     return {
-                        '번호': row['번호'] || '',
-                        '인허가일자': formattedDate,
+                        'NO': row['번호'] || '',
+                        '영업 허가일': formattedDate,
                         '사업장명': name,
-                        '영업상태명': '인허가',
+                        '거래여부(기입예정)': '인허가',
                         '업태구분명': category,
-                        '시설총규모 : 평형': pyeong,
+                        '평형': pyeong,
                         '도로명전체주소': roadAddr,
                         '주소1': addr1,
                         '주소2': addr2,
                         '주소3': addr3,
                         '순위': rank,
-                        '담당자': manager,
+                        '담당자': manager,    
                         '앱시트등록일': uploadDate,
                         '위도': yCol,
                         '경도': xCol,
