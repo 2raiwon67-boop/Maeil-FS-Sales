@@ -123,57 +123,74 @@ class GeminiChatbot {
         }
     }
 
-    // Gemini API 호출
+    // Gemini API 호출 (스마트 모델 전환 적용)
     async ask(question) {
         try {
+            this.lastQuestion = question;
+
             // 관련 데이터 필터링
             const relevantData = this.filterRelevantData(question);
 
             // 프롬프트 생성
             const prompt = this.buildPrompt(question, relevantData);
 
-            // API 호출
-            const response = await fetch(
-                `${GEMINI_CONFIG.apiUrl}?key=${GEMINI_CONFIG.apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: prompt }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 2048,
-                            topP: 0.95,
-                            topK: 40
-                        }
-                    })
+            // 1차 시도: 효율적인 Gemini 1.5 Flash
+            try {
+                console.log('Trying Gemini 1.5 Flash...');
+                return await this.callGeminiAPI('gemini-1.5-flash', prompt);
+            } catch (error) {
+                // 404(Not Found) 또는 400(Invalid) 에러 발생 시
+                if (error.message.includes('404') || error.message.includes('400')) {
+                    console.warn('Gemini 1.5 Flash failed, switching to Gemini Pro...', error);
+                    // 2차 시도: 안정적인 Gemini Pro
+                    return await this.callGeminiAPI('gemini-pro', prompt);
                 }
-            );
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('API Error Details:', errorData);
-                throw new Error(`API Error: ${response.status} ${errorData.error?.message || response.statusText}`);
+                throw error; // 다른 에러는 그대로 전파
             }
-
-            const data = await response.json();
-            const answer = data.candidates[0].content.parts[0].text;
-
-            // 대화 히스토리 저장
-            this.conversationHistory.push({
-                question,
-                answer,
-                timestamp: new Date().toISOString()
-            });
-
-            return answer;
 
         } catch (error) {
             console.error('Gemini API Error:', error);
-            return `죄송합니다. 오류가 발생했습니다: ${error.message}`;
+            // 에러 메시지 사용자 친화적으로 변환
+            let userMsg = `죄송합니다. 오류가 발생했습니다: ${error.message}`;
+            if (error.message.includes('404')) userMsg += '\n(모델을 찾을 수 없습니다)';
+            if (error.message.includes('429')) userMsg += '\n(요청이 너무 많습니다)';
+            return userMsg;
         }
+    }
+
+    async callGeminiAPI(model, prompt) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_CONFIG.apiKey}`;
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: prompt }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    maxOutputTokens: 2048
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`API Error: ${response.status} ${errorData.error?.message || response.statusText}`);
+        }
+
+        const data = await response.json();
+        const answer = data.candidates[0].content.parts[0].text;
+
+        // 대화 히스토리 저장
+        this.conversationHistory.push({
+            question: this.lastQuestion, // 저장된 질문 사용
+            answer,
+            timestamp: new Date().toISOString()
+        });
+
+        return answer;
     }
 
     // 프롬프트 생성
