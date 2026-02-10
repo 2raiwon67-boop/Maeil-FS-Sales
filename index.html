@@ -1087,7 +1087,7 @@
             // 실제 Google Sheets 컬럼명 사용
             document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
             document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
-            document.getElementById('licensedCount').textContent = filteredData.length || 0;
+            document.getElementById('licensedCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '인허가').length || 0;
             document.getElementById('dropCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
             document.getElementById('constructionCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
 
