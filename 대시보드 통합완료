@@ -56,6 +56,29 @@
             color: #ffffff;
         }
 
+        .nav-menu {
+            display: flex;
+            gap: 24px;
+        }
+
+        .nav-link {
+            color: #f5f5f7;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .nav-link:hover {
+            background: #424245;
+        }
+
+        .nav-link.active {
+            background: #0071e3;
+        }
+
         .nav-actions {
             display: flex;
             gap: 10px;
@@ -549,7 +572,11 @@
 <body>
     <!-- 상단 네비게이션 -->
     <nav class="nav-bar">
-        <div class="nav-logo">📊 경기북부 FS 인허가 대시보드</div>
+        <div class="nav-logo">📊 경기북부 FS 통합 대시보드</div>
+        <div class="nav-menu">
+            <a href="대시보드_통합완료.html" class="nav-link active">인허가</a>
+            <a href="방문일지.html" class="nav-link">방문일지</a>
+        </div>
         <div class="nav-actions">
             <button class="btn btn-secondary" onclick="openUploadModal()">📤 RAW 업로드</button>
             <button class="btn btn-primary" onclick="openFinalUploadModal()">최종본 업로드</button>
