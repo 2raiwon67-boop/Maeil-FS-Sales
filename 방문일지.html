@@ -1324,11 +1324,19 @@
                                             <span class="status-badge ${statusClass}">${visit.status || '-'}</span>
                                         </div>
                                         ${visit.issue === 'Y' ? '<div class="timeline-detail-row"><span class="timeline-label">주요이슈:</span><span style="color: #ff3b30; font-weight: 600;">⚠️ 있음</span></div>' : ''}
+                                        ${visit.fullData['다음방문일'] ? `<div class="timeline-detail-row"><span class="timeline-label">다음방문:</span><span>${visit.fullData['다음방문일']}</span></div>` : ''}
+                                        ${visit.fullData['사용품목'] ? `<div class="timeline-detail-row"><span class="timeline-label">사용품목:</span><span>${visit.fullData['사용품목']}</span></div>` : ''}
                                     </div>
-                                    ${visit.fullData['방문일지'] ? `
+                                    ${visit.fullData['내용'] ? `
                                         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8e8ed;">
-                                            <div style="font-weight: 600; color: #1d1d1f; margin-bottom: 8px; font-size: 13px;">📝 방문일지</div>
-                                            <div style="color: #1d1d1f; line-height: 1.6; white-space: pre-wrap; font-size: 14px;">${visit.fullData['방문일지']}</div>
+                                            <div style="font-weight: 600; color: #1d1d1f; margin-bottom: 8px; font-size: 13px;">📝 방문 내용</div>
+                                            <div style="color: #1d1d1f; line-height: 1.6; white-space: pre-wrap; font-size: 14px;">${visit.fullData['내용']}</div>
+                                        </div>
+                                    ` : ''}
+                                    ${visit.fullData['TO-DO'] ? `
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e8e8ed;">
+                                            <div style="font-weight: 600; color: #0071e3; margin-bottom: 8px; font-size: 13px;">✅ TO-DO</div>
+                                            <div style="color: #1d1d1f; line-height: 1.6; white-space: pre-wrap; font-size: 14px;">${visit.fullData['TO-DO']}</div>
                                         </div>
                                     ` : ''}
                                 </div>
