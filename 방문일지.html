@@ -1011,29 +1011,46 @@
         function groupAccountsByVisits() {
             const grouped = {};
 
-            // 인허가/주요거래처 매칭을 위한 헬퍼 세트
-            // 컬럼명이 확실하지 않으므로 가능한 모든 값을 찾아본다.
-            const accountNames = new Set(allAccounts.map(a => a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'] || '').filter(Boolean));
-            const licenseNames = new Set(allLicenses.map(l => l['사업장명'] || l['업소명'] || l['상호명'] || '').filter(Boolean));
+            // 1. 이름 정규화 함수 (공백 제거)
+            const normalize = (str) => (str || '').replace(/\s+/g, '').trim();
+
+            // 2. 인허가/주요거래처 이름 세트 생성 (정규화된 이름 저장)
+            const accountNames = new Set(allAccounts.map(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'])).filter(Boolean));
+            const licenseNames = new Set(allLicenses.map(l => normalize(l['사업장명'] || l['업소명'] || l['상호명'])).filter(Boolean));
 
             allVisitLogs.forEach(log => {
-                const accountName = log['방문처(거래처)'] || '미지정';
+                const rawName = log['방문처(거래처)'] || '미지정';
+                const accountName = rawName.trim(); // 표시용 이름
+                const normalizedName = normalize(accountName); // 비교용 이름
+                const status = (log['거래상태'] || '').trim();
 
                 if (!grouped[accountName]) {
-                    // 타입 판별
+                    // 3. 타입 판별 로직 고도화
                     let type = 'other';
-                    if (accountNames.has(accountName)) type = 'major';
-                    else if (licenseNames.has(accountName)) type = 'license';
 
-                    // 만약 이름 매칭이 안되면, 로그의 다른 정보로 유추 (예: DB에 없지만 로그엔 있는 경우)
-                    // 현재는 정확한 매칭만 major/license로 분류.
+                    // (1) 이름 매칭 (정규화 비교)
+                    if (accountNames.has(normalizedName)) type = 'major';
+                    else if (licenseNames.has(normalizedName)) type = 'license';
+
+                    // (2) 상태 기반 추론 (이름 매칭이 안 된 경우)
+                    if (type === 'other') {
+                        // 인허가 고유 상태
+                        if (['공사중', '인허가', 'DROP'].includes(status)) {
+                            type = 'license';
+                        }
+                        // 주요거래처 고유 상태
+                        else if (['정상', '중지', '폐업'].includes(status)) {
+                            type = 'major';
+                        }
+                        // 공통 상태 ('거래', '미거래')는 알 수 없음 -> other 유지 (또는 UI에서 '미분류'로 표시)
+                    }
 
                     grouped[accountName] = {
                         accountName: accountName,
                         type: type, // major, license, other
                         manager: log['작성자'] || '-',
                         dealer: log['방문처(대리점)'] || '-',
-                        status: log['거래상태'] || '-',
+                        status: status || '-',
                         visits: [],
                         visitCount: 0,
                         lastVisit: null,
@@ -1048,7 +1065,7 @@
                     dateObj: visitDate,
                     manager: log['작성자'],
                     issue: log['주요이슈'],
-                    status: log['거래상태'],
+                    status: status,
                     dealer: log['방문처(대리점)'],
                     fullData: log
                 });
@@ -1060,9 +1077,14 @@
                     (visitDate && visitDate > grouped[accountName].lastVisitDate)) {
                     grouped[accountName].lastVisitDate = visitDate;
                     grouped[accountName].lastVisit = log['일정기간'];
-                    grouped[accountName].status = log['거래상태'] || '-';
+                    grouped[accountName].status = status || '-';
                     grouped[accountName].manager = log['작성자'] || '-';
-                    // 상태 업데이트 시 최신 상태 반영
+
+                    // (3) 상태가 갱신되었을 때 타입 재추론 (만약 other였다면)
+                    if (grouped[accountName].type === 'other') {
+                        if (['공사중', '인허가', 'DROP'].includes(status)) grouped[accountName].type = 'license';
+                        else if (['정상', '중지', '폐업'].includes(status)) grouped[accountName].type = 'major';
+                    }
                 }
             });
 
@@ -1083,6 +1105,7 @@
             });
 
             console.log(`거래처 그룹화 완료: ${groupedAccounts.length}개 거래처`);
+            console.log(`- 타입 분포: Major=${groupedAccounts.filter(a => a.type === 'major').length}, License=${groupedAccounts.filter(a => a.type === 'license').length}, Other=${groupedAccounts.filter(a => a.type === 'other').length}`);
         }
 
         async function loadAccounts() {
