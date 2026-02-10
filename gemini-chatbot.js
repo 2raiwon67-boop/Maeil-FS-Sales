@@ -4,8 +4,8 @@
 
 const GEMINI_CONFIG = {
     apiKey: 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60',
-    model: 'gemini-1.5-flash-latest',
-    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent'
+    model: 'gemini-pro',
+    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent'
 };
 
 class GeminiChatbot {
