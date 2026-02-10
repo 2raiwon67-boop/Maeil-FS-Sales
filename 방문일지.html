@@ -1024,30 +1024,20 @@
                 const normalizedName = normalize(accountName); // 비교용 이름
                 const status = (log['거래상태'] || '').trim();
 
+                // 3. 타입 판별 및 유효성 검사 (Strict Filtering)
+                let type = null;
+                if (accountNames.has(normalizedName)) type = 'major';
+                else if (licenseNames.has(normalizedName)) type = 'license';
+
+                // [중요] 목록에 없는 거래처는 제외 (사용자 요청)
+                if (!type) {
+                    return;
+                }
+
                 if (!grouped[accountName]) {
-                    // 3. 타입 판별 로직 고도화
-                    let type = 'other';
-
-                    // (1) 이름 매칭 (정규화 비교)
-                    if (accountNames.has(normalizedName)) type = 'major';
-                    else if (licenseNames.has(normalizedName)) type = 'license';
-
-                    // (2) 상태 기반 추론 (이름 매칭이 안 된 경우)
-                    if (type === 'other') {
-                        // 인허가 고유 상태
-                        if (['공사중', '인허가', 'DROP'].includes(status)) {
-                            type = 'license';
-                        }
-                        // 주요거래처 고유 상태
-                        else if (['정상', '중지', '폐업'].includes(status)) {
-                            type = 'major';
-                        }
-                        // 공통 상태 ('거래', '미거래')는 알 수 없음 -> other 유지 (또는 UI에서 '미분류'로 표시)
-                    }
-
                     grouped[accountName] = {
                         accountName: accountName,
-                        type: type, // major, license, other
+                        type: type, // major, license
                         manager: log['작성자'] || '-',
                         dealer: log['방문처(대리점)'] || '-',
                         status: status || '-',
@@ -1079,12 +1069,6 @@
                     grouped[accountName].lastVisit = log['일정기간'];
                     grouped[accountName].status = status || '-';
                     grouped[accountName].manager = log['작성자'] || '-';
-
-                    // (3) 상태가 갱신되었을 때 타입 재추론 (만약 other였다면)
-                    if (grouped[accountName].type === 'other') {
-                        if (['공사중', '인허가', 'DROP'].includes(status)) grouped[accountName].type = 'license';
-                        else if (['정상', '중지', '폐업'].includes(status)) grouped[accountName].type = 'major';
-                    }
                 }
             });
 
@@ -1105,7 +1089,7 @@
             });
 
             console.log(`거래처 그룹화 완료: ${groupedAccounts.length}개 거래처`);
-            console.log(`- 타입 분포: Major=${groupedAccounts.filter(a => a.type === 'major').length}, License=${groupedAccounts.filter(a => a.type === 'license').length}, Other=${groupedAccounts.filter(a => a.type === 'other').length}`);
+            console.log(`- 타입 분포: Major=${groupedAccounts.filter(a => a.type === 'major').length}, License=${groupedAccounts.filter(a => a.type === 'license').length}`);
         }
 
         async function loadAccounts() {
