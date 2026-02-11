@@ -1289,14 +1289,18 @@
 
                     <div style="display: flex; gap: 8px;">
                         <a href="https://map.kakao.com/link/map/${item['사업장명']},${item['위도']},${item['경도']}" target="_blank" 
-                           style="flex: 1; text-align: center; padding: 8px; background: #fee500; color: #191919; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: bold;">
-                           카카오맵 보기
+                           style="flex: 1; text-align: center; padding: 10px 0; background: #fee500; color: #191919; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                           <span>📍</span> 상세보기
                         </a>
-                        <button onclick="closePlaceInfo()" 
-                            style="flex: 1; padding: 8px; background: #f5f5f7; border: none; border-radius: 6px; cursor: pointer;">
-                            닫기
-                        </button>
+                        <a href="https://map.kakao.com/link/to/${item['사업장명']},${item['위도']},${item['경도']}" target="_blank" 
+                           style="flex: 1; text-align: center; padding: 10px 0; background: #4682b4; color: white; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                           <span>🚗</span> 길찾기
+                        </a>
                     </div>
+                    <button onclick="closePlaceInfo()" 
+                        style="width: 100%; margin-top: 8px; padding: 8px; background: #f5f5f7; border: none; border-radius: 8px; cursor: pointer; color: #666;">
+                        닫기
+                    </button>
                 </div>
             `;
 
