@@ -12,7 +12,7 @@
 
     <!-- 카카오 지도 API -->
     <script type="text/javascript"
-        src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=178d3ee35f67ded1f5d2411aa3cee010&autoload=false"></script>
+        src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=178d3ee35f67ded1f5d2411aa3cee010&libraries=services&autoload=false"></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -673,6 +673,13 @@
         <div class="map-area">
             <div id="map"></div>
             <div class="map-controls">
+                <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
+                    <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
+                        style="flex: 1; padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;"
+                        onkeypress="if(event.key === 'Enter') searchMapPlaces()">
+                    <button onclick="searchMapPlaces()"
+                        style="padding: 8px 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍</button>
+                </div>
                 <div class="filter-label">순위 필터</div>
                 <div class="filter-buttons">
                     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
@@ -1126,8 +1133,51 @@
         }
 
         // ============================================================
-        // 지도 업데이트
+        // 지도 업데이트 및 검색
         // ============================================================
+
+        function searchMapPlaces() {
+            const keyword = document.getElementById('mapSearchInput').value.trim();
+            if (!keyword) {
+                alert('검색어를 입력해주세요!');
+                return;
+            }
+
+            // 1. DB 데이터 검색 (우선순위)
+            // allData에서 '사업장명' 또는 '도로명전체주소'에 키워드가 포함된 항목 검색
+            const dbResult = allData.find(item =>
+                (item['사업장명'] && item['사업장명'].includes(keyword)) ||
+                (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
+            );
+
+            if (dbResult && dbResult['위도'] && dbResult['경도']) {
+                const moveLatLon = new kakao.maps.LatLng(parseFloat(dbResult['위도']), parseFloat(dbResult['경도']));
+                kakaoMap.setCenter(moveLatLon);
+                kakaoMap.setLevel(1); // Zoom in (매우 가깝게)
+                return;
+            }
+
+            // 2. 카카오 장소 검색 (DB에 없으면)
+            // 장소 검색 객체를 생성합니다
+            const ps = new kakao.maps.services.Places();
+
+            // 키워드로 장소를 검색합니다
+            ps.keywordSearch(keyword, (data, status, pagination) => {
+                if (status === kakao.maps.services.Status.OK) {
+                    // 검색된 장소 위치를 기준으로 지도 중심을 이동합니다
+                    const place = data[0];
+                    const moveLatLon = new kakao.maps.LatLng(place.y, place.x);
+                    kakaoMap.setCenter(moveLatLon);
+                    kakaoMap.setLevel(3);
+                } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+                    alert('검색 결과가 존재하지 않습니다.');
+                    return;
+                } else if (status === kakao.maps.services.Status.ERROR) {
+                    alert('검색 결과 중 오류가 발생했습니다.');
+                    return;
+                }
+            });
+        }
 
         function updateMap() {
             if (!kakaoMap) return;
@@ -1360,9 +1410,26 @@
                     if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
                     else if (parseFloat(pyeong) >= 10) rank = '2';
 
-                    // 좌표 (원본 그대로)
-                    const xCol = row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X'] || '';
-                    const yCol = row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y'] || '';
+                    // 좌표 변환 (EPSG:5174 -> WGS84)
+                    const xCol = parseFloat(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X'] || 0);
+                    const yCol = parseFloat(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y'] || 0);
+
+                    let lat = 0, lng = 0;
+
+                    if (xCol > 0 && yCol > 0) {
+                        try {
+                            // EPSG:5174 (중부원점) 정의
+                            // 보정값(towgs84)은 지역마다 다를 수 있으나 일반적인 값 사용
+                            const epsg5174 = "+proj=tmerc +lat_0=38 +lon_0=127.0028902777778 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43";
+                            const wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs";
+
+                            const converted = proj4(epsg5174, wgs84, [xCol, yCol]);
+                            lng = converted[0];
+                            lat = converted[1];
+                        } catch (e) {
+                            console.warn('좌표 변환 실패:', name, e);
+                        }
+                    }
 
                     // 앱시트등록일
                     const uploadDate = new Date().toISOString().split('T')[0];
@@ -1381,8 +1448,8 @@
                         '순위': rank,
                         '담당자': manager,
                         '앱시트등록일': uploadDate,
-                        '위도': yCol,
-                        '경도': xCol,
+                        '위도': lat, // 변환된 위도
+                        '경도': lng, // 변환된 경도
                         '_pyeong_num': parseFloat(pyeong),
                         '_sort_score': 99
                     };
