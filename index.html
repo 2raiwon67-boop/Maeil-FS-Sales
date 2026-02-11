@@ -1198,6 +1198,7 @@
 
             markers.forEach(m => m.setMap(null));
             markers = [];
+            const bounds = new kakao.maps.LatLngBounds();  // 지도 범위 객체 생성
 
             let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
 
@@ -1224,10 +1225,18 @@
 
                     overlay.setMap(kakaoMap);
                     markers.push(overlay);
+
+                    // 영역 확장
+                    bounds.extend(pos);
                 } catch (e) {
                     console.warn('지도 마커 생성 실패', e);
                 }
             });
+
+            // 마커가 1개 이상이면 지도 범위 재설정
+            if (markers.length > 0) {
+                kakaoMap.setBounds(bounds);
+            }
 
 
             // 지도 클릭 이벤트 리스너 비활성화 (사용자 요청)
