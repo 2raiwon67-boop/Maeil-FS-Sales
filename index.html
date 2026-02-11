@@ -306,7 +306,8 @@
         }
 
         .dropdown-card.open .dropdown-content {
-            max-height: 300px;
+            max-height: 250px;
+            overflow-y: auto;
         }
 
         .dropdown-list {
@@ -1113,7 +1114,7 @@
             });
 
             document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
-                .sort((a, b) => b[1] - a[1]).slice(0, 6)
+                .sort((a, b) => b[1] - a[1])
                 .map(([r, c]) => {
                     const isActive = currentRegion === r ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
                     return `<div class="dropdown-item" onclick="setRegionFilter('${r}')"${isActive}><span class="dropdown-item-name">${r}</span><span class="dropdown-item-count">${c}건</span></div>`;
