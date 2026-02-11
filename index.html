@@ -1463,8 +1463,15 @@
                     else if (parseFloat(pyeong) >= 10) rank = '2';
 
                     // 좌표 변환 (EPSG:5174 -> WGS84)
-                    const xCol = parseFloat(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X'] || 0);
-                    const yCol = parseFloat(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y'] || 0);
+                    // 좌표 변환 (EPSG:5174 -> WGS84)
+                    // 쉼표 제거 및 문자열 변환 후 파싱
+                    const cleanCoord = (val) => {
+                        if (!val) return 0;
+                        return parseFloat(val.toString().replace(/,/g, '').trim());
+                    };
+
+                    const xCol = cleanCoord(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X']);
+                    const yCol = cleanCoord(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y']);
 
                     let lat = 0, lng = 0;
 
