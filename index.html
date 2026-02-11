@@ -306,7 +306,8 @@
         }
 
         .dropdown-card.open .dropdown-content {
-            max-height: 250px;
+            max-height: 150px;
+            /* 4개 항목(약 36px * 4) 정도 높이 */
             overflow-y: auto;
         }
 
@@ -322,6 +323,15 @@
             border-radius: 6px;
             margin-bottom: 4px;
             font-size: 13px;
+            cursor: pointer;
+            /* 마우스 커서 손가락 모양 */
+            transition: background 0.2s;
+            /* 부드러운 전환 효과 */
+        }
+
+        .dropdown-item:hover {
+            background: #e5e5ea;
+            /* 마우스 올렸을 때 진한 회색 */
         }
 
         .dropdown-item:last-child {
