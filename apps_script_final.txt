@@ -1,0 +1,242 @@
+/* ==========================================================
+ * [사용 안내]
+ * 1. 이 파일의 모든 내용(Ctrl+A)을 복사(Ctrl+C)하세요.
+ * 2. Google Apps Script 편집기에 붙여넣기(Ctrl+V)하세요.
+ * 3. [저장] 버튼을 누르고 [배포] -> [새 배포]를 진행하세요.
+ * ========================================================== */
+
+// 설정
+const EMAIL_CONFIG = {
+  // 수신자 추가 방법: ['yidodaily@maeil.com', '참조인@maeil.com'] 과 같이 따옴표와 쉼표로 구분
+  recipients: ['yidodaily@maeil.com'],  
+  senderName: '경기북부FS (인허가 알림)',
+  subjectTemplate: '[인허가 알림] 금일 방문 대상: 신규 {newCount}건 / 재확인 {revisitCount}건'
+};
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    
+    if (data.action === 'upload') {
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('인허가데이터');
+      
+      if (!data.data || !Array.isArray(data.data)) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: '데이터 형식 오류' })).setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      // [중요] 기존 deleteRows 제거 (누적 저장)
+      // if (sheet.getLastRow() > 1) sheet.deleteRows(2, sheet.getLastRow() - 1);
+      
+      const lastRow = sheet.getLastRow(); 
+      // lastRow가 1(헤더만 있음)이면 startNo는 1부터 시작
+      const startNo = lastRow; 
+
+      const rows = data.data.map((row, index) => [
+        startNo + index, // NO 자동 부여
+        row['영업 허가일'] || '', 
+        row['사업장명'] || '', 
+        row['거래여부(기입예정)'] || '',
+        row['업태구분명'] || '', 
+        row['평형'] || '', 
+        row['도로명전체주소'] || '', 
+        row['주소1'] || '',
+        row['주소2'] || '', 
+        row['주소3'] || '', 
+        row['순위'] || '', 
+        row['담당자'] || '',
+        row['앱시트등록일'] || '', 
+        row['위도'] || '', 
+        row['경도'] || ''
+      ]);
+      
+      // 데이터 추가 (append)
+      if (rows.length > 0) {
+        // 기존 데이터 아래에 추가
+        sheet.getRange(lastRow + 1, 1, rows.length, 15).setValues(rows);
+      }
+      
+      // 이메일 발송 대상 필터링 (신규 / 재방문 분리)
+      const targets = filterEmailTargets(data.data);
+      
+      if (targets.newObj.length > 0 || targets.revisitObj.length > 0) {
+        sendSummaryEmail(targets);
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        count: rows.length,
+        emailsSent: 1
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: error.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return 9999;
+  const R = 6371; 
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function findNearbyStores(target, allData) {
+  const nearby = [];
+  const targetLat = parseFloat(target['위도']);
+  const targetLon = parseFloat(target['경도']);
+  
+  allData.forEach(row => {
+    if (row['사업장명'] === target['사업장명']) return;
+    if (row['순위'] !== '1') return;
+      
+    const dist = calculateDistance(targetLat, targetLon, parseFloat(row['위도']), parseFloat(row['경도']));
+    
+    if (dist <= 3.0) {
+      nearby.push({
+        name: row['사업장명'],
+        dist: dist.toFixed(1), 
+        category: row['업태구분명']
+      });
+    }
+  });
+  
+  return nearby.sort((a, b) => a.dist - b.dist).slice(0, 3);
+}
+
+function filterEmailTargets(data) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const newTargets = [];      
+  const revisitTargets = [];  
+  
+  data.forEach(row => {
+    if (row['순위'] !== '1' && row['순위'] !== '2') return; 
+    
+    const permitDateStr = row['영업 허가일'];
+    if (!permitDateStr) return;
+    
+    try {
+      const permitDate = new Date(permitDateStr);
+      permitDate.setHours(0, 0, 0, 0);
+      const daysDiff = Math.floor((today - permitDate) / (1000 * 60 * 60 * 24));
+      
+      const item = {
+        name: row['사업장명'],
+        pyeong: row['평형'],
+        permitDate: permitDateStr,
+        address: row['도로명전체주소'],
+        status: row['거래여부(기입예정)'],
+        manager: row['담당자'],
+        lat: row['위도'],
+        lon: row['경도'],
+        nearby: findNearbyStores(row, data)
+      };
+
+      if (daysDiff === 14) {
+        newTargets.push(item);
+      }
+      else if (daysDiff === 28 && row['거래여부(기입예정)'] === '공사중') {
+        revisitTargets.push(item);
+      }
+      
+    } catch (e) {}
+  });
+  
+  return { newObj: newTargets, revisitObj: revisitTargets };
+}
+
+function generateSummaryEmailHTML(targets) {
+  const createRows = (list) => list.map(t => {
+    const mapLink = `https://map.naver.com/v5/search/${encodeURIComponent(t.address)}`;
+    
+    let nearbyHtml = '<span style="color:#adb5bd; font-size:11px;">없음</span>';
+    if (t.nearby.length > 0) {
+      nearbyHtml = t.nearby.map(n => 
+        `<div style="font-size:11px; color:#495057;">• ${n.name} <span style="color:#868e96;">(${n.dist}km)</span></div>`
+      ).join('');
+    }
+
+    return `
+      <tr>
+        <td style="padding:10px; border-bottom:1px solid #eee;"><strong>${t.name}</strong></td>
+        <td style="padding:10px; border-bottom:1px solid #eee; text-align:center;">${t.pyeong}평</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; text-align:center;">${t.permitDate}</td>
+        <td style="padding:10px; border-bottom:1px solid #eee; text-align:center;">
+          <span style="padding:4px 8px; background:${t.status==='공사중'?'#fff3bf':'#e7f5ff'}; color:${t.status==='공사중'?'#f08c00':'#1c7ed6'}; border-radius:4px; font-size:11px; font-weight:bold;">${t.status}</span>
+        </td>
+        <td style="padding:10px; border-bottom:1px solid #eee; font-size:12px;">${t.address} <a href="${mapLink}" style="text-decoration:none; color:#228be6;">[지도]</a></td>
+        <td style="padding:10px; border-bottom:1px solid #eee; background:#f8f9fa;">${nearbyHtml}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+<!DOCTYPE html>
+<html>
+<head><style>th {background:#f1f3f5; padding:10px; font-size:12px; border-bottom:2px solid #dee2e6;}</style></head>
+<body style="font-family:'Malgun Gothic',sans-serif; padding:20px; color:#343a40;">
+  <div style="max-width:900px; margin:0 auto; border:1px solid #dee2e6;">
+    <div style="background:#2c3e50; color:white; padding:20px;">
+      <h2 style="margin:0;">📅 금일 인허가 방문 대상 알림</h2>
+    </div>
+    <div style="padding:20px;">
+      <p>안녕하십니까,<br>오늘 날짜 기준 방문이 필요한 사업장 리스트를 송부드립니다.</p>
+
+      ${targets.newObj.length > 0 ? `
+        <h3 style="color:#1c7ed6; margin-top:30px; border-bottom:2px solid #1c7ed6; padding-bottom:5px;">🚀 1. 신규 등록 대상 (D+14)</h3>
+        <table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;">
+          <thead>
+            <tr>
+              <th width="15%">사업장명</th><th width="8%">평형</th><th width="12%">인허가일</th><th width="10%">상태</th><th width="30%">주소</th><th width="25%">💡 인근 추천 (3km)</th>
+            </tr>
+          </thead>
+          <tbody>${createRows(targets.newObj)}</tbody>
+        </table>
+      ` : '<p style="color:#868e96; margin-top:20px;">(금일 신규 대상 없음)</p>'}
+
+      ${targets.revisitObj.length > 0 ? `
+        <h3 style="color:#f08c00; margin-top:40px; border-bottom:2px solid #f08c00; padding-bottom:5px;">🛠️ 2. 공사 / 재확인 대상 (D+28)</h3>
+        <table style="width:100%; border-collapse:collapse; margin-top:10px; font-size:13px;">
+          <thead>
+            <tr>
+              <th width="15%">사업장명</th><th width="8%">평형</th><th width="12%">인허가일</th><th width="10%">상태</th><th width="30%">주소</th><th width="25%">💡 인근 추천 (3km)</th>
+            </tr>
+          </thead>
+          <tbody>${createRows(targets.revisitObj)}</tbody>
+        </table>
+      ` : '<p style="color:#868e96; margin-top:20px;">(금일 재확인 대상 없음)</p>'}
+      
+      <div style="margin-top:40px; font-size:12px; color:#868e96; text-align:center; border-top:1px solid #eee; padding-top:20px;">
+        경기북부 FS 영업팀 | 자동 발송 시스템
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function sendSummaryEmail(targets) {
+  const newCount = targets.newObj.length;
+  const revisitCount = targets.revisitObj.length;
+  
+  const subject = EMAIL_CONFIG.subjectTemplate
+    .replace('{newCount}', newCount)
+    .replace('{revisitCount}', revisitCount);
+    
+  const htmlBody = generateSummaryEmailHTML(targets);
+  
+  EMAIL_CONFIG.recipients.forEach(recipient => {
+    try {
+      GmailApp.sendEmail(recipient, subject, 'HTML 지원 클라이언트에서 확인해주세요.', {
+        htmlBody: htmlBody,
+        name: EMAIL_CONFIG.senderName
+      });
+    } catch (e) {}
+  });
+}
