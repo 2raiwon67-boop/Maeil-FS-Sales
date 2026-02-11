@@ -1214,6 +1214,47 @@
                     console.warn('지도 마커 생성 실패', e);
                 }
             });
+
+            // 지도 클릭 이벤트 리스너 추가 (한 번만 등록)
+            if (!kakaoMap.clickListenerAdded) {
+                kakao.maps.event.addListener(kakaoMap, 'click', function (mouseEvent) {
+                    searchDetailAddrFromCoords(mouseEvent.latLng, function (result, status) {
+                        if (status === kakao.maps.services.Status.OK) {
+                            var detailAddr = !!result[0].road_address ? '<div>도로명주소 : ' + result[0].road_address.address_name + '</div>' : '';
+                            detailAddr += '<div>지번 주소 : ' + result[0].address.address_name + '</div>';
+
+                            var content = '<div class="bAddr" style="padding:10px; font-size:12px; border-radius: 8px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">' +
+                                '<div class="title" style="font-weight:bold; margin-bottom:5px;">선택한 위치 정보</div>' +
+                                detailAddr +
+                                '<div style="margin-top:8px; display:flex; gap:5px;">' +
+                                '<a href="https://map.kakao.com/link/to/도착지,' + mouseEvent.latLng.getLat() + ',' + mouseEvent.latLng.getLng() + '" target="_blank" style="background:#fee500; padding:5px 10px; border-radius:4px; text-decoration:none; color:black; font-weight:bold;">길찾기</a>' +
+                                '</div>' +
+                                '</div>';
+
+                            // 인포윈도우 생성 및 표시
+                            // 기존 열린 인포윈도우 제거 (옵션)
+                            if (window.currentInfoWindow) {
+                                window.currentInfoWindow.close();
+                            }
+
+                            var infowindow = new kakao.maps.InfoWindow({
+                                position: mouseEvent.latLng,
+                                content: content
+                            });
+
+                            infowindow.open(kakaoMap);
+                            window.currentInfoWindow = infowindow;
+                        }
+                    });
+                });
+                kakaoMap.clickListenerAdded = true;
+            }
+        }
+
+        function searchDetailAddrFromCoords(coords, callback) {
+            // 좌표로 법정동 상세 주소 정보를 요청합니다
+            var geocoder = new kakao.maps.services.Geocoder();
+            geocoder.coord2Address(coords.getLng(), coords.getLat(), callback);
         }
 
         function showPlaceInfo(item) {
