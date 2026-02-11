@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이메일 미리보기 - 리스트 형식</title>
+    <style>
+        body {
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .preview-container {
+            max-width: 900px;
+            /* 더 넓게 변경 */
+            margin: 0 auto;
+            background: white;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 25px 30px;
+            border-bottom: 3px solid #34495e;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 13px;
+            color: #bdc3c7;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .greeting {
+            font-size: 14px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+
+        .list-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 30px 0;
+            font-size: 13px;
+            border: 1px solid #dee2e6;
+        }
+
+        .list-table th {
+            background: #f1f3f5;
+            color: #495057;
+            font-weight: 700;
+            padding: 12px;
+            text-align: center;
+            border-bottom: 2px solid #dee2e6;
+            white-space: nowrap;
+        }
+
+        .list-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            color: #212529;
+            vertical-align: middle;
+        }
+
+        .list-table tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .col-name {
+            font-weight: 700;
+            color: #2c3e50;
+            min-width: 120px;
+        }
+
+        .col-size {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .col-date {
+            text-align: center;
+            color: #868e96;
+            white-space: nowrap;
+        }
+
+        .col-status {
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .col-address {
+            min-width: 200px;
+        }
+
+        .col-map {
+            text-align: center;
+            min-width: 100px;
+            white-space: nowrap;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            color: #0071e3;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .map-btn {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 0 2px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .map-naver {
+            background: #03C75A;
+            color: white;
+        }
+
+        .map-kakao {
+            background: #FEE500;
+            color: #3c1e1e;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #dee2e6;
+            text-align: center;
+            font-size: 12px;
+            color: #868e96;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="preview-container">
+        <div class="header">
+            <h1>인허가 등록 (D+14) 알림</h1>
+            <p>오늘 날짜 기준 14일 경과한 1순위 사업장 목록입니다.</p>
+        </div>
+
+        <div class="content">
+            <div class="greeting">
+                안녕하십니까,<br>
+                금일 기준 인허가 등록 후 14일이 경과한 사업장 리스트를 송부드립니다.<br>
+                방문 일정 조율에 참고하시기 바랍니다.
+            </div>
+
+            <table class="list-table">
+                <thead>
+                    <tr>
+                        <th>사업장명</th>
+                        <th>평형</th>
+                        <th>인허가일</th>
+                        <th>상태</th>
+                        <th>주소</th>
+                        <th>위치</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 예시 데이터 1 -->
+                    <tr>
+                        <td class="col-name">티라토레 (Tiratore)</td>
+                        <td class="col-size">329평</td>
+                        <td class="col-date">2025-12-31</td>
+                        <td class="col-status"><span class="status-badge">인허가</span></td>
+                        <td class="col-address">경기도 남양주시 진접읍 경복대로가마솥골길 85</td>
+                        <td class="col-map">
+                            <a href="#" class="map-btn map-naver">N 지도</a>
+                            <a href="#" class="map-btn map-kakao">K 지도</a>
+                        </td>
+                    </tr>
+                    <!-- 예시 데이터 2 -->
+                    <tr>
+                        <td class="col-name">스타벅스 가평점</td>
+                        <td class="col-size">150평</td>
+                        <td class="col-date">2025-12-31</td>
+                        <td class="col-status"><span class="status-badge">공사중</span></td>
+                        <td class="col-address">경기도 가평군 가평읍 호반로 1234</td>
+                        <td class="col-map">
+                            <a href="#" class="map-btn map-naver">N 지도</a>
+                            <a href="#" class="map-btn map-kakao">K 지도</a>
+                        </td>
+                    </tr>
+                    <!-- 예시 데이터 3 -->
+                    <tr>
+                        <td class="col-name">투썸플레이스 양주점</td>
+                        <td class="col-size">85평</td>
+                        <td class="col-date">2025-12-31</td>
+                        <td class="col-status"><span class="status-badge">인허가</span></td>
+                        <td class="col-address">경기도 양주시 옥정동로 567</td>
+                        <td class="col-map">
+                            <a href="#" class="map-btn map-naver">N 지도</a>
+                            <a href="#" class="map-btn map-kakao">K 지도</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="font-size: 12px; color: #868e96; margin-top: 10px;">
+                ※ 총 3건의 대상이 확인되었습니다.
+            </div>
+        </div>
+
+        <div class="footer">
+            매일유업 FS 영업팀 | 자동 발송 시스템
+        </div>
+    </div>
+</body>
+
+</html>
