@@ -600,27 +600,32 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 50px;
-            /* 크기 축소 */
-            height: 50px;
-            /* 크기 축소 */
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 35px;
+            /* 크기 60% 수준으로 축소 (약 35px) */
+            height: 35px;
+            /* 크기 60% 수준으로 축소 (약 35px) */
+            background: white;
+            /* 배경 흰색 */
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            /* 그림자 조정 */
             transition: transform 0.2s;
             z-index: 1000;
+            border: 1px solid #f0f0f5;
+            /* 경계선 추가 */
         }
 
         .chatbot-fab:hover {
             transform: scale(1.1);
+            background: #fbfbfd;
         }
 
         .chatbot-icon {
-            font-size: 24px;
+            font-size: 20px;
             /* 아이콘 크기 축소 */
         }
 
@@ -1668,36 +1673,32 @@
 
 
 
-        <script>
-        // ============================================================
-            // Gemini 챗봇 스크립트
-            // ============================================================
 
-            function toggleChatbot() {
+        function toggleChatbot() {
             const container = document.getElementById('chatbotContainer');
             if (container) {
                 container.classList.toggle('active');
 
-            if (container.classList.contains('active')) {
-                document.getElementById('chatInput').focus();
-            // 챗봇 데이터 컨텍스트 업데이트 (방문일지 데이터 사용)
-            if (typeof geminiBot !== 'undefined') {
+                if (container.classList.contains('active')) {
+                    document.getElementById('chatInput').focus();
+                    // 챗봇 데이터 컨텍스트 업데이트 (방문일지 데이터 사용)
+                    if (typeof geminiBot !== 'undefined') {
                         // filteredData가 있으면 사용, 없으면 빈 배열
                         const currentData = typeof filteredData !== 'undefined' ? filteredData : [];
-            geminiBot.setContext(currentData, [], []);
-            console.log('챗봇 컨텍스트 업데이트 (방문일지):', currentData.length + '건');
+                        geminiBot.setContext(currentData, [], []);
+                        console.log('챗봇 컨텍스트 업데이트 (방문일지):', currentData.length + '건');
                     }
                 }
             }
         }
 
-            function handleChatEnter(event) {
+        function handleChatEnter(event) {
             if (event.key === 'Enter') {
                 sendChatMessage();
             }
         }
 
-            async function sendChatMessage() {
+        async function sendChatMessage() {
             const input = document.getElementById('chatInput');
             const question = input.value.trim();
 
@@ -1718,24 +1719,24 @@
                 // Gemini API 호출
                 const answer = await geminiBot.ask(question);
 
-            // 로딩 숨김
-            if (loadingElement) loadingElement.classList.remove('active');
+                // 로딩 숨김
+                if (loadingElement) loadingElement.classList.remove('active');
 
-            // AI 응답 추가
-            addChatMessage(answer, 'bot');
+                // AI 응답 추가
+                addChatMessage(answer, 'bot');
 
             } catch (error) {
                 if (loadingElement) loadingElement.classList.remove('active');
-            addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
+                addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
             }
         }
 
-            function askQuestion(question) {
-                document.getElementById('chatInput').value = question;
+        function askQuestion(question) {
+            document.getElementById('chatInput').value = question;
             sendChatMessage();
         }
 
-            function addChatMessage(text, type) {
+        function addChatMessage(text, type) {
             const messagesContainer = document.getElementById('chatbotMessages');
             if (!messagesContainer) return;
 
@@ -1746,9 +1747,9 @@
             avatar.className = 'message-avatar';
             avatar.textContent = type === 'bot' ? '🤖' : '👤';
 
-             const content = document.createElement('div');
+            const content = document.createElement('div');
             content.className = 'message-content';
-            
+
             // 봇 응답은 줄바꿈 처리
             if (type === 'bot') {
                 content.innerHTML = text.replace(/\n/g, '<br>'); // 마크다운 파싱을 위한 간단한 처리
@@ -1759,7 +1760,7 @@
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(content);
             messagesContainer.appendChild(messageDiv);
-            
+
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     </script>

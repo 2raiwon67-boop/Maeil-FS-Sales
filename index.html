@@ -1767,27 +1767,32 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 50px;
-            /* 크기 축소 */
-            height: 50px;
-            /* 크기 축소 */
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 35px;
+            /* 크기 60% 수준으로 축소 (약 35px) */
+            height: 35px;
+            /* 크기 60% 수준으로 축소 (약 35px) */
+            background: white;
+            /* 배경 흰색 */
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            /* 그림자 조정 */
             transition: transform 0.2s;
             z-index: 1000;
+            border: 1px solid #f0f0f5;
+            /* 경계선 추가 */
         }
 
         .chatbot-fab:hover {
             transform: scale(1.1);
+            background: #fbfbfd;
         }
 
         .chatbot-icon {
-            font-size: 24px;
+            font-size: 20px;
             /* 아이콘 크기 축소 */
         }
 
