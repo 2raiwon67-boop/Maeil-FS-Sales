@@ -600,8 +600,10 @@
             position: fixed;
             bottom: 24px;
             right: 24px;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            /* 크기 축소 */
+            height: 50px;
+            /* 크기 축소 */
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border-radius: 50%;
             display: flex;
@@ -618,15 +620,19 @@
         }
 
         .chatbot-icon {
-            font-size: 28px;
+            font-size: 24px;
+            /* 아이콘 크기 축소 */
         }
 
         .chatbot-container {
             position: fixed;
-            bottom: 100px;
+            bottom: 80px;
+            /* 위치 조정 */
             right: 24px;
-            width: 420px;
-            height: 600px;
+            width: 380px;
+            /* 너비 조정 */
+            height: 550px;
+            /* 높이 조정 */
             background: white;
             border-radius: 16px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
@@ -1615,23 +1621,83 @@
         // ============================================================
         // Gemini 챗봇
         // ============================================================
+    </script>
 
-        function toggleChatbot() {
+    <!-- Gemini 챗봇 UI -->
+    <div class="chatbot-fab" onclick="toggleChatbot()">
+        <!-- Gemini 스타일 아이콘 (Sparkle) -->
+        <span class="chatbot-icon">✨</span>
+    </div>
+
+    <div class="chatbot-container" id="chatbotContainer">
+        <div class="chatbot-header">
+            <h3>✨ FS AI 비서 (Gemini 2.5)</h3>
+            <span class="close-btn" onclick="toggleChatbot()" style="color: white;">&times;</span>
+        </div>
+        <div class="chatbot-messages" id="chatbotMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    안녕하세요! 경기북부 FS 영업팀 AI 비서입니다.<br>
+                    인허가 현황에 대해 궁금한 점을 물어보세요.
+                </div>
+            </div>
+        </div>
+
+        <div class="loading-indicator" id="chatLoading">
+            AI가 답변을 생성하고 있습니다...
+        </div>
+
+        <div class="chatbot-input-container">
+            <div class="chatbot-input">
+                <input type="text" id="chatInput" placeholder="질문을 입력하세요..." onkeypress="handleChatEnter(event)">
+                <button onclick="sendChatMessage()">전송</button>
+            </div>
+            <div class="chatbot-suggestions">
+                <button class="suggestion-btn" onclick="askQuestion('오늘 인허가 현황 요약해줘')">오늘 현황</button>
+                <button class="suggestion-btn" onclick="askQuestion('1순위 거래처 알려줘')">1순위 거래처</button>
+                <button class="suggestion-btn" onclick="askQuestion('남양주 지역 현황 어때?')">남양주 현황</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================
+        // Gemini 챗봇 스크립트
+        // ============================================================
+
+
+
+        <script>
+        // ============================================================
+            // Gemini 챗봇 스크립트
+            // ============================================================
+
+            function toggleChatbot() {
             const container = document.getElementById('chatbotContainer');
-            container.classList.toggle('active');
+            if (container) {
+                container.classList.toggle('active');
 
             if (container.classList.contains('active')) {
                 document.getElementById('chatInput').focus();
+            // 챗봇 데이터 컨텍스트 업데이트 (방문일지 데이터 사용)
+            if (typeof geminiBot !== 'undefined') {
+                        // filteredData가 있으면 사용, 없으면 빈 배열
+                        const currentData = typeof filteredData !== 'undefined' ? filteredData : [];
+            geminiBot.setContext(currentData, [], []);
+            console.log('챗봇 컨텍스트 업데이트 (방문일지):', currentData.length + '건');
+                    }
+                }
             }
         }
 
-        function handleChatEnter(event) {
+            function handleChatEnter(event) {
             if (event.key === 'Enter') {
                 sendChatMessage();
             }
         }
 
-        async function sendChatMessage() {
+            async function sendChatMessage() {
             const input = document.getElementById('chatInput');
             const question = input.value.trim();
 
@@ -1642,42 +1708,58 @@
             input.value = '';
 
             // 로딩 표시
-            document.getElementById('chatLoading').classList.add('active');
+            const loadingElement = document.getElementById('chatLoading');
+            if (loadingElement) loadingElement.classList.add('active');
+
+            const messagesContainer = document.getElementById('chatbotMessages');
+            if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
             try {
                 // Gemini API 호출
                 const answer = await geminiBot.ask(question);
 
-                // 로딩 숨김
-                document.getElementById('chatLoading').classList.remove('active');
+            // 로딩 숨김
+            if (loadingElement) loadingElement.classList.remove('active');
 
-                // AI 응답 추가
-                addChatMessage(answer, 'bot');
+            // AI 응답 추가
+            addChatMessage(answer, 'bot');
 
             } catch (error) {
-                document.getElementById('chatLoading').classList.remove('active');
-                addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
+                if (loadingElement) loadingElement.classList.remove('active');
+            addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
             }
         }
 
-        function askQuestion(question) {
-            document.getElementById('chatInput').value = question;
+            function askQuestion(question) {
+                document.getElementById('chatInput').value = question;
             sendChatMessage();
         }
 
-        function addChatMessage(text, type) {
-            const messagesContainer = document.getElementById('chatMessages');
+            function addChatMessage(text, type) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+            if (!messagesContainer) return;
+
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
 
-            const avatar = type === 'bot' ? '🤖' : '👤';
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'bot' ? '🤖' : '👤';
 
-            messageDiv.innerHTML = `
-                <div class="message-avatar">${avatar}</div>
-                <div class="message-content">${text}</div>
-            `;
+             const content = document.createElement('div');
+            content.className = 'message-content';
+            
+            // 봇 응답은 줄바꿈 처리
+            if (type === 'bot') {
+                content.innerHTML = text.replace(/\n/g, '<br>'); // 마크다운 파싱을 위한 간단한 처리
+            } else {
+                content.textContent = text;
+            }
 
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
             messagesContainer.appendChild(messageDiv);
+            
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     </script>
