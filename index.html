@@ -881,6 +881,13 @@
                     center: new kakao.maps.LatLng(37.5, 127.3),
                     level: 9
                 });
+
+                // 지도 확대 축소를 제어할 수 있는  줌 컨트롤을 생성합니다
+                var zoomControl = new kakao.maps.ZoomControl();
+                kakaoMap.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
+
+                // 마우스 휠로 지도 확대,축소 가능여부를 설정합니다
+                kakaoMap.setZoomable(true);
             } catch (error) {
                 console.error('지도 오류:', error);
             }
@@ -1198,7 +1205,6 @@
 
             markers.forEach(m => m.setMap(null));
             markers = [];
-            const bounds = new kakao.maps.LatLngBounds();  // 지도 범위 객체 생성
 
             let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
 
@@ -1225,18 +1231,10 @@
 
                     overlay.setMap(kakaoMap);
                     markers.push(overlay);
-
-                    // 영역 확장
-                    bounds.extend(pos);
                 } catch (e) {
                     console.warn('지도 마커 생성 실패', e);
                 }
             });
-
-            // 마커가 1개 이상이면 지도 범위 재설정
-            if (markers.length > 0) {
-                kakaoMap.setBounds(bounds);
-            }
 
 
             // 지도 클릭 이벤트 리스너 비활성화 (사용자 요청)
@@ -1298,18 +1296,14 @@
 
                     <div style="display: flex; gap: 8px;">
                         <a href="https://map.kakao.com/link/map/${item['사업장명']},${item['위도']},${item['경도']}" target="_blank" 
-                           style="flex: 1; text-align: center; padding: 10px 0; background: #fee500; color: #191919; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                           <span>📍</span> 상세보기
+                           style="flex: 1; text-align: center; padding: 8px; background: #fee500; color: #191919; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                           카카오맵 보기
                         </a>
-                        <a href="https://map.kakao.com/link/to/${item['사업장명']},${item['위도']},${item['경도']}" target="_blank" 
-                           style="flex: 1; text-align: center; padding: 10px 0; background: #4682b4; color: white; text-decoration: none; border-radius: 8px; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                           <span>🚗</span> 길찾기
-                        </a>
+                        <button onclick="closePlaceInfo()" 
+                            style="flex: 1; padding: 8px; background: #f5f5f7; border: none; border-radius: 6px; cursor: pointer;">
+                            닫기
+                        </button>
                     </div>
-                    <button onclick="closePlaceInfo()" 
-                        style="width: 100%; margin-top: 8px; padding: 8px; background: #f5f5f7; border: none; border-radius: 8px; cursor: pointer; color: #666;">
-                        닫기
-                    </button>
                 </div>
             `;
 
