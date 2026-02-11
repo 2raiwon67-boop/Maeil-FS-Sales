@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="origin">
-    <title>경기북부 FS 인허가 대시보드</title>
+    <title>FS MASSI</title>
+    <!-- 파비콘 추가 (지도 아이콘) -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -211,1054 +214,1260 @@
             border: 1px solid #e8e8ed;
             position: relative;
         }
-
-        .priority-card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 3px;
-            border-radius: 10px 0 0 10px;
-        }
-
-        .priority-card.rank1::before {
-            background: #ff3b30;
-        }
-
-        .priority-card.rank2::before {
-            background: #ff9500;
-        }
-
-        .priority-card.rank3::before {
-            background: #86868b;
-        }
-
-        .priority-card .label {
-            font-size: 11px;
-            font-weight: 600;
-            margin-bottom: 4px;
-        }
-
-        .priority-card.rank1 .label {
-            color: #ff3b30;
-        }
-
-        .priority-card.rank2 .label {
-            color: #ff9500;
-        }
-
-        .priority-card.rank3 .label {
-            color: #86868b;
-        }
-
-        .priority-card .value {
-            font-size: 28px;
-            font-weight: 700;
-            color: #1d1d1f;
-        }
-
-        /* =============== 드롭다운 섹션 =============== */
-        .dropdown-card {
-            background: #ffffff;
-            border-radius: 10px;
-            overflow: hidden;
-            border: 1px solid #e8e8ed;
-            margin-bottom: 8px;
-        }
-
-        .dropdown-header {
-            padding: 12px 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .dropdown-header:hover {
-            background: #f5f5f7;
-        }
-
-        .dropdown-header h4 {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-
-        .dropdown-arrow {
-            font-size: 12px;
-            color: #86868b;
-            transition: transform 0.2s;
-        }
-
-        .dropdown-card.open .dropdown-arrow {
-            transform: rotate(180deg);
-        }
-
-        .dropdown-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .dropdown-card.open .dropdown-content {
-            max-height: 300px;
-        }
-
-        .dropdown-list {
-            padding: 0 14px 12px;
-        }
-
-        .dropdown-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 10px;
-            background: #f5f5f7;
-            border-radius: 6px;
-            margin-bottom: 4px;
-            font-size: 13px;
-        }
-
-        .dropdown-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .dropdown-item-name {
-            color: #1d1d1f;
-            font-weight: 500;
-        }
-
-        .dropdown-item-count {
-            color: #0071e3;
-            font-weight: 600;
-        }
-
-        /* =============== 주간 추이 차트 =============== */
-        .chart-card {
-            background: #ffffff;
-            border-radius: 10px;
-            padding: 14px;
-            border: 1px solid #e8e8ed;
-        }
-
-        .chart-wrapper {
-            height: 120px;
-        }
-
-        /* =============== 우측 지도 영역 =============== */
-        .map-area {
-            position: relative;
-            background: #f5f5f7;
-        }
-
-        #map {
-            width: 100%;
-            height: 100%;
-        }
-
-        .map-controls {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 14px 16px;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-        }
-
-        .filter-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #86868b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 6px;
-        }
-
-        .filter-btn {
-            padding: 6px 14px;
-            border: 1px solid #d2d2d7;
-            background: white;
-            border-radius: 980px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .filter-btn:hover {
-            background: #f5f5f7;
-        }
-
-        .filter-btn.active {
-            background: #0071e3;
-            color: white;
-            border-color: #0071e3;
-        }
-
-        /* =============== 모달 =============== */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(5px);
-            z-index: 2000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            padding: 28px;
-            border-radius: 16px;
-            max-width: 450px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h2 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-
-        .close-btn {
-            font-size: 24px;
-            cursor: pointer;
-            color: #86868b;
-            transition: color 0.2s;
-            line-height: 1;
-        }
-
-        .close-btn:hover {
-            color: #1d1d1f;
-        }
-
-        .upload-zone {
-            border: 2px dashed #d2d2d7;
-            border-radius: 12px;
-            padding: 36px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-            background: #fafafa;
-        }
-
-        .upload-zone:hover,
-        .upload-zone.dragover {
-            border-color: #0071e3;
-            background: #f0f7ff;
-        }
-
-        .upload-icon {
-            font-size: 40px;
-            margin-bottom: 10px;
-        }
-
-        .upload-text {
-            font-size: 15px;
-            font-weight: 500;
-            color: #1d1d1f;
-        }
-
-        .upload-hint {
-            font-size: 13px;
-            color: #86868b;
-            margin-top: 4px;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .loading.active {
-            display: block;
-        }
-
-        .spinner {
-            border: 3px solid #f5f5f7;
-            border-top: 3px solid #0071e3;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-
-            100% {
-                transform: rotate(360deg);
-            }
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 10px;
-            margin: 14px 0;
-            font-size: 13px;
-            font-weight: 500;
-        }
-
-        .alert-success {
-            background: #d1f2eb;
-            color: #0a6847;
-        }
-
-        .alert-error {
-            background: #fce4e4;
-            color: #b91c1c;
-        }
-
-        .alert-info {
-            background: #e0f2fe;
-            color: #0369a1;
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .btn-full {
-            width: 100%;
-            margin-top: 14px;
-            padding: 12px;
-        }
-
-        /* =============== 스크롤바 스타일 =============== */
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .sidebar::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: #d2d2d7;
-            border-radius: 3px;
-        }
     </style>
 </head>
 
 <body>
     <!-- 상단 네비게이션 -->
     <nav class="nav-bar">
-        <div class="nav-logo">📊 경기북부 FS 통합 대시보드</div>
+        <div class="nav-logo">FS MASSI</div>
         <div class="nav-menu">
             <a href="index.html" class="nav-link active">인허가</a>
             <a href="방문일지.html" class="nav-link">방문일지</a>
         </div>
-        <div class="nav-actions">
-            <button class="btn btn-secondary" onclick="openUploadModal()">📤 RAW 업로드</button>
-            <button class="btn btn-primary" onclick="openFinalUploadModal()">최종본 업로드</button>
-        </div>
-    </nav>
 
-    <!-- 메인 레이아웃 -->
-    <div class="main-layout">
-        <!-- 좌측 사이드바 -->
-        <div class="sidebar">
-            <h1 class="sidebar-title">인허가 현황</h1>
+        <!-- Proj4js (좌표계 변환) -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 
-            <!-- 방문 현황 -->
-            <div class="section">
-                <div class="section-header">📍 방문 현황</div>
-                <div class="status-grid">
-                    <div class="status-card deal">
-                        <div class="label">거래</div>
-                        <div class="value" id="dealCount">0</div>
-                    </div>
-                    <div class="status-card no-deal">
-                        <div class="label">미거래</div>
-                        <div class="value" id="noDealCount">0</div>
-                    </div>
-                    <div class="status-card licensed">
-                        <div class="label">인허가</div>
-                        <div class="value" id="licensedCount">0</div>
-                    </div>
-                    <div class="status-card drop">
-                        <div class="label">DROP</div>
-                        <div class="value" id="dropCount">0</div>
-                    </div>
-                    <div class="status-card construction">
-                        <div class="label">공사중</div>
-                        <div class="value" id="constructionCount">0</div>
-                    </div>
-                </div>
-            </div>
+        <!-- Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-            <!-- 순위별 현황 -->
-            <div class="section">
-                <div class="section-header">🎯 순위별 현황</div>
-                <div class="priority-grid">
-                    <div class="priority-card rank1">
-                        <div class="label">1순위</div>
-                        <div class="value" id="rank1Count">0</div>
-                    </div>
-                    <div class="priority-card rank2">
-                        <div class="label">2순위</div>
-                        <div class="value" id="rank2Count">0</div>
-                    </div>
-                    <div class="priority-card rank3">
-                        <div class="label">3순위</div>
-                        <div class="value" id="rank3Count">0</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 담당자별 현황 -->
-            <div class="section">
-                <div class="dropdown-card" id="managerDropdown">
-                    <div class="dropdown-header" onclick="toggleDropdown('managerDropdown')">
-                        <h4>👥 담당자별 현황</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="managerList"></div>
-                    </div>
-                </div>
-
-                <div class="dropdown-card" id="regionDropdown">
-                    <div class="dropdown-header" onclick="toggleDropdown('regionDropdown')">
-                        <h4>🗺️ 지역별 현황</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="regionList"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 주간 추이 -->
-            <div class="section">
-                <div class="section-header">📈 주간 추이</div>
-                <div class="chart-card">
-                    <div class="chart-wrapper">
-                        <canvas id="weeklyChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 우측 지도 -->
-        <div class="map-area">
-            <div id="map"></div>
-            <div class="map-controls">
-                <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
-                    <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
-                        style="flex: 1; padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;"
-                        onkeypress="if(event.key === 'Enter') searchMapPlaces()">
-                    <button onclick="searchMapPlaces()"
-                        style="padding: 8px 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍</button>
-                </div>
-                <div class="filter-label">순위 필터</div>
-                <div class="filter-buttons">
-                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
-                    <button class="filter-btn" data-filter="1" onclick="setFilter('1')">1순위</button>
-                    <button class="filter-btn" data-filter="2" onclick="setFilter('2')">2순위</button>
-                    <button class="filter-btn" data-filter="3" onclick="setFilter('3')">3순위</button>
-                </div>
-                <button onclick="resetFilters()"
-                    style="margin-top: 10px; width: 100%; padding: 8px; background: #000; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄
-                    모든 필터 초기화</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- RAW 파일 업로드 모달 -->
-    <div class="modal" id="uploadModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>RAW 파일 업로드</h2>
-                <span class="close-btn" onclick="closeUploadModal()">&times;</span>
-            </div>
-            <div class="upload-zone" id="uploadZone1">
-                <div class="upload-icon">📁</div>
-                <p class="upload-text">클릭하거나 드래그앤드롭</p>
-                <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
-            </div>
-            <input type="file" id="fileInput1" accept=".xlsx,.xls" multiple>
-            <div class="loading" id="loading1">
-                <div class="spinner"></div>
-                <p>데이터 가공 중...</p>
-            </div>
-            <div id="alert1"></div>
-            <button class="btn btn-primary btn-full" id="downloadBtn" disabled>
-                📥 1차 가공본 다운로드
-            </button>
-        </div>
-    </div>
-
-    <!-- 최종본 업로드 모달 -->
-    <div class="modal" id="finalUploadModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>최종본 업로드</h2>
-                <span class="close-btn" onclick="closeFinalUploadModal()">&times;</span>
-            </div>
-            <div class="upload-zone" id="uploadZone2">
-                <div class="upload-icon">📂</div>
-                <p class="upload-text">수정 완료한 파일 업로드</p>
-                <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
-            </div>
-            <input type="file" id="fileInput2" accept=".xlsx,.xls">
-            <div class="loading" id="loading2">
-                <div class="spinner"></div>
-                <p>Google Sheets 업로드 중...</p>
-            </div>
-            <div id="alert2"></div>
-        </div>
-    </div>
-
-    <script>
-        // ============================================================
-        // 설정
-        // ============================================================
-
-        const SHEETS_CONFIG = {
-            apiKey: 'AQ.Ab8RN6KwmiUwl-nKqJB8CQwfZ3qeZ8BjPJPtxSY92uaviUVpow',
-            spreadsheetId: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-            range: '인허가데이터!A:P'
-        };
-
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEXZ-22BYHC-98YhmjCOBS741-rGNKwk-IXj0Zoe6Gi1bmBCc74lf5z-zvOG5VQpOn/exec';
-
-        // ============================================================
-        // 전역 변수
-        // ============================================================
-
-        let processedData = [];
-        let allData = [];
-        let kakaoMap;
-        let markers = [];
-        let currentFilter = 'all';
-        let currentRegion = null;
-        let currentManager = null;
-
-        // ============================================================
-        // 초기화
-        // ============================================================
-
-        window.onload = function () {
-            console.log('페이지 로드 완료');
-            setupUploadZones();
-            setupFilters();
-
-            if (typeof kakao !== 'undefined' && kakao.maps) {
-                kakao.maps.load(function () {
-                    console.log('카카오 지도 SDK 로드 완료');
-                    initKakaoMap();
-                });
-            } else {
-                console.error('카카오 지도 SDK를 불러올 수 없습니다.');
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
             }
 
-            loadDataFromSheets();
-            initChart();
-        };
-
-        // ============================================================
-        // 드롭다운
-        // ============================================================
-
-
-        function toggleDropdown(id) {
-            document.getElementById(id).classList.toggle('open');
-        }
-
-        // ============================================================
-        // 필터 관리
-        // ============================================================
-
-        function setFilter(filter) {
-            currentFilter = filter;
-
-            // 버튼 활성화 상태 변경
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-filter') === filter) {
-                    btn.classList.add('active');
-                }
-            });
-
-            // 대시보드 및 지도 업데이트
-            updateDashboard();
-            updateMap();
-        }
-
-        function setRegionFilter(region) {
-            // 같은 지역 클릭 시 필터 해제
-            if (currentRegion === region) {
-                currentRegion = null;
-            } else {
-                currentRegion = region;
+            body {
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                background: #ffffff;
+                color: #1d1d1f;
+                overflow: hidden;
+                height: 100vh;
             }
 
-            updateDashboard();
-            updateMap();
-        }
-
-        function setManagerFilter(manager) {
-            // 같은 담당자 클릭 시 필터 해제
-            if (currentManager === manager) {
-                currentManager = null;
-            } else {
-                currentManager = manager;
+            /* =============== 상단 네비게이션 =============== */
+            .nav-bar {
+                background: #1d1d1f;
+                padding: 0 24px;
+                height: 52px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
             }
 
-            updateDashboard();
-            updateMap();
-        }
-
-        function resetFilters() {
-            currentFilter = 'all';
-            currentRegion = null;
-            currentManager = null;
-
-            // 순위 필터 버튼 초기화
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-filter') === 'all') {
-                    btn.classList.add('active');
-                }
-            });
-
-            updateDashboard();
-            updateMap();
-        }
-
-        // ============================================================
-        // 카카오 지도
-        // ============================================================
-
-        function initKakaoMap() {
-            try {
-                const container = document.getElementById('map');
-                kakaoMap = new kakao.maps.Map(container, {
-                    center: new kakao.maps.LatLng(37.5, 127.3),
-                    level: 9
-                });
-            } catch (error) {
-                console.error('지도 오류:', error);
+            .nav-logo {
+                font-size: 17px;
+                font-weight: 600;
+                color: #ffffff;
             }
-        }
 
-        // ============================================================
-        // 차트
-        // ============================================================
+            .nav-menu {
+                display: flex;
+                gap: 24px;
+            }
 
-        let weeklyChart;
+            .nav-link {
+                color: #f5f5f7;
+                text-decoration: none;
+                font-size: 14px;
+                font-weight: 500;
+                padding: 8px 12px;
+                border-radius: 6px;
+                transition: all 0.2s;
+            }
 
-        function initChart() {
-            const ctx = document.getElementById('weeklyChart');
-            weeklyChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['월', '화', '수', '목', '금', '토', '일'],
-                    datasets: [{
-                        label: '1순위 신규',
-                        data: [0, 0, 0, 0, 0, 0, 0],
-                        borderColor: '#ff3b30',
-                        backgroundColor: 'rgba(255, 59, 48, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#ff3b30'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            display: true,
-                            beginAtZero: true,
-                            ticks: {
-                                font: { size: 10 },
-                                stepSize: 1
-                            },
-                            grid: { color: 'rgba(0,0,0,0.05)' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { size: 10 } }
-                        }
-                    }
+            .nav-link:hover {
+                background: #424245;
+            }
+
+            .nav-link.active {
+                background: #0071e3;
+            }
+
+            .nav-actions {
+                display: flex;
+                gap: 10px;
+            }
+
+            .btn {
+                padding: 8px 18px;
+                border: none;
+                border-radius: 980px;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .btn-primary {
+                background: #0071e3;
+                color: white;
+            }
+
+            .btn-primary:hover {
+                background: #0077ed;
+            }
+
+            .btn-secondary {
+                background: #424245;
+                color: white;
+            }
+
+            .btn-secondary:hover {
+                background: #515154;
+            }
+
+            /* =============== 메인 레이아웃 =============== */
+            .main-layout {
+                display: grid;
+                grid-template-columns: 340px 1fr;
+                height: calc(100vh - 52px);
+            }
+
+            /* =============== 좌측 사이드바 =============== */
+            .sidebar {
+                background: #f5f5f7;
+                overflow-y: auto;
+                padding: 20px;
+                border-right: 1px solid #d2d2d7;
+            }
+
+            .sidebar-title {
+                font-size: 22px;
+                font-weight: 700;
+                color: #1d1d1f;
+                margin-bottom: 20px;
+            }
+
+            .section {
+                margin-bottom: 20px;
+            }
+
+            .section-header {
+                font-size: 12px;
+                font-weight: 600;
+                color: #86868b;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 10px;
+            }
+
+            /* =============== 방문 현황 카드 (5개 가로) =============== */
+            .status-grid {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 6px;
+                margin-bottom: 6px;
+            }
+
+            .status-card {
+                background: #ffffff;
+                border-radius: 10px;
+                padding: 10px 6px;
+                text-align: center;
+                border: 1px solid #e8e8ed;
+            }
+
+            .status-card.deal {
+                border-left: 3px solid #0071e3;
+            }
+
+            .status-card.no-deal {
+                border-left: 3px solid #1d1d1f;
+            }
+
+            .status-card.licensed {
+                border-left: 3px solid #34c759;
+            }
+
+            .status-card.drop {
+                border-left: 3px solid #ff3b30;
+            }
+
+            .status-card.construction {
+                border-left: 3px solid #ff9500;
+            }
+
+            .status-card .label {
+                font-size: 10px;
+                font-weight: 500;
+                color: #86868b;
+                margin-bottom: 2px;
+            }
+
+            .status-card .value {
+                font-size: 20px;
+                font-weight: 700;
+                color: #1d1d1f;
+            }
+
+            /* =============== 순위별 현황 =============== */
+            .priority-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 8px;
+            }
+
+            .priority-card {
+                background: #ffffff;
+                border-radius: 10px;
+                padding: 12px;
+                text-align: center;
+                border: 1px solid #e8e8ed;
+                position: relative;
+            }
+
+            .priority-card::before {
+                content: '';
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 3px;
+                border-radius: 10px 0 0 10px;
+            }
+
+            .priority-card.rank1::before {
+                background: #ff3b30;
+            }
+
+            .priority-card.rank2::before {
+                background: #ff9500;
+            }
+
+            .priority-card.rank3::before {
+                background: #86868b;
+            }
+
+            .priority-card .label {
+                font-size: 11px;
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+
+            .priority-card.rank1 .label {
+                color: #ff3b30;
+            }
+
+            .priority-card.rank2 .label {
+                color: #ff9500;
+            }
+
+            .priority-card.rank3 .label {
+                color: #86868b;
+            }
+
+            .priority-card .value {
+                font-size: 28px;
+                font-weight: 700;
+                color: #1d1d1f;
+            }
+
+            /* =============== 드롭다운 섹션 =============== */
+            .dropdown-card {
+                background: #ffffff;
+                border-radius: 10px;
+                overflow: hidden;
+                border: 1px solid #e8e8ed;
+                margin-bottom: 8px;
+            }
+
+            .dropdown-header {
+                padding: 12px 14px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .dropdown-header:hover {
+                background: #f5f5f7;
+            }
+
+            .dropdown-header h4 {
+                font-size: 14px;
+                font-weight: 600;
+                color: #1d1d1f;
+            }
+
+            .dropdown-arrow {
+                font-size: 12px;
+                color: #86868b;
+                transition: transform 0.2s;
+            }
+
+            .dropdown-card.open .dropdown-arrow {
+                transform: rotate(180deg);
+            }
+
+            .dropdown-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }
+
+            .dropdown-card.open .dropdown-content {
+                max-height: 300px;
+            }
+
+            .dropdown-list {
+                padding: 0 14px 12px;
+            }
+
+            .dropdown-item {
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 10px;
+                background: #f5f5f7;
+                border-radius: 6px;
+                margin-bottom: 4px;
+                font-size: 13px;
+            }
+
+            .dropdown-item:last-child {
+                margin-bottom: 0;
+            }
+
+            .dropdown-item-name {
+                color: #1d1d1f;
+                font-weight: 500;
+            }
+
+            .dropdown-item-count {
+                color: #0071e3;
+                font-weight: 600;
+            }
+
+            /* =============== 주간 추이 차트 =============== */
+            .chart-card {
+                background: #ffffff;
+                border-radius: 10px;
+                padding: 14px;
+                border: 1px solid #e8e8ed;
+            }
+
+            .chart-wrapper {
+                height: 120px;
+            }
+
+            /* =============== 우측 지도 영역 =============== */
+            .map-area {
+                position: relative;
+                background: #f5f5f7;
+            }
+
+            #map {
+                width: 100%;
+                height: 100%;
+            }
+
+            .map-controls {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                padding: 14px 16px;
+                border-radius: 12px;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+                z-index: 100;
+            }
+
+            .filter-label {
+                font-size: 11px;
+                font-weight: 600;
+                color: #86868b;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 8px;
+            }
+
+            .filter-buttons {
+                display: flex;
+                gap: 6px;
+            }
+
+            .filter-btn {
+                padding: 6px 14px;
+                border: 1px solid #d2d2d7;
+                background: white;
+                border-radius: 980px;
+                font-size: 12px;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .filter-btn:hover {
+                background: #f5f5f7;
+            }
+
+            .filter-btn.active {
+                background: #0071e3;
+                color: white;
+                border-color: #0071e3;
+            }
+
+            /* =============== 모달 =============== */
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(5px);
+                z-index: 2000;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .modal.active {
+                display: flex;
+            }
+
+            .modal-content {
+                background: white;
+                padding: 28px;
+                border-radius: 16px;
+                max-width: 450px;
+                width: 90%;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            }
+
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+
+            .modal-header h2 {
+                font-size: 20px;
+                font-weight: 600;
+                color: #1d1d1f;
+            }
+
+            .close-btn {
+                font-size: 24px;
+                cursor: pointer;
+                color: #86868b;
+                transition: color 0.2s;
+                line-height: 1;
+            }
+
+            .close-btn:hover {
+                color: #1d1d1f;
+            }
+
+            .upload-zone {
+                border: 2px dashed #d2d2d7;
+                border-radius: 12px;
+                padding: 36px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.2s;
+                background: #fafafa;
+            }
+
+            .upload-zone:hover,
+            .upload-zone.dragover {
+                border-color: #0071e3;
+                background: #f0f7ff;
+            }
+
+            .upload-icon {
+                font-size: 40px;
+                margin-bottom: 10px;
+            }
+
+            .upload-text {
+                font-size: 15px;
+                font-weight: 500;
+                color: #1d1d1f;
+            }
+
+            .upload-hint {
+                font-size: 13px;
+                color: #86868b;
+                margin-top: 4px;
+            }
+
+            .loading {
+                display: none;
+                text-align: center;
+                padding: 20px;
+            }
+
+            .loading.active {
+                display: block;
+            }
+
+            .spinner {
+                border: 3px solid #f5f5f7;
+                border-top: 3px solid #0071e3;
+                border-radius: 50%;
+                width: 32px;
+                height: 32px;
+                animation: spin 0.8s linear infinite;
+                margin: 0 auto 10px;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
                 }
-            });
-        }
 
-        function updateChart() {
-            if (!weeklyChart) return;
-
-            // 한국 표준시 기준 오늘 날짜
-            const today = new Date();
-            const kstOffset = 9 * 60; // KST = UTC+9
-            const kstToday = new Date(today.getTime() + (kstOffset - today.getTimezoneOffset()) * 60000);
-
-            // 이번 주 월요일 계산
-            const dayOfWeek = kstToday.getDay(); // 0=일요일, 1=월요일, ...
-            const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 일요일이면 6일 전, 아니면 (요일-1)
-            const monday = new Date(kstToday);
-            monday.setDate(kstToday.getDate() - daysFromMonday);
-            monday.setHours(0, 0, 0, 0);
-
-            // 주간 데이터 집계 (월~일)
-            const weekData = [0, 0, 0, 0, 0, 0, 0];
-
-            allData.forEach(item => {
-                if (item['순위'] !== '1') return; // 1순위만
-
-                const regDate = item['앱시트등록일'];
-                if (!regDate) return;
-
-                try {
-                    const date = new Date(regDate);
-
-                    // 이번 주 데이터인지 확인
-                    if (date >= monday && date <= kstToday) {
-                        const dayIndex = date.getDay(); // 0=일요일
-                        const chartIndex = dayIndex === 0 ? 6 : dayIndex - 1; // 월=0, 화=1, ..., 일=6
-                        weekData[chartIndex]++;
-                    }
-                } catch (e) {
-                    // 날짜 파싱 실패 시 무시
+                100% {
+                    transform: rotate(360deg);
                 }
-            });
+            }
 
-            // 차트 업데이트
-            weeklyChart.data.datasets[0].data = weekData;
-            weeklyChart.update();
+            .alert {
+                padding: 12px 16px;
+                border-radius: 10px;
+                margin: 14px 0;
+                font-size: 13px;
+                font-weight: 500;
+            }
 
-            console.log('주간 추이 업데이트:', weekData);
-        }
+            .alert-success {
+                background: #d1f2eb;
+                color: #0a6847;
+            }
 
-        // ============================================================
-        // 데이터 로드
-        // ============================================================
+            .alert-error {
+                background: #fce4e4;
+                color: #b91c1c;
+            }
 
-        async function loadDataFromSheets() {
-            try {
-                // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
-                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
+            .alert-info {
+                background: #e0f2fe;
+                color: #0369a1;
+            }
 
-                const response = await fetch(csvUrl);
-                if (!response.ok) {
-                    console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
-                    return;
-                }
+            input[type="file"] {
+                display: none;
+            }
 
-                const csvText = await response.text();
+            .btn-full {
+                width: 100%;
+                margin-top: 14px;
+                padding: 12px;
+            }
 
-                // CSV 파싱 (쉼표가 포함된 필드 처리)
-                function parseCSV(text) {
-                    const lines = [];
-                    let currentLine = [];
-                    let currentField = '';
-                    let inQuotes = false;
+            /* =============== 스크롤바 스타일 =============== */
+            .sidebar::-webkit-scrollbar {
+                width: 6px;
+            }
 
-                    for (let i = 0; i < text.length; i++) {
-                        const char = text[i];
-                        const nextChar = text[i + 1];
+            .sidebar::-webkit-scrollbar-track {
+                background: transparent;
+            }
 
-                        if (char === '"') {
-                            if (inQuotes && nextChar === '"') {
-                                currentField += '"';
-                                i++; // Skip next quote
-                            } else {
-                                inQuotes = !inQuotes;
-                            }
-                        } else if (char === ',' && !inQuotes) {
-                            currentLine.push(currentField.trim());
-                            currentField = '';
-                        } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                            if (currentField || currentLine.length > 0) {
-                                currentLine.push(currentField.trim());
-                                if (currentLine.some(f => f)) { // Skip empty lines
-                                    lines.push(currentLine);
-                                }
-                                currentLine = [];
-                                currentField = '';
-                            }
-                            if (char === '\r' && nextChar === '\n') {
-                                i++; // Skip \n in \r\n
-                            }
-                        } else {
-                            currentField += char;
-                        }
-                    }
+            .sidebar::-webkit-scrollbar-thumb {
+                background: #d2d2d7;
+                border-radius: 3px;
+            }
+        </style>
+        </head>
 
-                    // Add last field and line
-                    if (currentField || currentLine.length > 0) {
-                        currentLine.push(currentField.trim());
-                        if (currentLine.some(f => f)) {
-                            lines.push(currentLine);
-                        }
-                    }
+        <body>
+            <!-- 상단 네비게이션 -->
+            <nav class="nav-bar">
+                <div class="nav-logo">FS MASSI</div>
+                <div class="nav-menu">
+                    <a href="index.html" class="nav-link active">인허가</a>
+                    <a href="방문일지.html" class="nav-link">방문일지</a>
+                </div>
+                <div class="nav-actions">
+                    <button class="btn btn-secondary" onclick="openUploadModal()">📤 RAW 업로드</button>
+                    <button class="btn btn-primary" onclick="openFinalUploadModal()">최종본 업로드</button>
+                </div>
+            </nav>
 
-                    return lines;
-                }
+            <!-- 메인 레이아웃 -->
+            <div class="main-layout">
+                <!-- 좌측 사이드바 -->
+                <div class="sidebar">
+                    <h1 class="sidebar-title">인허가 현황</h1>
 
-                const lines = parseCSV(csvText);
+                    <!-- 방문 현황 -->
+                    <div class="section">
+                        <div class="section-header">📍 방문 현황</div>
+                        <div class="status-grid">
+                            <div class="status-card deal">
+                                <div class="label">거래</div>
+                                <div class="value" id="dealCount">0</div>
+                            </div>
+                            <div class="status-card no-deal">
+                                <div class="label">미거래</div>
+                                <div class="value" id="noDealCount">0</div>
+                            </div>
+                            <div class="status-card licensed">
+                                <div class="label">인허가</div>
+                                <div class="value" id="licensedCount">0</div>
+                            </div>
+                            <div class="status-card drop">
+                                <div class="label">DROP</div>
+                                <div class="value" id="dropCount">0</div>
+                            </div>
+                            <div class="status-card construction">
+                                <div class="label">공사중</div>
+                                <div class="value" id="constructionCount">0</div>
+                            </div>
+                        </div>
+                    </div>
 
-                if (lines.length > 1) {
-                    const headers = lines[0];
-                    allData = lines.slice(1)
-                        .map(values => {
-                            const obj = {};
-                            headers.forEach((h, i) => {
-                                obj[h] = values[i] || '';
-                            });
-                            return obj;
-                        })
-                        .filter(row => {
-                            // 유효한 데이터만 필터링
-                            const manager = row['담당자'] || '';
-                            const name = row['사업장명'] || '';
+                    <!-- 순위별 현황 -->
+                    <div class="section">
+                        <div class="section-header">🎯 순위별 현황</div>
+                        <div class="priority-grid">
+                            <div class="priority-card rank1">
+                                <div class="label">1순위</div>
+                                <div class="value" id="rank1Count">0</div>
+                            </div>
+                            <div class="priority-card rank2">
+                                <div class="label">2순위</div>
+                                <div class="value" id="rank2Count">0</div>
+                            </div>
+                            <div class="priority-card rank3">
+                                <div class="label">3순위</div>
+                                <div class="value" id="rank3Count">0</div>
+                            </div>
+                        </div>
+                    </div>
 
-                            // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
-                            if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
-                            if (manager.includes('업로드일')) return false;
-                            if (manager.includes('등록일')) return false;
+                    <!-- 담당자별 현황 -->
+                    <div class="section">
+                        <div class="dropdown-card" id="managerDropdown">
+                            <div class="dropdown-header" onclick="toggleDropdown('managerDropdown')">
+                                <h4>👥 담당자별 현황</h4>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="dropdown-content">
+                                <div class="dropdown-list" id="managerList"></div>
+                            </div>
+                        </div>
 
-                            // 사업장명이 비어있으면 제외
-                            if (!name || name.trim() === '') return false;
+                        <div class="dropdown-card" id="regionDropdown">
+                            <div class="dropdown-header" onclick="toggleDropdown('regionDropdown')">
+                                <h4>🗺️ 지역별 현황</h4>
+                                <span class="dropdown-arrow">▼</span>
+                            </div>
+                            <div class="dropdown-content">
+                                <div class="dropdown-list" id="regionList"></div>
+                            </div>
+                        </div>
+                    </div>
 
-                            return true;
+                    <!-- 주간 추이 -->
+                    <div class="section">
+                        <div class="section-header">📈 주간 추이</div>
+                        <div class="chart-card">
+                            <div class="chart-wrapper">
+                                <canvas id="weeklyChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 우측 지도 -->
+                <div class="map-area">
+                    <div id="map"></div>
+                    <div class="map-controls">
+                        <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
+                            <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
+                                style="flex: 1; padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;"
+                                onkeypress="if(event.key === 'Enter') searchMapPlaces()">
+                            <button onclick="searchMapPlaces()"
+                                style="padding: 8px 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍</button>
+                        </div>
+                        <div class="filter-label">순위 필터</div>
+                        <div class="filter-buttons">
+                            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
+                            <button class="filter-btn" data-filter="1" onclick="setFilter('1')">1순위</button>
+                            <button class="filter-btn" data-filter="2" onclick="setFilter('2')">2순위</button>
+                            <button class="filter-btn" data-filter="3" onclick="setFilter('3')">3순위</button>
+                        </div>
+                        <button onclick="resetFilters()"
+                            style="margin-top: 10px; width: 100%; padding: 8px; background: #000; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄
+                            모든 필터 초기화</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RAW 파일 업로드 모달 -->
+            <div class="modal" id="uploadModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>RAW 파일 업로드</h2>
+                        <span class="close-btn" onclick="closeUploadModal()">&times;</span>
+                    </div>
+                    <div class="upload-zone" id="uploadZone1">
+                        <div class="upload-icon">📁</div>
+                        <p class="upload-text">클릭하거나 드래그앤드롭</p>
+                        <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
+                    </div>
+                    <input type="file" id="fileInput1" accept=".xlsx,.xls" multiple>
+                    <div class="loading" id="loading1">
+                        <div class="spinner"></div>
+                        <p>데이터 가공 중...</p>
+                    </div>
+                    <div id="alert1"></div>
+                    <button class="btn btn-primary btn-full" id="downloadBtn" disabled>
+                        📥 1차 가공본 다운로드
+                    </button>
+                </div>
+            </div>
+
+            <!-- 최종본 업로드 모달 -->
+            <div class="modal" id="finalUploadModal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>최종본 업로드</h2>
+                        <span class="close-btn" onclick="closeFinalUploadModal()">&times;</span>
+                    </div>
+                    <div class="upload-zone" id="uploadZone2">
+                        <div class="upload-icon">📂</div>
+                        <p class="upload-text">수정 완료한 파일 업로드</p>
+                        <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
+                    </div>
+                    <input type="file" id="fileInput2" accept=".xlsx,.xls">
+                    <div class="loading" id="loading2">
+                        <div class="spinner"></div>
+                        <p>Google Sheets 업로드 중...</p>
+                    </div>
+                    <div id="alert2"></div>
+                </div>
+            </div>
+
+            <script>
+                // ============================================================
+                // 설정
+                // ============================================================
+
+                const SHEETS_CONFIG = {
+                    apiKey: 'AQ.Ab8RN6KwmiUwl-nKqJB8CQwfZ3qeZ8BjPJPtxSY92uaviUVpow',
+                    spreadsheetId: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
+                    range: '인허가데이터!A:P'
+                };
+
+                const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEXZ-22BYHC-98YhmjCOBS741-rGNKwk-IXj0Zoe6Gi1bmBCc74lf5z-zvOG5VQpOn/exec';
+
+                // ============================================================
+                // 전역 변수
+                // ============================================================
+
+                let processedData = [];
+                let allData = [];
+                let kakaoMap;
+                let markers = [];
+                let currentFilter = 'all';
+                let currentRegion = null;
+                let currentManager = null;
+
+                // ============================================================
+                // 초기화
+                // ============================================================
+
+                window.onload = function () {
+                    console.log('페이지 로드 완료');
+                    setupUploadZones();
+                    setupFilters();
+
+                    if (typeof kakao !== 'undefined' && kakao.maps) {
+                        kakao.maps.load(function () {
+                            console.log('카카오 지도 SDK 로드 완료');
+                            initKakaoMap();
                         });
+                    } else {
+                        console.error('카카오 지도 SDK를 불러올 수 없습니다.');
+                    }
 
-                    console.log(`Google Sheets 로드 완료: ${allData.length}건`);
+                    loadDataFromSheets();
+                    initChart();
+                };
+
+                // ============================================================
+                // 드롭다운
+                // ============================================================
+
+
+                function toggleDropdown(id) {
+                    document.getElementById(id).classList.toggle('open');
+                }
+
+                // ============================================================
+                // 필터 관리
+                // ============================================================
+
+                function setFilter(filter) {
+                    currentFilter = filter;
+
+                    // 버튼 활성화 상태 변경
+                    document.querySelectorAll('.filter-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.getAttribute('data-filter') === filter) {
+                            btn.classList.add('active');
+                        }
+                    });
+
+                    // 대시보드 및 지도 업데이트
                     updateDashboard();
                     updateMap();
                 }
-            } catch (error) {
-                console.warn('Google Sheets 로드 실패:', error.message);
-                console.log('대시보드는 최종본 업로드 후 표시됩니다');
-            }
-        }
 
-        // ============================================================
-        // 대시보드 업데이트
-        // ============================================================
+                function setRegionFilter(region) {
+                    // 같은 지역 클릭 시 필터 해제
+                    if (currentRegion === region) {
+                        currentRegion = null;
+                    } else {
+                        currentRegion = region;
+                    }
 
-        function updateDashboard() {
-            // 다중 필터링 적용
-            let filteredData = allData;
-
-            // 순위 필터
-            if (currentFilter !== 'all') {
-                filteredData = filteredData.filter(d => d['순위'] === currentFilter);
-            }
-
-            // 지역 필터
-            if (currentRegion) {
-                filteredData = filteredData.filter(d => (d['주소2'] || '기타') === currentRegion);
-            }
-
-            // 담당자 필터
-            if (currentManager) {
-                filteredData = filteredData.filter(d => (d['담당자'] || '미지정') === currentManager);
-            }
-
-            // 실제 Google Sheets 컬럼명 사용
-            document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
-            document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
-            document.getElementById('licensedCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '인허가').length || 0;
-            document.getElementById('dropCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
-            document.getElementById('constructionCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
-
-            // 순위는 "1", "2", "3" 형식으로 저장됨
-            document.getElementById('rank1Count').textContent = filteredData.filter(d => d['순위'] === '1').length || 0;
-            document.getElementById('rank2Count').textContent = filteredData.filter(d => d['순위'] === '2').length || 0;
-            document.getElementById('rank3Count').textContent = filteredData.filter(d => d['순위'] === '3').length || 0;
-
-            const regionCounts = {};
-            filteredData.forEach(item => {
-                const region = item['주소2'] || '기타';
-                regionCounts[region] = (regionCounts[region] || 0) + 1;
-            });
-
-            document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
-                .sort((a, b) => b[1] - a[1]).slice(0, 6)
-                .map(([r, c]) => {
-                    const isActive = currentRegion === r ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
-                    return `<div class="dropdown-item" onclick="setRegionFilter('${r}')"${isActive}><span class="dropdown-item-name">${r}</span><span class="dropdown-item-count">${c}건</span></div>`;
-                }).join('');
-
-            const managerCounts = {};
-            filteredData.forEach(item => {
-                const m = item['담당자'] || '미지정';
-                managerCounts[m] = (managerCounts[m] || 0) + 1;
-            });
-
-            document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([m, c]) => {
-                    const isActive = currentManager === m ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
-                    return `<div class="dropdown-item" onclick="setManagerFilter('${m}')"${isActive}><span class="dropdown-item-name">${m}</span><span class="dropdown-item-count">${c}건</span></div>`;
-                }).join('');
-
-            updateChart();
-        }
-
-        // ============================================================
-        // 지도 업데이트 및 검색
-        // ============================================================
-
-        function searchMapPlaces() {
-            const keyword = document.getElementById('mapSearchInput').value.trim();
-            if (!keyword) {
-                alert('검색어를 입력해주세요!');
-                return;
-            }
-
-            // 1. DB 데이터 검색 (우선순위)
-            // allData에서 '사업장명' 또는 '도로명전체주소'에 키워드가 포함된 항목 검색
-            const dbResult = allData.find(item =>
-                (item['사업장명'] && item['사업장명'].includes(keyword)) ||
-                (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
-            );
-
-            if (dbResult && dbResult['위도'] && dbResult['경도']) {
-                const moveLatLon = new kakao.maps.LatLng(parseFloat(dbResult['위도']), parseFloat(dbResult['경도']));
-                kakaoMap.setCenter(moveLatLon);
-                kakaoMap.setLevel(1); // Zoom in (매우 가깝게)
-                return;
-            }
-
-            // 2. 카카오 장소 검색 (DB에 없으면)
-            // 장소 검색 객체를 생성합니다
-            const ps = new kakao.maps.services.Places();
-
-            // 키워드로 장소를 검색합니다
-            ps.keywordSearch(keyword, (data, status, pagination) => {
-                if (status === kakao.maps.services.Status.OK) {
-                    // 검색된 장소 위치를 기준으로 지도 중심을 이동합니다
-                    const place = data[0];
-                    const moveLatLon = new kakao.maps.LatLng(place.y, place.x);
-                    kakaoMap.setCenter(moveLatLon);
-                    kakaoMap.setLevel(3);
-                } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-                    alert('검색 결과가 존재하지 않습니다.');
-                    return;
-                } else if (status === kakao.maps.services.Status.ERROR) {
-                    alert('검색 결과 중 오류가 발생했습니다.');
-                    return;
+                    updateDashboard();
+                    updateMap();
                 }
-            });
-        }
 
-        function updateMap() {
-            if (!kakaoMap) return;
+                function setManagerFilter(manager) {
+                    // 같은 담당자 클릭 시 필터 해제
+                    if (currentManager === manager) {
+                        currentManager = null;
+                    } else {
+                        currentManager = manager;
+                    }
 
-            markers.forEach(m => m.setMap(null));
-            markers = [];
-
-            let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
-
-            filtered.forEach(item => {
-                if (!item['위도'] || !item['경도']) return;
-
-                try {
-                    const pos = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
-                    const color = item['순위'] === '1' ? '#ff3b30' : item['순위'] === '2' ? '#ff9500' : '#86868b';
-
-                    // 마커 표시 (커스텀 오버레이)
-                    // 클릭 시 상세 정보 표시를 위해 onclick 이벤트 추가
-                    const content = document.createElement('div');
-                    content.className = 'map-marker';
-                    content.style.cssText = 'background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;';
-                    content.innerHTML = item['사업장명'];
-                    content.onclick = () => showPlaceInfo(item);
-
-                    const overlay = new kakao.maps.CustomOverlay({
-                        position: pos,
-                        content: content,
-                        yAnchor: 1
-                    });
-
-                    overlay.setMap(kakaoMap);
-                    markers.push(overlay);
-                } catch (e) {
-                    console.warn('지도 마커 생성 실패', e);
+                    updateDashboard();
+                    updateMap();
                 }
-            });
 
-            // 지도 클릭 이벤트 리스너 추가 (한 번만 등록)
-            if (!kakaoMap.clickListenerAdded) {
-                kakao.maps.event.addListener(kakaoMap, 'click', function (mouseEvent) {
-                    searchDetailAddrFromCoords(mouseEvent.latLng, function (result, status) {
-                        if (status === kakao.maps.services.Status.OK) {
-                            var detailAddr = !!result[0].road_address ? '<div>도로명주소 : ' + result[0].road_address.address_name + '</div>' : '';
-                            detailAddr += '<div>지번 주소 : ' + result[0].address.address_name + '</div>';
+                function resetFilters() {
+                    currentFilter = 'all';
+                    currentRegion = null;
+                    currentManager = null;
 
-                            var content = '<div class="bAddr" style="padding:10px; font-size:12px; border-radius: 8px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">' +
-                                '<div class="title" style="font-weight:bold; margin-bottom:5px;">선택한 위치 정보</div>' +
-                                detailAddr +
-                                '<div style="margin-top:8px; display:flex; gap:5px;">' +
-                                '<a href="https://map.kakao.com/link/to/도착지,' + mouseEvent.latLng.getLat() + ',' + mouseEvent.latLng.getLng() + '" target="_blank" style="background:#fee500; padding:5px 10px; border-radius:4px; text-decoration:none; color:black; font-weight:bold;">길찾기</a>' +
-                                '</div>' +
-                                '</div>';
-
-                            // 인포윈도우 생성 및 표시
-                            // 기존 열린 인포윈도우 제거 (옵션)
-                            if (window.currentInfoWindow) {
-                                window.currentInfoWindow.close();
-                            }
-
-                            var infowindow = new kakao.maps.InfoWindow({
-                                position: mouseEvent.latLng,
-                                content: content
-                            });
-
-                            infowindow.open(kakaoMap);
-                            window.currentInfoWindow = infowindow;
+                    // 순위 필터 버튼 초기화
+                    document.querySelectorAll('.filter-btn').forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.getAttribute('data-filter') === 'all') {
+                            btn.classList.add('active');
                         }
                     });
-                });
-                kakaoMap.clickListenerAdded = true;
-            }
-        }
 
-        function searchDetailAddrFromCoords(coords, callback) {
-            // 좌표로 법정동 상세 주소 정보를 요청합니다
-            var geocoder = new kakao.maps.services.Geocoder();
-            geocoder.coord2Address(coords.getLng(), coords.getLat(), callback);
-        }
+                    updateDashboard();
+                    updateMap();
+                }
 
-        function showPlaceInfo(item) {
-            const content = `
+                // ============================================================
+                // 카카오 지도
+                // ============================================================
+
+                function initKakaoMap() {
+                    try {
+                        const container = document.getElementById('map');
+                        kakaoMap = new kakao.maps.Map(container, {
+                            center: new kakao.maps.LatLng(37.5, 127.3),
+                            level: 9
+                        });
+                    } catch (error) {
+                        console.error('지도 오류:', error);
+                    }
+                }
+
+                // ============================================================
+                // 차트
+                // ============================================================
+
+                let weeklyChart;
+
+                function initChart() {
+                    const ctx = document.getElementById('weeklyChart');
+                    weeklyChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['월', '화', '수', '목', '금', '토', '일'],
+                            datasets: [{
+                                label: '1순위 신규',
+                                data: [0, 0, 0, 0, 0, 0, 0],
+                                borderColor: '#ff3b30',
+                                backgroundColor: 'rgba(255, 59, 48, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2,
+                                pointRadius: 4,
+                                pointBackgroundColor: '#ff3b30'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                y: {
+                                    display: true,
+                                    beginAtZero: true,
+                                    ticks: {
+                                        font: { size: 10 },
+                                        stepSize: 1
+                                    },
+                                    grid: { color: 'rgba(0,0,0,0.05)' }
+                                },
+                                x: {
+                                    grid: { display: false },
+                                    ticks: { font: { size: 10 } }
+                                }
+                            }
+                        }
+                    });
+                }
+
+                function updateChart() {
+                    if (!weeklyChart) return;
+
+                    // 한국 표준시 기준 오늘 날짜
+                    const today = new Date();
+                    const kstOffset = 9 * 60; // KST = UTC+9
+                    const kstToday = new Date(today.getTime() + (kstOffset - today.getTimezoneOffset()) * 60000);
+
+                    // 이번 주 월요일 계산
+                    const dayOfWeek = kstToday.getDay(); // 0=일요일, 1=월요일, ...
+                    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 일요일이면 6일 전, 아니면 (요일-1)
+                    const monday = new Date(kstToday);
+                    monday.setDate(kstToday.getDate() - daysFromMonday);
+                    monday.setHours(0, 0, 0, 0);
+
+                    // 주간 데이터 집계 (월~일)
+                    const weekData = [0, 0, 0, 0, 0, 0, 0];
+
+                    allData.forEach(item => {
+                        if (item['순위'] !== '1') return; // 1순위만
+
+                        const regDate = item['앱시트등록일'];
+                        if (!regDate) return;
+
+                        try {
+                            const date = new Date(regDate);
+
+                            // 이번 주 데이터인지 확인
+                            if (date >= monday && date <= kstToday) {
+                                const dayIndex = date.getDay(); // 0=일요일
+                                const chartIndex = dayIndex === 0 ? 6 : dayIndex - 1; // 월=0, 화=1, ..., 일=6
+                                weekData[chartIndex]++;
+                            }
+                        } catch (e) {
+                            // 날짜 파싱 실패 시 무시
+                        }
+                    });
+
+                    // 차트 업데이트
+                    weeklyChart.data.datasets[0].data = weekData;
+                    weeklyChart.update();
+
+                    console.log('주간 추이 업데이트:', weekData);
+                }
+
+                // ============================================================
+                // 데이터 로드
+                // ============================================================
+
+                async function loadDataFromSheets() {
+                    try {
+                        // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
+                        const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
+
+                        const response = await fetch(csvUrl);
+                        if (!response.ok) {
+                            console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
+                            return;
+                        }
+
+                        const csvText = await response.text();
+
+                        // CSV 파싱 (쉼표가 포함된 필드 처리)
+                        function parseCSV(text) {
+                            const lines = [];
+                            let currentLine = [];
+                            let currentField = '';
+                            let inQuotes = false;
+
+                            for (let i = 0; i < text.length; i++) {
+                                const char = text[i];
+                                const nextChar = text[i + 1];
+
+                                if (char === '"') {
+                                    if (inQuotes && nextChar === '"') {
+                                        currentField += '"';
+                                        i++; // Skip next quote
+                                    } else {
+                                        inQuotes = !inQuotes;
+                                    }
+                                } else if (char === ',' && !inQuotes) {
+                                    currentLine.push(currentField.trim());
+                                    currentField = '';
+                                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                                    if (currentField || currentLine.length > 0) {
+                                        currentLine.push(currentField.trim());
+                                        if (currentLine.some(f => f)) { // Skip empty lines
+                                            lines.push(currentLine);
+                                        }
+                                        currentLine = [];
+                                        currentField = '';
+                                    }
+                                    if (char === '\r' && nextChar === '\n') {
+                                        i++; // Skip \n in \r\n
+                                    }
+                                } else {
+                                    currentField += char;
+                                }
+                            }
+
+                            // Add last field and line
+                            if (currentField || currentLine.length > 0) {
+                                currentLine.push(currentField.trim());
+                                if (currentLine.some(f => f)) {
+                                    lines.push(currentLine);
+                                }
+                            }
+
+                            return lines;
+                        }
+
+                        const lines = parseCSV(csvText);
+
+                        if (lines.length > 1) {
+                            const headers = lines[0];
+                            allData = lines.slice(1)
+                                .map(values => {
+                                    const obj = {};
+                                    headers.forEach((h, i) => {
+                                        obj[h] = values[i] || '';
+                                    });
+                                    return obj;
+                                })
+                                .filter(row => {
+                                    // 유효한 데이터만 필터링
+                                    const manager = row['담당자'] || '';
+                                    const name = row['사업장명'] || '';
+
+                                    // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
+                                    if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
+                                    if (manager.includes('업로드일')) return false;
+                                    if (manager.includes('등록일')) return false;
+
+                                    // 사업장명이 비어있으면 제외
+                                    if (!name || name.trim() === '') return false;
+
+                                    return true;
+                                });
+
+                            console.log(`Google Sheets 로드 완료: ${allData.length}건`);
+                            updateDashboard();
+                            updateMap();
+                        }
+                    } catch (error) {
+                        console.warn('Google Sheets 로드 실패:', error.message);
+                        console.log('대시보드는 최종본 업로드 후 표시됩니다');
+                    }
+                }
+
+                // ============================================================
+                // 대시보드 업데이트
+                // ============================================================
+
+                function updateDashboard() {
+                    // 다중 필터링 적용
+                    let filteredData = allData;
+
+                    // 순위 필터
+                    if (currentFilter !== 'all') {
+                        filteredData = filteredData.filter(d => d['순위'] === currentFilter);
+                    }
+
+                    // 지역 필터
+                    if (currentRegion) {
+                        filteredData = filteredData.filter(d => (d['주소2'] || '기타') === currentRegion);
+                    }
+
+                    // 담당자 필터
+                    if (currentManager) {
+                        filteredData = filteredData.filter(d => (d['담당자'] || '미지정') === currentManager);
+                    }
+
+                    // 실제 Google Sheets 컬럼명 사용
+                    document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
+                    document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
+                    document.getElementById('licensedCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '인허가').length || 0;
+                    document.getElementById('dropCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
+                    document.getElementById('constructionCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
+
+                    // 순위는 "1", "2", "3" 형식으로 저장됨
+                    document.getElementById('rank1Count').textContent = filteredData.filter(d => d['순위'] === '1').length || 0;
+                    document.getElementById('rank2Count').textContent = filteredData.filter(d => d['순위'] === '2').length || 0;
+                    document.getElementById('rank3Count').textContent = filteredData.filter(d => d['순위'] === '3').length || 0;
+
+                    const regionCounts = {};
+                    filteredData.forEach(item => {
+                        const region = item['주소2'] || '기타';
+                        regionCounts[region] = (regionCounts[region] || 0) + 1;
+                    });
+
+                    document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
+                        .sort((a, b) => b[1] - a[1]).slice(0, 6)
+                        .map(([r, c]) => {
+                            const isActive = currentRegion === r ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
+                            return `<div class="dropdown-item" onclick="setRegionFilter('${r}')"${isActive}><span class="dropdown-item-name">${r}</span><span class="dropdown-item-count">${c}건</span></div>`;
+                        }).join('');
+
+                    const managerCounts = {};
+                    filteredData.forEach(item => {
+                        const m = item['담당자'] || '미지정';
+                        managerCounts[m] = (managerCounts[m] || 0) + 1;
+                    });
+
+                    document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([m, c]) => {
+                            const isActive = currentManager === m ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
+                            return `<div class="dropdown-item" onclick="setManagerFilter('${m}')"${isActive}><span class="dropdown-item-name">${m}</span><span class="dropdown-item-count">${c}건</span></div>`;
+                        }).join('');
+
+                    updateChart();
+                }
+
+                // ============================================================
+                // 지도 업데이트 및 검색
+                // ============================================================
+
+                function searchMapPlaces() {
+                    const keyword = document.getElementById('mapSearchInput').value.trim();
+                    if (!keyword) {
+                        alert('검색어를 입력해주세요!');
+                        return;
+                    }
+
+                    // 1. DB 데이터 검색 (우선순위)
+                    // allData에서 '사업장명' 또는 '도로명전체주소'에 키워드가 포함된 항목 검색
+                    const dbResult = allData.find(item =>
+                        (item['사업장명'] && item['사업장명'].includes(keyword)) ||
+                        (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
+                    );
+
+                    if (dbResult && dbResult['위도'] && dbResult['경도']) {
+                        const moveLatLon = new kakao.maps.LatLng(parseFloat(dbResult['위도']), parseFloat(dbResult['경도']));
+                        kakaoMap.setCenter(moveLatLon);
+                        kakaoMap.setLevel(1); // Zoom in (매우 가깝게)
+                        return;
+                    }
+
+                    // 2. 카카오 장소 검색 (DB에 없으면)
+                    // 장소 검색 객체를 생성합니다
+                    const ps = new kakao.maps.services.Places();
+
+                    // 키워드로 장소를 검색합니다
+                    ps.keywordSearch(keyword, (data, status, pagination) => {
+                        if (status === kakao.maps.services.Status.OK) {
+                            // 검색된 장소 위치를 기준으로 지도 중심을 이동합니다
+                            const place = data[0];
+                            const moveLatLon = new kakao.maps.LatLng(place.y, place.x);
+                            kakaoMap.setCenter(moveLatLon);
+                            kakaoMap.setLevel(3);
+                        } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
+                            alert('검색 결과가 존재하지 않습니다.');
+                            return;
+                        } else if (status === kakao.maps.services.Status.ERROR) {
+                            alert('검색 결과 중 오류가 발생했습니다.');
+                            return;
+                        }
+                    });
+                }
+
+                function updateMap() {
+                    if (!kakaoMap) return;
+
+                    markers.forEach(m => m.setMap(null));
+                    markers = [];
+
+                    let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
+
+                    filtered.forEach(item => {
+                        if (!item['위도'] || !item['경도']) return;
+
+                        try {
+                            const pos = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
+                            const color = item['순위'] === '1' ? '#ff3b30' : item['순위'] === '2' ? '#ff9500' : '#86868b';
+
+                            // 마커 표시 (커스텀 오버레이)
+                            // 클릭 시 상세 정보 표시를 위해 onclick 이벤트 추가
+                            const content = document.createElement('div');
+                            content.className = 'map-marker';
+                            content.style.cssText = 'background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;';
+                            content.innerHTML = item['사업장명'];
+                            content.onclick = () => showPlaceInfo(item);
+
+                            const overlay = new kakao.maps.CustomOverlay({
+                                position: pos,
+                                content: content,
+                                yAnchor: 1
+                            });
+
+                            overlay.setMap(kakaoMap);
+                            markers.push(overlay);
+                        } catch (e) {
+                            console.warn('지도 마커 생성 실패', e);
+                        }
+                    });
+
+                    // 지도 클릭 이벤트 리스너 추가 (한 번만 등록)
+                    if (!kakaoMap.clickListenerAdded) {
+                        kakao.maps.event.addListener(kakaoMap, 'click', function (mouseEvent) {
+                            searchDetailAddrFromCoords(mouseEvent.latLng, function (result, status) {
+                                if (status === kakao.maps.services.Status.OK) {
+                                    var detailAddr = !!result[0].road_address ? '<div>도로명주소 : ' + result[0].road_address.address_name + '</div>' : '';
+                                    detailAddr += '<div>지번 주소 : ' + result[0].address.address_name + '</div>';
+
+                                    var content = '<div class="bAddr" style="padding:10px; font-size:12px; border-radius: 8px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">' +
+                                        '<div class="title" style="font-weight:bold; margin-bottom:5px;">선택한 위치 정보</div>' +
+                                        detailAddr +
+                                        '<div style="margin-top:8px; display:flex; gap:5px;">' +
+                                        '<a href="https://map.kakao.com/link/to/도착지,' + mouseEvent.latLng.getLat() + ',' + mouseEvent.latLng.getLng() + '" target="_blank" style="background:#fee500; padding:5px 10px; border-radius:4px; text-decoration:none; color:black; font-weight:bold;">길찾기</a>' +
+                                        '</div>' +
+                                        '</div>';
+
+                                    // 인포윈도우 생성 및 표시
+                                    // 기존 열린 인포윈도우 제거 (옵션)
+                                    if (window.currentInfoWindow) {
+                                        window.currentInfoWindow.close();
+                                    }
+
+                                    var infowindow = new kakao.maps.InfoWindow({
+                                        position: mouseEvent.latLng,
+                                        content: content
+                                    });
+
+                                    infowindow.open(kakaoMap);
+                                    window.currentInfoWindow = infowindow;
+                                }
+                            });
+                        });
+                        kakaoMap.clickListenerAdded = true;
+                    }
+                }
+
+                function searchDetailAddrFromCoords(coords, callback) {
+                    // 좌표로 법정동 상세 주소 정보를 요청합니다
+                    var geocoder = new kakao.maps.services.Geocoder();
+                    geocoder.coord2Address(coords.getLng(), coords.getLat(), callback);
+                }
+
+                function showPlaceInfo(item) {
+                    const content = `
                 <div style="padding: 20px; max-width: 300px;">
                     <h3 style="margin-bottom: 10px; font-size: 18px;">${item['사업장명']}</h3>
                     <p style="margin-bottom: 5px; color: #666;">${item['업태구분명']} | ${item['평형']}평</p>
@@ -1283,476 +1492,476 @@
                 </div>
             `;
 
-            const infoModal = document.createElement('div');
-            infoModal.id = 'placeInfoModal';
-            infoModal.style.cssText = 'position: absolute; top: 20px; right: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; animation: slideIn 0.3s ease;';
-            infoModal.innerHTML = content;
+                    const infoModal = document.createElement('div');
+                    infoModal.id = 'placeInfoModal';
+                    infoModal.style.cssText = 'position: absolute; top: 20px; right: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; animation: slideIn 0.3s ease;';
+                    infoModal.innerHTML = content;
 
-            // 기존 모달 제거
-            closePlaceInfo();
+                    // 기존 모달 제거
+                    closePlaceInfo();
 
-            document.querySelector('.map-area').appendChild(infoModal);
-        }
-
-        function closePlaceInfo() {
-            const existing = document.getElementById('placeInfoModal');
-            if (existing) existing.remove();
-        }
-        // ============================================================
-        // 필터
-        // ============================================================
-
-        function setupFilters() {
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    currentFilter = this.dataset.filter;
-                    updateMap();
-                });
-            });
-        }
-
-        // ============================================================
-        // 모달
-        // ============================================================
-
-        function openUploadModal() { document.getElementById('uploadModal').classList.add('active'); }
-        function closeUploadModal() { document.getElementById('uploadModal').classList.remove('active'); }
-        function openFinalUploadModal() { document.getElementById('finalUploadModal').classList.add('active'); }
-        function closeFinalUploadModal() { document.getElementById('finalUploadModal').classList.remove('active'); }
-
-        // ============================================================
-        // 업로드
-        // ============================================================
-
-        function setupUploadZones() {
-            setupUploadZone('uploadZone1', 'fileInput1', handleRawFile);
-            setupUploadZone('uploadZone2', 'fileInput2', handleFinalFile);
-        }
-
-        function setupUploadZone(zoneId, inputId, handler) {
-            const zone = document.getElementById(zoneId);
-            const input = document.getElementById(inputId);
-            zone.onclick = () => input.click();
-            zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
-            zone.ondragleave = () => zone.classList.remove('dragover');
-            zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handler(e.dataTransfer.files); };
-            input.onchange = (e) => { if (e.target.files.length > 0) handler(e.target.files); };
-        }
-
-        async function handleRawFile(files) {
-            document.getElementById('loading1').classList.add('active');
-            document.getElementById('downloadBtn').disabled = true;
-
-            try {
-                const fileArray = Array.from(files);
-                const allRawData = [];
-
-                for (const file of fileArray) {
-                    const data = await readFileAsArrayBuffer(file);
-                    const wb = XLSX.read(data, { type: 'array' });
-                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                    allRawData.push(...rawData);
+                    document.querySelector('.map-area').appendChild(infoModal);
                 }
 
-                console.log(`총 ${allRawData.length}건의 데이터 로드 완료`);
-                await processData(allRawData);
-            } catch (err) {
-                document.getElementById('loading1').classList.remove('active');
-
-                // 암호화된 파일 오류 감지
-                if (err.message && err.message.includes('Encrypted')) {
-                    showAlert('alert1', 'error',
-                        '❌ 암호화된 파일입니다!<br><br>' +
-                        '<strong>해결 방법:</strong><br>' +
-                        '1. Excel에서 파일 열기<br>' +
-                        '2. [파일] → [다른 이름으로 저장]<br>' +
-                        '3. 새 파일로 저장 후 다시 업로드<br><br>' +
-                        '<small>※ 암호로 보호된 파일은 지원되지 않습니다</small>'
-                    );
-                } else {
-                    showAlert('alert1', 'error', '❌ 오류: ' + err.message);
+                function closePlaceInfo() {
+                    const existing = document.getElementById('placeInfoModal');
+                    if (existing) existing.remove();
                 }
-            }
-        }
+                // ============================================================
+                // 필터
+                // ============================================================
 
-        function readFileAsArrayBuffer(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
-        }
+                function setupFilters() {
+                    document.querySelectorAll('.filter-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                            this.classList.add('active');
+                            currentFilter = this.dataset.filter;
+                            updateMap();
+                        });
+                    });
+                }
 
-        async function processData(rawData) {
-            try {
-                console.log(`전처리 시작: ${rawData.length}건`);
+                // ============================================================
+                // 모달
+                // ============================================================
 
-                // 1. 영업/정상만 필터링
-                let data = rawData.filter(row => {
-                    const status = (row['영업상태명'] || row['상세영업상태명'] || '').toString().trim();
-                    return status === '영업/정상' || status === '영업' || status === '정상';
-                });
-                console.log(`영업/정상 필터링 후: ${data.length}건`);
+                function openUploadModal() { document.getElementById('uploadModal').classList.add('active'); }
+                function closeUploadModal() { document.getElementById('uploadModal').classList.remove('active'); }
+                function openFinalUploadModal() { document.getElementById('finalUploadModal').classList.add('active'); }
+                function closeFinalUploadModal() { document.getElementById('finalUploadModal').classList.remove('active'); }
 
-                // 2. 업종 필터링 & 명칭 변경
-                const targetCategories = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
-                const categoryRenameMap = {
-                    '커피숍': '카페',
-                    '제과점영업': '베이커리',
-                    '기타 휴게음식점': 'FS기타',
-                    '기타': 'FS기타',
-                    '경양식': '레스토랑'
+                // ============================================================
+                // 업로드
+                // ============================================================
+
+                function setupUploadZones() {
+                    setupUploadZone('uploadZone1', 'fileInput1', handleRawFile);
+                    setupUploadZone('uploadZone2', 'fileInput2', handleFinalFile);
+                }
+
+                function setupUploadZone(zoneId, inputId, handler) {
+                    const zone = document.getElementById(zoneId);
+                    const input = document.getElementById(inputId);
+                    zone.onclick = () => input.click();
+                    zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
+                    zone.ondragleave = () => zone.classList.remove('dragover');
+                    zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handler(e.dataTransfer.files); };
+                    input.onchange = (e) => { if (e.target.files.length > 0) handler(e.target.files); };
+                }
+
+                async function handleRawFile(files) {
+                    document.getElementById('loading1').classList.add('active');
+                    document.getElementById('downloadBtn').disabled = true;
+
+                    try {
+                        const fileArray = Array.from(files);
+                        const allRawData = [];
+
+                        for (const file of fileArray) {
+                            const data = await readFileAsArrayBuffer(file);
+                            const wb = XLSX.read(data, { type: 'array' });
+                            const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                            allRawData.push(...rawData);
+                        }
+
+                        console.log(`총 ${allRawData.length}건의 데이터 로드 완료`);
+                        await processData(allRawData);
+                    } catch (err) {
+                        document.getElementById('loading1').classList.remove('active');
+
+                        // 암호화된 파일 오류 감지
+                        if (err.message && err.message.includes('Encrypted')) {
+                            showAlert('alert1', 'error',
+                                '❌ 암호화된 파일입니다!<br><br>' +
+                                '<strong>해결 방법:</strong><br>' +
+                                '1. Excel에서 파일 열기<br>' +
+                                '2. [파일] → [다른 이름으로 저장]<br>' +
+                                '3. 새 파일로 저장 후 다시 업로드<br><br>' +
+                                '<small>※ 암호로 보호된 파일은 지원되지 않습니다</small>'
+                            );
+                        } else {
+                            showAlert('alert1', 'error', '❌ 오류: ' + err.message);
+                        }
+                    }
+                }
+
+                function readFileAsArrayBuffer(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(file);
+                    });
+                }
+
+                async function processData(rawData) {
+                    try {
+                        console.log(`전처리 시작: ${rawData.length}건`);
+
+                        // 1. 영업/정상만 필터링
+                        let data = rawData.filter(row => {
+                            const status = (row['영업상태명'] || row['상세영업상태명'] || '').toString().trim();
+                            return status === '영업/정상' || status === '영업' || status === '정상';
+                        });
+                        console.log(`영업/정상 필터링 후: ${data.length}건`);
+
+                        // 2. 업종 필터링 & 명칭 변경
+                        const targetCategories = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
+                        const categoryRenameMap = {
+                            '커피숍': '카페',
+                            '제과점영업': '베이커리',
+                            '기타 휴게음식점': 'FS기타',
+                            '기타': 'FS기타',
+                            '경양식': '레스토랑'
+                        };
+
+                        data = data.filter(row => {
+                            const category = (row['업태구분명'] || '').toString().trim();
+                            return targetCategories.includes(category);
+                        });
+                        console.log(`업종 필터링 후: ${data.length}건`);
+
+                        // 3. 블랙리스트 필터링
+                        const excludeKeywords = [
+                            '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
+                            'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
+                            '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
+                            '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치'
+                        ];
+
+                        data = data.filter(row => {
+                            const name = (row['사업장명'] || '').toString();
+                            return !excludeKeywords.some(keyword => name.includes(keyword));
+                        });
+                        console.log(`블랙리스트 필터링 후: ${data.length}건`);
+
+                        // 4. 날짜 필터링 (최근 1년)
+                        const oneYearAgo = new Date();
+                        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+                        data = data.filter(row => {
+                            const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
+                            if (dateStr.length < 8) return false;
+                            const year = parseInt(dateStr.substring(0, 4));
+                            const month = parseInt(dateStr.substring(4, 6)) - 1;
+                            const day = parseInt(dateStr.substring(6, 8));
+                            const date = new Date(year, month, day);
+                            return date >= oneYearAgo;
+                        });
+                        console.log(`날짜 필터링 후 (최근 1년): ${data.length}건`);
+
+                        // 5. 데이터 가공
+                        processedData = data.map(row => {
+                            // 기본 정보
+                            const name = (row['사업장명'] || '').toString().trim();
+                            let category = (row['업태구분명'] || '').toString().trim();
+                            category = categoryRenameMap[category] || category;
+
+                            // 날짜 포맷
+                            const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
+                            let formattedDate = '';
+                            if (dateStr.length >= 8) {
+                                formattedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
+                            }
+
+                            // 평형 계산
+                            const area = parseFloat(row['소재지면적'] || row['시설총규모'] || 0);
+                            const pyeong = (area / 3.3).toFixed(1);
+
+                            // 주소 처리
+                            const jibunAddr = (row['소재지전체주소'] || '').toString().trim();
+                            const roadAddr = (row['도로명전체주소'] || jibunAddr).toString().trim();
+
+                            // 주소 3단계 분리 (고양시 특수처리)
+                            const tokens = jibunAddr.split(' ');
+                            let addr1 = '', addr2 = '', addr3 = '';
+
+                            if (tokens.length >= 2) {
+                                addr1 = tokens[0];
+                                addr2 = tokens[1];
+
+                                // 고양시 특수처리
+                                if (addr2.startsWith('고양시') && tokens.length > 2) {
+                                    addr2 = `${tokens[1]} ${tokens[2]}`;
+                                    addr3 = tokens[3] || '';
+                                } else {
+                                    addr3 = tokens[2] || '';
+                                }
+                            } else {
+                                addr1 = '확인필요';
+                                addr2 = '확인필요';
+                                addr3 = '확인필요';
+                            }
+
+                            // 담당자 매핑
+                            const repMap = {
+                                '남양주시': '이도현', '구리시': '이도현', '가평군': '이도현', '의정부시': '이도현', '포천시': '이도현',
+                                '미추홀구': '김지훈', '동구': '김지훈', '서구': '김지훈', '남동구': '김지훈',
+                                '부평구': '김지훈', '계양구': '김지훈', '연수구': '김지훈', '중구': '김지훈',
+                                '부천시': '김지훈', '소사구': '김지훈', '원미구': '김지훈', '오정구': '김지훈',
+                                '양주시': '부대석', '파주시': '부대석', '연천군': '부대석', '철원군': '부대석', '동두천시': '부대석',
+                                '고양시 덕양구': '김재찬', '고양시 일산동구': '부대석', '고양시 일산서구': '부대석',
+                                '강화군': '김재찬', '김포시': '김재찬'
+                            };
+
+                            const manager = repMap[addr2] || '미지정';
+
+                            // 순위 계산
+                            let rank = '3';
+                            if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
+                            else if (parseFloat(pyeong) >= 10) rank = '2';
+
+                            // 좌표 변환 (EPSG:5174 -> WGS84)
+                            // 좌표 변환 (EPSG:5174 -> WGS84)
+                            // 쉼표 제거 및 문자열 변환 후 파싱
+                            const cleanCoord = (val) => {
+                                if (!val) return 0;
+                                return parseFloat(val.toString().replace(/,/g, '').trim());
+                            };
+
+                            const xCol = cleanCoord(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X']);
+                            const yCol = cleanCoord(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y']);
+
+                            let lat = 0, lng = 0;
+
+                            if (xCol > 0 && yCol > 0) {
+                                try {
+                                    // EPSG:5174 (중부원점) 정의
+                                    // 보정값(towgs84)은 지역마다 다를 수 있으나 일반적인 값 사용
+                                    const epsg5174 = "+proj=tmerc +lat_0=38 +lon_0=127.0028902777778 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43";
+                                    const wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs";
+
+                                    const converted = proj4(epsg5174, wgs84, [xCol, yCol]);
+                                    lng = converted[0];
+                                    lat = converted[1];
+                                } catch (e) {
+                                    console.warn('좌표 변환 실패:', name, e);
+                                }
+                            }
+
+                            // 앱시트등록일
+                            const uploadDate = new Date().toISOString().split('T')[0];
+
+                            return {
+                                'NO': row['번호'] || '',
+                                '영업 허가일': formattedDate,
+                                '사업장명': name,
+                                '거래여부(기입예정)': '인허가',
+                                '업태구분명': category,
+                                '평형': pyeong,
+                                '도로명전체주소': roadAddr,
+                                '주소1': addr1,
+                                '주소2': addr2,
+                                '주소3': addr3,
+                                '순위': rank,
+                                '담당자': manager,
+                                '앱시트등록일': uploadDate,
+                                '위도': lat, // 변환된 위도
+                                '경도': lng, // 변환된 경도
+                                '_pyeong_num': parseFloat(pyeong),
+                                '_sort_score': 99
+                            };
+                        });
+
+                        // 6. 한식 필터링 (100평 이상만)
+                        processedData = processedData.filter(row => {
+                            if (row['업태구분명'] === '한식' && row['_pyeong_num'] < 100) {
+                                return false;
+                            }
+                            return true;
+                        });
+                        console.log(`한식 필터링 후: ${processedData.length}건`);
+
+                        // 7. 담당자 미지정 제외
+                        processedData = processedData.filter(row => row['담당자'] !== '미지정');
+                        console.log(`담당자 미지정 제외 후: ${processedData.length}건`);
+
+                        // 8. F/C 키워드 처리
+                        const fcKeywords = [
+                            '스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피',
+                            '투썸플레이스', '투썸', '할리스', '파스쿠찌', '폴바셋', '풀바셋', '엔제리너스',
+                            '카페베네', '탐앤탐스', '설빙', '공차', '아마스빈', '더벤티', '쥬씨', '감성커피', '백억커피', '김준호의', '만랩',
+                            '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피',
+                            '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
+                        ];
+
+                        processedData.forEach(row => {
+                            const name = row['사업장명'];
+                            if (fcKeywords.some(keyword => name.includes(keyword))) {
+                                row['업태구분명'] = 'F/C';
+                            }
+                        });
+
+                        // 9. 인천공항 처리
+                        processedData.forEach(row => {
+                            const addr = row['도로명전체주소'];
+                            const name = row['사업장명'];
+                            if (addr.includes('인천공항') || name.includes('인천공항')) {
+                                row['업태구분명'] = '인천공항';
+                            }
+                        });
+
+                        // 10. 정렬 점수 계산
+                        processedData.forEach(row => {
+                            if (row['업태구분명'] === 'F/C') {
+                                row['_sort_score'] = 60;
+                            } else if (row['업태구분명'] === '인천공항') {
+                                row['_sort_score'] = 50;
+                            } else if (row['순위'] === '1') {
+                                row['_sort_score'] = 10;
+                            } else if (row['순위'] === '2') {
+                                row['_sort_score'] = 20;
+                            } else if (row['순위'] === '3') {
+                                row['_sort_score'] = 30;
+                            }
+                        });
+
+                        // 11. 정렬 (점수 오름차순 -> 평형 내림차순)
+                        processedData.sort((a, b) => {
+                            if (a['_sort_score'] !== b['_sort_score']) {
+                                return a['_sort_score'] - b['_sort_score'];
+                            }
+                            return b['_pyeong_num'] - a['_pyeong_num'];
+                        });
+
+                        // 12. 임시 컬럼 제거
+                        processedData.forEach(row => {
+                            delete row['_pyeong_num'];
+                            delete row['_sort_score'];
+                        });
+
+                        console.log(`최종 처리 완료: ${processedData.length}건`);
+                        console.log('미리보기:', processedData.slice(0, 5));
+
+                        document.getElementById('loading1').classList.remove('active');
+                        document.getElementById('downloadBtn').disabled = false;
+                        showAlert('alert1', 'success', `✅ ${processedData.length}건 완료`);
+
+                    } catch (err) {
+                        console.error('전처리 오류:', err);
+                        document.getElementById('loading1').classList.remove('active');
+                        showAlert('alert1', 'error', '❌ 전처리 오류: ' + err.message);
+                    }
+                }
+
+                document.getElementById('downloadBtn').onclick = function () {
+                    const ws = XLSX.utils.json_to_sheet(processedData);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "가공데이터");
+                    XLSX.writeFile(wb, '인허가_1차가공_' + new Date().toISOString().slice(0, 10) + '.xlsx');
                 };
 
-                data = data.filter(row => {
-                    const category = (row['업태구분명'] || '').toString().trim();
-                    return targetCategories.includes(category);
-                });
-                console.log(`업종 필터링 후: ${data.length}건`);
+                function handleFinalFile(files) {
+                    document.getElementById('loading2').classList.add('active');
 
-                // 3. 블랙리스트 필터링
-                const excludeKeywords = [
-                    '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
-                    'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
-                    '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
-                    '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치'
-                ];
-
-                data = data.filter(row => {
-                    const name = (row['사업장명'] || '').toString();
-                    return !excludeKeywords.some(keyword => name.includes(keyword));
-                });
-                console.log(`블랙리스트 필터링 후: ${data.length}건`);
-
-                // 4. 날짜 필터링 (최근 1년)
-                const oneYearAgo = new Date();
-                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-                data = data.filter(row => {
-                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
-                    if (dateStr.length < 8) return false;
-                    const year = parseInt(dateStr.substring(0, 4));
-                    const month = parseInt(dateStr.substring(4, 6)) - 1;
-                    const day = parseInt(dateStr.substring(6, 8));
-                    const date = new Date(year, month, day);
-                    return date >= oneYearAgo;
-                });
-                console.log(`날짜 필터링 후 (최근 1년): ${data.length}건`);
-
-                // 5. 데이터 가공
-                processedData = data.map(row => {
-                    // 기본 정보
-                    const name = (row['사업장명'] || '').toString().trim();
-                    let category = (row['업태구분명'] || '').toString().trim();
-                    category = categoryRenameMap[category] || category;
-
-                    // 날짜 포맷
-                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
-                    let formattedDate = '';
-                    if (dateStr.length >= 8) {
-                        formattedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
-                    }
-
-                    // 평형 계산
-                    const area = parseFloat(row['소재지면적'] || row['시설총규모'] || 0);
-                    const pyeong = (area / 3.3).toFixed(1);
-
-                    // 주소 처리
-                    const jibunAddr = (row['소재지전체주소'] || '').toString().trim();
-                    const roadAddr = (row['도로명전체주소'] || jibunAddr).toString().trim();
-
-                    // 주소 3단계 분리 (고양시 특수처리)
-                    const tokens = jibunAddr.split(' ');
-                    let addr1 = '', addr2 = '', addr3 = '';
-
-                    if (tokens.length >= 2) {
-                        addr1 = tokens[0];
-                        addr2 = tokens[1];
-
-                        // 고양시 특수처리
-                        if (addr2.startsWith('고양시') && tokens.length > 2) {
-                            addr2 = `${tokens[1]} ${tokens[2]}`;
-                            addr3 = tokens[3] || '';
-                        } else {
-                            addr3 = tokens[2] || '';
-                        }
-                    } else {
-                        addr1 = '확인필요';
-                        addr2 = '확인필요';
-                        addr3 = '확인필요';
-                    }
-
-                    // 담당자 매핑
-                    const repMap = {
-                        '남양주시': '이도현', '구리시': '이도현', '가평군': '이도현', '의정부시': '이도현', '포천시': '이도현',
-                        '미추홀구': '김지훈', '동구': '김지훈', '서구': '김지훈', '남동구': '김지훈',
-                        '부평구': '김지훈', '계양구': '김지훈', '연수구': '김지훈', '중구': '김지훈',
-                        '부천시': '김지훈', '소사구': '김지훈', '원미구': '김지훈', '오정구': '김지훈',
-                        '양주시': '부대석', '파주시': '부대석', '연천군': '부대석', '철원군': '부대석', '동두천시': '부대석',
-                        '고양시 덕양구': '김재찬', '고양시 일산동구': '부대석', '고양시 일산서구': '부대석',
-                        '강화군': '김재찬', '김포시': '김재찬'
-                    };
-
-                    const manager = repMap[addr2] || '미지정';
-
-                    // 순위 계산
-                    let rank = '3';
-                    if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
-                    else if (parseFloat(pyeong) >= 10) rank = '2';
-
-                    // 좌표 변환 (EPSG:5174 -> WGS84)
-                    // 좌표 변환 (EPSG:5174 -> WGS84)
-                    // 쉼표 제거 및 문자열 변환 후 파싱
-                    const cleanCoord = (val) => {
-                        if (!val) return 0;
-                        return parseFloat(val.toString().replace(/,/g, '').trim());
-                    };
-
-                    const xCol = cleanCoord(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X']);
-                    const yCol = cleanCoord(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y']);
-
-                    let lat = 0, lng = 0;
-
-                    if (xCol > 0 && yCol > 0) {
-                        try {
-                            // EPSG:5174 (중부원점) 정의
-                            // 보정값(towgs84)은 지역마다 다를 수 있으나 일반적인 값 사용
-                            const epsg5174 = "+proj=tmerc +lat_0=38 +lon_0=127.0028902777778 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43";
-                            const wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs";
-
-                            const converted = proj4(epsg5174, wgs84, [xCol, yCol]);
-                            lng = converted[0];
-                            lat = converted[1];
-                        } catch (e) {
-                            console.warn('좌표 변환 실패:', name, e);
-                        }
-                    }
-
-                    // 앱시트등록일
-                    const uploadDate = new Date().toISOString().split('T')[0];
-
-                    return {
-                        'NO': row['번호'] || '',
-                        '영업 허가일': formattedDate,
-                        '사업장명': name,
-                        '거래여부(기입예정)': '인허가',
-                        '업태구분명': category,
-                        '평형': pyeong,
-                        '도로명전체주소': roadAddr,
-                        '주소1': addr1,
-                        '주소2': addr2,
-                        '주소3': addr3,
-                        '순위': rank,
-                        '담당자': manager,
-                        '앱시트등록일': uploadDate,
-                        '위도': lat, // 변환된 위도
-                        '경도': lng, // 변환된 경도
-                        '_pyeong_num': parseFloat(pyeong),
-                        '_sort_score': 99
-                    };
-                });
-
-                // 6. 한식 필터링 (100평 이상만)
-                processedData = processedData.filter(row => {
-                    if (row['업태구분명'] === '한식' && row['_pyeong_num'] < 100) {
-                        return false;
-                    }
-                    return true;
-                });
-                console.log(`한식 필터링 후: ${processedData.length}건`);
-
-                // 7. 담당자 미지정 제외
-                processedData = processedData.filter(row => row['담당자'] !== '미지정');
-                console.log(`담당자 미지정 제외 후: ${processedData.length}건`);
-
-                // 8. F/C 키워드 처리
-                const fcKeywords = [
-                    '스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피',
-                    '투썸플레이스', '투썸', '할리스', '파스쿠찌', '폴바셋', '풀바셋', '엔제리너스',
-                    '카페베네', '탐앤탐스', '설빙', '공차', '아마스빈', '더벤티', '쥬씨', '감성커피', '백억커피', '김준호의', '만랩',
-                    '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피',
-                    '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
-                ];
-
-                processedData.forEach(row => {
-                    const name = row['사업장명'];
-                    if (fcKeywords.some(keyword => name.includes(keyword))) {
-                        row['업태구분명'] = 'F/C';
-                    }
-                });
-
-                // 9. 인천공항 처리
-                processedData.forEach(row => {
-                    const addr = row['도로명전체주소'];
-                    const name = row['사업장명'];
-                    if (addr.includes('인천공항') || name.includes('인천공항')) {
-                        row['업태구분명'] = '인천공항';
-                    }
-                });
-
-                // 10. 정렬 점수 계산
-                processedData.forEach(row => {
-                    if (row['업태구분명'] === 'F/C') {
-                        row['_sort_score'] = 60;
-                    } else if (row['업태구분명'] === '인천공항') {
-                        row['_sort_score'] = 50;
-                    } else if (row['순위'] === '1') {
-                        row['_sort_score'] = 10;
-                    } else if (row['순위'] === '2') {
-                        row['_sort_score'] = 20;
-                    } else if (row['순위'] === '3') {
-                        row['_sort_score'] = 30;
-                    }
-                });
-
-                // 11. 정렬 (점수 오름차순 -> 평형 내림차순)
-                processedData.sort((a, b) => {
-                    if (a['_sort_score'] !== b['_sort_score']) {
-                        return a['_sort_score'] - b['_sort_score'];
-                    }
-                    return b['_pyeong_num'] - a['_pyeong_num'];
-                });
-
-                // 12. 임시 컬럼 제거
-                processedData.forEach(row => {
-                    delete row['_pyeong_num'];
-                    delete row['_sort_score'];
-                });
-
-                console.log(`최종 처리 완료: ${processedData.length}건`);
-                console.log('미리보기:', processedData.slice(0, 5));
-
-                document.getElementById('loading1').classList.remove('active');
-                document.getElementById('downloadBtn').disabled = false;
-                showAlert('alert1', 'success', `✅ ${processedData.length}건 완료`);
-
-            } catch (err) {
-                console.error('전처리 오류:', err);
-                document.getElementById('loading1').classList.remove('active');
-                showAlert('alert1', 'error', '❌ 전처리 오류: ' + err.message);
-            }
-        }
-
-        document.getElementById('downloadBtn').onclick = function () {
-            const ws = XLSX.utils.json_to_sheet(processedData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "가공데이터");
-            XLSX.writeFile(wb, '인허가_1차가공_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-        };
-
-        function handleFinalFile(files) {
-            document.getElementById('loading2').classList.add('active');
-
-            // FileList에서 첫 번째 파일 추출
-            const file = files[0];
-            if (!file) {
-                document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'error', '❌ 파일을 선택해주세요');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const wb = XLSX.read(data, { type: 'array' });
-                    // [수정] 데이터 읽기 (빈 셀은 빈 문자열로 처리)
-                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-
-                    // 1. 데이터 정제 (헤더/값 공백 제거)
-                    const cleanedData = rawData.map(row => {
-                        const newRow = {};
-                        Object.keys(row).forEach(key => {
-                            const cleanKey = key.trim(); // 헤더 공백 제거
-                            let value = row[key];
-                            if (typeof value === 'string') value = value.trim(); // 값 공백 제거
-                            newRow[cleanKey] = value;
-                        });
-                        return newRow;
-                    });
-
-                    // 2. 1순위 필터링
-                    const finalData = cleanedData.filter(row => String(row['순위']) === '1');
-
-                    console.log(`전체 ${cleanedData.length}건 중 1순위 ${finalData.length}건 추출`);
-
-                    if (finalData.length === 0) {
+                    // FileList에서 첫 번째 파일 추출
+                    const file = files[0];
+                    if (!file) {
                         document.getElementById('loading2').classList.remove('active');
-                        showAlert('alert2', 'error', '❌ 업로드할 1순위 데이터가 없습니다.<br>(순위 컬럼을 확인해주세요)');
+                        showAlert('alert2', 'error', '❌ 파일을 선택해주세요');
                         return;
                     }
 
-                    await uploadToSheets(finalData);
-                } catch (err) {
-                    document.getElementById('loading2').classList.remove('active');
-                    showAlert('alert2', 'error', '❌ 오류: ' + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
+                    const reader = new FileReader();
+                    reader.onload = async function (e) {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const wb = XLSX.read(data, { type: 'array' });
+                            // [수정] 데이터 읽기 (빈 셀은 빈 문자열로 처리)
+                            const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
 
-        async function uploadToSheets(data) {
-            try {
-                // 데이터 검증
-                if (!data || data.length === 0) {
-                    throw new Error('업로드할 데이터가 없습니다');
-                }
+                            // 1. 데이터 정제 (헤더/값 공백 제거)
+                            const cleanedData = rawData.map(row => {
+                                const newRow = {};
+                                Object.keys(row).forEach(key => {
+                                    const cleanKey = key.trim(); // 헤더 공백 제거
+                                    let value = row[key];
+                                    if (typeof value === 'string') value = value.trim(); // 값 공백 제거
+                                    newRow[cleanKey] = value;
+                                });
+                                return newRow;
+                            });
 
-                // Apps Script로 전송
-                await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({ action: 'upload', data: data })
-                });
+                            // 2. 1순위 필터링
+                            const finalData = cleanedData.filter(row => String(row['순위']) === '1');
 
-                // 성공 메시지
-                document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'success',
-                    '✅ 업로드에 성공하였습니다!<br><br>' +
-                    `<strong>${data.length}건</strong>의 데이터가 Google Sheets에 저장되었습니다.<br>` +
-                    '<small>※ D+14 대상이 있으면 자동으로 이메일이 발송됩니다.</small>'
-                );
+                            console.log(`전체 ${cleanedData.length}건 중 1순위 ${finalData.length}건 추출`);
 
-                closeFinalUploadModal();
+                            if (finalData.length === 0) {
+                                document.getElementById('loading2').classList.remove('active');
+                                showAlert('alert2', 'error', '❌ 업로드할 1순위 데이터가 없습니다.<br>(순위 컬럼을 확인해주세요)');
+                                return;
+                            }
 
-                // 2초 후 대시보드 새로고침
-                setTimeout(loadDataFromSheets, 2000);
-
-            } catch (err) {
-                document.getElementById('loading2').classList.remove('active');
-
-                // 상세한 오류 메시지
-                let errorMsg = '❌ 업로드 오류<br><br>';
-
-                if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                    errorMsg += '<strong>네트워크 오류</strong><br>' +
-                        '1. 인터넷 연결 확인<br>' +
-                        '2. Apps Script URL 확인<br>' +
-                        '3. 잠시 후 다시 시도';
-                } else if (err.message.includes('데이터가 없습니다')) {
-                    errorMsg += '<strong>파일 오류</strong><br>' +
-                        '엑셀 파일에 데이터가 없거나<br>' +
-                        '형식이 올바르지 않습니다.';
-                } else {
-                    errorMsg += '<strong>파일 점검 필요</strong><br>' +
-                        '1. 파일 보안 해제 확인<br>' +
-                        '2. 엑셀 파일 형식 확인<br>' +
-                        '3. 컬럼명 일치 여부 확인<br><br>' +
-                        `<small>오류 내용: ${err.message}</small>`;
+                            await uploadToSheets(finalData);
+                        } catch (err) {
+                            document.getElementById('loading2').classList.remove('active');
+                            showAlert('alert2', 'error', '❌ 오류: ' + err.message);
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
                 }
 
-                showAlert('alert2', 'error', errorMsg);
-            }
-        }
+                async function uploadToSheets(data) {
+                    try {
+                        // 데이터 검증
+                        if (!data || data.length === 0) {
+                            throw new Error('업로드할 데이터가 없습니다');
+                        }
 
-        function showAlert(id, type, msg) {
-            document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
-            setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
-        }
-    </script>
-</body>
+                        // Apps Script로 전송
+                        await fetch(APPS_SCRIPT_URL, {
+                            method: 'POST',
+                            mode: 'no-cors',
+                            body: JSON.stringify({ action: 'upload', data: data })
+                        });
+
+                        // 성공 메시지
+                        document.getElementById('loading2').classList.remove('active');
+                        showAlert('alert2', 'success',
+                            '✅ 업로드에 성공하였습니다!<br><br>' +
+                            `<strong>${data.length}건</strong>의 데이터가 Google Sheets에 저장되었습니다.<br>` +
+                            '<small>※ D+14 대상이 있으면 자동으로 이메일이 발송됩니다.</small>'
+                        );
+
+                        closeFinalUploadModal();
+
+                        // 2초 후 대시보드 새로고침
+                        setTimeout(loadDataFromSheets, 2000);
+
+                    } catch (err) {
+                        document.getElementById('loading2').classList.remove('active');
+
+                        // 상세한 오류 메시지
+                        let errorMsg = '❌ 업로드 오류<br><br>';
+
+                        if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                            errorMsg += '<strong>네트워크 오류</strong><br>' +
+                                '1. 인터넷 연결 확인<br>' +
+                                '2. Apps Script URL 확인<br>' +
+                                '3. 잠시 후 다시 시도';
+                        } else if (err.message.includes('데이터가 없습니다')) {
+                            errorMsg += '<strong>파일 오류</strong><br>' +
+                                '엑셀 파일에 데이터가 없거나<br>' +
+                                '형식이 올바르지 않습니다.';
+                        } else {
+                            errorMsg += '<strong>파일 점검 필요</strong><br>' +
+                                '1. 파일 보안 해제 확인<br>' +
+                                '2. 엑셀 파일 형식 확인<br>' +
+                                '3. 컬럼명 일치 여부 확인<br><br>' +
+                                `<small>오류 내용: ${err.message}</small>`;
+                        }
+
+                        showAlert('alert2', 'error', errorMsg);
+                    }
+                }
+
+                function showAlert(id, type, msg) {
+                    document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
+                    setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
+                }
+            </script>
+        </body>
 
 </html>
