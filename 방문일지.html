@@ -1521,10 +1521,7 @@
                                             <span class="timeline-label">담당자:</span>
                                             <span>${visit.manager || '-'}</span>
                                         </div>
-                                        <div class="timeline-detail-row">
-                                            <span class="timeline-label">대리점:</span>
-                                            <span>${visit.dealer || '-'}</span>
-                                        </div>
+
                                         <div class="timeline-detail-row">
                                             <span class="timeline-label">거래상태:</span>
                                             <span class="status-badge ${statusClass}">${visit.status || '-'}</span>
@@ -1565,11 +1562,11 @@
             try {
                 const start = periodStr.split('~')[0].trim();
                 const date = new Date(start);
-                const month = date.getMonth() + 1;
-                const day = date.getDate();
-                const hours = date.getHours();
-                const minutes = date.getMinutes();
-                return `${month}/${day} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                const year = date.getFullYear().toString().slice(-2);
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+
+                return `${year}년 ${month}월 ${day}일`;
             } catch (e) {
                 return periodStr;
             }
