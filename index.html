@@ -1194,17 +1194,69 @@
                     const pos = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
                     const color = item['순위'] === '1' ? '#ff3b30' : item['순위'] === '2' ? '#ff9500' : '#86868b';
 
+                    // 마커 표시 (커스텀 오버레이)
+                    // 클릭 시 상세 정보 표시를 위해 onclick 이벤트 추가
+                    const content = document.createElement('div');
+                    content.className = 'map-marker';
+                    content.style.cssText = 'background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;';
+                    content.innerHTML = item['사업장명'];
+                    content.onclick = () => showPlaceInfo(item);
+
                     const overlay = new kakao.maps.CustomOverlay({
                         position: pos,
-                        content: '<div style="background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2)">' + item['사업장명'] + '</div>',
+                        content: content,
                         yAnchor: 1
                     });
+
                     overlay.setMap(kakaoMap);
                     markers.push(overlay);
-                } catch (e) { }
+                } catch (e) {
+                    console.warn('지도 마커 생성 실패', e);
+                }
             });
         }
 
+        function showPlaceInfo(item) {
+            const content = `
+                <div style="padding: 20px; max-width: 300px;">
+                    <h3 style="margin-bottom: 10px; font-size: 18px;">${item['사업장명']}</h3>
+                    <p style="margin-bottom: 5px; color: #666;">${item['업태구분명']} | ${item['평형']}평</p>
+                    <p style="margin-bottom: 5px; color: #666;">${item['도로명전체주소']}</p>
+                    <p style="margin-bottom: 15px; font-weight: bold; color: #0071e3;">${item['거래여부(기입예정)']}</p>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; font-size: 13px;">
+                        <div><strong>담당자:</strong> ${item['담당자']}</div>
+                        <div><strong>순위:</strong> ${item['순위']}순위</div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px;">
+                        <a href="https://map.kakao.com/link/map/${item['사업장명']},${item['위도']},${item['경도']}" target="_blank" 
+                           style="flex: 1; text-align: center; padding: 8px; background: #fee500; color: #191919; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: bold;">
+                           카카오맵 보기
+                        </a>
+                        <button onclick="closePlaceInfo()" 
+                            style="flex: 1; padding: 8px; background: #f5f5f7; border: none; border-radius: 6px; cursor: pointer;">
+                            닫기
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const infoModal = document.createElement('div');
+            infoModal.id = 'placeInfoModal';
+            infoModal.style.cssText = 'position: absolute; top: 20px; right: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; animation: slideIn 0.3s ease;';
+            infoModal.innerHTML = content;
+
+            // 기존 모달 제거
+            closePlaceInfo();
+
+            document.querySelector('.map-area').appendChild(infoModal);
+        }
+
+        function closePlaceInfo() {
+            const existing = document.getElementById('placeInfoModal');
+            if (existing) existing.remove();
+        }
         // ============================================================
         // 필터
         // ============================================================
