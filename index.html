@@ -1218,7 +1218,9 @@
                 }
             });
 
-            // 지도 클릭 이벤트 리스너 추가 (한 번만 등록)
+
+            // 지도 클릭 이벤트 리스너 비활성화 (사용자 요청)
+            /*
             if (!kakaoMap.clickListenerAdded) {
                 kakao.maps.event.addListener(kakaoMap, 'click', function (mouseEvent) {
                     searchDetailAddrFromCoords(mouseEvent.latLng, function (result, status) {
@@ -1252,6 +1254,7 @@
                 });
                 kakaoMap.clickListenerAdded = true;
             }
+            */
         }
 
         function searchDetailAddrFromCoords(coords, callback) {
