@@ -13,9 +13,8 @@
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
-    <!-- 카카오 지도 API -->
-    <script type="text/javascript"
-        src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=178d3ee35f67ded1f5d2411aa3cee010&libraries=services&autoload=false"></script>
+    <!-- 네이버 지도 API -->
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=uipaxmujrl"></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -805,7 +804,7 @@
 
         let processedData = [];
         let allData = [];
-        let kakaoMap;
+        let naverMap;
         let markers = [];
         let currentFilter = 'all';
         let currentRegion = null;
@@ -820,14 +819,7 @@
             setupUploadZones();
             setupFilters();
 
-            if (typeof kakao !== 'undefined' && kakao.maps) {
-                kakao.maps.load(function () {
-                    console.log('카카오 지도 SDK 로드 완료');
-                    initKakaoMap();
-                });
-            } else {
-                console.error('카카오 지도 SDK를 불러올 수 없습니다.');
-            }
+            initNaverMap();
 
             loadDataFromSheets();
             initChart();
@@ -907,20 +899,18 @@
         // 카카오 지도
         // ============================================================
 
-        function initKakaoMap() {
+        // ============================================================
+        // 네이버 지도
+        // ============================================================
+
+        function initNaverMap() {
             try {
                 const container = document.getElementById('map');
-                kakaoMap = new kakao.maps.Map(container, {
-                    center: new kakao.maps.LatLng(37.5, 127.3),
-                    level: 9
-                });
-
-                // 지도 확대 축소를 제어할 수 있는  줌 컨트롤을 생성합니다
-                var zoomControl = new kakao.maps.ZoomControl();
-                kakaoMap.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
-
-                // 마우스 휠로 지도 확대,축소 가능여부를 설정합니다
-                kakaoMap.setZoomable(true);
+                const options = {
+                    center: new naver.maps.LatLng(37.5, 127.3),
+                    zoom: 11
+                };
+                naverMap = new naver.maps.Map(container, options);
             } catch (error) {
                 console.error('지도 오류:', error);
             }
@@ -1198,43 +1188,34 @@
             }
 
             // 1. DB 데이터 검색 (우선순위)
-            // allData에서 '사업장명' 또는 '도로명전체주소'에 키워드가 포함된 항목 검색
             const dbResult = allData.find(item =>
                 (item['사업장명'] && item['사업장명'].includes(keyword)) ||
                 (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
             );
 
-            if (dbResult && dbResult['위도'] && dbResult['경도']) {
-                const moveLatLon = new kakao.maps.LatLng(parseFloat(dbResult['위도']), parseFloat(dbResult['경도']));
-                kakaoMap.setCenter(moveLatLon);
-                kakaoMap.setLevel(1); // Zoom in (매우 가깝게)
-                return;
+            if (dbResult) {
+                // 좌표 변환 로직이 있다면 여기서 처리해야 함 (기존 cleanCoord, proj4 로직 재사용 필요하나 스코프 문제로 단순화)
+                // DB에 위도/경도가 있다면 사용
+                if (dbResult['위도'] && dbResult['경도']) {
+                    // 이미 변환된 값이 있는지 확인 or 재변환
+                    // 간단히 위도/경도 필드가 있다고 가정 (processData에서 처리됨)
+                    const lat = parseFloat(dbResult['위도']);
+                    const lng = parseFloat(dbResult['경도']);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const moveLatLon = new naver.maps.LatLng(lat, lng);
+                        naverMap.setCenter(moveLatLon);
+                        naverMap.setZoom(15);
+                        return;
+                    }
+                }
             }
 
-            // 2. 카카오 장소 검색 (DB에 없으면)
-            // 장소 검색 객체를 생성합니다
-            const ps = new kakao.maps.services.Places();
-
-            // 키워드로 장소를 검색합니다
-            ps.keywordSearch(keyword, (data, status, pagination) => {
-                if (status === kakao.maps.services.Status.OK) {
-                    // 검색된 장소 위치를 기준으로 지도 중심을 이동합니다
-                    const place = data[0];
-                    const moveLatLon = new kakao.maps.LatLng(place.y, place.x);
-                    kakaoMap.setCenter(moveLatLon);
-                    kakaoMap.setLevel(3);
-                } else if (status === kakao.maps.services.Status.ZERO_RESULT) {
-                    alert('검색 결과가 존재하지 않습니다.');
-                    return;
-                } else if (status === kakao.maps.services.Status.ERROR) {
-                    alert('검색 결과 중 오류가 발생했습니다.');
-                    return;
-                }
-            });
+            // 2. 외부 장소 검색 (네이버 지도 API에서는 별도 Serivce 필요하므로 임시 비활성화)
+            // console.warn('외부 장소 검색은 네이버 지도 전환으로 인해 일시 중단되었습니다.');
         }
 
         function updateMap() {
-            if (!kakaoMap) return;
+            if (!naverMap) return;
 
             markers.forEach(m => m.setMap(null));
             markers = [];
@@ -1242,70 +1223,35 @@
             let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
 
             filtered.forEach(item => {
+                // processData에서 이미 위도/경도가 변환되어 할당되었음을 가정
                 if (!item['위도'] || !item['경도']) return;
 
                 try {
-                    const pos = new kakao.maps.LatLng(parseFloat(item['위도']), parseFloat(item['경도']));
+                    const lat = parseFloat(item['위도']);
+                    const lng = parseFloat(item['경도']);
+                    const pos = new naver.maps.LatLng(lat, lng);
                     const color = item['순위'] === '1' ? '#ff3b30' : item['순위'] === '2' ? '#ff9500' : '#86868b';
 
-                    // 마커 표시 (커스텀 오버레이)
-                    // 클릭 시 상세 정보 표시를 위해 onclick 이벤트 추가
-                    const content = document.createElement('div');
-                    content.className = 'map-marker';
-                    content.style.cssText = 'background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2);cursor:pointer;';
-                    content.innerHTML = item['사업장명'];
-                    content.onclick = () => showPlaceInfo(item);
-
-                    const overlay = new kakao.maps.CustomOverlay({
+                    const marker = new naver.maps.Marker({
                         position: pos,
-                        content: content,
-                        yAnchor: 1
-                    });
-
-                    overlay.setMap(kakaoMap);
-                    markers.push(overlay);
-                } catch (e) {
-                    console.warn('지도 마커 생성 실패', e);
-                }
-            });
-
-
-            // 지도 클릭 이벤트 리스너 비활성화 (사용자 요청)
-            /*
-            if (!kakaoMap.clickListenerAdded) {
-                kakao.maps.event.addListener(kakaoMap, 'click', function (mouseEvent) {
-                    searchDetailAddrFromCoords(mouseEvent.latLng, function (result, status) {
-                        if (status === kakao.maps.services.Status.OK) {
-                            var detailAddr = !!result[0].road_address ? '<div>도로명주소 : ' + result[0].road_address.address_name + '</div>' : '';
-                            detailAddr += '<div>지번 주소 : ' + result[0].address.address_name + '</div>';
-
-                            var content = '<div class="bAddr" style="padding:10px; font-size:12px; border-radius: 8px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">' +
-                                '<div class="title" style="font-weight:bold; margin-bottom:5px;">선택한 위치 정보</div>' +
-                                detailAddr +
-                                '<div style="margin-top:8px; display:flex; gap:5px;">' +
-                                '<a href="https://map.kakao.com/link/to/도착지,' + mouseEvent.latLng.getLat() + ',' + mouseEvent.latLng.getLng() + '" target="_blank" style="background:#fee500; padding:5px 10px; border-radius:4px; text-decoration:none; color:black; font-weight:bold;">길찾기</a>' +
-                                '</div>' +
-                                '</div>';
-
-                            // 인포윈도우 생성 및 표시
-                            // 기존 열린 인포윈도우 제거 (옵션)
-                            if (window.currentInfoWindow) {
-                                window.currentInfoWindow.close();
-                            }
-
-                            var infowindow = new kakao.maps.InfoWindow({
-                                position: mouseEvent.latLng,
-                                content: content
-                            });
-
-                            infowindow.open(kakaoMap);
-                            window.currentInfoWindow = infowindow;
+                        map: naverMap,
+                        icon: {
+                            content: '<div style="cursor:pointer;background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2)">' + item['사업장명'] + '</div>',
+                            anchor: new naver.maps.Point(20, 20)
                         }
                     });
-                });
-                kakaoMap.clickListenerAdded = true;
-            }
-            */
+
+                    // 마커 클릭 시 네이버 지도 길찾기로 연결
+                    naver.maps.Event.addListener(marker, 'click', function (e) {
+                        const url = `https://map.naver.com/v5/directions/-/-/${lng},${lat},${encodeURIComponent(item['사업장명'])},,-/transit?c=${lng},${lat},15,0,0,0,dh`;
+                        window.open(url, '_blank');
+                    });
+
+                    markers.push(marker);
+                } catch (e) {
+                    // console.warn('마커 생성 실패', e);
+                }
+            });
         }
 
         function searchDetailAddrFromCoords(coords, callback) {
