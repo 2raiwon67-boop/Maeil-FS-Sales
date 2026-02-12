@@ -5,10 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="origin">
-    <title>FS MASSI</title>
-    <!-- 파비콘 추가 (지도 아이콘) -->
-    <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
+    <title>경기북부 FS 인허가 대시보드</title>
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -54,11 +51,9 @@
         }
 
         .nav-logo {
-            font-size: 15px;
-            /* Slightly smaller */
+            font-size: 17px;
             font-weight: 600;
             color: #ffffff;
-            margin-right: 20px;
         }
 
         .nav-menu {
@@ -67,41 +62,21 @@
         }
 
         .nav-link {
-            color: #a1a1a6;
+            color: #f5f5f7;
             text-decoration: none;
-            font-size: 13px;
-            font-weight: 400;
-            padding: 4px 0;
-            margin: 0 14px;
-            transition: color 0.2s;
-            position: relative;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: all 0.2s;
         }
 
         .nav-link:hover {
-            color: #f5f5f7;
-            background: transparent;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            bottom: 0;
-            left: 0;
-            background-color: #f5f5f7;
-            transform: scaleX(0);
-            transition: transform 0.2s ease-in-out;
-        }
-
-        .nav-link:hover::after {
-            transform: scaleX(1);
+            background: #424245;
         }
 
         .nav-link.active {
-            color: #f5f5f7;
-            background: transparent;
-            font-weight: 600;
+            background: #0071e3;
         }
 
         .nav-actions {
@@ -328,9 +303,7 @@
         }
 
         .dropdown-card.open .dropdown-content {
-            max-height: 150px;
-            /* 4개 항목(약 36px * 4) 정도 높이 */
-            overflow-y: auto;
+            max-height: 300px;
         }
 
         .dropdown-list {
@@ -345,15 +318,6 @@
             border-radius: 6px;
             margin-bottom: 4px;
             font-size: 13px;
-            cursor: pointer;
-            /* 마우스 커서 손가락 모양 */
-            transition: background 0.2s;
-            /* 부드러운 전환 효과 */
-        }
-
-        .dropdown-item:hover {
-            background: #e5e5ea;
-            /* 마우스 올렸을 때 진한 회색 */
         }
 
         .dropdown-item:last-child {
@@ -395,18 +359,14 @@
 
         .map-controls {
             position: absolute;
-            top: 12px;
-            right: 12px;
-            background: rgba(255, 255, 255, 0.90);
+            top: 16px;
+            right: 16px;
+            background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            padding: 10px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 14px 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
             z-index: 100;
-            /* Scale down content slightly */
-            font-size: 0.9em;
-            width: 280px;
-            /* Limit width */
         }
 
         .filter-label {
@@ -589,9 +549,8 @@
 
         .btn-full {
             width: 100%;
-            margin-top: 8px;
-            padding: 10px;
-            font-size: 12px;
+            margin-top: 14px;
+            padding: 12px;
         }
 
         /* =============== 스크롤바 스타일 =============== */
@@ -613,17 +572,14 @@
 <body>
     <!-- 상단 네비게이션 -->
     <nav class="nav-bar">
-        <div style="display: flex; align-items: center;">
-            <div class="nav-logo">FS MASSI</div>
-            <div class="nav-menu">
-                <a href="index.html" class="nav-link active">인허가</a>
-                <a href="방문일지.html" class="nav-link">방문일지</a>
-            </div>
+        <div class="nav-logo">📊 경기북부 FS 통합 대시보드</div>
+        <div class="nav-menu">
+            <a href="대시보드_통합완료.html" class="nav-link active">인허가</a>
+            <a href="방문일지.html" class="nav-link">방문일지</a>
         </div>
         <div class="nav-actions">
-            <!-- 검색 아이콘 (기능은 추후 구현하거나 장식용) -->
-            <button
-                style="background: none; border: none; color: #a1a1a6; font-size: 16px; cursor: pointer; padding: 4px;">🔍</button>
+            <button class="btn btn-secondary" onclick="openUploadModal()">📤 RAW 업로드</button>
+            <button class="btn btn-primary" onclick="openFinalUploadModal()">최종본 업로드</button>
         </div>
     </nav>
 
@@ -710,9 +666,6 @@
                         <canvas id="weeklyChart"></canvas>
                     </div>
                 </div>
-                <!-- 업로드 버튼 이동 -->
-                <button class="btn btn-secondary btn-full" onclick="openUploadModal()">📤 RAW 업로드</button>
-                <button class="btn btn-primary btn-full" onclick="openFinalUploadModal()">최종본 업로드</button>
             </div>
         </div>
 
@@ -720,13 +673,6 @@
         <div class="map-area">
             <div id="map"></div>
             <div class="map-controls">
-                <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
-                    <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
-                        style="flex: 1; padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;"
-                        onkeypress="if(event.key === 'Enter') searchMapPlaces()">
-                    <button onclick="searchMapPlaces()"
-                        style="padding: 8px 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer;">🔍</button>
-                </div>
                 <div class="filter-label">순위 필터</div>
                 <div class="filter-buttons">
                     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
@@ -792,14 +738,12 @@
         // ============================================================
 
         const SHEETS_CONFIG = {
-            apiKey: '', // 공개 데이터라 API 키 불필요
-            spreadsheetId: '115RdNFitLpJQgSFYTKQxU5QE1msutWbZ', // 원본 스프레드시트 ID
-            range: 'A:Z',
-            visitLogId: '1SuOT-Lb61S2vVa-AQdXRE1LYrr8c13Wo', // 방문일지 스프레드시트 ID
-            visitLogGid: '444575455' // 방문일지 GID
+            apiKey: 'AQ.Ab8RN6KwmiUwl-nKqJB8CQwfZ3qeZ8BjPJPtxSY92uaviUVpow',
+            spreadsheetId: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
+            range: '인허가데이터!A:P'
         };
 
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxO9-a_fL-d5JvjFswZuvDkO5Z0nC_sJ_VdK2Lw/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby_WJZZqaOozR-dE4Tpfcnnq2pTCsmVM6zHk_UZMQagqq66jUA94cebvilv1-uVBRRdKQ/exec';
 
         // ============================================================
         // 전역 변수
@@ -807,8 +751,7 @@
 
         let processedData = [];
         let allData = [];
-        let visitLogMap = {}; // 방문일지 데이터 (거래처명 -> 최신방문일)
-        let naverMap = null;
+        let naverMap;
         let markers = [];
         let currentFilter = 'all';
         let currentRegion = null;
@@ -898,10 +841,6 @@
             updateDashboard();
             updateMap();
         }
-
-        // ============================================================
-        // 카카오 지도
-        // ============================================================
 
         // ============================================================
         // 네이버 지도
@@ -1022,204 +961,165 @@
         // ============================================================
 
         async function loadDataFromSheets() {
-
-            // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
-            const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
-
-            // CSV 파싱 (쉼표가 포함된 필드 처리)
-            function parseCSV(text) {
-                const lines = [];
-                let currentLine = [];
-                let currentField = '';
-                let inQuotes = false;
-
-                for (let i = 0; i < text.length; i++) {
-                    const char = text[i];
-                    const nextChar = text[i + 1];
-
-                    if (char === '"') {
-                        if (inQuotes && nextChar === '"') {
-                            currentField += '"';
-                            i++; // Skip next quote
-                        } else {
-                            inQuotes = !inQuotes;
-                        }
-                    } else if (char === ',' && !inQuotes) {
-                        currentLine.push(currentField.trim());
-                        currentField = '';
-                    } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                        if (currentField || currentLine.length > 0) {
-                            currentLine.push(currentField.trim());
-                            if (currentLine.some(f => f)) { // Skip empty lines
-                                lines.push(currentLine);
-                            }
-                            currentLine = [];
-                            currentField = '';
-                        }
-                        if (char === '\r' && nextChar === '\n') {
-                            i++; // Skip \n in \r\n
-                        }
-                    } else {
-                        currentField += char;
-                    }
-                }
-
-                // Add last field and line
-                if (currentField || currentLine.length > 0) {
-                    currentLine.push(currentField.trim());
-                    if (currentLine.some(f => f)) {
-                        lines.push(currentLine);
-                    }
-                }
-
-                return lines;
-            }
-
-
-            // 0. 방문일지 데이터 먼저 로드 및 처리
             try {
-                const visitUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogId}/export?format=csv&gid=${SHEETS_CONFIG.visitLogGid}`;
-                const vResponse = await fetch(visitUrl);
-                if (vResponse.ok) {
-                    const vText = await vResponse.text();
-                    const vLines = parseCSV(vText);
+                // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
+                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
 
-                    if (vLines.length > 1) {
-                        const vHeaders = vLines[0];
-                        const vData = vLines.slice(1).map(values => {
-                            const obj = {};
-                            vHeaders.forEach((h, i) => obj[h] = values[i] || '');
-                            return obj;
-                        });
+                const response = await fetch(csvUrl);
+                if (!response.ok) {
+                    console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
+                    return;
+                }
 
-                        // 정규화 함수 (방문일지와 동일)
-                        const normalize = (str) => {
-                            if (!str) return '';
-                            return str.replace(/\(주\)/g, '').replace(/\（주\）/g, '').replace(/주식회사/g, '').replace(/[^\w\uAC00-\uD7A3]/g, '').trim();
-                        };
+                const csvText = await response.text();
 
-                        vData.forEach(row => {
-                            const name = normalize(row['방문처(거래처)'] || row['방문처'] || '');
-                            const date = row['일정기간'] ? (row['일정기간'].split('~')[0] || '').trim() : '';
-                            if (name && date) {
-                                // 최신 날짜로 업데이트
-                                if (!visitLogMap[name] || date > visitLogMap[name]) {
-                                    visitLogMap[name] = date;
+                // CSV 파싱 (쉼표가 포함된 필드 처리)
+                function parseCSV(text) {
+                    const lines = [];
+                    let currentLine = [];
+                    let currentField = '';
+                    let inQuotes = false;
+
+                    for (let i = 0; i < text.length; i++) {
+                        const char = text[i];
+                        const nextChar = text[i + 1];
+
+                        if (char === '"') {
+                            if (inQuotes && nextChar === '"') {
+                                currentField += '"';
+                                i++; // Skip next quote
+                            } else {
+                                inQuotes = !inQuotes;
+                            }
+                        } else if (char === ',' && !inQuotes) {
+                            currentLine.push(currentField.trim());
+                            currentField = '';
+                        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                            if (currentField || currentLine.length > 0) {
+                                currentLine.push(currentField.trim());
+                                if (currentLine.some(f => f)) { // Skip empty lines
+                                    lines.push(currentLine);
                                 }
+                                currentLine = [];
+                                currentField = '';
                             }
-                        });
-                        console.log('방문일지 로드 완료, 매핑 개수:', Object.keys(visitLogMap).length);
-                    }
-                }
-            } catch (e) {
-                console.warn('방문일지 로드 실패:', e);
-            }
-
-
-            // 1. 메인 데이터 로드
-            const response = await fetch(csvUrl);
-            if (!response.ok) {
-                console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
-                return;
-            }
-
-            const csvText = await response.text();
-
-            const lines = parseCSV(csvText);
-
-            if (lines.length > 1) {
-                const headers = lines[0];
-                allData = lines.slice(1)
-                    .map(values => {
-                        const obj = {};
-                        headers.forEach((h, i) => {
-                            obj[h] = values[i] || '';
-                        });
-                        return obj;
-                    })
-                    .filter(row => {
-                        // 유효한 데이터만 필터링
-                        const manager = row['담당자'] || '';
-                        const name = row['사업장명'] || '';
-
-                        // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
-                        if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
-                        if (manager.includes('업로드일')) return false;
-                        if (manager.includes('등록일')) return false;
-
-                        // 사업장명이 비어있으면 제외
-                        if (!name || name.trim() === '') return false;
-
-                        return true;
-                    });
-
-
-                console.log(`Google Sheets 로드 완료: ${allData.length}건`);
-
-
-                // 지오코딩 캐싱 함수
-                async function getCachedGeocode(address) {
-                    const cacheKey = `maeil_geo_${address}`;
-                    const cached = localStorage.getItem(cacheKey);
-                    if (cached) {
-                        // console.log('캐시 사용:', address);
-                        return JSON.parse(cached);
-                    }
-
-                    // 캐시 없으면 API 호출
-                    const coords = await geocodeAddress(address);
-                    if (coords) {
-                        localStorage.setItem(cacheKey, JSON.stringify(coords));
-                    }
-                    return coords;
-                }
-
-                // 지오코딩 (좌표 없는 데이터 주소로 변환)
-                const missingCoords = allData.filter(d => (!d['위도'] || !d['경도'] || parseFloat(d['위도']) === 0 || parseFloat(d['경도']) === 0) && d['도로명전체주소']);
-
-                if (missingCoords.length > 0) {
-                    console.log(`지오코딩 필요: ${missingCoords.length}건`);
-                    // 로딩 표시 (임시)
-                    const statusDiv = document.createElement('div');
-                    statusDiv.id = 'geocodingStatus';
-                    statusDiv.style.position = 'fixed';
-                    statusDiv.style.bottom = '20px';
-                    statusDiv.style.left = '50%';
-                    statusDiv.style.transform = 'translateX(-50%)';
-                    statusDiv.style.background = 'rgba(0,0,0,0.7)';
-                    statusDiv.style.color = 'white';
-                    statusDiv.style.padding = '10px 20px';
-                    statusDiv.style.borderRadius = '20px';
-                    statusDiv.style.zIndex = '9999';
-                    statusDiv.innerHTML = '좌표 변환 중...';
-                    document.body.appendChild(statusDiv);
-
-                    let count = 0;
-                    for (const item of missingCoords) {
-                        try {
-                            // 캐시 적용된 함수 사용
-                            const coords = await getCachedGeocode(item['도로명전체주소']);
-                            if (coords) {
-                                item['위도'] = coords.lat.toString(); // 문자열로 저장
-                                item['경도'] = coords.lng.toString();
+                            if (char === '\r' && nextChar === '\n') {
+                                i++; // Skip \n in \r\n
                             }
-                        } catch (e) {
-                            console.warn('지오코딩 실패:', item['사업장명']);
+                        } else {
+                            currentField += char;
                         }
-                        count++;
-                        statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
-
-                        // 캐시 미적중(API호출) 시에만 딜레이를 주면 좋지만,
-                        // 간단히 구현하기 위해 빠른 속도로 진행 (캐시 있으면 매우 빠름)
-                        await new Promise(r => setTimeout(r, 10));
                     }
-                    document.body.removeChild(statusDiv);
+
+                    // Add last field and line
+                    if (currentField || currentLine.length > 0) {
+                        currentLine.push(currentField.trim());
+                        if (currentLine.some(f => f)) {
+                            lines.push(currentLine);
+                        }
+                    }
+
+                    return lines;
                 }
 
-                updateDashboard();
-                updateMap();
-            }
+                const lines = parseCSV(csvText);
 
+                if (lines.length > 1) {
+                    const headers = lines[0];
+                    allData = lines.slice(1)
+                        .map(values => {
+                            const obj = {};
+                            headers.forEach((h, i) => {
+                                obj[h] = values[i] || '';
+                            });
+                            return obj;
+                        })
+                        .filter(row => {
+                            // 유효한 데이터만 필터링
+                            const manager = row['담당자'] || '';
+                            const name = row['사업장명'] || '';
+
+                            // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
+                            if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
+                            if (manager.includes('업로드일')) return false;
+                            if (manager.includes('등록일')) return false;
+
+                            // 사업장명이 비어있으면 제외
+                            if (!name || name.trim() === '') return false;
+
+                            return true;
+                        });
+
+
+                    console.log(`Google Sheets 로드 완료: ${allData.length}건`);
+
+
+                    // 지오코딩 캐싱 함수
+                    async function getCachedGeocode(address) {
+                        const cacheKey = `maeil_geo_${address}`;
+                        const cached = localStorage.getItem(cacheKey);
+                        if (cached) {
+                            // console.log('캐시 사용:', address);
+                            return JSON.parse(cached);
+                        }
+
+                        // 캐시 없으면 API 호출
+                        const coords = await geocodeAddress(address);
+                        if (coords) {
+                            localStorage.setItem(cacheKey, JSON.stringify(coords));
+                        }
+                        return coords;
+                    }
+
+                    // 지오코딩 (좌표 없는 데이터 주소로 변환)
+                    const missingCoords = allData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
+
+                    if (missingCoords.length > 0) {
+                        console.log(`지오코딩 필요: ${missingCoords.length}건`);
+                        // 로딩 표시 (임시)
+                        const statusDiv = document.createElement('div');
+                        statusDiv.id = 'geocodingStatus';
+                        statusDiv.style.position = 'fixed';
+                        statusDiv.style.bottom = '20px';
+                        statusDiv.style.left = '50%';
+                        statusDiv.style.transform = 'translateX(-50%)';
+                        statusDiv.style.background = 'rgba(0,0,0,0.7)';
+                        statusDiv.style.color = 'white';
+                        statusDiv.style.padding = '10px 20px';
+                        statusDiv.style.borderRadius = '20px';
+                        statusDiv.style.zIndex = '9999';
+                        statusDiv.innerHTML = '좌표 변환 중...';
+                        document.body.appendChild(statusDiv);
+
+                        let count = 0;
+                        for (const item of missingCoords) {
+                            try {
+                                // 캐시 적용된 함수 사용
+                                const coords = await getCachedGeocode(item['도로명전체주소']);
+                                if (coords) {
+                                    item['위도'] = coords.lat.toString(); // 문자열로 저장
+                                    item['경도'] = coords.lng.toString();
+                                }
+                            } catch (e) {
+                                console.warn('지오코딩 실패:', item['사업장명']);
+                            }
+                            count++;
+                            statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
+
+                            // 캐시 미적중(API호출) 시에만 딜레이를 주면 좋지만,
+                            // 간단히 구현하기 위해 빠른 속도로 진행 (캐시 있으면 매우 빠름)
+                            await new Promise(r => setTimeout(r, 10));
+                        }
+                        document.body.removeChild(statusDiv);
+                    }
+
+                    updateDashboard();
+                    updateMap();
+                }
+            } catch (error) {
+                console.warn('Google Sheets 로드 실패:', error.message);
+                console.log('대시보드는 최종본 업로드 후 표시됩니다');
+            }
         }
 
         // ============================================================
@@ -1248,7 +1148,7 @@
             // 실제 Google Sheets 컬럼명 사용
             document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
             document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
-            document.getElementById('licensedCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '인허가').length || 0;
+            document.getElementById('licensedCount').textContent = filteredData.length || 0;
             document.getElementById('dropCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
             document.getElementById('constructionCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
 
@@ -1264,7 +1164,7 @@
             });
 
             document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
-                .sort((a, b) => b[1] - a[1])
+                .sort((a, b) => b[1] - a[1]).slice(0, 6)
                 .map(([r, c]) => {
                     const isActive = currentRegion === r ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
                     return `<div class="dropdown-item" onclick="setRegionFilter('${r}')"${isActive}><span class="dropdown-item-name">${r}</span><span class="dropdown-item-count">${c}건</span></div>`;
@@ -1287,42 +1187,8 @@
         }
 
         // ============================================================
-        // 지도 업데이트 및 검색
+        // 지도 업데이트
         // ============================================================
-
-        function searchMapPlaces() {
-            const keyword = document.getElementById('mapSearchInput').value.trim();
-            if (!keyword) {
-                alert('검색어를 입력해주세요!');
-                return;
-            }
-
-            // 1. DB 데이터 검색 (우선순위)
-            const dbResult = allData.find(item =>
-                (item['사업장명'] && item['사업장명'].includes(keyword)) ||
-                (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
-            );
-
-            if (dbResult) {
-                // 좌표 변환 로직이 있다면 여기서 처리해야 함 (기존 cleanCoord, proj4 로직 재사용 필요하나 스코프 문제로 단순화)
-                // DB에 위도/경도가 있다면 사용
-                if (dbResult['위도'] && dbResult['경도']) {
-                    // 이미 변환된 값이 있는지 확인 or 재변환
-                    // 간단히 위도/경도 필드가 있다고 가정 (processData에서 처리됨)
-                    const lat = parseFloat(dbResult['위도']);
-                    const lng = parseFloat(dbResult['경도']);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        const moveLatLon = new naver.maps.LatLng(lat, lng);
-                        naverMap.setCenter(moveLatLon);
-                        naverMap.setZoom(15);
-                        return;
-                    }
-                }
-            }
-
-            // 2. 외부 장소 검색 (네이버 지도 API에서는 별도 Serivce 필요하므로 임시 비활성화)
-            // console.warn('외부 장소 검색은 네이버 지도 전환으로 인해 일시 중단되었습니다.');
-        }
 
         function updateMap() {
             if (!naverMap) return;
@@ -1345,7 +1211,6 @@
             console.log(`지도 표시 데이터: ${filtered.length}건 (필터: 순위=${currentFilter}, 지역=${currentRegion || '전체'}, 담당자=${currentManager || '전체'})`);
 
             filtered.forEach(item => {
-                // processData에서 이미 위도/경도가 변환되어 할당되었음을 가정
                 if (!item['위도'] || !item['경도']) return;
 
                 try {
@@ -1388,59 +1253,10 @@
                     });
 
                     markers.push(marker);
-                } catch (e) {
-                    // console.warn('마커 생성 실패', e);
-                }
+                } catch (e) { }
             });
         }
 
-        function searchDetailAddrFromCoords(coords, callback) {
-            // 좌표로 법정동 상세 주소 정보를 요청합니다
-            var geocoder = new kakao.maps.services.Geocoder();
-            geocoder.coord2Address(coords.getLng(), coords.getLat(), callback);
-        }
-
-        function showPlaceInfo(item) {
-            const content = `
-                <div style="padding: 20px; max-width: 300px;">
-                    <h3 style="margin-bottom: 10px; font-size: 18px;">${item['사업장명']}</h3>
-                    <p style="margin-bottom: 5px; color: #666;">${item['업태구분명']} | ${item['평형']}평</p>
-                    <p style="margin-bottom: 5px; color: #666;">${item['도로명전체주소']}</p>
-                    <p style="margin-bottom: 15px; font-weight: bold; color: #0071e3;">${item['거래여부(기입예정)']}</p>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; font-size: 13px;">
-                        <div><strong>담당자:</strong> ${item['담당자']}</div>
-                        <div><strong>순위:</strong> ${item['순위']}순위</div>
-                    </div>
-
-                    <div style="display: flex; gap: 8px;">
-                        <a href="https://map.kakao.com/link/map/${item['사업장명']},${item['위도']},${item['경도']}" target="_blank" 
-                           style="flex: 1; text-align: center; padding: 8px; background: #fee500; color: #191919; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: bold;">
-                           카카오맵 보기
-                        </a>
-                        <button onclick="closePlaceInfo()" 
-                            style="flex: 1; padding: 8px; background: #f5f5f7; border: none; border-radius: 6px; cursor: pointer;">
-                            닫기
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            const infoModal = document.createElement('div');
-            infoModal.id = 'placeInfoModal';
-            infoModal.style.cssText = 'position: absolute; top: 20px; right: 20px; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; animation: slideIn 0.3s ease;';
-            infoModal.innerHTML = content;
-
-            // 기존 모달 제거
-            closePlaceInfo();
-
-            document.querySelector('.map-area').appendChild(infoModal);
-        }
-
-        function closePlaceInfo() {
-            const existing = document.getElementById('placeInfoModal');
-            if (existing) existing.remove();
-        }
         // ============================================================
         // 필터
         // ============================================================
@@ -1647,7 +1463,6 @@
                     else if (parseFloat(pyeong) >= 10) rank = '2';
 
                     // 좌표 변환 (EPSG:5174 -> WGS84)
-                    // 좌표 변환 (EPSG:5174 -> WGS84)
                     // 쉼표 제거 및 문자열 변환 후 파싱
                     const cleanCoord = (val) => {
                         if (!val) return 0;
@@ -1832,32 +1647,7 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const wb = XLSX.read(data, { type: 'array' });
-                    // [수정] 데이터 읽기 (빈 셀은 빈 문자열로 처리)
-                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-
-                    // 1. 데이터 정제 (헤더/값 공백 제거)
-                    const cleanedData = rawData.map(row => {
-                        const newRow = {};
-                        Object.keys(row).forEach(key => {
-                            const cleanKey = key.trim(); // 헤더 공백 제거
-                            let value = row[key];
-                            if (typeof value === 'string') value = value.trim(); // 값 공백 제거
-                            newRow[cleanKey] = value;
-                        });
-                        return newRow;
-                    });
-
-                    // 2. 1순위 필터링
-                    const finalData = cleanedData.filter(row => String(row['순위']) === '1');
-
-                    console.log(`전체 ${cleanedData.length}건 중 1순위 ${finalData.length}건 추출`);
-
-                    if (finalData.length === 0) {
-                        document.getElementById('loading2').classList.remove('active');
-                        showAlert('alert2', 'error', '❌ 업로드할 1순위 데이터가 없습니다.<br>(순위 컬럼을 확인해주세요)');
-                        return;
-                    }
-
+                    const finalData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
                     await uploadToSheets(finalData);
                 } catch (err) {
                     document.getElementById('loading2').classList.remove('active');
@@ -1950,339 +1740,6 @@
         function showAlert(id, type, msg) {
             document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
             setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
-        }
-    </script>
-    <!-- Gemini Chatbot -->
-    <script src="gemini-chatbot.js"></script>
-    <style>
-        /* =============== Gemini 챗봇 스타일 =============== */
-        .chatbot-fab {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            width: 35px;
-            /* 크기 60% 수준으로 축소 (약 35px) */
-            height: 35px;
-            /* 크기 60% 수준으로 축소 (약 35px) */
-            background: white;
-            /* 배경 흰색 */
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-            /* 그림자 조정 */
-            transition: transform 0.2s;
-            z-index: 1000;
-            border: 1px solid #f0f0f5;
-            /* 경계선 추가 */
-        }
-
-        .chatbot-fab:hover {
-            transform: scale(1.1);
-            background: #fbfbfd;
-        }
-
-        .chatbot-icon {
-            font-size: 20px;
-            /* 아이콘 크기 축소 */
-        }
-
-        .chatbot-container {
-            position: fixed;
-            bottom: 80px;
-            /* 위치 조정 */
-            right: 24px;
-            width: 380px;
-            /* 너비 조정 */
-            height: 550px;
-            /* 높이 조정 */
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-            display: none;
-            flex-direction: column;
-            z-index: 999;
-        }
-
-        .chatbot-container.active {
-            display: flex;
-        }
-
-        .chatbot-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 16px 20px;
-            border-radius: 16px 16px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chatbot-header h3 {
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .chatbot-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
-            background: #fafafa;
-        }
-
-        .message {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            animation: slideIn 0.3s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message.user {
-            flex-direction: row-reverse;
-        }
-
-        .message-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-
-        .message.bot .message-avatar {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-
-        .message.user .message-avatar {
-            background: #0071e3;
-        }
-
-        .message-content {
-            background: white;
-            padding: 12px 16px;
-            border-radius: 12px;
-            max-width: 80%;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            line-height: 1.5;
-            font-size: 14px;
-        }
-
-        .message.user .message-content {
-            background: #0071e3;
-            color: white;
-        }
-
-        .chatbot-input-container {
-            padding: 16px;
-            border-top: 1px solid #e8e8ed;
-            background: white;
-            border-radius: 0 0 16px 16px;
-        }
-
-        .chatbot-input {
-            display: flex;
-            gap: 8px;
-        }
-
-        .chatbot-input input {
-            flex: 1;
-            padding: 10px 16px;
-            border: 1px solid #d2d2d7;
-            border-radius: 20px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-
-        .chatbot-input button {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 20px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .chatbot-input button:hover {
-            opacity: 0.9;
-        }
-
-        .chatbot-suggestions {
-            display: flex;
-            gap: 8px;
-            margin-top: 12px;
-            flex-wrap: wrap;
-        }
-
-        .suggestion-btn {
-            padding: 6px 12px;
-            background: #f5f5f7;
-            border: 1px solid #d2d2d7;
-            border-radius: 16px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .suggestion-btn:hover {
-            background: #e8e8ed;
-        }
-
-        .loading-indicator {
-            display: none;
-            text-align: center;
-            padding: 12px;
-            color: #86868b;
-            font-size: 13px;
-        }
-
-        .loading-indicator.active {
-            display: block;
-        }
-    </style>
-
-    <!-- Gemini 챗봇 UI -->
-    <div class="chatbot-fab" onclick="toggleChatbot()">
-        <!-- Gemini 스타일 아이콘 (Sparkle) -->
-        <span class="chatbot-icon">✨</span>
-    </div>
-
-    <div class="chatbot-container" id="chatbotContainer">
-        <div class="chatbot-header">
-            <h3>✨ FS AI 비서 (Gemini 2.5)</h3>
-            <span class="close-btn" onclick="toggleChatbot()" style="color: white;">&times;</span>
-        </div>
-        <div class="chatbot-messages" id="chatbotMessages">
-            <div class="message bot">
-                <div class="message-avatar">🤖</div>
-                <div class="message-content">
-                    안녕하세요! 경기북부 FS 영업팀 AI 비서입니다.<br>
-                    인허가 현황에 대해 궁금한 점을 물어보세요.
-                </div>
-            </div>
-        </div>
-
-        <div class="loading-indicator" id="loadingIndicator">
-            AI가 답변을 생성하고 있습니다...
-        </div>
-
-        <div class="chatbot-input-container">
-            <div class="chatbot-input">
-                <input type="text" id="chatInput" placeholder="질문을 입력하세요..."
-                    onkeypress="if(event.key === 'Enter') sendMessage()">
-                <button onclick="sendMessage()">전송</button>
-            </div>
-            <div class="chatbot-suggestions">
-                <button class="suggestion-btn" onclick="sendSuggestion('오늘 인허가 현황 요약해줘')">오늘 현황</button>
-                <button class="suggestion-btn" onclick="sendSuggestion('1순위 거래처 알려줘')">1순위 거래처</button>
-                <button class="suggestion-btn" onclick="sendSuggestion('남양주 지역 현황 어때?')">남양주 현황</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // ============================================================
-        // 챗봇 관련 스크립트
-        // ============================================================
-        function toggleChatbot() {
-            const container = document.getElementById('chatbotContainer');
-            const isActive = container.classList.contains('active');
-
-            if (isActive) {
-                container.classList.remove('active');
-            } else {
-                container.classList.add('active');
-                // 챗봇 데이터 컨텍스트 업데이트 (현재 표시된 데이터 기준)
-                if (typeof geminiBot !== 'undefined') {
-                    // processedData가 있으면 사용, 없으면 빈 배열
-                    const currentData = typeof processedData !== 'undefined' ? processedData : [];
-                    geminiBot.setContext(currentData, [], []);
-                    console.log('챗봇 컨텍스트 업데이트:', currentData.length + '건');
-                }
-            }
-        }
-
-        function sendSuggestion(text) {
-            document.getElementById('chatInput').value = text;
-            sendMessage();
-        }
-
-        async function sendMessage() {
-            const input = document.getElementById('chatInput');
-            const message = input.value.trim();
-
-            if (!message) return;
-
-            // 사용자 메시지 표시
-            appendMessage('user', message);
-            input.value = '';
-
-            // 로딩 표시
-            const loading = document.getElementById('loadingIndicator');
-            loading.classList.add('active');
-            const messagesContainer = document.getElementById('chatbotMessages');
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            try {
-                if (typeof geminiBot === 'undefined') {
-                    throw new Error('챗봇 모듈이 로드되지 않았습니다.');
-                }
-
-                const response = await geminiBot.ask(message);
-
-                // 로딩 숨김 및 응답 표시
-                loading.classList.remove('active');
-                appendMessage('bot', response);
-
-            } catch (error) {
-                console.error('Chat Error:', error);
-                loading.classList.remove('active');
-                appendMessage('bot', '죄송합니다. 오류가 발생했습니다: ' + error.message);
-            }
-        }
-
-        function appendMessage(sender, text) {
-            const container = document.getElementById('chatbotMessages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${sender}`;
-
-            const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
-            avatar.textContent = sender === 'bot' ? '🤖' : '👤'; // 아이콘 변경
-
-            const content = document.createElement('div');
-            content.className = 'message-content';
-
-            // 봇 응답은 줄바꿈 처리
-            if (sender === 'bot') {
-                content.innerHTML = text.replace(/\n/g, '<br>'); // 마크다운 파싱을 위한 간단한 처리
-            } else {
-                content.textContent = text;
-            }
-
-            messageDiv.appendChild(avatar);
-            messageDiv.appendChild(content);
-            container.appendChild(messageDiv);
-
-            container.scrollTop = container.scrollHeight;
         }
     </script>
 </body>
