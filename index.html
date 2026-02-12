@@ -1111,8 +1111,26 @@
 
                     console.log(`Google Sheets 로드 완료: ${allData.length}건`);
 
+
+                    // 지오코딩 캐싱 함수
+                    async function getCachedGeocode(address) {
+                        const cacheKey = `maeil_geo_${address}`;
+                        const cached = localStorage.getItem(cacheKey);
+                        if (cached) {
+                            // console.log('캐시 사용:', address);
+                            return JSON.parse(cached);
+                        }
+
+                        // 캐시 없으면 API 호출
+                        const coords = await geocodeAddress(address);
+                        if (coords) {
+                            localStorage.setItem(cacheKey, JSON.stringify(coords));
+                        }
+                        return coords;
+                    }
+
                     // 지오코딩 (좌표 없는 데이터 주소로 변환)
-                    const missingCoords = allData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
+                    const missingCoords = allData.filter(d => (!d['위도'] || !d['경도'] || parseFloat(d['위도']) === 0 || parseFloat(d['경도']) === 0) && d['도로명전체주소']);
 
                     if (missingCoords.length > 0) {
                         console.log(`지오코딩 필요: ${missingCoords.length}건`);
@@ -1134,7 +1152,8 @@
                         let count = 0;
                         for (const item of missingCoords) {
                             try {
-                                const coords = await geocodeAddress(item['도로명전체주소']);
+                                // 캐시 적용된 함수 사용
+                                const coords = await getCachedGeocode(item['도로명전체주소']);
                                 if (coords) {
                                     item['위도'] = coords.lat.toString(); // 문자열로 저장
                                     item['경도'] = coords.lng.toString();
@@ -1144,7 +1163,10 @@
                             }
                             count++;
                             statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
-                            await new Promise(r => setTimeout(r, 50));
+
+                            // 캐시 미적중(API호출) 시에만 딜레이를 주면 좋지만,
+                            // 간단히 구현하기 위해 빠른 속도로 진행 (캐시 있으면 매우 빠름)
+                            await new Promise(r => setTimeout(r, 10));
                         }
                         document.body.removeChild(statusDiv);
                     }
@@ -1266,7 +1288,19 @@
             markers.forEach(m => m.setMap(null));
             markers = [];
 
+
             let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
+
+            // 추가 필터링: 지역
+            if (currentRegion) {
+                filtered = filtered.filter(d => (d['주소2'] || '기타') === currentRegion);
+            }
+            // 추가 필터링: 담당자
+            if (currentManager) {
+                filtered = filtered.filter(d => (d['담당자'] || '미지정') === currentManager);
+            }
+
+            console.log(`지도 표시 데이터: ${filtered.length}건 (필터: 순위=${currentFilter}, 지역=${currentRegion || '전체'}, 담당자=${currentManager || '전체'})`);
 
             filtered.forEach(item => {
                 // processData에서 이미 위도/경도가 변환되어 할당되었음을 가정
@@ -1276,14 +1310,32 @@
                     const lat = parseFloat(item['위도']);
                     const lng = parseFloat(item['경도']);
                     const pos = new naver.maps.LatLng(lat, lng);
-                    const color = item['순위'] === '1' ? '#ff3b30' : item['순위'] === '2' ? '#ff9500' : '#86868b';
+
+                    // 거래 상태에 따른 색상 지정
+                    // 거래: 파랑 (#007AFF), 미거래: 연빨강 (#FF9595), 인허가: 초록 (#34C759), DROP: 회색 (#8E8E93), 공사중: 주황 (#FF9500)
+                    const status = (item['거래여부(기입예정)'] || '').toString().trim();
+                    let color = '#34C759'; // 기본: 초록 (인허가)
+
+                    if (status === '거래') color = '#007AFF';       // 파랑
+                    else if (status === '미거래') color = '#FF9595';  // 연빨강
+                    else if (status === 'DROP') color = '#8E8E93';   // 회색
+                    else if (status === '공사중') color = '#FF9500';  // 주황
+                    else if (status === '인허가') color = '#34C759'; // 초록
 
                     const marker = new naver.maps.Marker({
                         position: pos,
                         map: naverMap,
                         icon: {
-                            content: '<div style="cursor:pointer;background:' + color + ';color:#fff;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:600;box-shadow:0 2px 6px rgba(0,0,0,.2)">' + item['사업장명'] + '</div>',
-                            anchor: new naver.maps.Point(20, 20)
+                            content: `
+                                <div style="
+                                    width: 12px; height: 12px;
+                                    background: ${color};
+                                    border: 1px solid white;
+                                    border-radius: 50%;
+                                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                "></div>
+                            `,
+                            anchor: new naver.maps.Point(6, 6)
                         }
                     });
 
