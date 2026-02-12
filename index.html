@@ -908,7 +908,12 @@
                 const container = document.getElementById('map');
                 const options = {
                     center: new naver.maps.LatLng(37.5, 127.3),
-                    zoom: 11
+                    zoom: 11,
+                    zoomControl: true, // 줌 컨트롤 표시
+                    zoomControlOptions: {
+                        position: naver.maps.Position.TOP_RIGHT // 우측 상단 배치
+                    },
+                    scrollWheel: false // 마우스 스크롤 줌 비활성화
                 };
                 naverMap = new naver.maps.Map(container, options);
             } catch (error) {
