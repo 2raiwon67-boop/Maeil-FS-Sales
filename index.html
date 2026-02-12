@@ -1019,165 +1019,154 @@
         // ============================================================
 
         async function loadDataFromSheets() {
-            try {
-                // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
-                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
 
-                const response = await fetch(csvUrl);
-                if (!response.ok) {
-                    console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
-                    return;
-                }
+            // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
+            const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
 
-                const csvText = await response.text();
+            // CSV 파싱 (쉼표가 포함된 필드 처리)
+            function parseCSV(text) {
+                const lines = [];
+                let currentLine = [];
+                let currentField = '';
+                let inQuotes = false;
 
-                // CSV 파싱 (쉼표가 포함된 필드 처리)
-                function parseCSV(text) {
-                    const lines = [];
-                    let currentLine = [];
-                    let currentField = '';
-                    let inQuotes = false;
+                for (let i = 0; i < text.length; i++) {
+                    const char = text[i];
+                    const nextChar = text[i + 1];
 
-                    for (let i = 0; i < text.length; i++) {
-                        const char = text[i];
-                        const nextChar = text[i + 1];
-
-                        if (char === '"') {
-                            if (inQuotes && nextChar === '"') {
-                                currentField += '"';
-                                i++; // Skip next quote
-                            } else {
-                                inQuotes = !inQuotes;
-                            }
-                        } else if (char === ',' && !inQuotes) {
-                            currentLine.push(currentField.trim());
-                            currentField = '';
-                        } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                            if (currentField || currentLine.length > 0) {
-                                currentLine.push(currentField.trim());
-                                if (currentLine.some(f => f)) { // Skip empty lines
-                                    lines.push(currentLine);
-                                }
-                                currentLine = [];
-                                currentField = '';
-                            }
-                            if (char === '\r' && nextChar === '\n') {
-                                i++; // Skip \n in \r\n
-                            }
+                    if (char === '"') {
+                        if (inQuotes && nextChar === '"') {
+                            currentField += '"';
+                            i++; // Skip next quote
                         } else {
-                            currentField += char;
+                            inQuotes = !inQuotes;
                         }
-                    }
-
-                    // Add last field and line
-                    if (currentField || currentLine.length > 0) {
+                    } else if (char === ',' && !inQuotes) {
                         currentLine.push(currentField.trim());
-                        if (currentLine.some(f => f)) {
-                            lines.push(currentLine);
-                        }
-                    }
-
-                    return lines;
-                }
-
-                const lines = parseCSV(csvText);
-
-                if (lines.length > 1) {
-                    const headers = lines[0];
-                    allData = lines.slice(1)
-                        .map(values => {
-                            const obj = {};
-                            headers.forEach((h, i) => {
-                                obj[h] = values[i] || '';
-                            });
-                            return obj;
-                        })
-                        .filter(row => {
-                            // 유효한 데이터만 필터링
-                            const manager = row['담당자'] || '';
-                            const name = row['사업장명'] || '';
-
-                            // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
-                            if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
-                            if (manager.includes('업로드일')) return false;
-                            if (manager.includes('등록일')) return false;
-
-                            // 사업장명이 비어있으면 제외
-                            if (!name || name.trim() === '') return false;
-
-                            return true;
-                        });
-
-
-                    console.log(`Google Sheets 로드 완료: ${allData.length}건`);
-
-
-                    // 지오코딩 캐싱 함수
-                    async function getCachedGeocode(address) {
-                        const cacheKey = `maeil_geo_${address}`;
-                        const cached = localStorage.getItem(cacheKey);
-                        if (cached) {
-                            // console.log('캐시 사용:', address);
-                            return JSON.parse(cached);
-                        }
-
-                        // 캐시 없으면 API 호출
-                        const coords = await geocodeAddress(address);
-                        if (coords) {
-                            localStorage.setItem(cacheKey, JSON.stringify(coords));
-                        }
-                        return coords;
-                    }
-
-                    // 지오코딩 (좌표 없는 데이터 주소로 변환)
-                    const missingCoords = allData.filter(d => (!d['위도'] || !d['경도'] || parseFloat(d['위도']) === 0 || parseFloat(d['경도']) === 0) && d['도로명전체주소']);
-
-                    if (missingCoords.length > 0) {
-                        console.log(`지오코딩 필요: ${missingCoords.length}건`);
-                        // 로딩 표시 (임시)
-                        const statusDiv = document.createElement('div');
-                        statusDiv.id = 'geocodingStatus';
-                        statusDiv.style.position = 'fixed';
-                        statusDiv.style.bottom = '20px';
-                        statusDiv.style.left = '50%';
-                        statusDiv.style.transform = 'translateX(-50%)';
-                        statusDiv.style.background = 'rgba(0,0,0,0.7)';
-                        statusDiv.style.color = 'white';
-                        statusDiv.style.padding = '10px 20px';
-                        statusDiv.style.borderRadius = '20px';
-                        statusDiv.style.zIndex = '9999';
-                        statusDiv.innerHTML = '좌표 변환 중...';
-                        document.body.appendChild(statusDiv);
-
-                        let count = 0;
-                        for (const item of missingCoords) {
-                            try {
-                                // 캐시 적용된 함수 사용
-                                const coords = await getCachedGeocode(item['도로명전체주소']);
-                                if (coords) {
-                                    item['위도'] = coords.lat.toString(); // 문자열로 저장
-                                    item['경도'] = coords.lng.toString();
-                                }
-                            } catch (e) {
-                                console.warn('지오코딩 실패:', item['사업장명']);
+                        currentField = '';
+                    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                        if (currentField || currentLine.length > 0) {
+                            currentLine.push(currentField.trim());
+                            if (currentLine.some(f => f)) { // Skip empty lines
+                                lines.push(currentLine);
                             }
-                            count++;
-                            statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
-
-                            // 캐시 미적중(API호출) 시에만 딜레이를 주면 좋지만,
-                            // 간단히 구현하기 위해 빠른 속도로 진행 (캐시 있으면 매우 빠름)
-                            await new Promise(r => setTimeout(r, 10));
+                            currentLine = [];
+                            currentField = '';
                         }
-                        document.body.removeChild(statusDiv);
+                        if (char === '\r' && nextChar === '\n') {
+                            i++; // Skip \n in \r\n
+                        }
+                    } else {
+                        currentField += char;
+                    }
+                }
+
+                // Add last field and line
+                if (currentField || currentLine.length > 0) {
+                    currentLine.push(currentField.trim());
+                    if (currentLine.some(f => f)) {
+                        lines.push(currentLine);
+                    }
+                }
+
+                return lines;
+            }
+
+            const lines = parseCSV(csvText);
+
+            if (lines.length > 1) {
+                const headers = lines[0];
+                allData = lines.slice(1)
+                    .map(values => {
+                        const obj = {};
+                        headers.forEach((h, i) => {
+                            obj[h] = values[i] || '';
+                        });
+                        return obj;
+                    })
+                    .filter(row => {
+                        // 유효한 데이터만 필터링
+                        const manager = row['담당자'] || '';
+                        const name = row['사업장명'] || '';
+
+                        // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
+                        if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
+                        if (manager.includes('업로드일')) return false;
+                        if (manager.includes('등록일')) return false;
+
+                        // 사업장명이 비어있으면 제외
+                        if (!name || name.trim() === '') return false;
+
+                        return true;
+                    });
+
+
+                console.log(`Google Sheets 로드 완료: ${allData.length}건`);
+
+
+                // 지오코딩 캐싱 함수
+                async function getCachedGeocode(address) {
+                    const cacheKey = `maeil_geo_${address}`;
+                    const cached = localStorage.getItem(cacheKey);
+                    if (cached) {
+                        // console.log('캐시 사용:', address);
+                        return JSON.parse(cached);
                     }
 
-                    updateDashboard();
-                    updateMap();
+                    // 캐시 없으면 API 호출
+                    const coords = await geocodeAddress(address);
+                    if (coords) {
+                        localStorage.setItem(cacheKey, JSON.stringify(coords));
+                    }
+                    return coords;
                 }
-            } catch (error) {
-                console.warn('Google Sheets 로드 실패:', error.message);
-                console.log('대시보드는 최종본 업로드 후 표시됩니다');
+
+                // 지오코딩 (좌표 없는 데이터 주소로 변환)
+                const missingCoords = allData.filter(d => (!d['위도'] || !d['경도'] || parseFloat(d['위도']) === 0 || parseFloat(d['경도']) === 0) && d['도로명전체주소']);
+
+                if (missingCoords.length > 0) {
+                    console.log(`지오코딩 필요: ${missingCoords.length}건`);
+                    // 로딩 표시 (임시)
+                    const statusDiv = document.createElement('div');
+                    statusDiv.id = 'geocodingStatus';
+                    statusDiv.style.position = 'fixed';
+                    statusDiv.style.bottom = '20px';
+                    statusDiv.style.left = '50%';
+                    statusDiv.style.transform = 'translateX(-50%)';
+                    statusDiv.style.background = 'rgba(0,0,0,0.7)';
+                    statusDiv.style.color = 'white';
+                    statusDiv.style.padding = '10px 20px';
+                    statusDiv.style.borderRadius = '20px';
+                    statusDiv.style.zIndex = '9999';
+                    statusDiv.innerHTML = '좌표 변환 중...';
+                    document.body.appendChild(statusDiv);
+
+                    let count = 0;
+                    for (const item of missingCoords) {
+                        try {
+                            // 캐시 적용된 함수 사용
+                            const coords = await getCachedGeocode(item['도로명전체주소']);
+                            if (coords) {
+                                item['위도'] = coords.lat.toString(); // 문자열로 저장
+                                item['경도'] = coords.lng.toString();
+                            }
+                        } catch (e) {
+                            console.warn('지오코딩 실패:', item['사업장명']);
+                        }
+                        count++;
+                        statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
+
+                        // 캐시 미적중(API호출) 시에만 딜레이를 주면 좋지만,
+                        // 간단히 구현하기 위해 빠른 속도로 진행 (캐시 있으면 매우 빠름)
+                        await new Promise(r => setTimeout(r, 10));
+                    }
+                    document.body.removeChild(statusDiv);
+                }
+
+                updateDashboard();
+                updateMap();
             }
+
         }
 
         // ============================================================
