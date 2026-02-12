@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="origin">
-    <title>경기북부 FS 인허가 대시보드</title>
+    <title>FS MAPPI</title>
+    <!-- 파비콘 추가 (지도 아이콘) -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -572,14 +575,17 @@
 <body>
     <!-- 상단 네비게이션 -->
     <nav class="nav-bar">
-        <div class="nav-logo">📊 경기북부 FS 통합 대시보드</div>
-        <div class="nav-menu">
-            <a href="대시보드_통합완료.html" class="nav-link active">인허가</a>
-            <a href="방문일지.html" class="nav-link">방문일지</a>
+        <div style="display: flex; align-items: center;">
+            <div class="nav-logo">FS MAPPI</div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link active">인허가</a>
+                <a href="방문일지.html" class="nav-link">방문일지</a>
+            </div>
         </div>
         <div class="nav-actions">
-            <button class="btn btn-secondary" onclick="openUploadModal()">📤 RAW 업로드</button>
-            <button class="btn btn-primary" onclick="openFinalUploadModal()">최종본 업로드</button>
+            <!-- 검색 아이콘 (기능은 추후 구현 or 장식용) -->
+            <button
+                style="background: none; border: none; color: #a1a1a6; font-size: 16px; cursor: pointer; padding: 4px;">🔍</button>
         </div>
     </nav>
 
@@ -673,6 +679,13 @@
         <div class="map-area">
             <div id="map"></div>
             <div class="map-controls">
+                <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
+                    <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
+                        style="flex: 1; padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;"
+                        onkeypress="if(event.key === 'Enter') searchMapPlaces()">
+                    <button onclick="searchMapPlaces()"
+                        style="padding: 8px 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer;">검색</button>
+                </div>
                 <div class="filter-label">순위 필터</div>
                 <div class="filter-buttons">
                     <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
@@ -1281,9 +1294,42 @@
         function openFinalUploadModal() { document.getElementById('finalUploadModal').classList.add('active'); }
         function closeFinalUploadModal() { document.getElementById('finalUploadModal').classList.remove('active'); }
 
+
         // ============================================================
-        // 업로드
+        // 지도 업데이트 및 검색
         // ============================================================
+
+        function searchMapPlaces() {
+            const keyword = document.getElementById('mapSearchInput').value.trim();
+            if (!keyword) {
+                alert('검색어를 입력해주세요!');
+                return;
+            }
+
+            // 1. DB 데이터 검색 (우선순위)
+            const dbResult = allData.find(item =>
+                (item['사업장명'] && item['사업장명'].includes(keyword)) ||
+                (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
+            );
+
+            if (dbResult) {
+                // DB에 위도/경도가 있다면 사용
+                if (dbResult['위도'] && dbResult['경도']) {
+                    const lat = parseFloat(dbResult['위도']);
+                    const lng = parseFloat(dbResult['경도']);
+                    if (!isNaN(lat) && !isNaN(lng)) {
+                        const moveLatLon = new naver.maps.LatLng(lat, lng);
+                        naverMap.setCenter(moveLatLon);
+                        naverMap.setZoom(15);
+                        return;
+                    }
+                }
+            }
+
+            // 2. 검색 결과가 없을 경우 (여기서는 단순히 알림만. 필요시 네이버 API Search 연동 가능)
+            alert('검색 결과가 없습니다.');
+        }
+
 
         function setupUploadZones() {
             setupUploadZone('uploadZone1', 'fileInput1', handleRawFile);
@@ -1710,6 +1756,8 @@
                 showAlert('alert2', 'error', errorMsg);
             }
         }
+
+
 
         function geocodeAddress(address) {
             return new Promise((resolve) => {
