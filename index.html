@@ -914,7 +914,7 @@
                     zoomControlOptions: {
                         position: naver.maps.Position.RIGHT_CENTER // 우측 중앙 배치 (챗봇/필터 회피)
                     },
-                    scrollWheel: false // 마우스 스크롤 줌 비활성화
+                    scrollWheel: true // 마우스 스크롤 줌 활성화 (사용자 요청)
                 };
                 naverMap = new naver.maps.Map(container, options);
             } catch (error) {
@@ -1108,7 +1108,47 @@
                             return true;
                         });
 
+
                     console.log(`Google Sheets 로드 완료: ${allData.length}건`);
+
+                    // 지오코딩 (좌표 없는 데이터 주소로 변환)
+                    const missingCoords = allData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
+
+                    if (missingCoords.length > 0) {
+                        console.log(`지오코딩 필요: ${missingCoords.length}건`);
+                        // 로딩 표시 (임시)
+                        const statusDiv = document.createElement('div');
+                        statusDiv.id = 'geocodingStatus';
+                        statusDiv.style.position = 'fixed';
+                        statusDiv.style.bottom = '20px';
+                        statusDiv.style.left = '50%';
+                        statusDiv.style.transform = 'translateX(-50%)';
+                        statusDiv.style.background = 'rgba(0,0,0,0.7)';
+                        statusDiv.style.color = 'white';
+                        statusDiv.style.padding = '10px 20px';
+                        statusDiv.style.borderRadius = '20px';
+                        statusDiv.style.zIndex = '9999';
+                        statusDiv.innerHTML = '좌표 변환 중...';
+                        document.body.appendChild(statusDiv);
+
+                        let count = 0;
+                        for (const item of missingCoords) {
+                            try {
+                                const coords = await geocodeAddress(item['도로명전체주소']);
+                                if (coords) {
+                                    item['위도'] = coords.lat.toString(); // 문자열로 저장
+                                    item['경도'] = coords.lng.toString();
+                                }
+                            } catch (e) {
+                                console.warn('지오코딩 실패:', item['사업장명']);
+                            }
+                            count++;
+                            statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
+                            await new Promise(r => setTimeout(r, 50));
+                        }
+                        document.body.removeChild(statusDiv);
+                    }
+
                     updateDashboard();
                     updateMap();
                 }
