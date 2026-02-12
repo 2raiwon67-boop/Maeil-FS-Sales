@@ -14,7 +14,8 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <!-- 네이버 지도 API -->
-    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl"></script>
+    <script type="text/javascript"
+        src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl&submodules=geocoder"></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -911,7 +912,7 @@
                     zoom: 11,
                     zoomControl: true, // 줌 컨트롤 표시
                     zoomControlOptions: {
-                        position: naver.maps.Position.TOP_RIGHT // 우측 상단 배치
+                        position: naver.maps.Position.RIGHT_CENTER // 우측 중앙 배치 (챗봇/필터 회피)
                     },
                     scrollWheel: false // 마우스 스크롤 줌 비활성화
                 };
@@ -1576,6 +1577,36 @@
                 processedData = processedData.filter(row => row['담당자'] !== '미지정');
                 console.log(`담당자 미지정 제외 후: ${processedData.length}건`);
 
+                // 8. 지오코딩 (좌표 없는 데이터 주소로 변환)
+                const missingCoords = processedData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
+                if (missingCoords.length > 0) {
+                    console.log(`지오코딩 대상: ${missingCoords.length}건`);
+                    const loadingMsg = document.querySelector('#loading1 p');
+                    const originalMsg = loadingMsg ? loadingMsg.innerText : '데이터 가공 중...';
+
+                    if (loadingMsg) loadingMsg.innerText = `좌표 변환 중... (0/${missingCoords.length})`;
+
+                    let count = 0;
+                    // 순차 처리 (Naver API Rate Limit 고려)
+                    for (const item of missingCoords) {
+                        try {
+                            const coords = await geocodeAddress(item['도로명전체주소']);
+                            if (coords) {
+                                item['위도'] = coords.lat;
+                                item['경도'] = coords.lng;
+                            }
+                        } catch (e) {
+                            console.warn('지오코딩 실패:', item['사업장명']);
+                        }
+                        count++;
+                        if (loadingMsg) loadingMsg.innerText = `좌표 변환 중... (${count}/${missingCoords.length})`;
+                        // 약간의 딜레이 (선택사항, API 제한에 따라 조정)
+                        await new Promise(r => setTimeout(r, 50));
+                    }
+
+                    if (loadingMsg) loadingMsg.innerText = originalMsg;
+                }
+
                 // 8. F/C 키워드 처리
                 const fcKeywords = [
                     '스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피',
@@ -1754,6 +1785,32 @@
 
                 showAlert('alert2', 'error', errorMsg);
             }
+        }
+
+        function geocodeAddress(address) {
+            return new Promise((resolve) => {
+                if (!naver || !naver.maps || !naver.maps.Service) {
+                    resolve(null);
+                    return;
+                }
+                naver.maps.Service.geocode({
+                    query: address
+                }, function (status, response) {
+                    if (status !== naver.maps.Service.Status.OK) {
+                        resolve(null);
+                        return;
+                    }
+                    try {
+                        const result = response.v2.addresses[0];
+                        resolve({
+                            lat: parseFloat(result.y),
+                            lng: parseFloat(result.x)
+                        });
+                    } catch (e) {
+                        resolve(null);
+                    }
+                });
+            });
         }
 
         function showAlert(id, type, msg) {
