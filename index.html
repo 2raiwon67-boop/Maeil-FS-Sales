@@ -792,12 +792,14 @@
         // ============================================================
 
         const SHEETS_CONFIG = {
-            apiKey: 'AQ.Ab8RN6KwmiUwl-nKqJB8CQwfZ3qeZ8BjPJPtxSY92uaviUVpow',
-            spreadsheetId: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-            range: '인허가데이터!A:P'
+            apiKey: '', // 공개 데이터라 API 키 불필요
+            spreadsheetId: '115RdNFitLpJQgSFYTKQxU5QE1msutWbZ', // 원본 스프레드시트 ID
+            range: 'A:Z',
+            visitLogId: '1SuOT-Lb61S2vVa-AQdXRE1LYrr8c13Wo', // 방문일지 스프레드시트 ID
+            visitLogGid: '444575455' // 방문일지 GID
         };
 
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEXZ-22BYHC-98YhmjCOBS741-rGNKwk-IXj0Zoe6Gi1bmBCc74lf5z-zvOG5VQpOn/exec';
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxO9-a_fL-d5JvjFswZuvDkO5Z0nC_sJ_VdK2Lw/exec';
 
         // ============================================================
         // 전역 변수
@@ -805,7 +807,8 @@
 
         let processedData = [];
         let allData = [];
-        let naverMap;
+        let visitLogMap = {}; // 방문일지 데이터 (거래처명 -> 최신방문일)
+        let naverMap = null;
         let markers = [];
         let currentFilter = 'all';
         let currentRegion = null;
@@ -1071,6 +1074,56 @@
 
                 return lines;
             }
+
+
+            // 0. 방문일지 데이터 먼저 로드 및 처리
+            try {
+                const visitUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogId}/export?format=csv&gid=${SHEETS_CONFIG.visitLogGid}`;
+                const vResponse = await fetch(visitUrl);
+                if (vResponse.ok) {
+                    const vText = await vResponse.text();
+                    const vLines = parseCSV(vText);
+
+                    if (vLines.length > 1) {
+                        const vHeaders = vLines[0];
+                        const vData = vLines.slice(1).map(values => {
+                            const obj = {};
+                            vHeaders.forEach((h, i) => obj[h] = values[i] || '');
+                            return obj;
+                        });
+
+                        // 정규화 함수 (방문일지와 동일)
+                        const normalize = (str) => {
+                            if (!str) return '';
+                            return str.replace(/\(주\)/g, '').replace(/\（주\）/g, '').replace(/주식회사/g, '').replace(/[^\w\uAC00-\uD7A3]/g, '').trim();
+                        };
+
+                        vData.forEach(row => {
+                            const name = normalize(row['방문처(거래처)'] || row['방문처'] || '');
+                            const date = row['일정기간'] ? (row['일정기간'].split('~')[0] || '').trim() : '';
+                            if (name && date) {
+                                // 최신 날짜로 업데이트
+                                if (!visitLogMap[name] || date > visitLogMap[name]) {
+                                    visitLogMap[name] = date;
+                                }
+                            }
+                        });
+                        console.log('방문일지 로드 완료, 매핑 개수:', Object.keys(visitLogMap).length);
+                    }
+                }
+            } catch (e) {
+                console.warn('방문일지 로드 실패:', e);
+            }
+
+
+            // 1. 메인 데이터 로드
+            const response = await fetch(csvUrl);
+            if (!response.ok) {
+                console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
+                return;
+            }
+
+            const csvText = await response.text();
 
             const lines = parseCSV(csvText);
 
