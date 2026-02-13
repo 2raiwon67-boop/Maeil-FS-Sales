@@ -431,6 +431,43 @@
             border-color: #0071e3;
         }
 
+        /* 📍 마커 글로우 효과 (2주 경과 인허가) */
+        @keyframes pulse-yellow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 204, 0, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 204, 0, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 204, 0, 0);
+            }
+        }
+
+        .marker-glow {
+            animation: pulse-yellow 2s infinite;
+            border: 2px solid #FFCC00 !important;
+            z-index: 10;
+        }
+
+        /* 상태 변경 드롭다운 */
+        .status-select {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            background-color: white;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .status-saving {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
         /* =============== 모달 =============== */
         .modal {
             display: none;
@@ -1439,12 +1476,33 @@
                     else if (status === '공사중') color = '#FF9500';  // 주황
                     else if (status === '인허가') color = '#34C759'; // 초록
 
+                    // 14일 경과 여부 확인 (인허가 상태일 때만)
+                    let isOldPermit = false;
+                    if (status === '인허가' || status === '') {
+                        const dateStr = (item['영업 허가일'] || '').replace(/-/g, '');
+                        if (dateStr.length === 8) {
+                            const year = parseInt(dateStr.substring(0, 4));
+                            const month = parseInt(dateStr.substring(4, 6)) - 1;
+                            const day = parseInt(dateStr.substring(6, 8));
+                            const permitDate = new Date(year, month, day);
+
+                            const now = new Date();
+                            const diffTime = Math.abs(now - permitDate);
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                            if (diffDays >= 14) isOldPermit = true;
+                        }
+                    }
+
+                    // 글로우 효과 클래스
+                    const glowClass = isOldPermit ? 'marker-glow' : '';
+
                     const marker = new naver.maps.Marker({
                         position: pos,
                         map: naverMap,
                         icon: {
                             content: `
-                                <div style="
+                                <div class="${glowClass}" style="
                                     width: 12px; height: 12px;
                                     background: ${color};
                                     border: 1px solid white;
@@ -2123,11 +2181,20 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">주소:</span>
-                            <span class="info-value">${address}</span>
+                            <span class="info-value" style="font-size: 12px; line-height: 1.4;">${address}</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">거래:</span>
-                            <span class="info-value status-${dealStatus}">${dealStatus}</span>
+                            <span class="info-label">거래상태:</span>
+                            <div class="info-value">
+                                <select class="status-select status-${dealStatus}" 
+                                        onchange="updateDealStatus('${name}', '${address}', this.value)">
+                                    <option value="인허가" ${dealStatus === '인허가' ? 'selected' : ''}>인허가</option>
+                                    <option value="공사중" ${dealStatus === '공사중' ? 'selected' : ''}>공사중</option>
+                                    <option value="거래" ${dealStatus === '거래' ? 'selected' : ''}>거래</option>
+                                    <option value="미거래" ${dealStatus === '미거래' ? 'selected' : ''}>미거래</option>
+                                    <option value="DROP" ${dealStatus === 'DROP' ? 'selected' : ''}>DROP</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="info-row">
                             <span class="info-label">허가일:</span>
@@ -2141,6 +2208,48 @@
                     </div>
                 </div>
             `;
+        }
+
+        async function updateDealStatus(name, address, newStatus) {
+            const select = event.target;
+            const originalValue = select.getAttribute('data-original') || select.value;
+            select.classList.add('status-saving');
+
+            try {
+                // 1. Google Sheets 업데이트
+                // Apps Script에 단일 행 업데이트 요청 (필요한 경우 Apps Script 코드 수정 필요)
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors', // CORS 이슈 방지
+                    body: JSON.stringify({
+                        action: 'updateStatus',
+                        name: name,
+                        address: address,
+                        status: newStatus
+                    })
+                });
+
+                // 2. 로컬 데이터 업데이트
+                const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
+                if (item) {
+                    item['거래여부(기입예정)'] = newStatus;
+                }
+
+                // 3. UI 즉시 반영
+                updateDashboard();
+                updateMap();
+
+                // 정보창 다시 열기 (마커 찾아서 클릭 이벤트 발생시키거나 직접 처리)
+                // 현재는 간단히 알림만 표시
+                console.log(`상태 변경 완료: ${name} -> ${newStatus}`);
+
+            } catch (err) {
+                console.error('상태 업데이트 실패:', err);
+                alert('상태 업데이트에 실패했습니다. 다시 시도해주세요.');
+                select.value = originalValue; // 원래 값으로 복구
+            } finally {
+                select.classList.remove('status-saving');
+            }
         }
 
         function showAlert(id, type, msg) {
