@@ -857,9 +857,7 @@
             <!-- 검색 아이콘 (기능은 추후 구현하거나 장식용) -->
             <button
                 style="background: none; border: none; color: #a1a1a6; font-size: 16px; cursor: pointer; padding: 4px;">🔍</button>
-            <button class="nav-btn primary" onclick="openWriteModal()">
-                + 방문일지 작성
-            </button>
+            <!-- AI 비서 버튼도 스타일 통일 -->
             <!-- <button class="btn btn-primary" onclick="toggleChatbot()">💬 AI 비서</button> -->
         </div>
     </nav>
@@ -1637,20 +1635,14 @@
             document.getElementById('detailModal').classList.remove('active');
         }
 
-        <script>
         // ============================================================
-        // Gemini 챗봇 (Legacy Design Protected)
+        // Gemini 챗봇
         // ============================================================
-        // Initialize secure bot instance for legacy UI
-        document.addEventListener('DOMContentLoaded', () => {
-            if (typeof GeminiChatbot !== 'undefined') {
-                window.geminiBot = new GeminiChatbot();
-            }
-        });
     </script>
 
-    <!-- Gemini 챗봇 UI (Sparkle Design) -->
+    <!-- Gemini 챗봇 UI -->
     <div class="chatbot-fab" onclick="toggleChatbot()">
+        <!-- Gemini 스타일 아이콘 (Sparkle) -->
         <span class="chatbot-icon">✨</span>
     </div>
 
@@ -1687,16 +1679,26 @@
     </div>
 
     <script>
+        // ============================================================
+        // Gemini 챗봇 스크립트
+        // ============================================================
+
+
+
+
         function toggleChatbot() {
             const container = document.getElementById('chatbotContainer');
-        if (container) {
-            container.classList.toggle('active');
+            if (container) {
+                container.classList.toggle('active');
 
-        if (container.classList.contains('active')) {
-            document.getElementById('chatInput').focus();
-        if (typeof geminiBot !== 'undefined') {
+                if (container.classList.contains('active')) {
+                    document.getElementById('chatInput').focus();
+                    // 챗봇 데이터 컨텍스트 업데이트 (방문일지 데이터 사용)
+                    if (typeof geminiBot !== 'undefined') {
+                        // filteredData가 있으면 사용, 없으면 빈 배열
                         const currentData = typeof filteredData !== 'undefined' ? filteredData : [];
-        geminiBot.setContext(currentData, [], []);
+                        geminiBot.setContext(currentData, [], []);
+                        console.log('챗봇 컨텍스트 업데이트 (방문일지):', currentData.length + '건');
                     }
                 }
             }
@@ -1704,46 +1706,54 @@
 
         function handleChatEnter(event) {
             if (event.key === 'Enter') {
-            sendChatMessage();
+                sendChatMessage();
             }
         }
 
         async function sendChatMessage() {
             const input = document.getElementById('chatInput');
-        const question = input.value.trim();
+            const question = input.value.trim();
 
-        if (!question) return;
+            if (!question) return;
 
-        addChatMessage(question, 'user');
-        input.value = '';
+            // 사용자 메시지 추가
+            addChatMessage(question, 'user');
+            input.value = '';
 
-        const loadingElement = document.getElementById('chatLoading');
-        if (loadingElement) loadingElement.classList.add('active');
+            // 로딩 표시
+            const loadingElement = document.getElementById('chatLoading');
+            if (loadingElement) loadingElement.classList.add('active');
 
-        const messagesContainer = document.getElementById('chatbotMessages');
-        if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            const messagesContainer = document.getElementById('chatbotMessages');
+            if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-        try {
+            try {
+                // Gemini API 호출
                 const answer = await geminiBot.ask(question);
-        if (loadingElement) loadingElement.classList.remove('active');
-        addChatMessage(answer, 'bot');
+
+                // 로딩 숨김
+                if (loadingElement) loadingElement.classList.remove('active');
+
+                // AI 응답 추가
+                addChatMessage(answer, 'bot');
+
             } catch (error) {
                 if (loadingElement) loadingElement.classList.remove('active');
-        addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
+                addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
             }
         }
 
         function askQuestion(question) {
             document.getElementById('chatInput').value = question;
-        sendChatMessage();
+            sendChatMessage();
         }
 
         function addChatMessage(text, type) {
             const messagesContainer = document.getElementById('chatbotMessages');
-        if (!messagesContainer) return;
+            if (!messagesContainer) return;
 
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${type}`;
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
 
             const avatar = document.createElement('div');
             avatar.className = 'message-avatar';
@@ -1752,8 +1762,9 @@
             const content = document.createElement('div');
             content.className = 'message-content';
 
+            // 봇 응답은 줄바꿈 처리
             if (type === 'bot') {
-                content.innerHTML = text.replace(/\n/g, '<br>');
+                content.innerHTML = text.replace(/\n/g, '<br>'); // 마크다운 파싱을 위한 간단한 처리
             } else {
                 content.textContent = text;
             }
@@ -1761,6 +1772,7 @@
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(content);
             messagesContainer.appendChild(messageDiv);
+
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
     </script>
