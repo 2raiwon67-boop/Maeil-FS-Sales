@@ -844,6 +844,21 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 데이터 관리 -->
+            <div class="section">
+                <div class="section-header">💾 데이터 관리</div>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="openUploadModal()" class="naver-map-btn"
+                        style="background: #34c759; justify-content: center;">
+                        📂 RAW 파일 업로드
+                    </button>
+                    <button onclick="openFinalUploadModal()" class="naver-map-btn"
+                        style="background: #0071e3; justify-content: center;">
+                        🚀 최종본 업로드
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- 우측 지도 -->
@@ -1596,6 +1611,34 @@
             });
         }
 
+
+        function openUploadModal() {
+            document.getElementById('uploadModal').style.display = 'block';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+        }
+
+        function openFinalUploadModal() {
+            document.getElementById('finalUploadModal').style.display = 'block';
+        }
+
+        function closeFinalUploadModal() {
+            document.getElementById('finalUploadModal').style.display = 'none';
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function (event) {
+            const modal1 = document.getElementById('uploadModal');
+            const modal2 = document.getElementById('finalUploadModal');
+            if (event.target == modal1) {
+                modal1.style.display = "none";
+            }
+            if (event.target == modal2) {
+                modal2.style.display = "none";
+            }
+        }
 
         function setupUploadZones() {
             setupUploadZone('uploadZone1', 'fileInput1', handleRawFile);
