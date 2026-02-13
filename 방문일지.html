@@ -857,9 +857,8 @@
             <!-- 검색 아이콘 (기능은 추후 구현하거나 장식용) -->
             <button
                 style="background: none; border: none; color: #a1a1a6; font-size: 16px; cursor: pointer; padding: 4px;">🔍</button>
-            <button class="nav-btn ai-btn" onclick="openAIStrategyModal()"
-                style="margin-right: 8px; background: linear-gradient(135deg, #6e45e2, #88d3ce); color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500;">
-                🤖 AI 영업 전략 수립
+            <button class="nav-btn primary" onclick="openWriteModal()">
+                + 방문일지 작성
             </button>
             <!-- <button class="btn btn-primary" onclick="toggleChatbot()">💬 AI 비서</button> -->
         </div>
@@ -1639,7 +1638,131 @@
         }
 
         <script>
-        // Gemini Chatbot Integration handled by gemini-chatbot.js
+        // ============================================================
+        // Gemini 챗봇 (Legacy Design Protected)
+        // ============================================================
+        // Initialize secure bot instance for legacy UI
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof GeminiChatbot !== 'undefined') {
+                window.geminiBot = new GeminiChatbot();
+            }
+        });
+    </script>
+
+    <!-- Gemini 챗봇 UI (Sparkle Design) -->
+    <div class="chatbot-fab" onclick="toggleChatbot()">
+        <span class="chatbot-icon">✨</span>
+    </div>
+
+    <div class="chatbot-container" id="chatbotContainer">
+        <div class="chatbot-header">
+            <h3>✨ FS AI 비서 (Gemini 2.5)</h3>
+            <span class="close-btn" onclick="toggleChatbot()" style="color: white;">&times;</span>
+        </div>
+        <div class="chatbot-messages" id="chatbotMessages">
+            <div class="message bot">
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    안녕하세요! 경기북부 FS 영업팀 AI 비서입니다.<br>
+                    인허가 현황에 대해 궁금한 점을 물어보세요.
+                </div>
+            </div>
+        </div>
+
+        <div class="loading-indicator" id="chatLoading">
+            AI가 답변을 생성하고 있습니다...
+        </div>
+
+        <div class="chatbot-input-container">
+            <div class="chatbot-input">
+                <input type="text" id="chatInput" placeholder="질문을 입력하세요..." onkeypress="handleChatEnter(event)">
+                <button onclick="sendChatMessage()">전송</button>
+            </div>
+            <div class="chatbot-suggestions">
+                <button class="suggestion-btn" onclick="askQuestion('오늘 인허가 현황 요약해줘')">오늘 현황</button>
+                <button class="suggestion-btn" onclick="askQuestion('1순위 거래처 알려줘')">1순위 거래처</button>
+                <button class="suggestion-btn" onclick="askQuestion('남양주 지역 현황 어때?')">남양주 현황</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleChatbot() {
+            const container = document.getElementById('chatbotContainer');
+        if (container) {
+            container.classList.toggle('active');
+
+        if (container.classList.contains('active')) {
+            document.getElementById('chatInput').focus();
+        if (typeof geminiBot !== 'undefined') {
+                        const currentData = typeof filteredData !== 'undefined' ? filteredData : [];
+        geminiBot.setContext(currentData, [], []);
+                    }
+                }
+            }
+        }
+
+        function handleChatEnter(event) {
+            if (event.key === 'Enter') {
+            sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+        const question = input.value.trim();
+
+        if (!question) return;
+
+        addChatMessage(question, 'user');
+        input.value = '';
+
+        const loadingElement = document.getElementById('chatLoading');
+        if (loadingElement) loadingElement.classList.add('active');
+
+        const messagesContainer = document.getElementById('chatbotMessages');
+        if (messagesContainer) messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        try {
+                const answer = await geminiBot.ask(question);
+        if (loadingElement) loadingElement.classList.remove('active');
+        addChatMessage(answer, 'bot');
+            } catch (error) {
+                if (loadingElement) loadingElement.classList.remove('active');
+        addChatMessage('죄송합니다. 오류가 발생했습니다. 다시 시도해주세요.', 'bot');
+            }
+        }
+
+        function askQuestion(question) {
+            document.getElementById('chatInput').value = question;
+        sendChatMessage();
+        }
+
+        function addChatMessage(text, type) {
+            const messagesContainer = document.getElementById('chatbotMessages');
+        if (!messagesContainer) return;
+
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${type}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'bot' ? '🤖' : '👤';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+
+            if (type === 'bot') {
+                content.innerHTML = text.replace(/\n/g, '<br>');
+            } else {
+                content.textContent = text;
+            }
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     </script>
 </body>
 

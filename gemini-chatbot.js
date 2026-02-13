@@ -1034,11 +1034,11 @@ window.sendAIMessage = async function () {
     if (!msg) return;
 
     // 사용자 메시지 표시
-    appendAIMessage('user', msg);
+    addChatMessage('user', msg);
     input.value = '';
 
     // 로딩 표시
-    const loadingId = appendAIMessage('ai', '🧠 데이터 분석 중...', true);
+    const loadingId = addChatMessage('ai', '🧠 데이터 분석 중...', true);
 
     try {
         // AI 답변 호출
@@ -1046,15 +1046,15 @@ window.sendAIMessage = async function () {
 
         // 로딩 제거 및 답변 표시
         removeChatMessage(loadingId);
-        appendAIMessage('ai', answer);
+        addChatMessage('ai', answer);
     } catch (e) {
         removeChatMessage(loadingId);
-        appendAIMessage('ai', '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        addChatMessage('ai', '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
         console.error(e);
     }
 };
 
-function appendAIMessage(role, text, isLoading = false) {
+function addChatMessage(role, text, isLoading = false) {
     const container = document.getElementById('aiChatContainer');
     const div = document.createElement('div');
     div.style.display = 'flex';
@@ -1090,4 +1090,5 @@ function removeChatMessage(id) {
 }
 
 // 자동 초기화
-document.addEventListener('DOMContentLoaded', setupAIUI);
+// 자동 초기화 (User prefers legacy design, so disabling auto-UI injection)
+// document.addEventListener('DOMContentLoaded', setupAIUI);
