@@ -591,6 +591,132 @@
             background: #d2d2d7;
             border-radius: 3px;
         }
+
+        /* =============== Custom InfoWindow =============== */
+        .custom-info-window {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 14px;
+            padding: 0;
+            min-width: 280px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+        }
+
+        .info-header {
+            background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
+            padding: 14px 16px;
+            border-bottom: 1px solid #e8e8ed;
+        }
+
+        .info-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .info-body {
+            padding: 12px 16px;
+            background: #ffffff;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 6px 0;
+            border-bottom: 1px solid #f5f5f7;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #86868b;
+            min-width: 60px;
+            flex-shrink: 0;
+        }
+
+        .info-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1d1d1f;
+            text-align: right;
+            flex: 1;
+            word-break: break-word;
+        }
+
+        /* 거래 상태별 색상 */
+        .info-value.status-거래 {
+            color: #007AFF;
+            font-weight: 600;
+        }
+
+        .info-value.status-미거래 {
+            color: #FF9595;
+            font-weight: 600;
+        }
+
+        .info-value.status-인허가 {
+            color: #34C759;
+            font-weight: 600;
+        }
+
+        .info-value.status-DROP {
+            color: #8E8E93;
+            font-weight: 600;
+        }
+
+        .info-value.status-공사중 {
+            color: #FF9500;
+            font-weight: 600;
+        }
+
+        .info-footer {
+            padding: 10px 16px;
+            background: #f5f5f7;
+            border-top: 1px solid #e8e8ed;
+        }
+
+        .naver-map-btn {
+            width: 100%;
+            padding: 10px 16px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .naver-map-btn::before {
+            content: '📍';
+            font-size: 14px;
+        }
+
+        .naver-map-btn:hover {
+            background: #0077ed;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+
+        .naver-map-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
@@ -791,6 +917,8 @@
         let currentFilter = 'all';
         let currentRegion = null;
         let currentManager = null;
+        let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
+        let temporaryMarker = null;     // 검색으로 생성된 임시 마커
 
         // ============================================================
         // 초기화
@@ -1281,10 +1409,24 @@
                         }
                     });
 
-                    // 마커 클릭 시 네이버 지도 길찾기로 연결
+                    // 마커 클릭 시 InfoWindow 표시
                     naver.maps.Event.addListener(marker, 'click', function (e) {
-                        const url = `https://map.naver.com/v5/directions/-/-/${lng},${lat},${encodeURIComponent(item['사업장명'])},,-/transit?c=${lng},${lat},15,0,0,0,dh`;
-                        window.open(url, '_blank');
+                        // 이전 InfoWindow 닫기
+                        if (currentInfoWindow) {
+                            currentInfoWindow.close();
+                        }
+
+                        // 새 InfoWindow 생성 및 표시
+                        const infoWindow = new naver.maps.InfoWindow({
+                            content: createInfoWindowContent(item),
+                            backgroundColor: 'transparent',
+                            borderColor: 'transparent',
+                            anchorSkew: true,
+                            pixelOffset: new naver.maps.Point(0, -10)
+                        });
+
+                        infoWindow.open(naverMap, marker);
+                        currentInfoWindow = infoWindow;
                     });
 
                     markers.push(marker);
@@ -1321,7 +1463,7 @@
         // 지도 업데이트 및 검색
         // ============================================================
 
-        function searchMapPlaces() {
+        async function searchMapPlaces() {
             const keyword = document.getElementById('mapSearchInput').value.trim();
             if (!keyword) {
                 alert('검색어를 입력해주세요!');
@@ -1348,8 +1490,79 @@
                 }
             }
 
-            // 2. 검색 결과가 없을 경우 (여기서는 단순히 알림만. 필요시 네이버 API Search 연동 가능)
-            alert('검색 결과가 없습니다.');
+            // 2. DB 결과 없을 경우 → Geocoding 시도
+            console.log('DB 검색 실패. 주소 검색 시도:', keyword);
+            const coords = await geocodeAddress(keyword);
+
+            if (coords) {
+                const moveLatLon = new naver.maps.LatLng(coords.lat, coords.lng);
+                naverMap.setCenter(moveLatLon);
+                naverMap.setZoom(16);
+                createTemporaryMarker(coords.lat, coords.lng, keyword);
+            } else {
+                alert('검색 결과를 찾을 수 없습니다.\n\n주소 형식 예시:\n- 경기도 남양주시 ...\n- 사업장명 입력');
+            }
+        }
+
+        function createTemporaryMarker(lat, lng, address) {
+            // 기존 임시 마커 제거
+            if (temporaryMarker) {
+                temporaryMarker.setMap(null);
+            }
+
+            const pos = new naver.maps.LatLng(lat, lng);
+
+            temporaryMarker = new naver.maps.Marker({
+                position: pos,
+                map: naverMap,
+                icon: {
+                    content: `
+                        <div style="
+                            width: 16px; height: 16px;
+                            background: #AF52DE;
+                            border: 2px solid white;
+                            border-radius: 50%;
+                            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+                        "></div>
+                    `,
+                    anchor: new naver.maps.Point(8, 8)
+                }
+            });
+
+            // 임시 마커 클릭 시 InfoWindow
+            naver.maps.Event.addListener(temporaryMarker, 'click', function () {
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                }
+
+                const infoWindow = new naver.maps.InfoWindow({
+                    content: `
+                        <div class="custom-info-window">
+                            <div class="info-header">
+                                <h3>검색 결과</h3>
+                            </div>
+                            <div class="info-body">
+                                <div class="info-row">
+                                    <span class="info-label">주소:</span>
+                                    <span class="info-value">${address}</span>
+                                </div>
+                            </div>
+                            <div class="info-footer">
+                                <button class="naver-map-btn" onclick="window.open('https://map.naver.com/v5/search/${encodeURIComponent(address)}', '_blank')">
+                                    네이버 지도에서 보기
+                                </button>
+                            </div>
+                        </div>
+                    `,
+                    backgroundColor: 'transparent',
+                    borderColor: 'transparent',
+                    anchorSkew: true,
+                    pixelOffset: new naver.maps.Point(0, -10)
+                });
+
+                infoWindow.open(naverMap, temporaryMarker);
+                currentInfoWindow = infoWindow;
+            });
         }
 
 
@@ -1805,6 +2018,52 @@
                     }
                 });
             });
+        }
+
+        function createInfoWindowContent(item) {
+            const name = item['사업장명'] || '정보 없음';
+            const category = item['업태구분명'] || '-';
+            const pyeong = item['평형'] || '-';
+            const address = item['도로명전체주소'] || '-';
+            const dealStatus = item['거래여부(기입예정)'] || '인허가';
+            const permitDate = item['영업 허가일'] || '-';
+
+            const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
+
+            return `
+                <div class="custom-info-window">
+                    <div class="info-header">
+                        <h3>${name}</h3>
+                    </div>
+                    <div class="info-body">
+                        <div class="info-row">
+                            <span class="info-label">업태:</span>
+                            <span class="info-value">${category}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">평형:</span>
+                            <span class="info-value">${pyeong}평</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">주소:</span>
+                            <span class="info-value">${address}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">거래:</span>
+                            <span class="info-value status-${dealStatus}">${dealStatus}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">허가일:</span>
+                            <span class="info-value">${permitDate}</span>
+                        </div>
+                    </div>
+                    <div class="info-footer">
+                        <button class="naver-map-btn" onclick="window.open('${naverMapUrl}', '_blank')">
+                            네이버 지도에서 보기
+                        </button>
+                    </div>
+                </div>
+            `;
         }
 
         function showAlert(id, type, msg) {
