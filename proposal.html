@@ -12,6 +12,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary-color: #0071e3;
@@ -47,6 +49,13 @@
 
         .nav-menu {
             display: flex;
+        }
+
+        /* 로그아웃 버튼 스타일 추가 */
+        #logoutBtn:hover {
+            color: #ff4b4b !important;
+            background: rgba(255, 59, 48, 0.1) !important;
+            border-radius: 6px;
         }
 
         .nav-link {
@@ -413,6 +422,7 @@
                 <a href="index.html" class="nav-link">인허가</a>
                 <a href="방문일지.html" class="nav-link">방문일지</a>
                 <a href="proposal.html" class="nav-link active">견적서</a>
+                <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin-left: 20px;">로그아웃</a>
             </div>
         </div>
     </nav>
@@ -760,6 +770,12 @@
 
         // 초기 행 1개 추가
         addRow();
+    </script>
+    <script src="auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof setupLogoutButton === 'function') setupLogoutButton();
+        });
     </script>
 </body>
 

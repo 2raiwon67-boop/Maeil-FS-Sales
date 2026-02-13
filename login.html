@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 - 경기북부 FS 통합관리</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen">
+
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800">경기북부 FS 통합관리</h1>
+            <p class="text-gray-500 mt-2">안전한 서비스 이용을 위해 로그인해주세요.</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">이메일</label>
+                <input type="email" id="email" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="admin@maeil.com">
+            </div>
+
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">비밀번호</label>
+                <input type="password" id="password" required
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="••••••••">
+            </div>
+
+            <div id="errorMessage" class="text-red-500 text-sm text-center hidden"></div>
+
+            <button type="submit" id="loginBtn"
+                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                로그인
+            </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm text-gray-500">
+            <p>계정이 없으신가요? <a href="#" id="signupToggle" class="text-blue-600 hover:text-blue-500">회원가입</a></p>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const errorMsg = document.getElementById('errorMessage');
+        const loginBtn = document.getElementById('loginBtn');
+        const signupToggle = document.getElementById('signupToggle');
+
+        let isSignUpMode = false;
+
+        // 회원가입 모드 토글
+        signupToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            isSignUpMode = !isSignUpMode;
+            if (isSignUpMode) {
+                loginBtn.innerText = '회원가입';
+                signupToggle.innerText = '로그인으로 돌아가기';
+                document.querySelector('h1').innerText = '계정 생성';
+            } else {
+                loginBtn.innerText = '로그인';
+                signupToggle.innerText = '회원가입';
+                document.querySelector('h1').innerText = '경기북부 FS 통합관리';
+            }
+            errorMsg.classList.add('hidden');
+        });
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            // 로딩 표시
+            loginBtn.disabled = true;
+            loginBtn.innerText = '처리 중...';
+            errorMsg.classList.add('hidden');
+
+            try {
+                let result;
+                if (isSignUpMode) {
+                    result = await signUp(email, password);
+                    if (result.error) throw result.error;
+                    alert('회원가입 완료! 이메일을 확인해주세요 (또는 즉시 로그인 가능할 수 있습니다).');
+                    // 회원가입 후 자동 로그인 시도 or 로그인 모드로 전환
+                    isSignUpMode = false;
+                    loginBtn.innerText = '로그인';
+                } else {
+                    result = await signIn(email, password);
+                    if (result.error) throw result.error;
+                    // 로그인 성공 시 auth.js가 자동으로 리다이렉트 처리 (checkAuth 호출됨)
+                    window.location.href = 'index.html';
+                }
+            } catch (error) {
+                errorMsg.innerText = error.message; // 실패 사유 표시
+                errorMsg.classList.remove('hidden');
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerText = isSignUpMode ? '회원가입' : '로그인';
+            }
+        });
+    </script>
+</body>
+
+</html>

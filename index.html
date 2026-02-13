@@ -28,6 +28,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             margin: 0;
@@ -752,6 +754,7 @@
                 <a href="index.html" class="nav-link active">인허가</a>
                 <a href="방문일지.html" class="nav-link">방문일지</a>
                 <a href="proposal.html" class="nav-link">견적서</a>
+                <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin-left: 20px;">로그아웃</a>
             </div>
         </div>
         <div class="nav-actions">
@@ -2146,6 +2149,12 @@
             document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
             setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
         }
+    </script>
+    <script src="auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof setupLogoutButton === 'function') setupLogoutButton();
+        });
     </script>
 </body>
 

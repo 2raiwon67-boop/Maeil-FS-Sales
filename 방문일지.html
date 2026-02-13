@@ -12,6 +12,8 @@
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -851,6 +853,7 @@
                 <a href="index.html" class="nav-link">인허가</a>
                 <a href="방문일지.html" class="nav-link active">방문일지</a>
                 <a href="proposal.html" class="nav-link">견적서</a>
+                <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin-left: 20px;">로그아웃</a>
             </div>
         </div>
         <div class="nav-actions">
@@ -1775,6 +1778,12 @@
 
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
+    </script>
+    <script src="auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof setupLogoutButton === 'function') setupLogoutButton();
+        });
     </script>
 </body>
 
