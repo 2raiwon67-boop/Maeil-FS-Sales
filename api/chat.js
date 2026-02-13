@@ -19,8 +19,8 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
-    // 3. API 키 확인 (Vercel 환경변수)
-    const apiKey = process.env.GEMINI_API_KEY;
+    // 3. API 키 확인 (Vercel 환경변수 우선, 없으면 하드코딩 값 사용)
+    const apiKey = process.env.GEMINI_API_KEY || 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60';
     if (!apiKey) {
         return res.status(500).json({ error: 'Server Configuration Error: API Key Missing' });
     }
