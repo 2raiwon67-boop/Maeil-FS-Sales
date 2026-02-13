@@ -452,19 +452,63 @@
             z-index: 10;
         }
 
-        /* 상태 변경 드롭다운 */
-        .status-select {
-            padding: 4px 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 13px;
-            background-color: white;
+        /* 상태 변경 버튼 그룹 */
+        .status-button-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .status-btn {
+            padding: 8px 4px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            font-size: 11px;
+            background: #f8f9fa;
+            color: #666;
             cursor: pointer;
-            width: 100%;
+            transition: all 0.2s;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .status-btn:hover {
+            background: #eee;
+        }
+
+        .status-btn.active.status-인허가 {
+            background: #34C759;
+            color: white;
+            border-color: #34C759;
+        }
+
+        .status-btn.active.status-공사중 {
+            background: #FF9500;
+            color: white;
+            border-color: #FF9500;
+        }
+
+        .status-btn.active.status-거래 {
+            background: #007AFF;
+            color: white;
+            border-color: #007AFF;
+        }
+
+        .status-btn.active.status-미거래 {
+            background: #FF9595;
+            color: white;
+            border-color: #FF9595;
+        }
+
+        .status-btn.active.status-DROP {
+            background: #8E8E93;
+            color: white;
+            border-color: #8E8E93;
         }
 
         .status-saving {
-            opacity: 0.7;
+            opacity: 0.5;
             pointer-events: none;
         }
 
@@ -2183,17 +2227,15 @@
                             <span class="info-label">주소:</span>
                             <span class="info-value" style="font-size: 12px; line-height: 1.4;">${address}</span>
                         </div>
-                        <div class="info-row">
-                            <span class="info-label">거래상태:</span>
-                            <div class="info-value">
-                                <select class="status-select status-${dealStatus}" 
-                                        onchange="updateDealStatus('${name}', '${address}', this.value)">
-                                    <option value="인허가" ${dealStatus === '인허가' ? 'selected' : ''}>인허가</option>
-                                    <option value="공사중" ${dealStatus === '공사중' ? 'selected' : ''}>공사중</option>
-                                    <option value="거래" ${dealStatus === '거래' ? 'selected' : ''}>거래</option>
-                                    <option value="미거래" ${dealStatus === '미거래' ? 'selected' : ''}>미거래</option>
-                                    <option value="DROP" ${dealStatus === 'DROP' ? 'selected' : ''}>DROP</option>
-                                </select>
+                        <div style="margin-top: 15px;">
+                            <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">상태 변경</span>
+                            <div class="status-button-group">
+                                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s => `
+                                    <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}" 
+                                            onclick="updateDealStatus('${name.replace(/'/g, "\\'")}', '${address.replace(/'/g, "\\'")}', '${s}', this)">
+                                        ${s}
+                                    </button>
+                                `).join('')}
                             </div>
                         </div>
                         <div class="info-row">
@@ -2210,17 +2252,21 @@
             `;
         }
 
-        async function updateDealStatus(name, address, newStatus) {
-            const select = event.target;
-            const originalValue = select.getAttribute('data-original') || select.value;
-            select.classList.add('status-saving');
+        async function updateDealStatus(name, address, newStatus, btnElement) {
+            const container = btnElement.parentElement;
+            const originalActiveBtn = container.querySelector('.status-btn.active');
+
+            // 시각적 피드백 즉시 제공
+            container.classList.add('status-saving');
+            const buttons = container.querySelectorAll('.status-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
 
             try {
-                // 1. Google Sheets 업데이트
-                // Apps Script에 단일 행 업데이트 요청 (필요한 경우 Apps Script 코드 수정 필요)
-                const response = await fetch(APPS_SCRIPT_URL, {
+                // Apps Script에 상태 업데이트 요청
+                await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // CORS 이슈 방지
+                    mode: 'no-cors',
                     body: JSON.stringify({
                         action: 'updateStatus',
                         name: name,
@@ -2229,26 +2275,27 @@
                     })
                 });
 
-                // 2. 로컬 데이터 업데이트
+                // 로컬 데이터 업데이트
                 const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
                 if (item) {
                     item['거래여부(기입예정)'] = newStatus;
                 }
 
-                // 3. UI 즉시 반영
+                // UI 및 대시보드 새로고침
                 updateDashboard();
                 updateMap();
 
-                // 정보창 다시 열기 (마커 찾아서 클릭 이벤트 발생시키거나 직접 처리)
-                // 현재는 간단히 알림만 표시
-                console.log(`상태 변경 완료: ${name} -> ${newStatus}`);
+                console.log(`동기화 요청 완료: ${name} -> ${newStatus}`);
 
             } catch (err) {
-                console.error('상태 업데이트 실패:', err);
-                alert('상태 업데이트에 실패했습니다. 다시 시도해주세요.');
-                select.value = originalValue; // 원래 값으로 복구
+                console.error('업데이트 실패:', err);
+                alert('연동 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+                if (originalActiveBtn) {
+                    buttons.forEach(btn => btn.classList.remove('active'));
+                    originalActiveBtn.classList.add('active');
+                }
             } finally {
-                select.classList.remove('status-saving');
+                container.classList.remove('status-saving');
             }
         }
 
