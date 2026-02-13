@@ -49,13 +49,22 @@ async function signOut() {
     }
 }
 
-// 4. 회원가입 (옵션)
-async function signUp(email, password) {
+// 4. 회원가입 (메타데이터 포함)
+async function signUp(email, password, metadata = {}) {
     const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+            data: metadata // full_name, phone 등
+        }
     });
     return { data, error };
+}
+
+// 5. 현재 사용자 정보 가져오기 (UI 표시용)
+async function getUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
 }
 
 // 페이지 로드 시 자동 실행
@@ -68,9 +77,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// UI 헬퍼: 로그아웃 버튼 이벤트 연결
-function setupLogoutButton(buttonId = 'logoutBtn') {
+// UI 헬퍼: 로그아웃 버튼 이벤트 & 사용자 이름 표시
+async function setupLogoutButton(buttonId = 'logoutBtn', nameDisplayId = 'userNameDisplay') {
     const btn = document.getElementById(buttonId);
+
+    // 사용자 이름 표시
+    const user = await getUser();
+    if (user && user.user_metadata && user.user_metadata.full_name) {
+        const nameSpan = document.getElementById(nameDisplayId);
+        if (nameSpan) {
+            nameSpan.innerText = `${user.user_metadata.full_name}님`;
+            nameSpan.style.color = '#ffffff';
+            nameSpan.style.marginRight = '10px';
+            nameSpan.style.fontSize = '13px';
+        }
+    }
+
     if (btn) {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
