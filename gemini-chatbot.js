@@ -3,9 +3,9 @@
 // ============================================================
 
 const GEMINI_CONFIG = {
-    apiKey: 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60',
+    apiKey: '', // Server-side environment variable used instead
     model: 'gemini-2.5-flash',
-    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+    apiUrl: '/api/chat' // Proxied via Vercel Function
 };
 
 class GeminiChatbot {
@@ -123,34 +123,27 @@ class GeminiChatbot {
         }
     }
 
-    // [New] Raw Prompt Genertaion Method (No Persona Wrapping)
+    // [New] Vercel Serverless Function Call
     async generate(prompt) {
         try {
-            const response = await fetch(
-                `${GEMINI_CONFIG.apiUrl}?key=${GEMINI_CONFIG.apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 2048,
-                            topP: 0.95,
-                            topK: 40
-                        }
-                    })
-                }
-            );
+            // 로컬 개발 환경 또는 Vercel 배포 환경 감지
+            // 상대 경로 '/api/chat'을 사용하면 자동으로 현재 도메인의 API를 호출함
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Unknown Error'}`);
+                throw new Error(`API Error: ${response.status} - ${errorData.error || 'Unknown Error'}`);
             }
 
             const data = await response.json();
+
+            // Gemini API 응답 구조에 맞춰 텍스트 추출
             if (!data.candidates || !data.candidates[0]) {
-                throw new Error('Invalid response format');
+                throw new Error('Invalid response format from Gemini API');
             }
 
             return data.candidates[0].content.parts[0].text;
@@ -947,3 +940,154 @@ if (typeof module !== 'undefined' && module.exports) {
         aiSystem
     };
 }
+// [Existing Code] ... (Keep GeminiChatbot class as is)
+
+// ============================================================
+// 5. UI 통합 모듈 (Shared UI Logic)
+// ============================================================
+function setupAIUI() {
+    // 1. 모달 HTML 주입
+    const modalHTML = `
+    <div id="aiStrategyModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; width: 90%; max-width: 600px; height: 80vh; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.2);">
+            
+            <!-- Header -->
+            <div style="padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fbfbfd;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🤖</span>
+                    <div>
+                        <div style="font-weight: 700; font-size: 16px;">AI 영업 전략가</div>
+                        <div style="font-size: 12px; color: #666;">Data-Driven Sales Strategy</div>
+                    </div>
+                </div>
+                <button onclick="closeAIStrategyModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+            </div>
+
+            <!-- Chat Area -->
+            <div id="aiChatContainer" style="flex: 1; padding: 20px; overflow-y: auto; background: #fff;">
+                <!-- Welcome Message -->
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <div style="width: 36px; height: 36px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">🤖</div>
+                    <div style="background: #f5f5f7; padding: 12px 16px; border-radius: 0 16px 16px 16px; max-width: 80%; font-size: 14px; line-height: 1.5; color: #1d1d1f;">
+                        안녕하세요! <strong>수석 영업 전략가(AI)</strong>입니다.<br>
+                        현재까지의 방문 데이터를 분석하여 <strong>최적의 영업 전략</strong>을 제안해 드립니다.<br><br>
+                        👇 <strong>아래 버튼을 눌러보세요!</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div style="padding: 15px 20px; border-top: 1px solid #eee; background: #fff; display: flex; gap: 10px; overflow-x: auto;">
+                <button onclick="askAIStrategy('이번 주 공략 지역 추천해줘')" style="flex: 0 0 auto; padding: 8px 16px; background: #e3f2fd; color: #0071e3; border: 1px solid #0071e3; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 500;">
+                    📍 금주 공략 지역
+                </button>
+                <button onclick="askAIStrategy('미방문 거래처 리스트 뽑아줘')" style="flex: 0 0 auto; padding: 8px 16px; background: #f5f5f7; color: #333; border: 1px solid #ddd; border-radius: 20px; font-size: 13px; cursor: pointer;">
+                    📋 미방문 거래처 확인
+                </button>
+                <button onclick="askAIStrategy('경쟁사 동향 요약해줘')" style="flex: 0 0 auto; padding: 8px 16px; background: #fff0f0; color: #d70015; border: 1px solid #ffb3b3; border-radius: 20px; font-size: 13px; cursor: pointer;">
+                    🚨 경쟁사 동향
+                </button>
+            </div>
+
+            <!-- Input Area -->
+            <div style="padding: 20px; border-top: 1px solid #eee; display: flex; gap: 10px; background: #fff;">
+                <input type="text" id="aiInput" placeholder="무엇이든 물어보세요..." onkeypress="if(event.key==='Enter') sendAIMessage()" 
+                    style="flex: 1; padding: 12px; border: 1px solid #d2d2d7; border-radius: 12px; font-size: 14px; outline: none;">
+                <button onclick="sendAIMessage()" style="background: #0071e3; color: white; border: none; padding: 0 20px; border-radius: 12px; font-weight: 600; cursor: pointer;">
+                    전송
+                </button>
+            </div>
+        </div>
+    </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    // 2. 챗봇 인스턴스 초기화 (전역)
+    window.chatbot = new GeminiChatbot();
+
+    // 데이터를 로드하는 로직은 각 페이지별로 다를 수 있으므로, 
+    // 페이지 로드 시 window.visitData 등을 확인하여 주입
+    if (window.visitData) {
+        window.chatbot.setContext(window.visitData, [], []);
+    }
+}
+
+// Global Functions
+window.openAIStrategyModal = function () {
+    document.getElementById('aiStrategyModal').style.display = 'flex';
+    // 모달 열릴 때 포커스
+    setTimeout(() => document.getElementById('aiInput').focus(), 100);
+};
+
+window.closeAIStrategyModal = function () {
+    document.getElementById('aiStrategyModal').style.display = 'none';
+};
+
+window.askAIStrategy = function (question) {
+    document.getElementById('aiInput').value = question;
+    sendAIMessage();
+};
+
+window.sendAIMessage = async function () {
+    const input = document.getElementById('aiInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    // 사용자 메시지 표시
+    appendAIMessage('user', msg);
+    input.value = '';
+
+    // 로딩 표시
+    const loadingId = appendAIMessage('ai', '🧠 데이터 분석 중...', true);
+
+    try {
+        // AI 답변 호출
+        const answer = await window.chatbot.ask(msg);
+
+        // 로딩 제거 및 답변 표시
+        removeChatMessage(loadingId);
+        appendAIMessage('ai', answer);
+    } catch (e) {
+        removeChatMessage(loadingId);
+        appendAIMessage('ai', '죄송합니다. 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+        console.error(e);
+    }
+};
+
+function appendAIMessage(role, text, isLoading = false) {
+    const container = document.getElementById('aiChatContainer');
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.gap = '12px';
+    div.style.marginBottom = '20px';
+    div.id = isLoading ? 'ai-loading-' + Date.now() : '';
+
+    if (role === 'user') {
+        div.style.flexDirection = 'row-reverse';
+        div.innerHTML = `
+            <div style="background: #0071e3; color: white; padding: 12px 16px; border-radius: 16px 16px 0 16px; max-width: 80%; font-size: 14px; line-height: 1.5;">
+                ${text}
+            </div>
+        `;
+    } else {
+        const icon = isLoading ? '⏳' : '🤖';
+        const bg = isLoading ? '#f5f5f7' : '#f5f5f7'; // Loading state styling
+        div.innerHTML = `
+            <div style="width: 36px; height: 36px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px;">${icon}</div>
+            <div style="background: ${bg}; padding: 12px 16px; border-radius: 0 16px 16px 16px; max-width: 80%; font-size: 14px; line-height: 1.5; color: #1d1d1f; white-space: pre-wrap;">${text}</div>
+        `;
+    }
+
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div.id;
+}
+
+function removeChatMessage(id) {
+    if (!id) return;
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
+// 자동 초기화
+document.addEventListener('DOMContentLoaded', setupAIUI);
