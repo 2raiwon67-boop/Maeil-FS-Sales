@@ -5,19 +5,17 @@
 const SUPABASE_URL = 'https://hcqbmilmldeeuydtrayx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
 
-// Supabase 클라이언트 초기화
-// Supabase 클라이언트 초기화
-const { createClient } = supabase;
-const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-// 편의를 위해 _supabase를 supabase로 내보내거나 사용 (기존 코드 호환)
-// 기존 코드에서 'supabase' 변수를 사용하고 있으므로, 
-// const supabase = ... 로 선언하려면 변수명이 겹칠 수 있음.
-// 전역 supabase 객체와 충돌하지 않도록 클라이언트 변수명을 client로 변경하거나
-// 기존 전역 변수를 덮어쓰지 않도록 주의해야 함.
-
-// 수정:
-const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Supabase 클라이언트 초기화 (전역 supabase 객체 확인)
+let client;
+try {
+    if (typeof supabase !== 'undefined') {
+        client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+        console.error('Supabase library not loaded!');
+    }
+} catch (e) {
+    console.error('Supabase init error:', e);
+}
 
 // ============================================================
 // Auth Functions
@@ -25,6 +23,17 @@ const client = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // 1. 로그인 여부 확인 및 리다이렉트
 async function checkAuth() {
+    // 관리자 우회 체크
+    if (localStorage.getItem('fs_admin_access') === 'true') {
+        const currentPage = window.location.pathname.split('/').pop();
+        if (currentPage === 'login.html') {
+            window.location.href = 'index.html';
+        }
+        return { user: { email: 'admin@maeil.com', user_metadata: { full_name: '관리자' } } };
+    }
+
+    if (!client) return null;
+
     const { data: { session } } = await client.auth.getSession();
 
     // 현재 페이지가 login.html이 아닌데 세션이 없으면 -> 로그인 페이지로 이동
@@ -43,6 +52,7 @@ async function checkAuth() {
 
 // 2. 이메일 로그인
 async function signIn(email, password) {
+    if (!client) return { error: { message: 'Supabase client not initialized' } };
     const { data, error } = await client.auth.signInWithPassword({
         email,
         password
@@ -52,6 +62,16 @@ async function signIn(email, password) {
 
 // 3. 로그아웃
 async function signOut() {
+    // 관리자 로그아웃
+    if (localStorage.getItem('fs_admin_access') === 'true') {
+        if (confirm('관리자 로그아웃 하시겠습니까?')) {
+            localStorage.removeItem('fs_admin_access');
+            window.location.href = 'login.html';
+        }
+        return;
+    }
+
+    if (!client) return;
     const { error } = await client.auth.signOut();
     if (!error) {
         window.location.href = 'login.html';
@@ -62,6 +82,7 @@ async function signOut() {
 
 // 4. 회원가입 (메타데이터 포함)
 async function signUp(email, password, metadata = {}) {
+    if (!client) return { error: { message: 'Supabase client not initialized' } };
     const { data, error } = await client.auth.signUp({
         email,
         password,
@@ -74,18 +95,22 @@ async function signUp(email, password, metadata = {}) {
 
 // 5. 현재 사용자 정보 가져오기 (UI 표시용)
 async function getUser() {
+    // 관리자 우회
+    if (localStorage.getItem('fs_admin_access') === 'true') {
+        return {
+            email: 'admin@maeil.com',
+            user_metadata: { full_name: '관리자' }
+        };
+    }
+
+    if (!client) return null;
     const { data: { user } } = await client.auth.getUser();
     return user;
 }
 
 // 페이지 로드 시 자동 실행
 document.addEventListener('DOMContentLoaded', () => {
-    // 1초 뒤 인증 체크 (Supabase 로드 시간 고려)
-    if (typeof createClient !== 'undefined') {
-        checkAuth();
-    } else {
-        console.warn('Supabase JS library not loaded. Make sure to include the CDN link.');
-    }
+    checkAuth();
 });
 
 // UI 헬퍼: 로그아웃 버튼 이벤트 & 사용자 이름 표시
@@ -105,11 +130,13 @@ async function setupLogoutButton(buttonId = 'logoutBtn', nameDisplayId = 'userNa
     }
 
     if (btn) {
-        btn.addEventListener('click', (e) => {
+        // 기존 이벤트 리스너 제거가 어려우므로 클론 후 교체 (중복 방지)
+        const newBtn = btn.cloneNode(true);
+        btn.parentNode.replaceChild(newBtn, btn);
+
+        newBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            if (confirm('로그아웃 하시겠습니까?')) {
-                signOut();
-            }
+            signOut(); // confirm은 signOut 내부에서 처리
         });
     }
 }
