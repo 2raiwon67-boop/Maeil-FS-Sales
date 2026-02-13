@@ -608,6 +608,25 @@
             background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
             padding: 14px 16px;
             border-bottom: 1px solid #e8e8ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-info-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            transition: color 0.2s;
+        }
+
+        .close-info-btn:hover {
+            color: #ffffff;
         }
 
         .info-header h3 {
@@ -652,6 +671,10 @@
             text-align: right;
             flex: 1;
             word-break: break-word;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* 거래 상태별 색상 */
@@ -919,6 +942,13 @@
         let currentManager = null;
         let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
         let temporaryMarker = null;     // 검색으로 생성된 임시 마커
+
+        function closeCurrentInfoWindow() {
+            if (currentInfoWindow) {
+                currentInfoWindow.close();
+                currentInfoWindow = null;
+            }
+        }
 
         // ============================================================
         // 초기화
@@ -1540,6 +1570,7 @@
                         <div class="custom-info-window">
                             <div class="info-header">
                                 <h3>검색 결과</h3>
+                                <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
                             </div>
                             <div class="info-body">
                                 <div class="info-row">
@@ -2034,6 +2065,7 @@
                 <div class="custom-info-window">
                     <div class="info-header">
                         <h3>${name}</h3>
+                        <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
                     </div>
                     <div class="info-body">
                         <div class="info-row">
