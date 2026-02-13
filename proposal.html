@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FS MASSI - 견적서 시스템</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0071e3;
+            --background-color: #f5f5f7;
+            --sidebar-width: 300px;
+            --header-height: 52px;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: #1d1d1f;
+            overflow: hidden;
+        }
+
+        /* 네비게이션 (index.html과 동일) */
+        .nav-bar {
+            background: #1d1d1f;
+            padding: 0 24px;
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            font-size: 15px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-right: 20px;
+        }
+
+        .nav-menu {
+            display: flex;
+        }
+
+        .nav-link {
+            color: #a1a1a6;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 400;
+            padding: 4px 0;
+            margin: 0 14px;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            color: #f5f5f7;
+            background: transparent;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            bottom: 0;
+            left: 0;
+            background-color: #f5f5f7;
+            transform: scaleX(0);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .nav-link:hover::after {
+            transform: scaleX(1);
+        }
+
+        .nav-link.active {
+            color: #f5f5f7;
+            background: transparent;
+            font-weight: 600;
+        }
+
+        /* 메인 레이아웃 */
+        .container {
+            display: flex;
+            height: calc(100vh - var(--header-height));
+        }
+
+        /* 좌측 분석 패널 */
+        .analysis-panel {
+            width: 350px;
+            background: white;
+            border-right: 1px solid #d2d2d7;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+        }
+
+        .panel-header {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #86868b;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .analyze-btn {
+            width: 100%;
+            padding: 12px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .analyze-btn:hover {
+            background: #0077ed;
+        }
+
+        .result-card {
+            background: #f5f5f7;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-card.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .keyword-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #e3f2fd;
+            color: #0071e3;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+
+        /* 우측 견적서 작성 영역 */
+        .workspace {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #fbfbfd;
+        }
+
+        .paper {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            padding: 20mm;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        .paper-header {
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+        }
+
+        .paper-title {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: 5px;
+            color: #1d1d1f;
+        }
+
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .info-table td {
+            padding: 8px;
+            border: 1px solid #e5e5e5;
+            font-size: 13px;
+        }
+
+        .info-label {
+            background: #f9f9f9;
+            font-weight: 600;
+            width: 100px;
+            text-align: center;
+        }
+
+        /* 메인 견적 테이블 */
+        .quote-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 12px;
+        }
+
+        .quote-table th {
+            background: #f0f0f0;
+            padding: 10px 4px;
+            border: 1px solid #ccc;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .quote-table td {
+            border: 1px solid #ccc;
+            padding: 0;
+        }
+
+        .cell-input {
+            width: 100%;
+            height: 32px;
+            border: none;
+            padding: 0 6px;
+            text-align: right;
+            font-size: 12px;
+            box-sizing: border-box;
+            outline: none;
+        }
+
+        .cell-input:focus {
+            background: #e3f2fd;
+        }
+
+        .cell-input.text-left {
+            text-align: left;
+        }
+
+        .cell-input.readonly {
+            background: #f9f9f9;
+            color: #555;
+            cursor: default;
+        }
+
+        .cell-input.highlight {
+            font-weight: 600;
+            color: #0071e3;
+        }
+
+        .add-row-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 8px;
+            border: 1px dashed #ccc;
+            background: white;
+            color: #888;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .add-row-btn:hover {
+            border-color: #0071e3;
+            color: #0071e3;
+        }
+
+        /* 액션 버튼 */
+        .floating-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            padding: 12px 20px;
+            border-radius: 30px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary {
+            background: #0071e3;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1d1d1f;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .margin-badge {
+            font-size: 10px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .margin-high {
+            background-color: #34c759;
+        }
+
+        .margin-med {
+            background-color: #ff9500;
+        }
+
+        .margin-low {
+            background-color: #ff3b30;
+        }
+
+        @media print {
+
+            .nav-bar,
+            .analysis-panel,
+            .add-row-btn,
+            .floating-actions,
+            .no-print {
+                display: none !important;
+            }
+
+            .container {
+                height: auto;
+            }
+
+            .workspace {
+                padding: 0;
+                overflow: visible;
+                background: white;
+            }
+
+            .paper {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                min-height: auto;
+            }
+
+            body {
+                background: white;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .cell-input {
+                border: none;
+                padding: 4px 2px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 네비게이션 -->
+    <nav class="nav-bar no-print">
+        <div style="display: flex; align-items: center;">
+            <div class="nav-logo">FS MASSI</div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">인허가</a>
+                <a href="방문일지.html" class="nav-link">방문일지</a>
+                <a href="proposal.html" class="nav-link active">견적서</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- 1. 분석 패널 -->
+        <div class="analysis-panel no-print">
+            <div class="panel-header">🛍️ 매장 맞춤 분석</div>
+
+            <div class="input-group">
+                <label class="input-label">매장명 / 키워드</label>
+                <input type="text" id="storeInput" class="input-field" placeholder="예: 스타벅스 강남점, 가성비 카페">
+            </div>
+
+            <button class="analyze-btn" onclick="analyzeStore()">분석 및 추천상품 검색</button>
+
+            <div id="analysisResult" class="result-card">
+                <h4 style="margin: 0 0 10px 0;">🎯 AI 공략 포인트</h4>
+                <div id="keywordTags" style="margin-bottom: 12px;"></div>
+                <p id="analysisText" style="font-size: 13px; color: #555; line-height: 1.5; margin: 0;"></p>
+                <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 15px 0;">
+                <h4 style="margin: 0 0 10px 0;">✨ 추천 상품 (클릭하여 추가)</h4>
+                <div id="recommendList" style="display: flex; flex-direction: column; gap: 8px;">
+                    <!-- 추천 아이템들이 여기에 동적으로 추가됨 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 견적서 작성 영역 (A4 사이즈) -->
+        <div class="workspace">
+            <div class="paper" id="proposalPaper">
+                <div class="paper-header">
+                    <div class="paper-title">견 적 서</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: #666;">Estimate Sheet</div>
+                </div>
+
+                <table class="info-table">
+                    <tr>
+                        <td class="info-label" rowspan="2">수신</td>
+                        <td rowspan="2"><input type="text" id="customerName" class="cell-input text-left"
+                                placeholder="상호명 입력" style="font-size: 14px; font-weight: 600;"></td>
+                        <td class="info-label">견적일</td>
+                        <td><span id="todayDate"></span></td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">담당자</td>
+                        <td><input type="text" class="cell-input text-left" value="이도현"></td>
+                    </tr>
+                </table>
+
+                <table class="quote-table">
+                    <colgroup>
+                        <col style="width: 5%">
+                        <col style="width: 25%">
+                        <col style="width: 10%">
+                        <col style="width: 5%">
+                        <col style="width: 12%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 13%"> <!-- 최종가 -->
+                        <col style="width: 8%" class="no-print"> <!-- 마진율 (출력 제외) -->
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>품명</th>
+                            <th>규격</th>
+                            <th>면세</th>
+                            <th>출고가</th>
+                            <th>DC(%)</th>
+                            <th>공급가(VAT포함)</th>
+                            <th>최종판매가</th>
+                            <th class="no-print">마진</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quoteBody">
+                        <!-- 행들이 자바스크립트로 추가됨 -->
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #fbfbfd; font-weight: 700;">
+                            <td colspan="7" style="text-align: center; padding: 10px;">합 계</td>
+                            <td style="text-align: right; padding: 0 6px;">
+                                <span id="totalAmount">0</span>원
+                            </td>
+                            <td class="no-print" style="text-align: center;">
+                                <span id="totalMargin">0%</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <button class="add-row-btn no-print" onclick="addRow()">+ 행 추가하기</button>
+
+                <div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">
+                    * 상기 견적 내용은 유효기간 15일 기준입니다.<br>
+                    * 부가세(VAT) 포함가 기준입니다.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 플로팅 액션 버튼 -->
+    <div class="floating-actions no-print">
+        <button class="action-btn btn-secondary" onclick="loadProductDB()">
+            📂 제품 DB 업로드
+        </button>
+        <button class="action-btn btn-primary" onclick="generatePDF()">
+            📥 PDF 저장
+        </button>
+        <input type="file" id="dbInput" accept=".xlsx, .xls" style="display: none;">
+    </div>
+
+    <script>
+        // 초기화
+        document.getElementById('todayDate').innerText = new Date().toLocaleDateString();
+
+        // 전역변수 (매일유업 제품으로 변경)
+        let productDB = [
+            { name: "매일우유 오리지널", spec: "1000ml", price: 2850, taxFree: true, image: "🥛", maxDc: 10 },
+            { name: "마이카페라떼 마일드", spec: "220ml", price: 1200, taxFree: false, image: "☕", maxDc: 15 },
+            { name: "상하목장 유기농우유", spec: "125ml", price: 1100, taxFree: true, image: "🌿", maxDc: 5 },
+            { name: "허쉬 초콜릿 드링크", spec: "235ml", price: 1000, taxFree: false, image: "🍫", maxDc: 20 },
+            { name: "바리스타룰스", spec: "325ml", price: 2500, taxFree: false, image: "🥤", maxDc: 12 }
+        ];
+
+        // 1. 행 추가 로직
+        function addRow(data = null) {
+            const tbody = document.getElementById('quoteBody');
+            const rowCount = tbody.children.length + 1;
+            const tr = document.createElement('tr');
+
+            const name = data ? data.name : '';
+            const spec = data ? data.spec : '';
+            const price = data ? data.price : 0;
+            const isTaxFree = data ? data.taxFree : false;
+
+            const maxDc = data ? data.maxDc : 0;
+
+            // 초기값 설정
+            const dcRate = 0; // DC율 0%
+            // 출고가에서 DC 적용
+            const dcAmount = price * (dcRate / 100);
+            const supplyBeforeTax = price - dcAmount;
+            // VAT 계산 (면세면 0, 아니면 10%)
+            const vat = isTaxFree ? 0 : Math.floor(supplyBeforeTax * 0.1);
+            const costPrice = supplyBeforeTax + vat; // 최종매입가 (원가)
+            // 기본 마진 20% 가정하여 판매가 제안
+            const suggestedPrice = Math.floor(costPrice * 1.2 / 10) * 10;
+
+            tr.innerHTML = `
+                <td style="text-align: center; color: #888;">${rowCount}</td>
+                <td><input type="text" class="cell-input text-left project-name" value="${name}" placeholder="품명"></td>
+                <td><input type="text" class="cell-input" value="${spec}" placeholder="규격"></td>
+                <td style="text-align: center;">
+                    <input type="checkbox" class="tax-free-check" ${isTaxFree ? 'checked' : ''} onchange="calculateRow(this)">
+                </td>
+                <td><input type="number" class="cell-input factory-price" value="${price}" oninput="calculateRow(this)"></td>
+                <td>
+                    <input type="number" class="cell-input dc-rate" value="${dcRate}" placeholder="Max ${maxDc}%" title="정책 최대 DC: ${maxDc}%" oninput="calculateRow(this)">
+                </td>
+                <td><input type="text" class="cell-input readonly cost-price" value="${costPrice.toLocaleString()}" readonly></td>
+                <td><input type="number" class="cell-input highlight sales-price" value="${suggestedPrice}" oninput="calculateRow(this)"></td>
+                <td class="no-print" style="text-align: center;">
+                    <span class="margin-display">0%</span>
+                </td>
+                <td style="display:none;"><input type="hidden" class="real-cost" value="${costPrice}"></td>
+            `;
+            tbody.appendChild(tr);
+            calculateRow(tr.querySelector('.factory-price'));
+        }
+
+        // 2. 계산 로직 (핵심)
+        function calculateRow(element) {
+            const row = element.closest('tr');
+
+            // 입력값 가져오기
+            const factoryPrice = parseFloat(row.querySelector('.factory-price').value) || 0;
+            const dcRate = parseFloat(row.querySelector('.dc-rate').value) || 0;
+            const salesPrice = parseFloat(row.querySelector('.sales-price').value) || 0;
+            const isTaxFree = row.querySelector('.tax-free-check').checked;
+
+            // 1. DC금액 및 실공급가 계산 (출고가 - DC금액)
+            // DC는 %로 입력 (예: 10 입력 시 10% 할인)
+            const dcAmount = factoryPrice * (dcRate / 100);
+            const supplyWithDC = factoryPrice - dcAmount;
+
+            // 2. VAT 적용 (면세 0%, 과세 10%)
+            const vat = isTaxFree ? 0 : Math.floor(supplyWithDC * 0.1);
+
+            // 3. 최종 매입원가 (영업사원 입장에서의 비용)
+            const totalCost = supplyWithDC + vat;
+
+            // 4. 마진 계산
+            // 마진액 = 판매가 - 최종매입원가
+            const marginAmount = salesPrice - totalCost;
+            // 마진율 = (마진액 / 판매가) * 100
+            let marginRate = 0;
+            if (salesPrice > 0) {
+                marginRate = (marginAmount / salesPrice) * 100;
+            }
+
+            // UI 업데이트
+            row.querySelector('.cost-price').value = Math.floor(totalCost).toLocaleString();
+            row.querySelector('.real-cost').value = totalCost; // 숨겨진 필드에 실제값 저장
+
+            // 마진율 표시 및 색상
+            const marginDisplay = row.querySelector('.margin-display');
+            marginDisplay.innerText = marginRate.toFixed(1) + '%';
+
+            marginDisplay.className = 'margin-display margin-badge';
+            if (marginRate >= 20) marginDisplay.classList.add('margin-high');
+            else if (marginRate >= 10) marginDisplay.classList.add('margin-med');
+            else marginDisplay.classList.add('margin-low');
+
+            updateTotal();
+        }
+
+        function updateTotal() {
+            const rows = document.querySelectorAll('#quoteBody tr');
+            let totalSales = 0;
+            let totalCost = 0;
+
+            rows.forEach(row => {
+                const sales = parseFloat(row.querySelector('.sales-price').value) || 0;
+                const cost = parseFloat(row.querySelector('.real-cost').value) || 0;
+                totalSales += sales;
+                totalCost += cost;
+            });
+
+            document.getElementById('totalAmount').innerText = totalSales.toLocaleString();
+
+            // 전체 평균 마진율
+            let totalMarginRate = 0;
+            if (totalSales > 0) {
+                totalMarginRate = ((totalSales - totalCost) / totalSales) * 100;
+            }
+            document.getElementById('totalMargin').innerText = totalMarginRate.toFixed(1) + '%';
+        }
+
+        // 3. AI 분석 시뮬레이션
+        function analyzeStore() {
+            const keyword = document.getElementById('storeInput').value;
+            const card = document.getElementById('analysisResult');
+            const list = document.getElementById('recommendList');
+            const tags = document.getElementById('keywordTags');
+            const text = document.getElementById('analysisText');
+
+            if (!keyword) {
+                alert('매장명을 입력해주세요!');
+                return;
+            }
+
+            // 로딩 효과 (심플)
+            card.style.display = 'block';
+            text.innerHTML = '🔍 네이버 리뷰 분석 중...';
+            list.innerHTML = '';
+            tags.innerHTML = '';
+
+            setTimeout(() => {
+                // 시나리오별 모의 결과
+                let result = {
+                    tags: ['가성비', '학생층', '빠른회전'],
+                    desc: '이 매장은 <strong>대학가/학원가 주변</strong>에 위치하여 합리적인 가격대를 선호합니다. <span style="color:#0071e3; font-weight:700;">매일우유 1L</span>와 같은 대용량 기본 제품과 <span style="color:#0071e3; font-weight:700;">허쉬 초콜릿</span> 같은 10대 타겟 음료를 제안해보세요.',
+                    items: [productDB[0], productDB[3]] // 매일우유, 허쉬
+                };
+
+                if (keyword.includes('고급') || keyword.includes('강남') || keyword.includes('호텔')) {
+                    result = {
+                        tags: ['유기농', '프리미엄', '웰빙'],
+                        desc: '고객들의 리뷰에서 <strong>"건강"과 "퀄리티"</strong>에 대한 언급이 많습니다. <span style="color:#0071e3; font-weight:700;">상하목장 유기농 라인</span>과 <span style="color:#0071e3; font-weight:700;">바리스타룰스</span>로 프리미엄 이미지를 제안하세요.',
+                        items: [productDB[2], productDB[4]] // 상하목장, 바리스타
+                    };
+                }
+
+                // UI 렌더링
+                tags.innerHTML = result.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
+                text.innerHTML = result.desc;
+
+                list.innerHTML = '';
+                result.items.forEach(item => {
+                    const div = document.createElement('div');
+                    div.style.padding = '10px';
+                    div.style.background = 'white';
+                    div.style.borderRadius = '8px';
+                    div.style.border = '1px solid #eee';
+                    div.style.cursor = 'pointer';
+                    div.style.display = 'flex';
+                    div.style.alignItems = 'center';
+                    div.style.gap = '10px';
+
+                    div.innerHTML = `
+                        <div style="font-size: 20px;">${item.image}</div>
+                        <div>
+                            <div style="font-weight: 600; font-size: 13px;">${item.name}</div>
+                            <div style="font-size: 11px; color: #888;">${item.spec} / ${item.price.toLocaleString()}원</div>
+                        </div>
+                        <div style="margin-left: auto; font-size: 18px; color: #0071e3;">+</div>
+                    `;
+                    div.onclick = () => {
+                        addRow(item);
+                        // 시각적 피드백
+                        div.style.background = '#e3f2fd';
+                        setTimeout(() => div.style.background = 'white', 200);
+                    };
+                    list.appendChild(div);
+                });
+
+            }, 800);
+        }
+
+        // 4. 제품 DB 업로드 (Excel)
+        function loadProductDB() {
+            document.getElementById('dbInput').click();
+        }
+
+        document.getElementById('dbInput').addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                // DB 매핑 (엑셀 컬럼명에 따라 수정 필요)
+                productDB = jsonData.map(row => ({
+                    name: row['제품명'] || row['품명'],
+                    spec: row['규격'],
+                    price: row['출고가'] || row['단가'],
+                    taxFree: (row['면세여부'] || '').includes('면세'),
+                    image: '📦'
+                }));
+
+                alert(`✅ 제품 ${productDB.length}개가 로드되었습니다.`);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        // 5. PDF 생성
+        function generatePDF() {
+            window.print();
+            // 참고: 실제 파일 저장은 window.print()를 PDF로 저장하거나, 
+            // html2canvas + jspdf 조합을 사용할 수 있습니다. 여기선 브라우저 기본 인쇄 기능 활용.
+        }
+
+        // 초기 행 1개 추가
+        addRow();
+    </script>
+</body>
+
+</html>
