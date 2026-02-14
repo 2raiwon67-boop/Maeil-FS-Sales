@@ -2235,20 +2235,16 @@
                     </div>
                     <div class="info-body">
                         <div class="info-row">
-                            <span class="info-label">담당자:</span>
-                            <span class="info-value" style="font-weight: 600; color: #555;">${item['담당자'] || '-'}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">업태:</span>
-                            <span class="info-value">${category}</span>
-                        </div>
-                        <div class="info-row">
                             <span class="info-label">평형:</span>
                             <span class="info-value">${pyeong}평</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">주소:</span>
                             <span class="info-value" style="font-size: 12px; line-height: 1.4;">${address}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">담당자:</span>
+                            <span class="info-value" style="font-weight: 600; color: #555;">${item['담당자'] || '-'}</span>
                         </div>
                         <div style="margin-top: 15px;">
                             <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">상태 변경</span>
@@ -2261,7 +2257,7 @@
                                 `).join('')}
                             </div>
                         </div>
-                        <div class="info-row">
+                        <div class="info-row" style="margin-top: 12px;">
                             <span class="info-label">허가일:</span>
                             <span class="info-value">${permitDate}</span>
                         </div>
