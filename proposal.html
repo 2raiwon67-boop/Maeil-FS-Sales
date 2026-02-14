@@ -463,89 +463,87 @@
             </div>
         </div>
 
-        <!-- 2. 견적서 작성 영역 (A4 사이즈) -->
-    </div>
-
-    <!-- 2. 견적서 설정 및 작성 영역 -->
-    <div class="workspace">
-        <div class="settings-panel no-print"
-            style="margin-bottom: 20px; display: flex; gap: 20px; align-items: center;">
-            <label style="font-weight: 600; font-size: 14px;">견적서 유형:</label>
-            <div style="display: flex; gap: 10px;">
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                    <input type="radio" name="quoteMode" value="custom" checked onchange="setQuoteMode('custom')"> 맞춤형
-                    (개별 거래처)
-                </label>
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                    <input type="radio" name="quoteMode" value="general" onchange="setQuoteMode('general')"> 범용 (지역/불특정)
-                </label>
-            </div>
-        </div>
-
-        <div class="paper" id="proposalPaper">
-            <div class="paper-header">
-                <div class="paper-title">매일유업 견적서</div>
-                <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
+        <!-- 2. 견적서 설정 및 작성 영역 -->
+        <div class="workspace">
+            <div class="settings-panel no-print"
+                style="margin-bottom: 20px; display: flex; gap: 20px; align-items: center;">
+                <label style="font-weight: 600; font-size: 14px;">견적서 유형:</label>
+                <div style="display: flex; gap: 10px;">
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <input type="radio" name="quoteMode" value="custom" checked onchange="setQuoteMode('custom')">
+                        맞춤형
+                        (개별 거래처)
+                    </label>
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                        <input type="radio" name="quoteMode" value="general" onchange="setQuoteMode('general')"> 범용
+                        (지역/불특정)
+                    </label>
+                </div>
             </div>
 
-            <table class="info-table">
-                <tr id="recipientRow">
-                    <td class="info-label">수신</td>
-                    <td colspan="3"><input type="text" id="customerName" class="cell-input text-left"
-                            placeholder="상호명 입력" style="font-size: 14px; font-weight: 600;"></td>
-                </tr>
-                <tr>
-                    <td class="info-label">담당자</td>
-                    <td><input type="text" class="cell-input text-left" value="이도현"></td>
-                    <td class="info-label">연락처</td>
-                    <td><input type="text" class="cell-input text-left" placeholder="010-0000-0000"></td>
-                </tr>
-            </table>
+            <div class="paper" id="proposalPaper">
+                <div class="paper-header">
+                    <div class="paper-title">매일유업 견적서</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
+                </div>
 
-            <table class="quote-table">
-                <colgroup>
-                    <col style="width: 5%">
-                    <col style="width: 25%">
-                    <col style="width: 10%">
-                    <col style="width: 5%">
-                    <col style="width: 12%">
-                    <col style="width: 10%">
-                    <col style="width: 12%">
-                    <col style="width: 13%"> <!-- 최종가 -->
-                    <col style="width: 8%" class="no-print"> <!-- 마진율 (출력 제외) -->
-                </colgroup>
-                <thead>
+                <table class="info-table">
+                    <tr id="recipientRow">
+                        <td class="info-label">수신</td>
+                        <td colspan="3"><input type="text" id="customerName" class="cell-input text-left"
+                                placeholder="상호명 입력" style="font-size: 14px; font-weight: 600;"></td>
+                    </tr>
                     <tr>
-                        <th>No</th>
-                        <th>품명</th>
-                        <th>규격</th>
-                        <th>면세</th>
-                        <th>출고가</th>
-                        <th>DC(%)</th>
-                        <th>공급가(VAT포함)</th>
-                        <th>최종판매가</th>
-                        <th class="no-print">마진</th>
+                        <td class="info-label">담당자</td>
+                        <td><input type="text" class="cell-input text-left" value="이도현"></td>
+                        <td class="info-label">연락처</td>
+                        <td><input type="text" class="cell-input text-left" placeholder="010-0000-0000"></td>
                     </tr>
-                </thead>
-                <tbody id="quoteBody">
-                    <!-- 행들이 자바스크립트로 추가됨 -->
-                </tbody>
-                <tfoot>
-                    <tr style="background: #fbfbfd; font-weight: 700;">
-                        <td colspan="7" style="text-align: center; padding: 10px;">합 계</td>
-                        <td style="text-align: right; padding: 0 6px;">
-                            <span id="totalAmount">0</span>원
-                        </td>
-                        <td class="no-print" style="text-align: center;">
-                            <span id="totalMargin">0%</span>
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
+                </table>
 
-            <button class="add-row-btn no-print" onclick="addRow()">+ 행 추가하기</button>
+                <table class="quote-table">
+                    <colgroup>
+                        <col style="width: 5%">
+                        <col style="width: 25%">
+                        <col style="width: 10%">
+                        <col style="width: 5%">
+                        <col style="width: 12%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 13%"> <!-- 최종가 -->
+                        <col style="width: 8%" class="no-print"> <!-- 마진율 (출력 제외) -->
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>품명</th>
+                            <th>규격</th>
+                            <th>면세</th>
+                            <th>출고가</th>
+                            <th>DC(%)</th>
+                            <th>공급가(VAT포함)</th>
+                            <th>최종판매가</th>
+                            <th class="no-print">마진</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quoteBody">
+                        <!-- 행들이 자바스크립트로 추가됨 -->
+                    </tbody>
+                    <tfoot>
+                        <tr style="background: #fbfbfd; font-weight: 700;">
+                            <td colspan="7" style="text-align: center; padding: 10px;">합 계</td>
+                            <td style="text-align: right; padding: 0 6px;">
+                                <span id="totalAmount">0</span>원
+                            </td>
+                            <td class="no-print" style="text-align: center;">
+                                <span id="totalMargin">0%</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
 
-            <div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">
+                <button class="add-row-btn no-print" onclick="addRow()">+ 행 추가하기</button>
+
                 <div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">
                     * 부가세(VAT) 포함가 기준입니다.
                 </div>
