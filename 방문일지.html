@@ -74,6 +74,12 @@
             background: #ffffff;
             color: #1d1d1f;
             overflow-x: hidden;
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+
+        body.loaded {
+            opacity: 1;
         }
 
         /* =============== 상단 네비게이션 =============== */
@@ -851,8 +857,8 @@
             <div class="nav-logo">FS MASSI</div>
             <div class="nav-menu">
                 <a href="index.html" class="nav-link">인허가</a>
-                <a href="proposal.html" class="nav-link">견적서</a>
                 <a href="방문일지.html" class="nav-link active">방문일지</a>
+                <a href="proposal.html" class="nav-link">견적서</a>
             </div>
         </div>
         <div class="nav-actions" style="display: flex; align-items: center;">
@@ -1038,6 +1044,10 @@
                 gid: '0'
             }
         };
+
+        window.addEventListener('load', () => {
+            document.body.classList.add('loaded');
+        });
 
         // ============================================================
         // 초기화

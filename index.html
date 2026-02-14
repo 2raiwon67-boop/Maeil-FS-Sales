@@ -43,6 +43,14 @@
             color: #1d1d1f;
             overflow: hidden;
             height: 100vh;
+            opacity: 0;
+            /* 초기 투명도 설정 */
+            transition: opacity 0.4s ease-in-out;
+            /* 부드러운 전환 효과 */
+        }
+
+        body.loaded {
+            opacity: 1;
         }
 
         /* =============== 상단 네비게이션 =============== */
@@ -329,7 +337,8 @@
         }
 
         .dropdown-card.open .dropdown-content {
-            max-height: 300px;
+            max-height: 160px;
+            /* 4개 항목(약 40px * 4) 높이 제한 */
             overflow-y: auto;
         }
 
@@ -833,8 +842,8 @@
             <div class="nav-logo">FS MASSI</div>
             <div class="nav-menu">
                 <a href="index.html" class="nav-link active">인허가</a>
-                <a href="proposal.html" class="nav-link">견적서</a>
                 <a href="방문일지.html" class="nav-link">방문일지</a>
+                <a href="proposal.html" class="nav-link">견적서</a>
             </div>
         </div>
         <div class="nav-actions" style="display: flex; align-items: center;">
@@ -1053,6 +1062,7 @@
         // ============================================================
 
         window.onload = function () {
+            document.body.classList.add('loaded'); // 페이지 로드 시 페이드 인 효과 적용
             console.log('페이지 로드 완료');
             setupUploadZones();
             setupFilters();
@@ -1149,7 +1159,16 @@
                     },
                     scrollWheel: true // 마우스 스크롤 줌 활성화 (사용자 요청)
                 };
+
                 naverMap = new naver.maps.Map(container, options);
+
+                // 지도 배경 클릭 시 정보창 닫기
+                naver.maps.Event.addListener(naverMap, 'click', function (e) {
+                    if (currentInfoWindow) {
+                        closeCurrentInfoWindow();
+                    }
+                });
+
             } catch (error) {
                 console.error('지도 오류:', error);
             }
@@ -2215,6 +2234,10 @@
                         <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
                     </div>
                     <div class="info-body">
+                        <div class="info-row">
+                            <span class="info-label">담당자:</span>
+                            <span class="info-value" style="font-weight: 600; color: #555;">${item['담당자'] || '-'}</span>
+                        </div>
                         <div class="info-row">
                             <span class="info-label">업태:</span>
                             <span class="info-value">${category}</span>
