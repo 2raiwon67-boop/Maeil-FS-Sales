@@ -104,17 +104,16 @@ ${productList}
 2. 매장 특성에 대한 **영업 공략 포인트** 설명을 2~3문장으로 작성하세요. 중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
 3. 위 제품 목록에서 이 매장에 가장 적합한 **제품 2~3개**를 인덱스 번호로 추천하세요.
 
-## 응답 형식 (반드시 아래 JSON 형식만 출력, 다른 텍스트 없이)
-\`\`\`json
-{
-    "tags": ["키워드1", "키워드2", "키워드3"],
-    "description": "HTML이 포함된 영업 공략 포인트 설명",
-    "recommendedIndices": [0, 2]
-}
-\`\`\`
+## 응답 형식
+아래 JSON 형식으로만 응답하세요. 다른 설명이나 텍스트 없이 순수 JSON만 출력하세요.
 
-중요: 반드시 유효한 JSON만 출력하세요. 코드블록 마커는 포함해도 됩니다.
-만약 검색 결과가 없거나 부족하면, 매장명에서 유추할 수 있는 정보를 바탕으로 최선의 추천을 해주세요.`;
+예시:
+{"tags": ["키워드1", "키워드2", "키워드3"], "description": "HTML이 포함된 영업 공략 포인트 설명", "recommendedIndices": [0, 2]}
+
+중요 사항:
+- 반드시 유효한 JSON 객체만 출력
+- 코드 블록 마커 사용 금지
+- 검색 결과가 부족하면 매장명 기반으로 추론하여 응답`;
 
         // ── 4. Gemini API 호출 ──
         const geminiRes = await fetch(
@@ -147,19 +146,30 @@ ${productList}
             throw new Error('Gemini 응답이 비어있습니다.');
         }
 
-        // ── 5. JSON 파싱 ──
-        let jsonStr = rawText;
-        const jsonMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
-        if (jsonMatch) {
-            jsonStr = jsonMatch[1];
-        } else {
-            const braceMatch = rawText.match(/\{[\s\S]*\}/);
-            if (braceMatch) {
-                jsonStr = braceMatch[0];
-            }
+        // ── 5. JSON 파싱 (개선된 버전) ──
+        let jsonStr = rawText.trim();
+
+        // 마크다운 코드 블록 제거 (```json ... ``` 또는 ``` ... ```)
+        jsonStr = jsonStr.replace(/^```json?\s*/i, '').replace(/\s*```$/, '');
+
+        // 여전히 코드 블록이 있다면 다시 시도
+        if (jsonStr.startsWith('```')) {
+            jsonStr = jsonStr.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '');
         }
 
-        const analysis = JSON.parse(jsonStr);
+        // JSON 객체만 추출 (텍스트 설명이 있을 경우 대비)
+        const braceMatch = jsonStr.match(/\{[\s\S]*\}/);
+        if (braceMatch) {
+            jsonStr = braceMatch[0];
+        }
+
+        let analysis;
+        try {
+            analysis = JSON.parse(jsonStr);
+        } catch (parseError) {
+            console.error('JSON 파싱 실패. 원본 텍스트:', rawText.substring(0, 200));
+            throw new Error('Gemini 응답을 JSON으로 변환할 수 없습니다: ' + parseError.message);
+        }
 
         // ── 6. 제품 인덱스 → 실제 제품 객체 매핑 ──
         const recommendedItems = (analysis.recommendedIndices || [])
