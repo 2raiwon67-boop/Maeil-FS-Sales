@@ -7,10 +7,12 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-    const { storeName, productDB } = req.body || {};
+    const { storeName, productDB, previousReviewLinks } = req.body || {};
     if (!storeName?.trim()) {
         return res.status(400).json({ success: false, error: '매장명을 입력해주세요.' });
     }
+
+    const isIncrementalUpdate = previousReviewLinks && previousReviewLinks.length > 0;
 
     const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID;
     const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
@@ -33,13 +35,29 @@ export default async function handler(req, res) {
                 { headers: naverHeaders }
             ).then(r => r.json()),
             fetch(
-                `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(storeName + ' 리뷰')}&display=10&sort=sim`,
+                `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(storeName + ' 리뷰')}&display=10&sort=date`,
                 { headers: naverHeaders }
             ).then(r => r.json())
         ]);
 
         const localData = localResult.status === 'fulfilled' ? localResult.value : { items: [] };
         const blogData = blogResult.status === 'fulfilled' ? blogResult.value : { items: [] };
+
+        // ── 증분 업데이트: 중복 리뷰 필터링 ──
+        let filteredBlogItems = blogData.items || [];
+        if (isIncrementalUpdate) {
+            const previousLinks = new Set(previousReviewLinks);
+            filteredBlogItems = filteredBlogItems.filter(item => !previousLinks.has(item.link));
+
+            // 새 리뷰가 없으면 캐시된 데이터 사용 권장
+            if (filteredBlogItems.length === 0) {
+                return res.status(200).json({
+                    success: true,
+                    cached: true,
+                    message: '최신 리뷰가 없습니다. 기존 분석 결과를 사용하세요.'
+                });
+            }
+        }
 
         // ── 2. HTML 태그 제거 및 데이터 정리 ──
         const stripHtml = (str) => str ? str.replace(/<[^>]*>/g, '') : '';
@@ -50,10 +68,14 @@ export default async function handler(req, res) {
             address: item.roadAddress || item.address
         }));
 
-        const blogSummary = (blogData.items || []).map(item => ({
+        const blogSummary = filteredBlogItems.map(item => ({
             title: stripHtml(item.title),
-            description: stripHtml(item.description)
+            description: stripHtml(item.description),
+            link: item.link
         }));
+
+        // 현재 리뷰 링크 목록 (캐싱용)
+        const currentReviewLinks = filteredBlogItems.map(item => item.link);
 
         // ── 3. Gemini 프롬프트 구성 ──
         const products = productDB || [];
@@ -61,9 +83,11 @@ export default async function handler(req, res) {
             `[${i}] ${p.name} (${p.spec}, ${p.price}원, ${p.taxFree ? '면세' : '과세'}, 이미지:${p.image || '📦'}, 최대DC:${p.maxDc || 0}%)`
         ).join('\n');
 
+        const updateNote = isIncrementalUpdate ? '\n⚠️ 이번 분석은 **증분 업데이트**입니다. 아래는 최근 추가된 리뷰만 포함되어 있습니다.\n' : '';
+
         const prompt = `당신은 매일유업 FS(Food Service) 영업사원을 위한 매장 분석 AI입니다.
 아래 네이버 검색 결과를 분석하여 매장 특성을 파악하고, 매일유업 제품을 추천해주세요.
-
+${updateNote}
 ## 검색 매장: "${storeName}"
 
 ## 네이버 지역 검색 결과 (매장 정보)
@@ -147,9 +171,12 @@ ${productList}
             tags: analysis.tags || [],
             description: analysis.description || '',
             items: recommendedItems,
+            reviewLinks: currentReviewLinks,
+            isUpdate: isIncrementalUpdate,
             naverInfo: {
                 localResults: localSummary.length,
-                blogResults: blogSummary.length
+                blogResults: blogSummary.length,
+                newReviews: isIncrementalUpdate ? filteredBlogItems.length : blogSummary.length
             }
         });
 

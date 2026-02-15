@@ -694,9 +694,13 @@
             document.getElementById('totalMargin').innerText = totalMarginRate.toFixed(1) + '%';
         }
 
-        // 3. AI 분석 (네이버 리뷰 + Gemini)
+        // 3. AI 분석 (네이버 리뷰 + Gemini) - 캐싱 및 Rate Limiting 적용
+        let lastAnalysisTime = 0;
+        const RATE_LIMIT_MS = 3000; // 3초 쿨다운
+        const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
+
         async function analyzeStore() {
-            const keyword = document.getElementById('storeInput').value;
+            const keyword = document.getElementById('storeInput').value.trim();
             const card = document.getElementById('analysisResult');
             const list = document.getElementById('recommendList');
             const tags = document.getElementById('keywordTags');
@@ -707,7 +711,40 @@
                 return;
             }
 
-            // 로딩 상태
+            // Rate Limiting 체크
+            const now = Date.now();
+            const timeSinceLastAnalysis = now - lastAnalysisTime;
+            if (timeSinceLastAnalysis < RATE_LIMIT_MS) {
+                const waitSeconds = Math.ceil((RATE_LIMIT_MS - timeSinceLastAnalysis) / 1000);
+                text.innerHTML = `⏳ ${waitSeconds}초 후에 다시 시도해주세요.`;
+                return;
+            }
+
+            // 캐시 확인
+            const cacheKey = `store_analysis_${keyword}`;
+            const cached = localStorage.getItem(cacheKey);
+            let cachedData = null;
+
+            if (cached) {
+                try {
+                    cachedData = JSON.parse(cached);
+                    const cacheAge = now - cachedData.timestamp;
+
+                    // 캐시가 유효하면 즉시 표시
+                    if (cacheAge < CACHE_EXPIRY_MS) {
+                        renderAnalysis(cachedData.result, true);
+
+                        // 백그라운드에서 증분 업데이트 시도
+                        text.innerHTML += '<br><small style="color:#0071e3;">🔄 최신 리뷰 확인 중...</small>';
+                        await updateAnalysis(keyword, cachedData);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Cache parse error:', e);
+                }
+            }
+
+            // 새로운 분석 수행
             card.style.display = 'block';
             card.classList.add('active');
             text.innerHTML = '🔍 네이버 리뷰 분석 중... (약 5~10초 소요)';
@@ -720,7 +757,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         storeName: keyword,
-                        productDB: productDB
+                        productDB: productDB,
+                        previousReviewLinks: []
                     })
                 });
 
@@ -730,42 +768,99 @@
                     throw new Error(data.error || '분석에 실패했습니다.');
                 }
 
-                // UI 렌더링
-                tags.innerHTML = data.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
-                text.innerHTML = data.description;
+                // 결과 캐싱
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    timestamp: now,
+                    result: data
+                }));
 
-                list.innerHTML = '';
-                data.items.forEach(item => {
-                    const div = document.createElement('div');
-                    div.style.padding = '10px';
-                    div.style.background = 'white';
-                    div.style.borderRadius = '8px';
-                    div.style.border = '1px solid #eee';
-                    div.style.cursor = 'pointer';
-                    div.style.display = 'flex';
-                    div.style.alignItems = 'center';
-                    div.style.gap = '10px';
-
-                    div.innerHTML = `
-                        <div style="font-size: 20px;">${item.image || '📦'}</div>
-                        <div>
-                            <div style="font-weight: 600; font-size: 13px;">${item.name}</div>
-                            <div style="font-size: 11px; color: #888;">${item.spec} / ${Number(item.price).toLocaleString()}원</div>
-                        </div>
-                        <div style="margin-left: auto; font-size: 18px; color: #0071e3;">+</div>
-                    `;
-                    div.onclick = () => {
-                        addRow(item);
-                        div.style.background = '#e3f2fd';
-                        setTimeout(() => div.style.background = 'white', 200);
-                    };
-                    list.appendChild(div);
-                });
+                renderAnalysis(data, false);
+                lastAnalysisTime = now;
 
             } catch (error) {
                 console.error('Store analysis error:', error);
                 text.innerHTML = `⚠️ ${error.message}<br><small style="color:#888;">매장명을 다시 확인하거나, 잠시 후 재시도해주세요.</small>`;
             }
+        }
+
+        // 증분 업데이트 (백그라운드)
+        async function updateAnalysis(keyword, cachedData) {
+            try {
+                const response = await fetch('/api/naver-reviews', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        storeName: keyword,
+                        productDB: productDB,
+                        previousReviewLinks: cachedData.result.reviewLinks || []
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.cached) {
+                    // 새 리뷰 없음
+                    const text = document.getElementById('analysisText');
+                    const currentHTML = text.innerHTML.replace(/<br><small.*?<\/small>/, '');
+                    text.innerHTML = currentHTML + '<br><small style="color:#888;">✓ 최신 상태입니다</small>';
+                    return;
+                }
+
+                if (data.success) {
+                    // 새 분석 결과로 업데이트
+                    const cacheKey = `store_analysis_${keyword}`;
+                    localStorage.setItem(cacheKey, JSON.stringify({
+                        timestamp: Date.now(),
+                        result: data
+                    }));
+
+                    renderAnalysis(data, false, true);
+                }
+
+            } catch (error) {
+                console.warn('Incremental update failed:', error);
+            }
+        }
+
+        // UI 렌더링 함수
+        function renderAnalysis(data, isCached = false, isUpdate = false) {
+            const tags = document.getElementById('keywordTags');
+            const text = document.getElementById('analysisText');
+            const list = document.getElementById('recommendList');
+
+            const cacheIndicator = isCached ? ' <small style="color:#888;">(캐시됨)</small>' : '';
+            const updateIndicator = isUpdate ? '<br><small style="color:#0071e3;">✨ 최신 리뷰 반영됨</small>' : '';
+
+            tags.innerHTML = data.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
+            text.innerHTML = data.description + cacheIndicator + updateIndicator;
+
+            list.innerHTML = '';
+            data.items.forEach(item => {
+                const div = document.createElement('div');
+                div.style.padding = '10px';
+                div.style.background = 'white';
+                div.style.borderRadius = '8px';
+                div.style.border = '1px solid #eee';
+                div.style.cursor = 'pointer';
+                div.style.display = 'flex';
+                div.style.alignItems = 'center';
+                div.style.gap = '10px';
+
+                div.innerHTML = `
+                    <div style="font-size: 20px;">${item.image || '📦'}</div>
+                    <div>
+                        <div style="font-weight: 600; font-size: 13px;">${item.name}</div>
+                        <div style="font-size: 11px; color: #888;">${item.spec} / ${Number(item.price).toLocaleString()}원</div>
+                    </div>
+                    <div style="margin-left: auto; font-size: 18px; color: #0071e3;">+</div>
+                `;
+                div.onclick = () => {
+                    addRow(item);
+                    div.style.background = '#e3f2fd';
+                    setTimeout(() => div.style.background = 'white', 200);
+                };
+                list.appendChild(div);
+            });
         }
 
         // Enter 키 지원
