@@ -166,7 +166,7 @@ ${productList}
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 1024,
+                        maxOutputTokens: 3000,
                         topP: 0.95,
                         topK: 40
                     }
@@ -191,25 +191,29 @@ ${productList}
         let jsonStr = rawText.trim();
 
         // 마크다운 코드 블록 제거 (```json ... ``` 또는 ``` ... ```)
-        jsonStr = jsonStr.replace(/^```json?\s*/i, '').replace(/\s*```$/, '');
-
-        // 여전히 코드 블록이 있다면 다시 시도
-        if (jsonStr.startsWith('```')) {
-            jsonStr = jsonStr.replace(/^```[a-z]*\s*/i, '').replace(/\s*```$/, '');
-        }
+        // 정규식 개선: 시작과 끝의 코드블록을 더 확실하게 제거하고, 앞뒤 공백 제거
+        jsonStr = jsonStr.replace(/^```json/i, '').replace(/^```/, '').replace(/```$/, '').trim();
 
         // JSON 객체만 추출 (텍스트 설명이 있을 경우 대비)
-        const braceMatch = jsonStr.match(/\{[\s\S]*\}/);
-        if (braceMatch) {
-            jsonStr = braceMatch[0];
+        const braceStart = jsonStr.indexOf('{');
+        const braceEnd = jsonStr.lastIndexOf('}');
+
+        if (braceStart !== -1 && braceEnd !== -1) {
+            jsonStr = jsonStr.substring(braceStart, braceEnd + 1);
         }
 
         let analysis;
         try {
             analysis = JSON.parse(jsonStr);
         } catch (parseError) {
-            console.error('JSON 파싱 실패. 원본 텍스트:', rawText.substring(0, 200));
-            throw new Error('Gemini 응답을 JSON으로 변환할 수 없습니다: ' + parseError.message);
+            console.error('JSON 파싱 실패. 원본 텍스트:', rawText);
+
+            // 일반적인 Gemini 오류 패턴 처리 (JSON이 잘린 경우 등)
+            if (parseError.message.includes('Unterminated string') || parseError.message.includes('End of data')) {
+                throw new Error('Gemini 응답이 너무 길어 중간에 잘렸습니다. 다시 시도해주세요. (Unterminated JSON)');
+            }
+
+            throw new Error(`Gemini 응답을 JSON으로 변환할 수 없습니다: ${parseError.message}`);
         }
 
         // ── 6. 제품 인덱스 → 실제 제품 객체 매핑 ──
