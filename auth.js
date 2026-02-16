@@ -23,10 +23,12 @@ try {
 
 // 1. 로그인 여부 확인 및 리다이렉트
 async function checkAuth() {
+    const path = window.location.pathname;
+    const isLoginPage = path.includes('login.html') || path.endsWith('/login');
+
     // 관리자 우회 체크
     if (localStorage.getItem('fs_admin_access') === 'true') {
-        const currentPage = window.location.pathname.split('/').pop();
-        if (currentPage === 'login.html') {
+        if (isLoginPage) {
             window.location.href = 'index.html';
         }
         return { user: { email: 'admin@maeil.com', user_metadata: { full_name: '관리자' } } };
@@ -37,13 +39,12 @@ async function checkAuth() {
     const { data: { session } } = await client.auth.getSession();
 
     // 현재 페이지가 login.html이 아닌데 세션이 없으면 -> 로그인 페이지로 이동
-    const currentPage = window.location.pathname.split('/').pop();
-    if (!session && currentPage !== 'login.html') {
+    if (!session && !isLoginPage) {
         window.location.href = 'login.html';
     }
 
     // 현재 페이지가 login.html인데 세션이 있으면 -> 메인 페이지로 이동
-    if (session && currentPage === 'login.html') {
+    if (session && isLoginPage) {
         window.location.href = 'index.html';
     }
 

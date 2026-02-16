@@ -195,9 +195,15 @@
                 const code = document.getElementById('adminCode').value;
                 if (code === '532753') {
                     // 관리자 인증 성공
-                    localStorage.setItem('fs_admin_access', 'true');
-                    alert('관리자 모드로 접속합니다.');
-                    window.location.href = 'index.html';
+                    try {
+                        localStorage.setItem('fs_admin_access', 'true');
+                        console.log('Admin access granted.');
+                        alert('관리자 모드로 접속합니다.');
+                        window.location.href = '/'; // 절대 경로로 이동
+                    } catch (e) {
+                        console.error('Local storage error:', e);
+                        alert('브라우저 설정 오류로 로그인이 차단되었습니다. 쿠키/사이트 데이터 설정을 확인해주세요.');
+                    }
                 } else {
                     errorMsg.innerText = '인증 코드가 올바르지 않습니다.';
                     errorMsg.classList.remove('hidden');
