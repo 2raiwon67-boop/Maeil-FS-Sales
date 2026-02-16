@@ -7,12 +7,13 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-    const { storeName, productDB, previousReviewLinks } = req.body || {};
+    const { storeName, productDB, previousReviewLinks, storeHistory } = req.body || {};
     if (!storeName?.trim()) {
         return res.status(400).json({ success: false, error: '매장명을 입력해주세요.' });
     }
 
     const isIncrementalUpdate = previousReviewLinks && previousReviewLinks.length > 0;
+    const hasVisitHistory = storeHistory && storeHistory.length > 0;
 
     const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID;
     const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
@@ -85,6 +86,30 @@ export default async function handler(req, res) {
 
         const updateNote = isIncrementalUpdate ? '\n⚠️ 이번 분석은 **증분 업데이트**입니다. 아래는 최근 추가된 리뷰만 포함되어 있습니다.\n' : '';
 
+        // 🆕 방문일지 데이터 정리
+        let visitHistorySection = '';
+        if (hasVisitHistory) {
+            const historyItems = storeHistory.slice(0, 5).map(log => ({
+                방문일: log['등록일'] || log['방문일'],
+                담당자: log['담당자'],
+                거래여부: log['거래여부(기입예정)'],
+                순위: log['순위'],
+                특이사항: log['특이사항'] || log['비고'],
+                제안제품: log['제안제품'] || '',
+                매출: log['매출'] || ''
+            }));
+
+            visitHistorySection = `\n## ✨ 우리 팀 방문 기록 (${storeHistory.length}건, 최근 5건 표시)
+${JSON.stringify(historyItems, null, 2)}
+
+⚠️ **중요**: 이 매장은 우리 팀이 이미 방문한 적이 있습니다!
+과거 방문 결과를 바탕으로 **전략을 조정**하세요:
+- 거래 성공 → 어떤 제품이 효과적이었는지 파악
+- 미거래/DROP → 실패 이유를 추론하고 다른 접근법 제안
+- 특이사항 확인 → 매장 특성, 거절 사유 등 반영
+`;
+        }
+
         const prompt = `당신은 매일유업 FS(Food Service) 영업사원을 위한 매장 분석 AI입니다.
 아래 네이버 검색 결과를 분석하여 매장 특성을 파악하고, 매일유업 제품을 추천해주세요.
 ${updateNote}
@@ -94,15 +119,15 @@ ${updateNote}
 ${JSON.stringify(localSummary, null, 2)}
 
 ## 네이버 블로그 리뷰 요약
-${JSON.stringify(blogSummary, null, 2)}
+${JSON.stringify(blogSummary, null, 2)}${visitHistorySection}
 
 ## 매일유업 제품 목록 (추천 대상)
 ${productList}
 
 ## 분석 요청
 1. 리뷰와 매장 정보를 바탕으로 이 매장의 **핵심 키워드 태그** 3~5개를 추출하세요 (예: 가성비, 학생층, 프리미엄, 건강, 디저트카페 등)
-2. 매장 특성에 대한 **영업 공략 포인트** 설명을 2~3문장으로 작성하세요. 중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
-3. 위 제품 목록에서 이 매장에 가장 적합한 **제품 2~3개**를 인덱스 번호로 추천하세요.
+2. 매장 특성에 대한 **영업 공략 포인트** 설명을 2~3문장으로 작성하세요.${hasVisitHistory ? ' **방문 기록이 있다면 반드시 언급**하고, 과거 결과를 반영한 전략을 제시하세요.' : ''} 중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
+3. 위 제품 목록에서 이 매장에 가장 적합한 **제품 2~3개**를 인덱스 번호로 추천하세요.${hasVisitHistory ? ' 과거 제안 제품과 다른 제품을 추천할 경우 이유를 설명에 포함하세요.' : ''}
 
 ## 응답 형식
 아래 JSON 형식으로만 응답하세요. 다른 설명이나 텍스트 없이 순수 JSON만 출력하세요.

@@ -1363,6 +1363,14 @@
 
                     console.log(`Google Sheets 로드 완료: ${allData.length}건`);
 
+                    // 🆕 방문일지 데이터를 LocalStorage에 저장 (견적서 AI 활용)
+                    try {
+                        localStorage.setItem('maeil_visitLogs', JSON.stringify(allData));
+                        localStorage.setItem('maeil_visitLogs_timestamp', Date.now().toString());
+                        console.log('✅ 방문일지 데이터 캐싱 완료 (견적서 AI 연동)');
+                    } catch (e) {
+                        console.warn('LocalStorage 저장 실패:', e.message);
+                    }
 
                     // 지오코딩 캐싱 함수
                     async function getCachedGeocode(address) {

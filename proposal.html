@@ -744,10 +744,33 @@
                 }
             }
 
+            // 🆕 방문일지 데이터 로드 (LocalStorage)
+            let storeHistory = [];
+            try {
+                const visitLogsJSON = localStorage.getItem('maeil_visitLogs');
+                if (visitLogsJSON) {
+                    const allVisitLogs = JSON.parse(visitLogsJSON);
+                    // 현재 매장과 관련된 방문일지만 필터링
+                    storeHistory = allVisitLogs.filter(log => {
+                        const storeName = (log['사업장명'] || '').toLowerCase();
+                        const keyword = keyword.toLowerCase();
+                        return storeName.includes(keyword) || keyword.includes(storeName);
+                    });
+
+                    if (storeHistory.length > 0) {
+                        console.log(`✅ 방문일지 발견: ${storeHistory.length}건`, storeHistory);
+                    }
+                }
+            } catch (e) {
+                console.warn('방문일지 로드 실패:', e.message);
+            }
+
             // 새로운 분석 수행
             card.style.display = 'block';
             card.classList.add('active');
-            text.innerHTML = '🔍 네이버 리뷰 분석 중... (약 5~10초 소요)';
+            text.innerHTML = storeHistory.length > 0
+                ? `🔍 네이버 리뷰 + 방문일지(${storeHistory.length}건) 분석 중... (약 5~10초 소요)`
+                : '🔍 네이버 리뷰 분석 중... (약 5~10초 소요)';
             list.innerHTML = '';
             tags.innerHTML = '';
 
@@ -758,7 +781,8 @@
                     body: JSON.stringify({
                         storeName: keyword,
                         productDB: productDB,
-                        previousReviewLinks: []
+                        previousReviewLinks: [],
+                        storeHistory: storeHistory  // 🆕 방문일지 추가
                     })
                 });
 
@@ -786,13 +810,29 @@
         // 증분 업데이트 (백그라운드)
         async function updateAnalysis(keyword, cachedData) {
             try {
+                // 🆕 방문일지 데이터 로드
+                let storeHistory = [];
+                try {
+                    const visitLogsJSON = localStorage.getItem('maeil_visitLogs');
+                    if (visitLogsJSON) {
+                        const allVisitLogs = JSON.parse(visitLogsJSON);
+                        storeHistory = allVisitLogs.filter(log => {
+                            const storeName = (log['사업장명'] || '').toLowerCase();
+                            return storeName.includes(keyword.toLowerCase());
+                        });
+                    }
+                } catch (e) {
+                    console.warn('방문일지 로드 실패:', e.message);
+                }
+
                 const response = await fetch('/api/naver-reviews', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         storeName: keyword,
                         productDB: productDB,
-                        previousReviewLinks: cachedData.result.reviewLinks || []
+                        previousReviewLinks: cachedData.result.reviewLinks || [],
+                        storeHistory: storeHistory  // 🆕 방문일지 추가
                     })
                 });
 
