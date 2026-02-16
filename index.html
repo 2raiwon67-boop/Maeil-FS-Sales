@@ -678,6 +678,17 @@
 
             /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
 
+            /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
+            .bottom-sheet .status-btn {
+                padding: 16px 0;
+                font-size: 15px;
+                font-weight: 600;
+            }
+
+            .bottom-sheet .status-button-group {
+                gap: 10px;
+            }
+
             /* 3. 바텀 시트 (Bottom Sheet) */
             .bottom-sheet {
                 position: fixed;
@@ -796,226 +807,227 @@
             display: none;
             text-align: center;
             padding: 20px;
+        }
 
-            .loading.active {
-                display: block;
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f5f5f7;
+            border-top: 3px solid #0071e3;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
             }
 
-            .spinner {
-                border: 3px solid #f5f5f7;
-                border-top: 3px solid #0071e3;
-                border-radius: 50%;
-                width: 32px;
-                height: 32px;
-                animation: spin 0.8s linear infinite;
-                margin: 0 auto 10px;
+            100% {
+                transform: rotate(360deg);
             }
+        }
 
-            @keyframes spin {
-                0% {
-                    transform: rotate(0deg);
-                }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 10px;
+            margin: 14px 0;
+            font-size: 13px;
+            font-weight: 500;
+        }
 
-                100% {
-                    transform: rotate(360deg);
-                }
-            }
+        .alert-success {
+            background: #d1f2eb;
+            color: #0a6847;
+        }
 
-            .alert {
-                padding: 12px 16px;
-                border-radius: 10px;
-                margin: 14px 0;
-                font-size: 13px;
-                font-weight: 500;
-            }
+        .alert-error {
+            background: #fce4e4;
+            color: #b91c1c;
+        }
 
-            .alert-success {
-                background: #d1f2eb;
-                color: #0a6847;
-            }
+        .alert-info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
 
-            .alert-error {
-                background: #fce4e4;
-                color: #b91c1c;
-            }
+        input[type="file"] {
+            display: none;
+        }
 
-            .alert-info {
-                background: #e0f2fe;
-                color: #0369a1;
-            }
+        .btn-full {
+            width: 100%;
+            margin-top: 14px;
+            padding: 12px;
+        }
 
-            input[type="file"] {
-                display: none;
-            }
+        /* =============== 스크롤바 스타일 =============== */
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
 
-            .btn-full {
-                width: 100%;
-                margin-top: 14px;
-                padding: 12px;
-            }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
 
-            /* =============== 스크롤바 스타일 =============== */
-            .sidebar::-webkit-scrollbar {
-                width: 6px;
-            }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #d2d2d7;
+            border-radius: 3px;
+        }
 
-            .sidebar::-webkit-scrollbar-track {
-                background: transparent;
-            }
+        /* =============== Custom InfoWindow =============== */
+        .custom-info-window {
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            border-radius: 14px;
+            padding: 0;
+            min-width: 280px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            overflow: hidden;
+        }
 
-            .sidebar::-webkit-scrollbar-thumb {
-                background: #d2d2d7;
-                border-radius: 3px;
-            }
+        .info-header {
+            background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
+            padding: 14px 16px;
+            border-bottom: 1px solid #e8e8ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-            /* =============== Custom InfoWindow =============== */
-            .custom-info-window {
-                background: rgba(255, 255, 255, 0.98);
-                backdrop-filter: blur(20px);
-                border-radius: 14px;
-                padding: 0;
-                min-width: 280px;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-                overflow: hidden;
-            }
+        .close-info-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            transition: color 0.2s;
+        }
 
-            .info-header {
-                background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
-                padding: 14px 16px;
-                border-bottom: 1px solid #e8e8ed;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
+        .close-info-btn:hover {
+            color: #ffffff;
+        }
 
-            .close-info-btn {
-                background: none;
-                border: none;
-                color: rgba(255, 255, 255, 0.8);
-                font-size: 24px;
-                line-height: 1;
-                cursor: pointer;
-                padding: 0;
-                margin-left: 10px;
-                transition: color 0.2s;
-            }
+        .info-header h3 {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #ffffff;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+        }
 
-            .close-info-btn:hover {
-                color: #ffffff;
-            }
+        .info-body {
+            padding: 12px 16px;
+            background: #ffffff;
+        }
 
-            .info-header h3 {
-                margin: 0;
-                font-size: 16px;
-                font-weight: 600;
-                color: #ffffff;
-                text-overflow: ellipsis;
-                overflow: hidden;
-                white-space: nowrap;
-            }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 6px 0;
+            border-bottom: 1px solid #f5f5f7;
+        }
 
-            .info-body {
-                padding: 12px 16px;
-                background: #ffffff;
-            }
+        .info-row:last-child {
+            border-bottom: none;
+        }
 
-            .info-row {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-start;
-                padding: 6px 0;
-                border-bottom: 1px solid #f5f5f7;
-            }
+        .info-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #86868b;
+            min-width: 60px;
+            flex-shrink: 0;
+        }
 
-            .info-row:last-child {
-                border-bottom: none;
-            }
+        .info-value {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1d1d1f;
+            text-align: right;
+            flex: 1;
+            word-break: break-word;
+            max-width: 160px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
-            .info-label {
-                font-size: 12px;
-                font-weight: 600;
-                color: #86868b;
-                min-width: 60px;
-                flex-shrink: 0;
-            }
+        /* 거래 상태별 색상 */
+        .info-value.status-거래 {
+            color: #007AFF;
+            font-weight: 600;
+        }
 
-            .info-value {
-                font-size: 13px;
-                font-weight: 500;
-                color: #1d1d1f;
-                text-align: right;
-                flex: 1;
-                word-break: break-word;
-                max-width: 160px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
+        .info-value.status-미거래 {
+            color: #FF9595;
+            font-weight: 600;
+        }
 
-            /* 거래 상태별 색상 */
-            .info-value.status-거래 {
-                color: #007AFF;
-                font-weight: 600;
-            }
+        .info-value.status-인허가 {
+            color: #34C759;
+            font-weight: 600;
+        }
 
-            .info-value.status-미거래 {
-                color: #FF9595;
-                font-weight: 600;
-            }
+        .info-value.status-DROP {
+            color: #8E8E93;
+            font-weight: 600;
+        }
 
-            .info-value.status-인허가 {
-                color: #34C759;
-                font-weight: 600;
-            }
+        .info-value.status-공사중 {
+            color: #FF9500;
+            font-weight: 600;
+        }
 
-            .info-value.status-DROP {
-                color: #8E8E93;
-                font-weight: 600;
-            }
+        .info-footer {
+            padding: 10px 16px;
+            background: #f5f5f7;
+            border-top: 1px solid #e8e8ed;
+        }
 
-            .info-value.status-공사중 {
-                color: #FF9500;
-                font-weight: 600;
-            }
+        .naver-map-btn {
+            width: 100%;
+            padding: 10px 16px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
 
-            .info-footer {
-                padding: 10px 16px;
-                background: #f5f5f7;
-                border-top: 1px solid #e8e8ed;
-            }
+        .naver-map-btn::before {
+            content: '📍';
+            font-size: 14px;
+        }
 
-            .naver-map-btn {
-                width: 100%;
-                padding: 10px 16px;
-                background: #0071e3;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-            }
+        .naver-map-btn:hover {
+            background: #0077ed;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
 
-            .naver-map-btn::before {
-                content: '📍';
-                font-size: 14px;
-            }
-
-            .naver-map-btn:hover {
-                background: #0077ed;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
-            }
-
-            .naver-map-btn:active {
-                transform: translateY(0);
-            }
+        .naver-map-btn:active {
+            transform: translateY(0);
+        }
     </style>
 </head>
 
