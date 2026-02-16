@@ -601,237 +601,421 @@
             color: #1d1d1f;
         }
 
-        .upload-hint {
+        .upload-subtext {
             font-size: 13px;
             color: #86868b;
             margin-top: 4px;
+        }
+
+        /* =============== 모바일 전용 UI (Mobile Field Mode) =============== */
+        @media (max-width: 768px) {
+
+            /* 1. 레이아웃: 사이드바 숨기고 지도 전체화면 */
+            .main-layout {
+                grid-template-columns: 1fr;
+                /* 사이드바 제거, 1열 위주 */
+                display: block;
+                /* 그리드 대신 블록으로 (조건부 표시) */
+                position: relative;
+            }
+
+            .sidebar {
+                display: none;
+                /* 기본엔 숨김 (지도 모드) */
+                width: 100%;
+                height: calc(100vh - 52px - 60px);
+                /* 하단 탭 공간 등 고려 */
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 50;
+                background: #f5f5f7;
+            }
+
+            .map-area {
+                width: 100%;
+                height: 100%;
+                z-index: 10;
+            }
+
+            /* 2. 내비게이션 최적화 */
+            .nav-bar {
+                padding: 0 16px;
+                justify-content: space-between;
+                height: 52px;
+            }
+
+            .nav-logo {
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+
+            .nav-menu {
+                display: flex;
+                gap: 12px;
+                overflow-x: auto;
+                margin: 0 10px;
+                -webkit-overflow-scrolling: touch;
+                /* 스크롤 부드럽게 */
+            }
+
+            .nav-menu::-webkit-scrollbar {
+                display: none;
+                /* 스크롤바 숨김 */
+            }
+
+            .nav-link {
+                margin: 0;
+                font-size: 13px;
+                white-space: nowrap;
+                padding: 16px 4px;
+            }
+
+            .nav-actions {
+                display: none;
+                /* 모바일에서 로그인 버튼은 일단 숨김 (공간 부족) */
+            }
+
+            /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
+
+            /* 3. 바텀 시트 (Bottom Sheet) */
+            .bottom-sheet {
+                position: fixed;
+                bottom: -100%;
+                /* 숨김 상태 */
+                left: 0;
+                width: 100%;
+                background: white;
+                border-radius: 20px 20px 0 0;
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+                z-index: 1000;
+                transition: bottom 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+                padding: 24px;
+                padding-bottom: 40px;
+                /* Safe area */
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+
+            .bottom-sheet.active {
+                bottom: 0;
+            }
+
+            .sheet-handle {
+                width: 40px;
+                height: 4px;
+                background: #e5e5ea;
+                border-radius: 2px;
+                margin: 0 auto 16px;
+            }
+
+            .sheet-header {
+                margin-bottom: 20px;
+            }
+
+            .sheet-title {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 4px;
+            }
+
+            .sheet-subtitle {
+                font-size: 13px;
+                color: #86868b;
+            }
+
+            /* 4. 뷰 토글 플로팅 버튼 */
+            .view-toggle-btn {
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #1d1d1f;
+                color: white;
+                padding: 10px 24px;
+                border-radius: 30px;
+                font-size: 14px;
+                font-weight: 600;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                z-index: 900;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: none;
+                cursor: pointer;
+            }
+
+            .view-toggle-btn.hidden {
+                display: none;
+            }
+
+            /* 퀵 액션 버튼 */
+            .quick-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-top: 20px;
+            }
+
+            .quick-btn {
+                padding: 14px;
+                border-radius: 12px;
+                border: none;
+                font-weight: 600;
+                font-size: 14px;
+                color: white;
+                cursor: pointer;
+            }
+
+            .quick-btn.success {
+                background: #34C759;
+            }
+
+            .quick-btn.fail {
+                background: #FF3B30;
+            }
+
+            /* InfoWindow 숨김 (모바일은 바텀시트 사용) */
+            .custom-info-window {
+                display: none !important;
+            }
+        }
+
+        /* 데스크탑 전용 */
+        @media (min-width: 769px) {
+            .view-toggle-btn {
+                display: none;
+            }
+
+            .bottom-sheet {
+                display: none;
+            }
         }
 
         .loading {
             display: none;
             text-align: center;
             padding: 20px;
-        }
 
-        .loading.active {
-            display: block;
-        }
-
-        .spinner {
-            border: 3px solid #f5f5f7;
-            border-top: 3px solid #0071e3;
-            border-radius: 50%;
-            width: 32px;
-            height: 32px;
-            animation: spin 0.8s linear infinite;
-            margin: 0 auto 10px;
-        }
-
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
+            .loading.active {
+                display: block;
             }
 
-            100% {
-                transform: rotate(360deg);
+            .spinner {
+                border: 3px solid #f5f5f7;
+                border-top: 3px solid #0071e3;
+                border-radius: 50%;
+                width: 32px;
+                height: 32px;
+                animation: spin 0.8s linear infinite;
+                margin: 0 auto 10px;
             }
-        }
 
-        .alert {
-            padding: 12px 16px;
-            border-radius: 10px;
-            margin: 14px 0;
-            font-size: 13px;
-            font-weight: 500;
-        }
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
 
-        .alert-success {
-            background: #d1f2eb;
-            color: #0a6847;
-        }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
 
-        .alert-error {
-            background: #fce4e4;
-            color: #b91c1c;
-        }
+            .alert {
+                padding: 12px 16px;
+                border-radius: 10px;
+                margin: 14px 0;
+                font-size: 13px;
+                font-weight: 500;
+            }
 
-        .alert-info {
-            background: #e0f2fe;
-            color: #0369a1;
-        }
+            .alert-success {
+                background: #d1f2eb;
+                color: #0a6847;
+            }
 
-        input[type="file"] {
-            display: none;
-        }
+            .alert-error {
+                background: #fce4e4;
+                color: #b91c1c;
+            }
 
-        .btn-full {
-            width: 100%;
-            margin-top: 14px;
-            padding: 12px;
-        }
+            .alert-info {
+                background: #e0f2fe;
+                color: #0369a1;
+            }
 
-        /* =============== 스크롤바 스타일 =============== */
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
+            input[type="file"] {
+                display: none;
+            }
 
-        .sidebar::-webkit-scrollbar-track {
-            background: transparent;
-        }
+            .btn-full {
+                width: 100%;
+                margin-top: 14px;
+                padding: 12px;
+            }
 
-        .sidebar::-webkit-scrollbar-thumb {
-            background: #d2d2d7;
-            border-radius: 3px;
-        }
+            /* =============== 스크롤바 스타일 =============== */
+            .sidebar::-webkit-scrollbar {
+                width: 6px;
+            }
 
-        /* =============== Custom InfoWindow =============== */
-        .custom-info-window {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px);
-            border-radius: 14px;
-            padding: 0;
-            min-width: 280px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            overflow: hidden;
-        }
+            .sidebar::-webkit-scrollbar-track {
+                background: transparent;
+            }
 
-        .info-header {
-            background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
-            padding: 14px 16px;
-            border-bottom: 1px solid #e8e8ed;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+            .sidebar::-webkit-scrollbar-thumb {
+                background: #d2d2d7;
+                border-radius: 3px;
+            }
 
-        .close-info-btn {
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 24px;
-            line-height: 1;
-            cursor: pointer;
-            padding: 0;
-            margin-left: 10px;
-            transition: color 0.2s;
-        }
+            /* =============== Custom InfoWindow =============== */
+            .custom-info-window {
+                background: rgba(255, 255, 255, 0.98);
+                backdrop-filter: blur(20px);
+                border-radius: 14px;
+                padding: 0;
+                min-width: 280px;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                overflow: hidden;
+            }
 
-        .close-info-btn:hover {
-            color: #ffffff;
-        }
+            .info-header {
+                background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
+                padding: 14px 16px;
+                border-bottom: 1px solid #e8e8ed;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
 
-        .info-header h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-            color: #ffffff;
-            text-overflow: ellipsis;
-            overflow: hidden;
-            white-space: nowrap;
-        }
+            .close-info-btn {
+                background: none;
+                border: none;
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 24px;
+                line-height: 1;
+                cursor: pointer;
+                padding: 0;
+                margin-left: 10px;
+                transition: color 0.2s;
+            }
 
-        .info-body {
-            padding: 12px 16px;
-            background: #ffffff;
-        }
+            .close-info-btn:hover {
+                color: #ffffff;
+            }
 
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            padding: 6px 0;
-            border-bottom: 1px solid #f5f5f7;
-        }
+            .info-header h3 {
+                margin: 0;
+                font-size: 16px;
+                font-weight: 600;
+                color: #ffffff;
+                text-overflow: ellipsis;
+                overflow: hidden;
+                white-space: nowrap;
+            }
 
-        .info-row:last-child {
-            border-bottom: none;
-        }
+            .info-body {
+                padding: 12px 16px;
+                background: #ffffff;
+            }
 
-        .info-label {
-            font-size: 12px;
-            font-weight: 600;
-            color: #86868b;
-            min-width: 60px;
-            flex-shrink: 0;
-        }
+            .info-row {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                padding: 6px 0;
+                border-bottom: 1px solid #f5f5f7;
+            }
 
-        .info-value {
-            font-size: 13px;
-            font-weight: 500;
-            color: #1d1d1f;
-            text-align: right;
-            flex: 1;
-            word-break: break-word;
-            max-width: 160px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+            .info-row:last-child {
+                border-bottom: none;
+            }
 
-        /* 거래 상태별 색상 */
-        .info-value.status-거래 {
-            color: #007AFF;
-            font-weight: 600;
-        }
+            .info-label {
+                font-size: 12px;
+                font-weight: 600;
+                color: #86868b;
+                min-width: 60px;
+                flex-shrink: 0;
+            }
 
-        .info-value.status-미거래 {
-            color: #FF9595;
-            font-weight: 600;
-        }
+            .info-value {
+                font-size: 13px;
+                font-weight: 500;
+                color: #1d1d1f;
+                text-align: right;
+                flex: 1;
+                word-break: break-word;
+                max-width: 160px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
 
-        .info-value.status-인허가 {
-            color: #34C759;
-            font-weight: 600;
-        }
+            /* 거래 상태별 색상 */
+            .info-value.status-거래 {
+                color: #007AFF;
+                font-weight: 600;
+            }
 
-        .info-value.status-DROP {
-            color: #8E8E93;
-            font-weight: 600;
-        }
+            .info-value.status-미거래 {
+                color: #FF9595;
+                font-weight: 600;
+            }
 
-        .info-value.status-공사중 {
-            color: #FF9500;
-            font-weight: 600;
-        }
+            .info-value.status-인허가 {
+                color: #34C759;
+                font-weight: 600;
+            }
 
-        .info-footer {
-            padding: 10px 16px;
-            background: #f5f5f7;
-            border-top: 1px solid #e8e8ed;
-        }
+            .info-value.status-DROP {
+                color: #8E8E93;
+                font-weight: 600;
+            }
 
-        .naver-map-btn {
-            width: 100%;
-            padding: 10px 16px;
-            background: #0071e3;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
+            .info-value.status-공사중 {
+                color: #FF9500;
+                font-weight: 600;
+            }
 
-        .naver-map-btn::before {
-            content: '📍';
-            font-size: 14px;
-        }
+            .info-footer {
+                padding: 10px 16px;
+                background: #f5f5f7;
+                border-top: 1px solid #e8e8ed;
+            }
 
-        .naver-map-btn:hover {
-            background: #0077ed;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
-        }
+            .naver-map-btn {
+                width: 100%;
+                padding: 10px 16px;
+                background: #0071e3;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
 
-        .naver-map-btn:active {
-            transform: translateY(0);
-        }
+            .naver-map-btn::before {
+                content: '📍';
+                font-size: 14px;
+            }
+
+            .naver-map-btn:hover {
+                background: #0077ed;
+                transform: translateY(-1px);
+                box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+            }
+
+            .naver-map-btn:active {
+                transform: translateY(0);
+            }
     </style>
 </head>
 
@@ -1166,6 +1350,9 @@
                 naver.maps.Event.addListener(naverMap, 'click', function (e) {
                     if (currentInfoWindow) {
                         closeCurrentInfoWindow();
+                    }
+                    if (typeof closeBottomSheet === 'function') {
+                        closeBottomSheet();
                     }
                 });
 
@@ -1585,24 +1772,32 @@
                         }
                     });
 
-                    // 마커 클릭 시 InfoWindow 표시
+                    // 마커 클릭 시 동작 (모바일/데스크탑 분기)
                     naver.maps.Event.addListener(marker, 'click', function (e) {
-                        // 이전 InfoWindow 닫기
-                        if (currentInfoWindow) {
-                            currentInfoWindow.close();
+                        // 모바일 (768px 이하) -> 바텀 시트 열기
+                        if (window.innerWidth <= 768) {
+                            if (typeof openBottomSheet === 'function') {
+                                openBottomSheet(item);
+                                navCenter = e.coord; // 필요 시 중심 이동
+                                naverMap.panTo(e.coord);
+                            }
+                        } else {
+                            // 데스크탑 -> InfoWindow
+                            if (currentInfoWindow) {
+                                currentInfoWindow.close();
+                            }
+
+                            const infoWindow = new naver.maps.InfoWindow({
+                                content: createInfoWindowContent(item),
+                                backgroundColor: 'transparent',
+                                borderColor: 'transparent',
+                                anchorSkew: true,
+                                pixelOffset: new naver.maps.Point(0, -10)
+                            });
+
+                            infoWindow.open(naverMap, marker);
+                            currentInfoWindow = infoWindow;
                         }
-
-                        // 새 InfoWindow 생성 및 표시
-                        const infoWindow = new naver.maps.InfoWindow({
-                            content: createInfoWindowContent(item),
-                            backgroundColor: 'transparent',
-                            borderColor: 'transparent',
-                            anchorSkew: true,
-                            pixelOffset: new naver.maps.Point(0, -10)
-                        });
-
-                        infoWindow.open(naverMap, marker);
-                        currentInfoWindow = infoWindow;
                     });
 
                     markers.push(marker);
@@ -2331,6 +2526,91 @@
             setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
         }
     </script>
+
+    <!-- 모바일 바텀 시트 (Bottom Sheet) -->
+    <div id="bottomSheet" class="bottom-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h3 class="sheet-title" id="sheetTitle">매장명</h3>
+            <p class="sheet-subtitle" id="sheetAddr">주소 정보</p>
+        </div>
+        <div class="sheet-body" id="sheetBody">
+            <!-- 동적 내용 -->
+            <div class="info-row">
+                <span class="info-label">담당자:</span>
+                <span class="info-value" id="sheetManager">-</span>
+            </div>
+            <div style="margin-top: 20px;">
+                <span class="info-label" style="display:block; margin-bottom:8px;">상태 변경 (퀵 액션)</span>
+                <div class="status-button-group" id="sheetStatusGroup">
+                    <!-- JS로 버튼 생성 -->
+                </div>
+            </div>
+            <button class="btn btn-secondary" style="width:100%; margin-top:20px;"
+                onclick="closeBottomSheet()">닫기</button>
+        </div>
+    </div>
+
+    <!-- 모바일 뷰 토글 버튼 -->
+    <button id="viewToggleBtn" class="view-toggle-btn" onclick="toggleMobileView()">
+        <span>📄 목록 보기</span>
+    </button>
+
+    <script>
+        // 모바일 뷰 토글 로직
+        let isMapView = true;
+        function toggleMobileView() {
+            const sidebar = document.querySelector('.sidebar');
+            const btnSpan = document.querySelector('#viewToggleBtn span');
+
+            if (isMapView) {
+                // 목록 보기로 전환
+                sidebar.style.display = 'block';
+                sidebar.style.zIndex = '100'; // 지도 위에 표시
+                btnSpan.innerText = '🗺️ 지도 보기';
+                isMapView = false;
+            } else {
+                // 지도 보기로 전환
+                sidebar.style.display = 'none';
+                btnSpan.innerText = '📄 목록 보기';
+                isMapView = true;
+            }
+        }
+
+        // 바텀 시트 로직
+        function openBottomSheet(item) {
+            const sheet = document.getElementById('bottomSheet');
+
+            // 데이터 채우기
+            document.getElementById('sheetTitle').innerText = item['사업장명'];
+            document.getElementById('sheetAddr').innerText = item['도로명전체주소'];
+            document.getElementById('sheetManager').innerText = item['담당자'] || '미지정';
+
+            // 상태 버튼 생성
+            const statusGroup = document.getElementById('sheetStatusGroup');
+            const dealStatus = item['거래여부(기입예정)'] || '인허가';
+            const name = item['사업장명'].replace(/'/g, "\\'");
+            const address = item['도로명전체주소'].replace(/'/g, "\\'");
+
+            statusGroup.innerHTML = ['인허가', '공사중', '거래', '미거래', 'DROP'].map(s => `
+                <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}" 
+                        onclick="updateDealStatus('${name}', '${address}', '${s}', this)">
+                    ${s}
+                </button>
+            `).join('');
+
+            // 시트 열기
+            sheet.classList.add('active');
+        }
+
+        function closeBottomSheet() {
+            document.getElementById('bottomSheet').classList.remove('active');
+        }
+
+        // 지도 클릭 시 바텀 시트 닫기 (배경 클릭 효과)
+        // map.addListener('click', ...) 에서 처리 예정
+    </script>
+
     <script src="auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
