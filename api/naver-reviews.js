@@ -34,12 +34,28 @@ export default async function handler(req, res) {
             fetch(
                 `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(storeName)}&display=5`,
                 { headers: naverHeaders }
-            ).then(r => r.json()),
+            ).then(async r => {
+                if (!r.ok) {
+                    const text = await r.text();
+                    throw new Error(`Local Search Error (${r.status}): ${text}`);
+                }
+                return r.json();
+            }),
             fetch(
                 `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(storeName + ' 리뷰')}&display=10&sort=date`,
                 { headers: naverHeaders }
-            ).then(r => r.json())
+            ).then(async r => {
+                if (!r.ok) {
+                    const text = await r.text();
+                    throw new Error(`Blog Search Error (${r.status}): ${text}`);
+                }
+                return r.json();
+            })
         ]);
+
+        // 에러 로깅
+        if (localResult.status === 'rejected') console.error('Naver Local API Error:', localResult.reason);
+        if (blogResult.status === 'rejected') console.error('Naver Blog API Error:', blogResult.reason);
 
         const localData = localResult.status === 'fulfilled' ? localResult.value : { items: [] };
         const blogData = blogResult.status === 'fulfilled' ? blogResult.value : { items: [] };
@@ -217,9 +233,11 @@ ${productList}
 
     } catch (error) {
         console.error('Analysis error:', error);
+        // 클라이언트에게 상세 에러 메시지 전달
         return res.status(500).json({
             success: false,
-            error: '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+            error: error.message || '분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+            details: error.stack
         });
     }
 }

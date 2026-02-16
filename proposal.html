@@ -803,7 +803,19 @@
 
             } catch (error) {
                 console.error('Store analysis error:', error);
-                text.innerHTML = `⚠️ ${error.message}<br><small style="color:#888;">매장명을 다시 확인하거나, 잠시 후 재시도해주세요.</small>`;
+
+                // 상세 에러 메시지 표시 로직
+                let errorMsg = error.message;
+                if (errorMsg.includes('Local Search Error')) {
+                    errorMsg = '네이버 지역 검색 오류: API 키를 확인해주세요. (Client ID/Secret)';
+                } else if (errorMsg.includes('Blog Search Error')) {
+                    errorMsg = '네이버 블로그 검색 오류: API 키 권한을 확인해주세요.';
+                } else if (errorMsg.includes('API 키가 설정되지 않았습니다')) {
+                    errorMsg = 'Vercel 환경 변수에 API 키가 설정되지 않았습니다.';
+                }
+
+                text.innerHTML = `❌ 오류 발생: ${errorMsg}<br><small style="color:#888;">매장명을 다시 확인하거나, 잠시 후 재시도해주세요.</small>`;
+                card.classList.remove('active');
             }
         }
 
@@ -904,7 +916,7 @@
         }
 
         // Enter 키 지원
-        document.getElementById('storeInput').addEventListener('keypress', function(e) {
+        document.getElementById('storeInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') analyzeStore();
         });
 
