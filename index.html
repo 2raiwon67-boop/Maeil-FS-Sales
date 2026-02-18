@@ -1902,10 +1902,17 @@
             // 순위는 "1", "2", "3" 형식으로 저장됨
             document.getElementById('rank1Count').textContent = filteredData.filter(d => d['순위'] === '1').length || 0;
 
-            // 주요거래처 카운트 업데이트
+            // 주요거래처 카운트 업데이트 (현재 담당자/지역 필터 반영)
             if (accountsData.length > 0) {
-                document.getElementById('accountDealCount').textContent = accountsData.filter(a => (a['거래상태'] || '').trim() === '거래').length || 0;
-                document.getElementById('accountNoDealCount').textContent = accountsData.filter(a => (a['거래상태'] || '').trim() === '미거래').length || 0;
+                let filteredAccounts = accountsData;
+                if (currentManager) {
+                    filteredAccounts = filteredAccounts.filter(a => (a['담당자명'] || '').trim() === currentManager);
+                }
+                if (currentRegion) {
+                    filteredAccounts = filteredAccounts.filter(a => (a['주소2'] || '').trim() === currentRegion);
+                }
+                document.getElementById('accountDealCount').textContent = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === '거래').length || 0;
+                document.getElementById('accountNoDealCount').textContent = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === '미거래').length || 0;
             }
 
             const regionCounts = {};
