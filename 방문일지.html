@@ -1141,13 +1141,11 @@
                 const normalizedName = normalize(accountName); // 비교용 이름
                 const status = (log['거래상태'] || '').trim();
 
-                // 3. 타입 판별 업엄 필터링
+                // 3. 타입 판별 (매칭 안 되면 'other'로 분류, 표시는 함)
                 let type = null;
                 if (accountNames.has(normalizedName)) type = 'major';
                 else if (licenseNames.has(normalizedName)) type = 'license';
-
-                // 주요거래처 또는 인허가 1순위에 매칭되지 않으면 제외
-                if (!type) return;
+                else type = 'other'; // 매칭 안 되면 기타로 분류 (표시는 함)
 
                 if (!grouped[accountName]) {
                     grouped[accountName] = {

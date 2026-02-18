@@ -1306,8 +1306,9 @@
             loadDataFromSheets();
             initChart();
 
-            // 주요거래처 별 마커 로드
+            // 주요거래처 별 마커 로드 + 방문일지 캐시
             loadAccountsData();
+            loadVisitLogCache();
         };
 
         // ============================================================
@@ -1457,11 +1458,15 @@
                     btn.classList.remove('active');
                     if (btn.getAttribute('data-filter') === 'all') btn.classList.add('active');
                 });
+                // 순위 필터 해제 시 별 마커 다시 표시
+                accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
                 currentFilter = rank;
+                // 순위 필터 활성화 시 별 마커 숨김 (순위필터는 인허가 데이터 전용)
+                accountMarkers.forEach(m => m.setMap(null));
             }
             window.currentDealStatusFilter = null;
-            accountMarkers.forEach(m => m.setMap(naverMap));
+            currentAccountFilter = null;
             updateDashboard();
             updateMap();
         }
@@ -1999,6 +2004,44 @@
             }
         }
 
+        // 방문일지 캐시 로드 (InfoWindow에서 최신 방문 기록 표시용)
+        async function loadVisitLogCache() {
+            try {
+                const VISIT_SHEET_ID = '1SuOT-Lb61S2vVa-AQdXRE1LYrr8c13Wo';
+                const VISIT_GID = '444575455';
+                const url = `https://docs.google.com/spreadsheets/d/${VISIT_SHEET_ID}/export?format=csv&gid=${VISIT_GID}`;
+                const response = await fetch(url);
+                if (!response.ok) return;
+                const csv = await response.text();
+                const lines = csv.split('\n').filter(l => l.trim());
+                if (lines.length < 2) return;
+                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+                const logs = lines.slice(1).map(line => {
+                    const obj = {};
+                    const vals = [];
+                    let cur = '', inQ = false;
+                    for (let i = 0; i < line.length; i++) {
+                        if (line[i] === '"') { inQ = !inQ; }
+                        else if (line[i] === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+                        else { cur += line[i]; }
+                    }
+                    vals.push(cur.trim());
+                    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+                    return obj;
+                });
+                // 날짜 기준 최신순 정렬 (InfoWindow에서 find()로 첫 번째 = 최신 기록)
+                logs.sort((a, b) => {
+                    const da = a['일정기간'] || '';
+                    const db = b['일정기간'] || '';
+                    return db.localeCompare(da);
+                });
+                window.visitLogCache = logs;
+                console.log(`방문일지 캐시 로드 완료: ${logs.length}건`);
+            } catch (e) {
+                console.warn('방문일지 캐시 로드 실패:', e.message);
+            }
+        }
+
         function parseAccountsCSV(csv) {
             const lines = csv.split('\n').filter(l => l.trim());
             if (lines.length < 2) return [];
@@ -2072,9 +2115,25 @@
                         zIndex: 5  // 인허가 마커보다 위에 표시
                     });
 
-                    // 클릭 시 InfoWindow
+                    // 클릭 시 InfoWindow (방문일지 최신 기록 포함)
                     naver.maps.Event.addListener(marker, 'click', function () {
                         if (currentInfoWindow) currentInfoWindow.close();
+
+                        // 방문일지에서 해당 거래처 최신 방문 기록 검색
+                        const recentVisit = window.visitLogCache
+                            ? window.visitLogCache.find(v => (v['방문처(거래처)'] || '').trim() === name)
+                            : null;
+
+                        const visitSection = recentVisit ? `
+                            <div class="info-row" style="border-top:1px solid #f0f0f0;margin-top:6px;padding-top:6px;">
+                                <span class="info-label">최신방문:</span>
+                                <span class="info-value" style="font-size:11px;">${recentVisit['일정기간'] || '-'}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">이슈:</span>
+                                <span class="info-value" style="font-size:11px;color:#555;">${(recentVisit['주요이슈'] || '-').substring(0, 40)}${(recentVisit['주요이슈'] || '').length > 40 ? '...' : ''}</span>
+                            </div>` : '';
+
                         const iw = new naver.maps.InfoWindow({
                             content: `
                                 <div class="custom-info-window">
@@ -2091,6 +2150,7 @@
                                             <span class="info-label">거래상태:</span>
                                             <span class="info-value" style="font-weight:600;color:${dealStatus === '거래' ? '#007AFF' : '#8E8E93'}">${dealStatus || '-'}</span>
                                         </div>
+                                        ${visitSection}
                                     </div>
                                 </div>`,
                             backgroundColor: 'transparent',
