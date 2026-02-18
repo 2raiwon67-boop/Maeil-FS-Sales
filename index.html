@@ -1284,6 +1284,9 @@
         let accountsData = [];          // 주요거래처 원본 데이터
         let accountMarkers = [];        // 주요거래처 별 마커
 
+        // ── 담당자 설정 (동적 로드) ──
+        let managerMap = {};            // 지역명 -> 담당자명 매핑
+
         function closeCurrentInfoWindow() {
             if (currentInfoWindow) {
                 currentInfoWindow.close();
@@ -1295,7 +1298,7 @@
         // 초기화
         // ============================================================
 
-        window.onload = function () {
+        window.onload = async function () {
             document.body.classList.add('loaded'); // 페이지 로드 시 페이드 인 효과 적용
             console.log('페이지 로드 완료');
             setupUploadZones();
@@ -1303,8 +1306,12 @@
 
             initNaverMap();
 
-            loadDataFromSheets();
             initChart();
+
+            // 담당자 설정 로드 (비동기) -> 완료 후 데이터 처리 시 사용됨
+            await loadManagerConfig();
+
+            loadDataFromSheets();
 
             // 주요거래처 별 마커 로드 + 방문일지 캐시
             loadAccountsData();
@@ -1642,6 +1649,55 @@
         // ============================================================
         // 데이터 로드
         // ============================================================
+
+        // 담당자 설정 로드 (CSV)
+        async function loadManagerConfig() {
+            try {
+                // 🛑 FIXME: '담당자관리' 시트의 GID를 입력하세요 (0, 123456... 등)
+                // 기본값 0으로 시도하거나, 사용자가 제공한 값을 사용
+                const MANAGER_GID = '0';
+                const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=${MANAGER_GID}`;
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`담당자관리 시트 로드 실패 (GID=${MANAGER_GID})`);
+
+                const csvText = await response.text();
+                const lines = csvText.split('\n');
+
+                // 1행부터 데이터라고 가정 (0행은 헤더)
+                let count = 0;
+                for (let i = 1; i < lines.length; i++) {
+                    const row = lines[i].trim();
+                    if (!row) continue;
+
+                    // 쉼표로 분리 (간단한 파싱)
+                    const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+                    if (cols.length < 2) continue;
+
+                    const region = cols[0];  // A열: 지역
+                    const manager = cols[1]; // B열: 담당자
+
+                    if (region && manager) {
+                        managerMap[region] = manager;
+                        count++;
+                    }
+                }
+                console.log(`담당자 설정 로드 완료: ${count}개 지역`);
+
+            } catch (e) {
+                console.warn('담당자 설정 로드 실패 (기본값 사용):', e.message);
+                // 실패 시 비상용 기본 매핑 사용
+                managerMap = {
+                    '남양주시': '이도현', '구리시': '이도현', '가평군': '이도현', '의정부시': '이도현', '포천시': '이도현',
+                    '미추홀구': '김지훈', '동구': '김지훈', '서구': '김지훈', '남동구': '김지훈',
+                    '부평구': '김지훈', '계양구': '김지훈', '연수구': '김지훈', '중구': '김지훈',
+                    '부천시': '김지훈', '소사구': '김지훈', '원미구': '김지훈', '오정구': '김지훈',
+                    '양주시': '부대석', '파주시': '부대석', '연천군': '부대석', '철원군': '부대석', '동두천시': '부대석',
+                    '고양시 덕양구': '김재찬', '고양시 일산동구': '부대석', '고양시 일산서구': '부대석',
+                    '강화군': '김재찬', '김포시': '김재찬'
+                };
+            }
+        }
 
         async function loadDataFromSheets() {
             try {
@@ -2516,18 +2572,10 @@
                         addr3 = '확인필요';
                     }
 
-                    // 담당자 매핑
-                    const repMap = {
-                        '남양주시': '이도현', '구리시': '이도현', '가평군': '이도현', '의정부시': '이도현', '포천시': '이도현',
-                        '미추홀구': '김지훈', '동구': '김지훈', '서구': '김지훈', '남동구': '김지훈',
-                        '부평구': '김지훈', '계양구': '김지훈', '연수구': '김지훈', '중구': '김지훈',
-                        '부천시': '김지훈', '소사구': '김지훈', '원미구': '김지훈', '오정구': '김지훈',
-                        '양주시': '부대석', '파주시': '부대석', '연천군': '부대석', '철원군': '부대석', '동두천시': '부대석',
-                        '고양시 덕양구': '김재찬', '고양시 일산동구': '부대석', '고양시 일산서구': '부대석',
-                        '강화군': '김재찬', '김포시': '김재찬'
-                    };
-
-                    const manager = repMap[addr2] || '미지정';
+                    // 담당자 매핑 (동적 설정 사용)
+                    // managerMap에 해당 지역(addr2)이 있으면 사용, 없으면 '미지정'
+                    // 데이터 로드 시점보다 managerConfig 로드가 늦을 수 있으므로 체크
+                    const manager = managerMap[addr2] || '미지정';
 
                     // 순위 계산
                     let rank = '3';
