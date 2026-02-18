@@ -1344,8 +1344,15 @@
             // 같은 지역 클릭 시 필터 해제
             if (currentRegion === region) {
                 currentRegion = null;
+                // 필터 해제 시 별 마커 전체 표시
+                accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
                 currentRegion = region;
+                // 해당 지역의 별 마커만 표시 (_region = 주소2 기준)
+                accountMarkers.forEach(m => {
+                    const r = (m._region || '').trim();
+                    m.setMap(r === region ? naverMap : null);
+                });
             }
 
             updateDashboard();
@@ -1356,8 +1363,15 @@
             // 같은 담당자 클릭 시 필터 해제
             if (currentManager === manager) {
                 currentManager = null;
+                // 필터 해제 시 별 마커 전체 표시
+                accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
                 currentManager = manager;
+                // 해당 담당자의 별 마커만 표시 (_managerName = 담당자명 기준)
+                accountMarkers.forEach(m => {
+                    const mn = (m._managerName || '').trim();
+                    m.setMap(mn === manager ? naverMap : null);
+                });
             }
 
             updateDashboard();
@@ -1475,18 +1489,26 @@
         let currentAccountFilter = null;
         function filterAccountsByStatus(status) {
             if (currentAccountFilter === status) {
-                // 필터 해제
+                // 필터 해제 - 현재 담당자/지역 필터 상태를 반영해 복원
                 currentAccountFilter = null;
-                accountMarkers.forEach(m => m.setMap(naverMap));
+                accountMarkers.forEach(m => {
+                    let visible = true;
+                    if (currentManager) visible = visible && (m._managerName || '').trim() === currentManager;
+                    if (currentRegion) visible = visible && (m._region || '').trim() === currentRegion;
+                    m.setMap(visible ? naverMap : null);
+                });
                 markers.forEach(m => m.setMap(naverMap));
             } else {
                 currentAccountFilter = status;
                 // 인허가 마커 숨김
                 markers.forEach(m => m.setMap(null));
-                // 해당 상태의 별 마커만 표시 (마커에 저장된 _dealStatus 사용)
+                // 해당 상태의 별 마커만 표시 (담당자/지역 필터도 함께 적용)
                 accountMarkers.forEach(m => {
                     const ds = (m._dealStatus || '').trim();
-                    m.setMap(ds === status ? naverMap : null);
+                    let visible = ds === status;
+                    if (currentManager) visible = visible && (m._managerName || '').trim() === currentManager;
+                    if (currentRegion) visible = visible && (m._region || '').trim() === currentRegion;
+                    m.setMap(visible ? naverMap : null);
                 });
             }
         }
@@ -2163,6 +2185,8 @@
                     });
 
                     marker._dealStatus = dealStatus; // 필터용 상태 저장
+                    marker._managerName = (account['담당자명'] || '').trim(); // 담당자별 필터용
+                    marker._region = (account['주소2'] || '').trim(); // 지역별 필터용
                     accountMarkers.push(marker);
                     await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
                 } catch (e) {
