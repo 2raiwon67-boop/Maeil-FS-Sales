@@ -1478,11 +1478,9 @@
                 currentAccountFilter = status;
                 // 인허가 마커 숨김
                 markers.forEach(m => m.setMap(null));
-                // 해당 상태의 별 마커만 표시
-                accountMarkers.forEach((m, i) => {
-                    const account = accountsData[i];
-                    if (!account) return;
-                    const ds = (account['거래상태'] || '').trim();
+                // 해당 상태의 별 마커만 표시 (마커에 저장된 _dealStatus 사용)
+                accountMarkers.forEach(m => {
+                    const ds = (m._dealStatus || '').trim();
                     m.setMap(ds === status ? naverMap : null);
                 });
             }
@@ -2104,6 +2102,7 @@
                         currentInfoWindow = iw;
                     });
 
+                    marker._dealStatus = dealStatus; // 필터용 상태 저장
                     accountMarkers.push(marker);
                     await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
                 } catch (e) {

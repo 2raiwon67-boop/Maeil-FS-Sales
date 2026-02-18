@@ -1141,17 +1141,13 @@
                 const normalizedName = normalize(accountName); // 비교용 이름
                 const status = (log['거래상태'] || '').trim();
 
-                // 3. 타입 판별 및 유효성 검사
+                // 3. 타입 판별 업엄 필터링
                 let type = null;
                 if (accountNames.has(normalizedName)) type = 'major';
                 else if (licenseNames.has(normalizedName)) type = 'license';
 
-                // [긴급 수정] 엄격한 필터링 잠시 해제 (디버깅용)
-                // if (!type) {
-                //    // console.log(`제외됨: ${accountName} (norm: ${normalizedName})`);
-                //    return;
-                // }
-                if (!type) type = 'other'; // 매칭 안 되면 기타로 분류
+                // 주요거래처 또는 인허가 1순위에 매칭되지 않으면 제외
+                if (!type) return;
 
                 if (!grouped[accountName]) {
                     grouped[accountName] = {
@@ -1346,9 +1342,10 @@
         // ============================================================
 
         function populateManagerFilter() {
+            // 그룹화된 거래처의 담당자만 표시 (주요거래처/인허가 매칭된 것만)
             const managers = new Set();
-            allVisitLogs.forEach(log => {
-                if (log['작성자']) managers.add(log['작성자']);
+            groupedAccounts.forEach(account => {
+                account.visits.forEach(v => { if (v.manager) managers.add(v.manager); });
             });
 
             const select = document.getElementById('managerFilter');
