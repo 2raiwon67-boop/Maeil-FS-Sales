@@ -268,10 +268,19 @@
             background: #86868b;
         }
 
+        .priority-card.rank-account-deal::before {
+            background: #FFD700;
+        }
+
+        .priority-card.rank-account-nodeal::before {
+            background: #AAAAAA;
+        }
+
         .priority-card .label {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             margin-bottom: 4px;
+            white-space: nowrap;
         }
 
         .priority-card.rank1 .label {
@@ -286,10 +295,28 @@
             color: #86868b;
         }
 
+        .priority-card.rank-account-deal .label {
+            color: #c8a000;
+        }
+
+        .priority-card.rank-account-nodeal .label {
+            color: #888888;
+        }
+
         .priority-card .value {
-            font-size: 28px;
+            font-size: 24px;
             font-weight: 700;
             color: #1d1d1f;
+        }
+
+        .priority-card:hover {
+            background: #f5f5f7;
+            transition: background 0.15s;
+        }
+
+        .status-card:hover {
+            background: #f5f5f7;
+            transition: background 0.15s;
         }
 
         /* =============== 드롭다운 섹션 =============== */
@@ -1052,29 +1079,33 @@
     <div class="main-layout">
         <!-- 좌측 사이드바 -->
         <div class="sidebar">
-            <h1 class="sidebar-title">인허가 현황</h1>
+            <h1 class="sidebar-title">거래처 현황</h1>
 
             <!-- 방문 현황 -->
             <div class="section">
                 <div class="section-header">📍 방문 현황</div>
                 <div class="status-grid">
-                    <div class="status-card deal">
+                    <div class="status-card deal" style="cursor:pointer;" onclick="filterByStatus('거래')" title="거래 필터">
                         <div class="label">거래</div>
                         <div class="value" id="dealCount">0</div>
                     </div>
-                    <div class="status-card no-deal">
+                    <div class="status-card no-deal" style="cursor:pointer;" onclick="filterByStatus('미거래')"
+                        title="미거래 필터">
                         <div class="label">미거래</div>
                         <div class="value" id="noDealCount">0</div>
                     </div>
-                    <div class="status-card licensed">
+                    <div class="status-card licensed" style="cursor:pointer;" onclick="filterByStatus('인허가')"
+                        title="인허가 필터">
                         <div class="label">인허가</div>
                         <div class="value" id="licensedCount">0</div>
                     </div>
-                    <div class="status-card drop">
+                    <div class="status-card drop" style="cursor:pointer;" onclick="filterByStatus('DROP')"
+                        title="DROP 필터">
                         <div class="label">DROP</div>
                         <div class="value" id="dropCount">0</div>
                     </div>
-                    <div class="status-card construction">
+                    <div class="status-card construction" style="cursor:pointer;" onclick="filterByStatus('공사중')"
+                        title="공사중 필터">
                         <div class="label">공사중</div>
                         <div class="value" id="constructionCount">0</div>
                     </div>
@@ -1084,18 +1115,21 @@
             <!-- 순위별 현황 -->
             <div class="section">
                 <div class="section-header">🎯 순위별 현황</div>
-                <div class="priority-grid">
-                    <div class="priority-card rank1">
-                        <div class="label">1순위</div>
+                <div class="priority-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="priority-card rank1" style="cursor:pointer;" onclick="filterByRank('1')"
+                        title="인허가 1순위 필터">
+                        <div class="label">인허가 1순위</div>
                         <div class="value" id="rank1Count">0</div>
                     </div>
-                    <div class="priority-card rank2">
-                        <div class="label">2순위</div>
-                        <div class="value" id="rank2Count">0</div>
+                    <div class="priority-card rank-account-deal" style="cursor:pointer;"
+                        onclick="filterAccountsByStatus('거래')" title="주요 기거래처 필터">
+                        <div class="label">주요 기거래처</div>
+                        <div class="value" id="accountDealCount">0</div>
                     </div>
-                    <div class="priority-card rank3">
-                        <div class="label">3순위</div>
-                        <div class="value" id="rank3Count">0</div>
+                    <div class="priority-card rank-account-nodeal" style="cursor:pointer;"
+                        onclick="filterAccountsByStatus('미거래')" title="주요 미거래처 필터">
+                        <div class="label">주요 미거래처</div>
+                        <div class="value" id="accountNoDealCount">0</div>
                     </div>
                 </div>
             </div>
@@ -1342,8 +1376,116 @@
                 }
             });
 
+            // 주요거래처 별 마커 전체 표시
+            accountMarkers.forEach(m => m.setMap(naverMap));
+
             updateDashboard();
             updateMap();
+        }
+
+        // 방문 현황 카드 클릭 필터 (인허가 데이터)
+        function filterByStatus(status) {
+            // 인허가 마커만 필터 (currentDealStatusFilter 사용)
+            if (window.currentDealStatusFilter === status) {
+                window.currentDealStatusFilter = null;
+            } else {
+                window.currentDealStatusFilter = status;
+            }
+            // 주요거래처 별 마커 숨김 (인허가 데이터 필터 중에는 별 마커 숨김)
+            const showAccounts = window.currentDealStatusFilter === null;
+            accountMarkers.forEach(m => m.setMap(showAccounts ? naverMap : null));
+            updateMapByStatus();
+        }
+
+        function updateMapByStatus() {
+            if (!naverMap) return;
+            markers.forEach(m => m.setMap(null));
+            markers = [];
+
+            let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
+            if (currentRegion) filtered = filtered.filter(d => (d['주소2'] || '기타') === currentRegion);
+            if (currentManager) filtered = filtered.filter(d => (d['담당자'] || '미지정') === currentManager);
+            if (window.currentDealStatusFilter) {
+                filtered = filtered.filter(d => (d['거래여부(기입예정)'] || '').trim() === window.currentDealStatusFilter);
+            }
+
+            filtered.forEach(item => {
+                if (!item['위도'] || !item['경도']) return;
+                try {
+                    const lat = parseFloat(item['위도']);
+                    const lng = parseFloat(item['경도']);
+                    const pos = new naver.maps.LatLng(lat, lng);
+                    const status = (item['거래여부(기입예정)'] || '').toString().trim();
+                    let color = '#34C759';
+                    if (status === '거래') color = '#007AFF';
+                    else if (status === '미거래') color = '#FF9595';
+                    else if (status === 'DROP') color = '#8E8E93';
+                    else if (status === '공사중') color = '#FF9500';
+
+                    let isOldPermit = false;
+                    if (status === '인허가' || status === '') {
+                        const dateStr = (item['영업 허가일'] || '').replace(/-/g, '');
+                        if (dateStr.length === 8) {
+                            const permitDate = new Date(parseInt(dateStr.substring(0, 4)), parseInt(dateStr.substring(4, 6)) - 1, parseInt(dateStr.substring(6, 8)));
+                            if (Math.ceil(Math.abs(new Date() - permitDate) / (1000 * 60 * 60 * 24)) >= 14) isOldPermit = true;
+                        }
+                    }
+                    const glowClass = isOldPermit ? 'marker-glow' : '';
+                    const marker = new naver.maps.Marker({
+                        position: pos, map: naverMap,
+                        icon: { content: `<div class="${glowClass}" style="width:12px;height:12px;background:${color};border:1px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`, anchor: new naver.maps.Point(6, 6) }
+                    });
+                    naver.maps.Event.addListener(marker, 'click', function (e) {
+                        if (window.innerWidth <= 768) {
+                            if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
+                        } else {
+                            if (currentInfoWindow) currentInfoWindow.close();
+                            const iw = new naver.maps.InfoWindow({ content: createInfoWindowContent(item), backgroundColor: 'transparent', borderColor: 'transparent', anchorSkew: true, pixelOffset: new naver.maps.Point(0, -10) });
+                            iw.open(naverMap, marker); currentInfoWindow = iw;
+                        }
+                    });
+                    markers.push(marker);
+                } catch (e) { }
+            });
+        }
+
+        // 순위별 현황 클릭 필터 (인허가 1순위)
+        function filterByRank(rank) {
+            if (currentFilter === rank) {
+                currentFilter = 'all';
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.getAttribute('data-filter') === 'all') btn.classList.add('active');
+                });
+            } else {
+                currentFilter = rank;
+            }
+            window.currentDealStatusFilter = null;
+            accountMarkers.forEach(m => m.setMap(naverMap));
+            updateDashboard();
+            updateMap();
+        }
+
+        // 주요거래처 별 필터 (별 마커만 표시)
+        let currentAccountFilter = null;
+        function filterAccountsByStatus(status) {
+            if (currentAccountFilter === status) {
+                // 필터 해제
+                currentAccountFilter = null;
+                accountMarkers.forEach(m => m.setMap(naverMap));
+                markers.forEach(m => m.setMap(naverMap));
+            } else {
+                currentAccountFilter = status;
+                // 인허가 마커 숨김
+                markers.forEach(m => m.setMap(null));
+                // 해당 상태의 별 마커만 표시
+                accountMarkers.forEach((m, i) => {
+                    const account = accountsData[i];
+                    if (!account) return;
+                    const ds = (account['거래상태'] || '').trim();
+                    m.setMap(ds === status ? naverMap : null);
+                });
+            }
         }
 
         // ============================================================
@@ -1669,7 +1811,7 @@
                 filteredData = filteredData.filter(d => (d['담당자'] || '미지정') === currentManager);
             }
 
-            // 실제 Google Sheets 컬럼명 사용
+            // 실제 Google Sheets 컨럼명 사용
             document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
             document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
             document.getElementById('licensedCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '인허가').length || 0;
@@ -1678,8 +1820,12 @@
 
             // 순위는 "1", "2", "3" 형식으로 저장됨
             document.getElementById('rank1Count').textContent = filteredData.filter(d => d['순위'] === '1').length || 0;
-            document.getElementById('rank2Count').textContent = filteredData.filter(d => d['순위'] === '2').length || 0;
-            document.getElementById('rank3Count').textContent = filteredData.filter(d => d['순위'] === '3').length || 0;
+
+            // 주요거래처 카운트 업데이트
+            if (accountsData.length > 0) {
+                document.getElementById('accountDealCount').textContent = accountsData.filter(a => (a['거래상태'] || '').trim() === '거래').length || 0;
+                document.getElementById('accountNoDealCount').textContent = accountsData.filter(a => (a['거래상태'] || '').trim() === '미거래').length || 0;
+            }
 
             const regionCounts = {};
             filteredData.forEach(item => {
@@ -1912,8 +2058,8 @@
 
                     const pos = new naver.maps.LatLng(coords.lat, coords.lng);
 
-                    // 별 모양 SVG 마커
-                    const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
+                    // 별 모양 SVG 마커 (50% 축소: 22px -> 11px)
+                    const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24">
                         <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" 
                             fill="${starColor}" stroke="${starBorder}" stroke-width="1.5"/>
                     </svg>`;
@@ -1923,7 +2069,7 @@
                         map: naverMap,
                         icon: {
                             content: `<div style="cursor:pointer;">${starSVG}</div>`,
-                            anchor: new naver.maps.Point(11, 11)
+                            anchor: new naver.maps.Point(5, 5)
                         },
                         zIndex: 5  // 인허가 마커보다 위에 표시
                     });
