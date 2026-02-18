@@ -1246,6 +1246,10 @@
         let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
         let temporaryMarker = null;     // 검색으로 생성된 임시 마커
 
+        // ── 주요거래처 전용 ──
+        let accountsData = [];          // 주요거래처 원본 데이터
+        let accountMarkers = [];        // 주요거래처 별 마커
+
         function closeCurrentInfoWindow() {
             if (currentInfoWindow) {
                 currentInfoWindow.close();
@@ -1267,6 +1271,9 @@
 
             loadDataFromSheets();
             initChart();
+
+            // 주요거래처 별 마커 로드
+            loadAccountsData();
         };
 
         // ============================================================
@@ -1815,6 +1822,149 @@
                     markers.push(marker);
                 } catch (e) { }
             });
+        }
+
+        // ============================================================
+        // 주요거래처 별 마커
+        // ============================================================
+
+        async function loadAccountsData() {
+            try {
+                const ACCOUNTS_SHEET_ID = '115RdNFitLpJQgSFYTKQxU5QE1msutWbZ';
+                const ACCOUNTS_GID = '912048257';
+                const url = `https://docs.google.com/spreadsheets/d/${ACCOUNTS_SHEET_ID}/export?format=csv&gid=${ACCOUNTS_GID}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('주요거래처 시트 접근 실패');
+                const csv = await response.text();
+                accountsData = parseAccountsCSV(csv);
+                console.log(`주요거래처 로드 완료: ${accountsData.length}건`);
+                // 지도가 준비된 후 마커 표시
+                if (naverMap) {
+                    await updateAccountMarkers();
+                } else {
+                    // 지도 초기화 대기
+                    const waitForMap = setInterval(async () => {
+                        if (naverMap) {
+                            clearInterval(waitForMap);
+                            await updateAccountMarkers();
+                        }
+                    }, 500);
+                }
+            } catch (e) {
+                console.warn('주요거래처 데이터 로드 실패:', e.message);
+            }
+        }
+
+        function parseAccountsCSV(csv) {
+            const lines = csv.split('\n').filter(l => l.trim());
+            if (lines.length < 2) return [];
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            return lines.slice(1).map(line => {
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    if (line[i] === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (line[i] === ',' && !inQuotes) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += line[i];
+                    }
+                }
+                values.push(current.trim());
+                const obj = {};
+                headers.forEach((h, i) => { obj[h] = values[i] || ''; });
+                return obj;
+            }).filter(row => row['거래처명'] || row['주소']);
+        }
+
+        async function updateAccountMarkers() {
+            // 기존 별 마커 제거
+            accountMarkers.forEach(m => m.setMap(null));
+            accountMarkers = [];
+
+            for (const account of accountsData) {
+                const address = account['주소'] || '';
+                const name = account['거래처명'] || '';
+                const dealStatus = (account['거래상태'] || '').trim();
+                if (!address && !name) continue;
+
+                // 별 색상: 거래=노란색, 미거래=회색, 기타=연회색
+                const starColor = dealStatus === '거래' ? '#FFD700' : '#AAAAAA';
+                const starBorder = dealStatus === '거래' ? '#FFA500' : '#888888';
+
+                try {
+                    // 캐시 확인
+                    const cacheKey = `geocode_${address || name}`;
+                    let coords = null;
+                    const cached = localStorage.getItem(cacheKey);
+                    if (cached) {
+                        coords = JSON.parse(cached);
+                    } else {
+                        coords = await geocodeAddress(address || name);
+                        if (coords) {
+                            localStorage.setItem(cacheKey, JSON.stringify(coords));
+                        }
+                    }
+                    if (!coords) continue;
+
+                    const pos = new naver.maps.LatLng(coords.lat, coords.lng);
+
+                    // 별 모양 SVG 마커
+                    const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24">
+                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" 
+                            fill="${starColor}" stroke="${starBorder}" stroke-width="1.5"/>
+                    </svg>`;
+
+                    const marker = new naver.maps.Marker({
+                        position: pos,
+                        map: naverMap,
+                        icon: {
+                            content: `<div style="cursor:pointer;">${starSVG}</div>`,
+                            anchor: new naver.maps.Point(11, 11)
+                        },
+                        zIndex: 5  // 인허가 마커보다 위에 표시
+                    });
+
+                    // 클릭 시 InfoWindow
+                    naver.maps.Event.addListener(marker, 'click', function () {
+                        if (currentInfoWindow) currentInfoWindow.close();
+                        const iw = new naver.maps.InfoWindow({
+                            content: `
+                                <div class="custom-info-window">
+                                    <div class="info-header">
+                                        <h3>⭐ ${name}</h3>
+                                        <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
+                                    </div>
+                                    <div class="info-body">
+                                        <div class="info-row">
+                                            <span class="info-label">주소:</span>
+                                            <span class="info-value" style="font-size:12px;line-height:1.4;">${address || '-'}</span>
+                                        </div>
+                                        <div class="info-row">
+                                            <span class="info-label">거래상태:</span>
+                                            <span class="info-value" style="font-weight:600;color:${dealStatus === '거래' ? '#007AFF' : '#8E8E93'}">${dealStatus || '-'}</span>
+                                        </div>
+                                    </div>
+                                </div>`,
+                            backgroundColor: 'transparent',
+                            borderColor: 'transparent',
+                            anchorSkew: true,
+                            pixelOffset: new naver.maps.Point(0, -10)
+                        });
+                        iw.open(naverMap, marker);
+                        currentInfoWindow = iw;
+                    });
+
+                    accountMarkers.push(marker);
+                    await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
+                } catch (e) {
+                    console.warn('주요거래처 마커 생성 실패:', name, e);
+                }
+            }
+            console.log(`주요거래처 별 마커 표시 완료: ${accountMarkers.length}개`);
         }
 
         // ============================================================
