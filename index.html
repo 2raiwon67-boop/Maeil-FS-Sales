@@ -13,9 +13,16 @@
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
-    <!-- 네이버 지도 API -->
+    <!-- 네이버 지도 API (geocoder는 동적 로드로 분리하여 document.write 경고 방지) -->
     <script type="text/javascript"
-        src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl&submodules=geocoder"></script>
+        src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl"></script>
+    <script>
+        (function () {
+            var s = document.createElement('script');
+            s.src = 'https://oapi.map.naver.com/openapi/v3/maps-geocoder.js';
+            document.head.appendChild(s);
+        })();
+    </script>
 
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -3502,38 +3509,43 @@
             const infoEl = document.getElementById('routeStartInfo');
             infoEl.textContent = '📍 위치 확인 중...';
 
-            function applyLocation(pos, isNetwork) {
+            function applyLocation(pos) {
                 routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                infoEl.textContent = isNetwork ? '✅ 현재 위치 설정됨 (네트워크 기반)' : '✅ 현재 위치 설정됨';
+                infoEl.textContent = '✅ 현재 위치 설정됨';
                 if (naverMap) {
                     naverMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
                     naverMap.setZoom(14);
                 }
             }
 
+            function onLocationError(err) {
+                if (err.code === 1) {
+                    infoEl.textContent = '❌ 위치 권한 거부됨 (직접 입력 이용)';
+                    alert('위치 접근 권한이 거부되었습니다.\n브라우저/기기 설정에서 위치 권한을 허용한 후 다시 시도해주세요.');
+                } else {
+                    infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
+                    alert('현재 위치를 확인할 수 없습니다.\n직접 입력을 이용해주세요.');
+                }
+            }
+
+            // 네트워크 기반(WiFi/LTE) 위치 우선 시도 - GPS보다 빠르고 웹에서 안정적
             navigator.geolocation.getCurrentPosition(
-                (pos) => applyLocation(pos, false),
+                applyLocation,
                 (err) => {
                     if (err.code === 1) {
-                        infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
-                        alert('위치 접근 권한이 거부되었습니다.\n브라우저/기기 설정에서 위치 권한을 허용한 후 다시 시도해주세요.');
-                    } else if (err.code === 3) {
-                        // 타임아웃 → 정확도 낮춰서 네트워크 기반으로 재시도
-                        infoEl.textContent = '📍 네트워크 위치로 재시도 중...';
-                        navigator.geolocation.getCurrentPosition(
-                            (pos) => applyLocation(pos, true),
-                            () => {
-                                infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
-                                alert('위치를 확인할 수 없습니다.\n직접 입력을 이용해주세요.');
-                            },
-                            { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
-                        );
+                        // 권한 거부 - 재시도 불필요
+                        onLocationError(err);
                     } else {
-                        infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
-                        alert('현재 위치를 확인할 수 없습니다.\nGPS 또는 네트워크 연결을 확인해주세요.');
+                        // 타임아웃(3) 또는 위치 사용 불가(2) → GPS로 재시도
+                        infoEl.textContent = '📍 GPS로 재시도 중...';
+                        navigator.geolocation.getCurrentPosition(
+                            applyLocation,
+                            onLocationError,
+                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                        );
                     }
                 },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
             );
         }
 
@@ -3823,28 +3835,9 @@
             const dest = routeStops[routeStops.length - 1];
             const waypoints = routeStops.slice(0, -1); // 경유지 (목적지 제외)
 
-            const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-
-            if (isMobile) {
-                // 모바일: nmap:// 딥링크 (네이버 지도 앱 직접 열기)
-                let params = `slat=${routeStartCoord.lat}&slng=${routeStartCoord.lng}&sname=${enc('출발지')}`;
-                params += `&dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
-                waypoints.forEach((stop, i) => {
-                    params += `&v${i + 1}lat=${stop.lat}&v${i + 1}lng=${stop.lng}&v${i + 1}name=${enc(stop.name)}`;
-                });
-                params += `&appname=com.fsmassisales.app`;
-
-                const webUrl = buildNaverWebRouteUrl(waypoints, dest, enc);
-                const appUrl = `nmap://route/car?${params}`;
-                const startTime = Date.now();
-                window.location.href = appUrl;
-                // 앱 미설치 시 웹 fallback (앱이 열리면 타이머가 실행돼도 페이지가 이미 전환됨)
-                setTimeout(() => {
-                    if (Date.now() - startTime < 2500) window.open(webUrl, '_blank');
-                }, 2000);
-            } else {
-                window.open(buildNaverWebRouteUrl(waypoints, dest, enc), '_blank');
-            }
+            // nmap:// 딥링크는 NCP에 등록된 앱 ID(appname)가 없으면 경로가 표시되지 않음
+            // 웹 URL을 사용하면 모바일 브라우저에서 네이버 지도 앱 열기 유도 가능
+            window.open(buildNaverWebRouteUrl(waypoints, dest, enc), '_blank');
         }
 
         function buildNaverWebRouteUrl(waypoints, dest, enc) {
