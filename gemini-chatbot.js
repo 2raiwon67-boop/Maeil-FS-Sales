@@ -2,10 +2,9 @@
 // Gemini AI 챗봇 모듈 (머신러닝 & 전략 분석 시스템 통합 버전)
 // ============================================================
 
+// API 키는 서버(Vercel 환경변수)에서 관리 — 프론트엔드에 노출 금지
 const GEMINI_CONFIG = {
-    apiKey: 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60',
-    model: 'gemini-2.5-flash',
-    apiUrl: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent'
+    proxyUrl: '/api/gemini'  // Vercel 서버리스 프록시를 통해 호출
 };
 
 class GeminiChatbot {
@@ -188,29 +187,18 @@ class GeminiChatbot {
         };
     }
 
-    // [New] Raw Prompt Genertaion Method (No Persona Wrapping)
-    async generate(prompt) {
+    // Gemini 호출 — 프록시(/api/gemini)를 통해 API 키 노출 없이 서버에서 처리
+    async generate(prompt, generationConfig) {
         try {
-            const response = await fetch(
-                `${GEMINI_CONFIG.apiUrl}?key=${GEMINI_CONFIG.apiKey}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
-                            temperature: 0.7,
-                            maxOutputTokens: 2048,
-                            topP: 0.95,
-                            topK: 40
-                        }
-                    })
-                }
-            );
+            const response = await fetch(GEMINI_CONFIG.proxyUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, generationConfig })
+            });
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(`API Error: ${response.status} - ${errorData.error?.message || 'Unknown Error'}`);
+                throw new Error(`API Error: ${response.status} - ${errorData.error || 'Unknown Error'}`);
             }
 
             const data = await response.json();

@@ -11,7 +11,9 @@ const NAVER_CLIENT_ID = '6P6YP1khuVO_XdLF_EI4';
 const NAVER_CLIENT_SECRET = 'Ok28cDSpmL';
 
 // ── Gemini AI 설정 ──
-const GEMINI_API_KEY = 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60';
+// ⚠️ API 키는 Apps Script 스크립트 속성에서 관리 (코드에 직접 입력 금지)
+// 설정 방법: Apps Script 편집기 → 프로젝트 설정 → 스크립트 속성 → GEMINI_API_KEY 추가
+const GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY') || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 // ── 방문일지 시트 설정 (방문일지.html SHEETS_CONFIG와 동일) ──
