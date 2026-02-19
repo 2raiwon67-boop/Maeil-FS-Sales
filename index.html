@@ -4144,7 +4144,12 @@ ${question}
             const content = document.createElement('div');
             content.className = 'chatbot-message-content';
             if (type === 'bot') {
-                content.innerHTML = text.replace(/\n/g, '<br>');
+                content.innerHTML = text
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/^[-•]\s(.+)$/gm, '<li>$1</li>')
+                    .replace(/(<li>.*<\/li>)/s, '<ul style="margin:4px 0 4px 16px;padding:0;">$1</ul>')
+                    .replace(/\n/g, '<br>');
             } else {
                 content.textContent = text;
             }

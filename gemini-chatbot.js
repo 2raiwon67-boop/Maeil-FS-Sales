@@ -123,6 +123,71 @@ class GeminiChatbot {
         }
     }
 
+    // 데이터 날짜 범위 계산
+    getDateRange(visitLogs) {
+        if (!visitLogs || visitLogs.length === 0) return { start: '없음', end: '없음' };
+        const dates = visitLogs
+            .map(v => this.parseVisitDate(v['일정기간'] || v['작성일']))
+            .filter(d => d !== null)
+            .sort((a, b) => a - b);
+        if (dates.length === 0) return { start: '없음', end: '없음' };
+        const fmt = d =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return { start: fmt(dates[0]), end: fmt(dates[dates.length - 1]) };
+    }
+
+    // JS에서 집계 사전 계산 — AI에게 숫자 계산을 맡기지 않아 할루시네이션 방지
+    buildContextSummary(visitLogs) {
+        if (!visitLogs || visitLogs.length === 0) {
+            return { 총방문건수: 0, 이번달방문: 0, 이번주방문: 0, 담당자별건수: {}, 상태별건수: {}, 자주방문거래처TOP5: [] };
+        }
+
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        const thisWeekStart = new Date(todayStart);
+        thisWeekStart.setDate(todayStart.getDate() - todayStart.getDay());
+
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        const byManager = {};
+        const byAccount = {};
+        const byStatus = {};
+        let thisMonthCount = 0;
+        let thisWeekCount = 0;
+
+        visitLogs.forEach(v => {
+            const d = this.parseVisitDate(v['일정기간'] || v['작성일']);
+            if (d) {
+                if (d >= thisMonthStart) thisMonthCount++;
+                if (d >= thisWeekStart) thisWeekCount++;
+            }
+
+            const m = v['작성자'] || '미지정';
+            byManager[m] = (byManager[m] || 0) + 1;
+
+            const a = v['방문처(거래처)'] || '미지정';
+            byAccount[a] = (byAccount[a] || 0) + 1;
+
+            const s = v['거래상태'] || '미지정';
+            byStatus[s] = (byStatus[s] || 0) + 1;
+        });
+
+        const topAccounts = Object.entries(byAccount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([name, count]) => `${name}(${count}건)`);
+
+        return {
+            총방문건수: visitLogs.length,
+            이번달방문: thisMonthCount,
+            이번주방문: thisWeekCount,
+            담당자별건수: byManager,
+            상태별건수: byStatus,
+            자주방문거래처TOP5: topAccounts
+        };
+    }
+
     // [New] Raw Prompt Genertaion Method (No Persona Wrapping)
     async generate(prompt) {
         try {
@@ -160,28 +225,55 @@ class GeminiChatbot {
         }
     }
 
-    // Gemini API 호출 (Standard Chat Interface)
+    // Gemini API 호출 (구조화 응답 + 신뢰도 검증)
     async ask(question) {
         try {
-            // 관련 데이터 필터링
             const relevantData = this.filterRelevantData(question);
-
-            // 프롬프트 생성
             const prompt = this.buildPrompt(question, relevantData);
+            const rawAnswer = await this.generate(prompt);
 
-            // API 호출 (reuse generate logic internally, but buildPrompt wraps it)
-            // But to be safe and keep context/history logic separate, let's call generate directly here.
+            // JSON 파싱 시도 (Gemini가 ```json 블록으로 감쌀 수 있음)
+            let parsed = null;
+            try {
+                const jsonMatch = rawAnswer.match(/\{[\s\S]*\}/);
+                if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+            } catch (e) {
+                // JSON 파싱 실패 시 raw 텍스트 사용
+            }
 
-            const answer = await this.generate(prompt);
+            let finalAnswer;
+            if (parsed && parsed.answer) {
+                finalAnswer = parsed.answer;
 
-            // 대화 히스토리 저장
+                // 불확실한 부분 표시
+                if (parsed.uncertain) {
+                    finalAnswer += `\n\n⚠️ 불확실한 부분: ${parsed.uncertain}`;
+                }
+
+                // 신뢰도 낮을 때만 배지 표시 (high면 생략하여 UI 깔끔하게)
+                if (parsed.confidence === 'medium') {
+                    finalAnswer += `\n\n🟡 일부 추론 포함 — 중요한 결정 전 원본 데이터를 확인하세요.`;
+                } else if (parsed.confidence === 'low') {
+                    finalAnswer += `\n\n🔴 데이터 불충분 — 이 답변은 추론 비중이 높습니다. 원본 데이터를 직접 확인하세요.`;
+                }
+
+                // 근거 출처 표시
+                if (parsed.sources && parsed.sources.length > 0) {
+                    finalAnswer += `\n\n📎 근거: ${parsed.sources.join(' / ')}`;
+                }
+            } else {
+                // JSON 파싱 실패 시 원문 그대로 사용
+                finalAnswer = rawAnswer;
+            }
+
             this.conversationHistory.push({
                 question,
-                answer,
+                answer: finalAnswer,
+                confidence: parsed?.confidence || 'unknown',
                 timestamp: new Date().toISOString()
             });
 
-            return answer;
+            return finalAnswer;
 
         } catch (error) {
             console.error('Gemini API Error:', error);
@@ -189,26 +281,47 @@ class GeminiChatbot {
         }
     }
 
-    // 프롬프트 생성
+    // 프롬프트 생성 (할루시네이션 방지 강화 버전)
     buildPrompt(question, relevantData) {
-        return `당신은 경기북부 FS 영업팀의 AI 비서입니다.
-아래 방문일지 데이터를 기반으로 질문에 핵심만 간단히 요약해서 답변해주세요.
+        const summary = this.buildContextSummary(this.dataContext.visitLogs);
+        const dateRange = this.getDateRange(this.dataContext.visitLogs);
 
-# 방문일지 데이터 (최근 ${relevantData.length}건)
+        return `당신은 경기북부 FS 영업팀의 AI 비서입니다.
+
+# ⚠️ 절대 규칙 (반드시 준수 — 위반 시 답변 무효)
+1. 아래 "JS 집계 수치"와 "방문일지 상세 데이터"에만 근거하여 답변하세요.
+2. 데이터에 없는 정보는 절대 추측하거나 생성하지 마세요.
+3. 언급하는 거래처명·담당자명은 데이터에 실제로 존재하는 것만 사용하세요.
+4. 확인할 수 없는 내용은 반드시 uncertain 필드에 명시하세요.
+5. 수치는 반드시 아래 "JS 집계 수치"에서 가져오세요. 스스로 계산하지 마세요.
+
+# JS 집계 수치 (직접 계산된 정확한 값 — 이 수치를 그대로 사용)
+- 전체 방문일지 총계: ${summary.총방문건수}건
+- 데이터 보유 기간: ${dateRange.start} ~ ${dateRange.end}
+- 이번 달 방문: ${summary.이번달방문}건
+- 이번 주 방문: ${summary.이번주방문}건
+- 담당자별 방문 건수: ${JSON.stringify(summary.담당자별건수)}
+- 거래 상태별 건수: ${JSON.stringify(summary.상태별건수)}
+- 자주 방문한 거래처 TOP5: ${summary.자주방문거래처TOP5.join(', ') || '없음'}
+
+# 방문일지 상세 데이터 (질문과 관련된 ${relevantData.length}건 — 전체 ${summary.총방문건수}건 중 필터링)
 ${JSON.stringify(relevantData.slice(0, 50), null, 2)}
 
 # 사용자 질문
 ${question}
 
-# 답변 규칙
-1. **핵심만 간단하게 요약하세요.** (서술형보다는 개조식/글머리 기호 사용)
-2. 날짜는 'MM/DD' 형태로 짧게 표기하세요. (예: 2024년 8월 13일 -> 8/13)
-3. 불필요한 인사말이나 서론은 생략하고 본론부터 답변하세요.
-4. 구체적인 데이터(담당자, 거래처명)는 필요할 때만 언급하세요.
-5. 데이터가 없으면 "정보 없음"이라고만 하세요.
-6. 이모지를 적절히 사용하여 가독성을 높이세요.
+# 응답 형식 (반드시 아래 JSON 형식으로만 응답)
+{
+  "answer": "실제 답변 (개조식·이모지 활용, 핵심만, 날짜는 MM/DD 형식)",
+  "confidence": "high 또는 medium 또는 low",
+  "sources": ["근거가 된 데이터 요약 (날짜+거래처 등), 없으면 빈 배열"],
+  "uncertain": "불확실한 부분 한 줄 설명, 없으면 null"
+}
 
-답변:`;
+confidence 기준:
+- high: 데이터에 명확히 근거 있음
+- medium: 일부 추론 포함
+- low: 데이터 불충분, 추론 비중 높음`;
     }
 
     // 대화 히스토리 초기화

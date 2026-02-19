@@ -1724,9 +1724,14 @@
             const content = document.createElement('div');
             content.className = 'message-content';
 
-            // 봇 응답은 줄바꿈 처리
+            // 봇 응답: 마크다운 렌더링 (볼드, 글머리, 줄바꿈)
             if (type === 'bot') {
-                content.innerHTML = text.replace(/\n/g, '<br>'); // 마크다운 파싱을 위한 간단한 처리
+                content.innerHTML = text
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/^[-•]\s(.+)$/gm, '<li>$1</li>')
+                    .replace(/(<li>.*<\/li>)/s, '<ul style="margin:4px 0 4px 16px;padding:0;">$1</ul>')
+                    .replace(/\n/g, '<br>');
             } else {
                 content.textContent = text;
             }
