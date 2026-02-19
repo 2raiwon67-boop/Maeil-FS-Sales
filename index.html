@@ -2926,8 +2926,10 @@
                 // 성공 메시지
                 document.getElementById('loading2').classList.remove('active');
                 let msg = `✅ 업로드 완료!<br><br><strong>${result.count}건</strong>의 데이터가 저장되었습니다.`;
-                if (result.emailsSent) {
-                    msg += '<br>📧 담당자별 이메일 발송이 완료되었습니다.';
+                if (result.emailsSent && result.sentCount > 0) {
+                    msg += `<br>📧 총 <strong>${result.sentCount}통</strong>의 이메일 발송 완료`;
+                } else {
+                    msg += `<br>ℹ️ 이메일 발송 대상 없음 (D+14/28 조건 미충족)`;
                 }
                 showAlert('alert2', 'success', msg);
 
