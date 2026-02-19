@@ -3298,10 +3298,9 @@
             btnElement.classList.add('active');
 
             try {
-                // Apps Script에 상태 업데이트 요청
-                await fetch(APPS_SCRIPT_URL, {
+                // Apps Script에 상태 업데이트 요청 (no-cors 제거 → 응답 확인 가능)
+                const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     body: JSON.stringify({
                         action: 'updateStatus',
                         name: name,
@@ -3309,6 +3308,22 @@
                         status: newStatus
                     })
                 });
+
+                if (!response.ok) {
+                    throw new Error(`서버 오류 (HTTP ${response.status})`);
+                }
+
+                const text = await response.text();
+                let result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('서버 응답 파싱 실패: ' + text.substring(0, 100));
+                }
+
+                if (!result.success) {
+                    throw new Error(result.error || '구글 시트 업데이트 실패');
+                }
 
                 // 로컬 데이터 업데이트
                 const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
@@ -3320,15 +3335,14 @@
                 updateDashboard();
                 updateMap();
 
-                console.log(`동기화 요청 완료: ${name} -> ${newStatus}`);
+                console.log(`✅ 구글 시트 동기화 완료: ${name} → ${newStatus}`);
 
             } catch (err) {
                 console.error('업데이트 실패:', err);
-                alert('연동 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
-                if (originalActiveBtn) {
-                    buttons.forEach(btn => btn.classList.remove('active'));
-                    originalActiveBtn.classList.add('active');
-                }
+                // 버튼 상태 원복
+                buttons.forEach(btn => btn.classList.remove('active'));
+                if (originalActiveBtn) originalActiveBtn.classList.add('active');
+                alert(`❌ 상태 변경 실패\n\n${err.message}\n\n잠시 후 다시 시도해주세요.`);
             } finally {
                 container.classList.remove('status-saving');
             }
