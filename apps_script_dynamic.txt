@@ -152,11 +152,40 @@ function doPost(e) {
         sheet.getRange(lastRow + 1, 1, rows.length, 15).setValues(rows);
       }
 
-      // 담당자 설정 로드 및 이메일 발송
+      // 담당자 설정 로드
       const managerConfig = loadManagerConfig(ss);
-      sendEmailsByManager(data.data, managerConfig);
+      
+      // [수정] 업로드된 데이터가 아니라, 시트 전체 데이터에서 발송 대상 조회
+      const allRows = sheet.getDataRange().getValues(); // 헤더 포함
+      const allDataObjects = [];
+      
+      // 1번째 행(헤더) 제외하고 변환
+      for (let i = 1; i < allRows.length; i++) {
+        const r = allRows[i];
+        // 컬럼 인덱스 매핑 (upload 함수 참조)
+        // 0:No, 1:허가일, 2:사업장명, 3:거래여부, 4:업태, 5:평형, 6:도로명, 7-9:주소, 10:순위, 11:담당자, 12:등록일, 13:위도, 14:경도
+        allDataObjects.push({
+          '영업 허가일': r[1],
+          '사업장명': r[2],
+          '거래여부(기입예정)': r[3],
+          '업태구분명': r[4],
+          '평형': r[5],
+          '도로명전체주소': r[6],
+          '주소1': r[7], 
+          '주소2': r[8],
+          '주소3': r[9],
+          '순위': r[10],
+          '담당자': r[11],
+          '앱시트등록일': r[12],
+          '위도': r[13],
+          '경도': r[14]
+        });
+      }
 
-      return jsonResponse({ success: true, count: rows.length, emailsSent: true });
+      // 전체 데이터 대상으로 이메일 발송 함수 실행
+      const sentCount = sendEmailsByManager(allDataObjects, managerConfig);
+
+      return jsonResponse({ success: true, count: rows.length, emailsSent: sentCount > 0, sentCount: sentCount });
     }
 
     // --- 3. 담당자 이메일 매칭 (matchManagerEmail) ---
@@ -234,9 +263,13 @@ function loadManagerConfig(ss) {
 function sendEmailsByManager(allData, config) {
   // 1. 전체 대상 필터링
   const allTargets = filterEmailTargets(allData);
-  if (allTargets.newObj.length === 0 && allTargets.revisitObj.length === 0) return;
+  if (allTargets.newObj.length === 0 && allTargets.revisitObj.length === 0) {
+    Logger.log('이메일 발송 대상 없음 (D+14, D+28 조건 만족 건수 0)');
+    return 0;
+  }
 
   const { managerEmailMap, branchManagers } = config;
+  let totalSent = 0;
 
   // 2. 담당자별 발송
   // (데이터에 있는 '담당자' 컬럼 값을 기준으로 그룹화)
@@ -248,20 +281,27 @@ function sendEmailsByManager(allData, config) {
     if (!managerName || managerName === '미지정') return;
     
     const email = managerEmailMap[managerName];
-    if (!email) return; // 이메일 정보 없으면 스킵
+    if (!email) {
+      Logger.log(`이메일 정보 없음: ${managerName}`);
+      return; 
+    }
 
     const myNew = allTargets.newObj.filter(t => t.manager === managerName);
     const myRevisit = allTargets.revisitObj.filter(t => t.manager === managerName);
 
     if (myNew.length > 0 || myRevisit.length > 0) {
       sendSummaryEmail(email, { newObj: myNew, revisitObj: myRevisit });
+      totalSent++;
     }
   });
 
   // 3. 지점장 발송 (전체 리스트)
   branchManagers.forEach(email => {
     sendSummaryEmail(email, allTargets);
+    totalSent++;
   });
+
+  return totalSent;
 }
 
 // ============================================================
@@ -300,19 +340,51 @@ function filterEmailTargets(data) {
   data.forEach(row => {
     if (row['순위'] !== '1' && row['순위'] !== '2') return;
 
-    const permitDateStr = row['영업 허가일'];
+    let permitDateStr = row['영업 허가일'];
     if (!permitDateStr) return;
 
+    // 만약 문자열이고 '.'(마침표)가 있으면 '-'로 변환 (2024.02.05 -> 2024-02-05)
+    // 엑셀에서 날짜가 텍스트로 인식되는 경우 대비
+    if (typeof permitDateStr === 'string' && permitDateStr.includes('.')) {
+      permitDateStr = permitDateStr.replace(/\./g, '-');
+    }
+
     try {
-      const permitDate = new Date(permitDateStr);
+      // 날짜 형식 파싱 (YYYY-MM-DD 또는 YYYY.MM.DD)
+      const parts = permitDateStr.split(/[-.]/); // '-', '.' 모두 구분자로 처리
+      let permitDate;
+      
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1; // 월은 0부터 시작
+        const d = parseInt(parts[2], 10);
+        permitDate = new Date(y, m, d); // 스크립트 실행 시간대 기준 00:00:00
+      } else {
+        permitDate = new Date(permitDateStr); // 실패 시 기존 방식 시도
+      }
+
+      if (isNaN(permitDate.getTime())) {
+        Logger.log(`날짜 파싱 실패: ${row['영업 허가일']} -> ${permitDateStr}`); 
+        return; 
+      }
+      
       permitDate.setHours(0, 0, 0, 0);
-      const daysDiff = Math.floor((today - permitDate) / (1000 * 60 * 60 * 24));
+      
+      // 오늘 날짜 계산 (스크립트 실행 시간대 기준)
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      
+      const timeDiff = today.getTime() - permitDate.getTime();
+      const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      
+      Logger.log(`[${row['사업장명']}] ${permitDateStr} -> D+${daysDiff}일 경과`); 
 
       const item = {
         name: row['사업장명'],
         pyeong: row['평형'],
-        permitDate: permitDateStr,
+        permitDate: permitDateStr, // 원본 문자열 유지 (YYYY-MM-DD 권장)
         address: row['도로명전체주소'],
+// ...
         status: row['거래여부(기입예정)'],
         manager: row['담당자'],
         lat: row['위도'],
@@ -320,9 +392,12 @@ function filterEmailTargets(data) {
         nearby: findNearbyStores(row, data)
       };
 
-      if (daysDiff === 14) {
+      // 1. D+14 이상: '인허가' 상태만 (14일 이상 경과한 모든 '인허가' 건)
+      if (daysDiff >= 14 && row['거래여부(기입예정)'] === '인허가') {
         newTargets.push(item);
-      } else if (daysDiff === 28 && row['거래여부(기입예정)'] === '공사중') {
+      } 
+      // 2. D+28 이상: '공사중' 상태만 (28일 이상 경과한 모든 '공사중' 건)
+      else if (daysDiff >= 28 && row['거래여부(기입예정)'] === '공사중') {
         revisitTargets.push(item);
       }
     } catch (e) {}
