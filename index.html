@@ -2301,31 +2301,138 @@
                 (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
             );
 
-            if (dbResult) {
-                // DB에 위도/경도가 있다면 사용
-                if (dbResult['위도'] && dbResult['경도']) {
-                    const lat = parseFloat(dbResult['위도']);
-                    const lng = parseFloat(dbResult['경도']);
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        const moveLatLon = new naver.maps.LatLng(lat, lng);
-                        naverMap.setCenter(moveLatLon);
-                        naverMap.setZoom(15);
-                        return;
-                    }
+            if (dbResult && dbResult['위도'] && dbResult['경도']) {
+                const lat = parseFloat(dbResult['위도']);
+                const lng = parseFloat(dbResult['경도']);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    naverMap.setCenter(new naver.maps.LatLng(lat, lng));
+                    naverMap.setZoom(16);
+                    return;
                 }
             }
 
-            // 2. DB 결과 없을 경우 → Geocoding 시도
-            console.log('DB 검색 실패. 주소 검색 시도:', keyword);
-            const coords = await geocodeAddress(keyword);
+            // 2. 네이버 장소 검색 (Apps Script 프록시)
+            console.log('네이버 장소 검색 시도:', keyword);
+            try {
+                const naverResults = await searchNaverPlaces(keyword);
+                if (naverResults && naverResults.length > 0) {
+                    showNaverSearchResults(naverResults, keyword);
+                    return;
+                }
+            } catch (e) {
+                console.warn('네이버 장소 검색 실패 (주소 검색으로 대체):', e.message);
+            }
 
+            // 3. 최종 fallback → Geocoding
+            const coords = await geocodeAddress(keyword);
             if (coords) {
-                const moveLatLon = new naver.maps.LatLng(coords.lat, coords.lng);
-                naverMap.setCenter(moveLatLon);
+                naverMap.setCenter(new naver.maps.LatLng(coords.lat, coords.lng));
                 naverMap.setZoom(16);
                 createTemporaryMarker(coords.lat, coords.lng, keyword);
             } else {
-                alert('검색 결과를 찾을 수 없습니다.\n\n주소 형식 예시:\n- 경기도 남양주시 ...\n- 사업장명 입력');
+                alert('검색 결과를 찾을 수 없습니다.\n\n주소 또는 상호명을 입력해주세요.');
+            }
+        }
+
+        // 네이버 장소 검색 (Apps Script 프록시 경유)
+        async function searchNaverPlaces(keyword) {
+            const response = await fetch(
+                APPS_SCRIPT_URL + '?action=naverSearch&query=' + encodeURIComponent(keyword)
+            );
+            const data = await response.json();
+            if (!data.success) throw new Error(data.error || '검색 실패');
+            return data.items || [];
+        }
+
+        // 네이버 장소 검색 결과를 지도에 마커로 표시
+        function showNaverSearchResults(items, keyword) {
+            // 기존 임시 마커 제거
+            if (temporaryMarker) {
+                temporaryMarker.setMap(null);
+                temporaryMarker = null;
+            }
+            if (window._naverSearchMarkers) {
+                window._naverSearchMarkers.forEach(m => m.setMap(null));
+            }
+            window._naverSearchMarkers = [];
+
+            if (currentInfoWindow) currentInfoWindow.close();
+
+            // KATECH 좌표 → WGS84 변환 (네이버 검색 API는 KATECH 좌표 반환)
+            // mapx = 경도 * 10^7, mapy = 위도 * 10^7
+            const bounds = new naver.maps.LatLngBounds();
+            let firstPos = null;
+
+            items.forEach((item, idx) => {
+                const lat = parseFloat(item.mapy) / 1e7;
+                const lng = parseFloat(item.mapx) / 1e7;
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                const pos = new naver.maps.LatLng(lat, lng);
+                bounds.extend(pos);
+                if (!firstPos) firstPos = pos;
+
+                const marker = new naver.maps.Marker({
+                    position: pos,
+                    map: naverMap,
+                    icon: {
+                        content: `<div style="
+                            background:#AF52DE; color:white;
+                            border-radius:50%; width:22px; height:22px;
+                            display:flex; align-items:center; justify-content:center;
+                            font-size:11px; font-weight:700;
+                            border:2px solid white;
+                            box-shadow:0 2px 6px rgba(0,0,0,0.3);
+                            cursor:pointer;">${idx + 1}</div>`,
+                        anchor: new naver.maps.Point(11, 11)
+                    },
+                    zIndex: 20
+                });
+
+                naver.maps.Event.addListener(marker, 'click', function () {
+                    if (currentInfoWindow) currentInfoWindow.close();
+                    const naverPlaceUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item.title)}`;
+                    const iw = new naver.maps.InfoWindow({
+                        content: `
+                            <div class="custom-info-window" style="min-width:240px;">
+                                <div class="info-header" style="background:linear-gradient(135deg,#6f42c1,#AF52DE);">
+                                    <h3>🔍 ${item.title}</h3>
+                                    <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
+                                </div>
+                                <div class="info-body">
+                                    ${item.category ? `<div class="info-row"><span class="info-label">업종</span><span class="info-value" style="color:#AF52DE;">${item.category}</span></div>` : ''}
+                                    ${item.roadAddress ? `<div class="info-row"><span class="info-label">도로명</span><span class="info-value" style="font-size:12px;">${item.roadAddress}</span></div>` : ''}
+                                    ${item.address ? `<div class="info-row"><span class="info-label">지번</span><span class="info-value" style="font-size:12px;">${item.address}</span></div>` : ''}
+                                    ${item.telephone ? `<div class="info-row"><span class="info-label">전화</span><span class="info-value">${item.telephone}</span></div>` : ''}
+                                </div>
+                                <div class="info-footer">
+                                    <button class="naver-map-btn" onclick="window.open('${naverPlaceUrl}','_blank')">
+                                        네이버 지도에서 보기
+                                    </button>
+                                </div>
+                            </div>`,
+                        backgroundColor: 'transparent',
+                        borderColor: 'transparent',
+                        anchorSkew: true,
+                        pixelOffset: new naver.maps.Point(0, -10)
+                    });
+                    iw.open(naverMap, marker);
+                    currentInfoWindow = iw;
+                });
+
+                window._naverSearchMarkers.push(marker);
+            });
+
+            if (window._naverSearchMarkers.length === 1 && firstPos) {
+                naverMap.setCenter(firstPos);
+                naverMap.setZoom(16);
+            } else if (window._naverSearchMarkers.length > 1) {
+                naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+            }
+
+            // 첫 번째 결과 자동 InfoWindow 표시
+            if (window._naverSearchMarkers.length > 0) {
+                naver.maps.Event.trigger(window._naverSearchMarkers[0], 'click');
             }
         }
 

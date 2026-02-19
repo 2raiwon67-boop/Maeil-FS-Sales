@@ -1,27 +1,98 @@
 /* ==========================================================
- * [업데이트됨] 담당자별 분리 이메일 발송 기능 추가
- * - 각 담당자는 본인 구역 건만 수신
- * - 강병주 지점장은 전체 리스트 수신
+ * [업데이트됨] 동적 담당자 관리 기능 (구글 시트 연동)
+ * - '담당자관리' 시트에서 설정을 읽어와 이메일을 발송합니다.
+ * - 지점장(전체 수신)도 '담당자관리' 시트에서 '지점장'으로 설정합니다.
+ * - doGet: 담당자 목록 조회 / 네이버 장소 검색 프록시
+ * - doPost: 상태 변경 / 최종본 업로드 / 담당자 이메일 매칭
  * ========================================================== */
 
-// ── 담당자별 이메일 매핑 ──
-const MANAGER_EMAIL_MAP = {
-  '이도현': 'yidodaily@maeil.com',
-  '김지훈': 'stephanus@maeil.com',
-  '부대석': 'apple2@maeil.com',
-  '김재찬': 'chan1172@maeil.com'
-};
-
-// ── 지점장 (전체 리스트 수신) ──
-const BRANCH_MANAGER = {
-  name: '강병주',
-  email: 'kbj8485@maeil.com'
-};
+// ── 네이버 검색 API 인증 (developers.naver.com 에서 발급) ──
+const NAVER_CLIENT_ID = '6P6YP1khuVO_XdLF_EI4';
+const NAVER_CLIENT_SECRET = 'Ok28cDSpmL';
 
 const EMAIL_CONFIG = {
   senderName: '경기북부FS (인허가 알림)',
   subjectTemplate: '[인허가 알림] 금일 방문 대상: 신규 {newCount}건 / 재확인 {revisitCount}건'
 };
+
+// ============================================================
+// doGet - GET 요청 처리 (담당자 목록 조회 / 네이버 장소 검색)
+// ============================================================
+function doGet(e) {
+  const action = e.parameter.action;
+
+  // --- 1. 담당자 목록 조회 ---
+  if (action === 'getManagers') {
+    try {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName('담당자관리');
+      if (!sheet) {
+        return jsonResponse({ success: false, error: '담당자관리 시트 없음' });
+      }
+
+      const data = sheet.getDataRange().getValues();
+      const managers = [];
+      for (let i = 1; i < data.length; i++) {
+        const region = data[i][0];
+        const name   = data[i][1];
+        const email  = data[i][2];
+        if (name) managers.push({ region: region || '', name, email: email || '' });
+      }
+      return jsonResponse({ success: true, managers });
+    } catch (err) {
+      return jsonResponse({ success: false, error: err.toString() });
+    }
+  }
+
+  // --- 2. 네이버 장소 검색 프록시 ---
+  if (action === 'naverSearch') {
+    const query = e.parameter.query;
+    if (!query) return jsonResponse({ success: false, error: '검색어 없음' });
+
+    try {
+      const url = 'https://openapi.naver.com/v1/search/local.json?query='
+                  + encodeURIComponent(query) + '&display=5&sort=comment';
+
+      const response = UrlFetchApp.fetch(url, {
+        method: 'GET',
+        headers: {
+          'X-Naver-Client-Id': NAVER_CLIENT_ID,
+          'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
+        },
+        muteHttpExceptions: true
+      });
+
+      const code = response.getResponseCode();
+      if (code !== 200) {
+        return jsonResponse({ success: false, error: 'Naver API 오류: ' + code });
+      }
+
+      const result = JSON.parse(response.getContentText());
+      // 필요한 필드만 추출 (제목, 카테고리, 주소, 전화, 위경도)
+      const items = (result.items || []).map(item => ({
+        title:    item.title.replace(/<[^>]+>/g, ''),  // HTML 태그 제거
+        category: item.category,
+        address:  item.address,
+        roadAddress: item.roadAddress,
+        telephone: item.telephone,
+        mapx:     item.mapx,  // 경도 * 10000000 (KATECH 좌표계)
+        mapy:     item.mapy   // 위도 * 10000000
+      }));
+
+      return jsonResponse({ success: true, items });
+    } catch (err) {
+      return jsonResponse({ success: false, error: err.toString() });
+    }
+  }
+
+  return jsonResponse({ success: false, error: '알 수 없는 action: ' + action });
+}
+
+// JSON 응답 헬퍼
+function jsonResponse(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 
 // ============================================================
 // doPost
@@ -58,7 +129,7 @@ function doPost(e) {
       }
 
       const lastRow = sheet.getLastRow();
-      const startNo = lastRow;
+      const startNo = lastRow; // 번호는 마지막 행부터 시작
       const rows = data.data.map((row, index) => [
         startNo + index,
         row['영업 허가일'] || '',
@@ -81,51 +152,123 @@ function doPost(e) {
         sheet.getRange(lastRow + 1, 1, rows.length, 15).setValues(rows);
       }
 
-      // 담당자별 분리 이메일 발송
-      sendEmailsByManager(data.data);
+      // 담당자 설정 로드 및 이메일 발송
+      const managerConfig = loadManagerConfig(ss);
+      sendEmailsByManager(data.data, managerConfig);
 
-      return ContentService.createTextOutput(JSON.stringify({
-        success: true,
-        count: rows.length,
-        emailsSent: true
-      })).setMimeType(ContentService.MimeType.JSON);
+      return jsonResponse({ success: true, count: rows.length, emailsSent: true });
+    }
+
+    // --- 3. 담당자 이메일 매칭 (matchManagerEmail) ---
+    // 로그인/회원가입 시 사용자 이름이 담당자관리 시트와 일치하면 이메일 자동 업데이트
+    if (data.action === 'matchManagerEmail') {
+      const name  = data.name;   // Supabase full_name
+      const email = data.email;  // Supabase 인증 이메일
+
+      if (!name || !email) {
+        return jsonResponse({ success: false, error: '이름 또는 이메일 없음' });
+      }
+
+      const managerSheet = ss.getSheetByName('담당자관리');
+      if (!managerSheet) {
+        return jsonResponse({ success: false, error: '담당자관리 시트 없음' });
+      }
+
+      const sheetData = managerSheet.getDataRange().getValues();
+      for (let i = 1; i < sheetData.length; i++) {
+        if (sheetData[i][1] === name) {          // B열: 담당자 이름
+          managerSheet.getRange(i + 1, 3).setValue(email); // C열: 이메일 업데이트
+          Logger.log(`담당자 이메일 자동 매칭: ${name} → ${email}`);
+          return jsonResponse({ success: true, matched: true, name, email });
+        }
+      }
+
+      // 이름이 시트에 없는 경우 (B방식: 가입은 허용, 매칭만 안 됨)
+      return jsonResponse({ success: true, matched: false, name });
     }
 
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse({ success: false, error: error.toString() });
   }
 }
 
 // ============================================================
-// 담당자별 분리 이메일 발송 (핵심 함수)
+// 담당자 설정 로드 ('담당자관리' 시트)
 // ============================================================
-function sendEmailsByManager(allData) {
-  // 1. 전체 D+14/D+28 대상 추출
-  const allTargets = filterEmailTargets(allData);
+function loadManagerConfig(ss) {
+  const sheet = ss.getSheetByName('담당자관리');
+  if (!sheet) {
+    throw new Error("'담당자관리' 시트를 찾을 수 없습니다.");
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  // 헤더 제외 (1행부터 데이터라고 가정)
+  // 구조: [지역, 담당자, 이메일, 구분(선택)]
+  
+  const managerEmailMap = {}; // 담당자 -> 이메일
+  const branchManagers = [];  // 지점장 목록
 
-  // 2. 대상이 하나도 없으면 발송 안 함
+  // 1번째 행(헤더) 제외하고 순회
+  for (let i = 1; i < data.length; i++) {
+    const region = data[i][0];
+    const name = data[i][1];
+    const email = data[i][2];
+    
+    if (!name || !email) continue;
+    
+    // '지점장' 또는 '전체'인 경우 전송 리스트에 추가
+    if (region === '지점장' || region === '전체') {
+      branchManagers.push(email);
+    } else {
+      // 일반 담당자 이메일 매핑
+      managerEmailMap[name] = email;
+    }
+  }
+  
+  return { managerEmailMap, branchManagers };
+}
+
+// ============================================================
+// 담당자별 분리 이메일 발송
+// ============================================================
+function sendEmailsByManager(allData, config) {
+  // 1. 전체 대상 필터링
+  const allTargets = filterEmailTargets(allData);
   if (allTargets.newObj.length === 0 && allTargets.revisitObj.length === 0) return;
 
-  // 3. 각 담당자에게 본인 구역 건만 발송
-  Object.entries(MANAGER_EMAIL_MAP).forEach(([managerName, email]) => {
-    const myNew     = allTargets.newObj.filter(t => t.manager === managerName);
+  const { managerEmailMap, branchManagers } = config;
+
+  // 2. 담당자별 발송
+  // (데이터에 있는 '담당자' 컬럼 값을 기준으로 그룹화)
+  const managersInNew = new Set(allTargets.newObj.map(t => t.manager));
+  const managersInRevisit = new Set(allTargets.revisitObj.map(t => t.manager));
+  const activeManagers = new Set([...managersInNew, ...managersInRevisit]);
+
+  activeManagers.forEach(managerName => {
+    if (!managerName || managerName === '미지정') return;
+    
+    const email = managerEmailMap[managerName];
+    if (!email) return; // 이메일 정보 없으면 스킵
+
+    const myNew = allTargets.newObj.filter(t => t.manager === managerName);
     const myRevisit = allTargets.revisitObj.filter(t => t.manager === managerName);
 
-    if (myNew.length === 0 && myRevisit.length === 0) return; // 본인 구역 건 없으면 발송 안 함
-
-    sendSummaryEmail(email, { newObj: myNew, revisitObj: myRevisit });
+    if (myNew.length > 0 || myRevisit.length > 0) {
+      sendSummaryEmail(email, { newObj: myNew, revisitObj: myRevisit });
+    }
   });
 
-  // 4. 지점장에게는 전체 리스트 발송
-  sendSummaryEmail(BRANCH_MANAGER.email, allTargets);
+  // 3. 지점장 발송 (전체 리스트)
+  branchManagers.forEach(email => {
+    sendSummaryEmail(email, allTargets);
+  });
 }
 
 // ============================================================
 // 이메일 발송 (단일 수신자)
 // ============================================================
 function sendSummaryEmail(recipientEmail, targets) {
-  const newCount     = targets.newObj.length;
+  const newCount = targets.newObj.length;
   const revisitCount = targets.revisitObj.length;
 
   const subject = EMAIL_CONFIG.subjectTemplate
@@ -151,7 +294,7 @@ function filterEmailTargets(data) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const newTargets     = [];
+  const newTargets = [];
   const revisitTargets = [];
 
   data.forEach(row => {
@@ -166,15 +309,15 @@ function filterEmailTargets(data) {
       const daysDiff = Math.floor((today - permitDate) / (1000 * 60 * 60 * 24));
 
       const item = {
-        name:       row['사업장명'],
-        pyeong:     row['평형'],
+        name: row['사업장명'],
+        pyeong: row['평형'],
         permitDate: permitDateStr,
-        address:    row['도로명전체주소'],
-        status:     row['거래여부(기입예정)'],
-        manager:    row['담당자'],
-        lat:        row['위도'],
-        lon:        row['경도'],
-        nearby:     findNearbyStores(row, data)
+        address: row['도로명전체주소'],
+        status: row['거래여부(기입예정)'],
+        manager: row['담당자'],
+        lat: row['위도'],
+        lon: row['경도'],
+        nearby: findNearbyStores(row, data)
       };
 
       if (daysDiff === 14) {

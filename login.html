@@ -199,7 +199,7 @@
                         localStorage.setItem('fs_admin_access', 'true');
                         console.log('Admin access granted.');
                         alert('관리자 모드로 접속합니다.');
-                        window.location.href = '/'; // 절대 경로로 이동
+                        window.location.href = 'index.html';
                     } catch (e) {
                         console.error('Local storage error:', e);
                         alert('브라우저 설정 오류로 로그인이 차단되었습니다. 쿠키/사이트 데이터 설정을 확인해주세요.');
@@ -241,6 +241,10 @@
                     }
 
                     alert('회원가입 및 로그인이 완료되었습니다!');
+                    // 담당자 이메일 자동 매칭 (백그라운드, 실패해도 무관)
+                    if (typeof matchManagerEmail === 'function') {
+                        matchManagerEmail(fullName, email).catch(() => {});
+                    }
                     window.location.href = 'index.html';
                 } else {
                     // Supabase js 로딩 체크
@@ -252,6 +256,12 @@
                             throw new Error('이메일 인증이 완료되지 않았습니다.\n가입하신 이메일의 수신함을 확인하여 인증 링크를 클릭해주세요.');
                         }
                         throw result.error;
+                    }
+                    // 로그인 시 담당자 이름 추출 후 매칭
+                    const loggedUser = result.data?.user;
+                    const loggedName = loggedUser?.user_metadata?.full_name || '';
+                    if (typeof matchManagerEmail === 'function' && loggedName) {
+                        matchManagerEmail(loggedName, email).catch(() => {});
                     }
                     window.location.href = 'index.html';
                 }
