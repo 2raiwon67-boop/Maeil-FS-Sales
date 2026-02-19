@@ -2881,7 +2881,17 @@
                 try {
                     const data = new Uint8Array(e.target.result);
                     const wb = XLSX.read(data, { type: 'array' });
-                    const finalData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    let finalData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+
+                    // 1순위만 필터링 (사용자 요청)
+                    const originalCount = finalData.length;
+                    finalData = finalData.filter(row => (row['순위'] || '').toString().trim() === '1');
+                    console.log(`순위 필터링: 전 ${originalCount}건 -> 후 ${finalData.length}건 (1순위만)`);
+
+                    if (finalData.length === 0) {
+                        throw new Error('업로드할 데이터 중 1순위 데이터가 없습니다.');
+                    }
+
                     await uploadToSheets(finalData);
                 } catch (err) {
                     document.getElementById('loading2').classList.remove('active');
