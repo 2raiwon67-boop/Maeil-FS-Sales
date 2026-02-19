@@ -3470,6 +3470,7 @@
 
         function closeRoutePanel() {
             document.getElementById('routePanel').classList.remove('active');
+            clearRoute();
         }
 
         function openStartInput() {
@@ -3500,22 +3501,37 @@
             if (!navigator.geolocation) { alert('위치 서비스를 지원하지 않는 브라우저입니다.'); return; }
             const infoEl = document.getElementById('routeStartInfo');
             infoEl.textContent = '📍 위치 확인 중...';
+
+            function applyLocation(pos, isNetwork) {
+                routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                infoEl.textContent = isNetwork ? '✅ 현재 위치 설정됨 (네트워크 기반)' : '✅ 현재 위치 설정됨';
+                if (naverMap) {
+                    naverMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+                    naverMap.setZoom(14);
+                }
+            }
+
             navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    infoEl.textContent = `✅ 현재 위치 설정됨`;
-                    if (naverMap) {
-                        naverMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
-                        naverMap.setZoom(14);
-                    }
-                },
+                (pos) => applyLocation(pos, false),
                 (err) => {
-                    let msg = '위치 정보를 가져올 수 없습니다.';
-                    if (err.code === 1) msg = '위치 접근 권한이 거부되었습니다.\n브라우저/기기 설정에서 위치 권한을 허용한 후 다시 시도해주세요.';
-                    else if (err.code === 2) msg = '현재 위치를 확인할 수 없습니다.\nGPS 또는 네트워크 연결을 확인해주세요.';
-                    else if (err.code === 3) msg = '위치 확인 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.';
-                    infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
-                    alert(msg);
+                    if (err.code === 1) {
+                        infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
+                        alert('위치 접근 권한이 거부되었습니다.\n브라우저/기기 설정에서 위치 권한을 허용한 후 다시 시도해주세요.');
+                    } else if (err.code === 3) {
+                        // 타임아웃 → 정확도 낮춰서 네트워크 기반으로 재시도
+                        infoEl.textContent = '📍 네트워크 위치로 재시도 중...';
+                        navigator.geolocation.getCurrentPosition(
+                            (pos) => applyLocation(pos, true),
+                            () => {
+                                infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
+                                alert('위치를 확인할 수 없습니다.\n직접 입력을 이용해주세요.');
+                            },
+                            { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+                        );
+                    } else {
+                        infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
+                        alert('현재 위치를 확인할 수 없습니다.\nGPS 또는 네트워크 연결을 확인해주세요.');
+                    }
                 },
                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
@@ -3597,13 +3613,40 @@
                     }
                 });
 
-            const allStops = [...primaryStops, ...accountStops];
+            // 3. 최대 5개 제한 (네이버 지도 경유지 한계)
+            const MAX_TOTAL = 5;
+
+            // 인허가 1순위 + 공사중: 출발지 기준 가까운 순으로 최대 MAX_TOTAL개
+            primaryStops.sort((a, b) =>
+                haversineKm(routeStartCoord.lat, routeStartCoord.lng, a.lat, a.lng) -
+                haversineKm(routeStartCoord.lat, routeStartCoord.lng, b.lat, b.lng)
+            );
+            const selectedPrimaries = primaryStops.slice(0, MAX_TOTAL);
+            const remainingSlots = MAX_TOTAL - selectedPrimaries.length;
+
+            // 미거래처: 잔여 슬롯 내에서 방문일지 기반 우선순위 (미방문 > 오래된 방문 순)
+            let selectedAccounts = [];
+            if (remainingSlots > 0 && accountStops.length > 0) {
+                const sortedAccounts = accountStops.map(stop => {
+                    const lastVisit = window.visitLogCache
+                        ? window.visitLogCache.find(v => (v['방문처(거래처)'] || '').trim() === stop.name)
+                        : null;
+                    return { ...stop, _lastVisitDate: lastVisit ? (lastVisit['일정기간'] || '') : '' };
+                }).sort((a, b) => {
+                    if (!a._lastVisitDate && b._lastVisitDate) return -1; // 미방문 우선
+                    if (a._lastVisitDate && !b._lastVisitDate) return 1;
+                    return a._lastVisitDate.localeCompare(b._lastVisitDate); // 오래된 방문 우선
+                });
+                selectedAccounts = sortedAccounts.slice(0, remainingSlots);
+            }
+
+            const allStops = [...selectedPrimaries, ...selectedAccounts];
             if (allStops.length === 0) {
                 alert('출발지 반경 3km 이내에 방문 대상이 없습니다.\n출발지를 변경하거나 데이터를 확인해주세요.');
                 return;
             }
 
-            // 3. 최근접 이웃 알고리즘 (Nearest Neighbor TSP)
+            // 4. 최근접 이웃 알고리즘 (Nearest Neighbor TSP)
             routeStops = nearestNeighborTSP(allStops, routeStartCoord);
 
             // 4. 지도 표시 및 결과 렌더링
@@ -3719,21 +3762,15 @@
         function openNaverMapsRoute() {
             if (routeStops.length === 0) return;
 
-            const MAX_WP = 5; // 네이버 지도 최대 경유지 5개
             const enc = s => encodeURIComponent(s);
-
-            // 경유지 초과 시 균등 분배: 첫 MAX_WP개 + 마지막(목적지) 보장
-            const usedStops = routeStops.length > MAX_WP + 1
-                ? [...routeStops.slice(0, MAX_WP), routeStops[routeStops.length - 1]]
-                : routeStops;
-
-            const dest = usedStops[usedStops.length - 1];
-            const waypoints = usedStops.slice(0, -1); // 경유지 (목적지 제외)
+            // routeStops는 이미 최대 5개로 제한됨
+            const dest = routeStops[routeStops.length - 1];
+            const waypoints = routeStops.slice(0, -1); // 경유지 (목적지 제외)
 
             const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
 
             if (isMobile) {
-                // 모바일: nmap:// 딥링크로 네이버 지도 앱 직접 열기
+                // 모바일: nmap:// 딥링크 (네이버 지도 앱 직접 열기)
                 let params = `slat=${routeStartCoord.lat}&slng=${routeStartCoord.lng}&sname=${enc('출발지')}`;
                 params += `&dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
                 waypoints.forEach((stop, i) => {
@@ -3741,24 +3778,27 @@
                 });
                 params += `&appname=com.fsmassisales.app`;
 
-                // 앱 딥링크 시도 후 2초 뒤 웹으로 fallback
                 const webUrl = buildNaverWebRouteUrl(waypoints, dest, enc);
-                window.location.href = `nmap://route/car?${params}`;
-                setTimeout(() => { window.open(webUrl, '_blank'); }, 2000);
+                const appUrl = `nmap://route/car?${params}`;
+                const startTime = Date.now();
+                window.location.href = appUrl;
+                // 앱 미설치 시 웹 fallback (앱이 열리면 타이머가 실행돼도 페이지가 이미 전환됨)
+                setTimeout(() => {
+                    if (Date.now() - startTime < 2500) window.open(webUrl, '_blank');
+                }, 2000);
             } else {
-                // 데스크탑: 웹 URL (경유지 전체 포함)
                 window.open(buildNaverWebRouteUrl(waypoints, dest, enc), '_blank');
             }
         }
 
         function buildNaverWebRouteUrl(waypoints, dest, enc) {
-            const startStr = `${routeStartCoord.lng},${routeStartCoord.lat},${enc('출발지')}`;
+            // Naver Maps 웹 directions URL: lng,lat,name 순서
             const parts = [
-                startStr,
+                `${routeStartCoord.lng},${routeStartCoord.lat},${enc('출발지')}`,
                 ...waypoints.map(s => `${s.lng},${s.lat},${enc(s.name)}`),
                 `${dest.lng},${dest.lat},${enc(dest.name)}`
             ];
-            return `https://map.naver.com/p/directions/${parts.join('/')}/-/car/-/-/-/transit`;
+            return `https://map.naver.com/p/directions/${parts.join('/')}/-/car`;
         }
     </script>
 
