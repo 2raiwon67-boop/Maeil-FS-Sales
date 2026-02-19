@@ -3835,9 +3835,33 @@
             const dest = routeStops[routeStops.length - 1];
             const waypoints = routeStops.slice(0, -1); // 경유지 (목적지 제외)
 
-            // nmap:// 딥링크는 NCP에 등록된 앱 ID(appname)가 없으면 경로가 표시되지 않음
-            // 웹 URL을 사용하면 모바일 브라우저에서 네이버 지도 앱 열기 유도 가능
-            window.open(buildNaverWebRouteUrl(waypoints, dest, enc), '_blank');
+            const webUrl = buildNaverWebRouteUrl(waypoints, dest, enc);
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const isIOS = /iPhone|iPad/i.test(navigator.userAgent);
+
+            // 경로 파라미터 조립 (appname 제거 - 미등록 ID가 경로 거부 원인이었음)
+            let routeParams = `slat=${routeStartCoord.lat}&slng=${routeStartCoord.lng}&sname=${enc('출발지')}`;
+            routeParams += `&dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
+            waypoints.forEach((stop, i) => {
+                routeParams += `&v${i + 1}lat=${stop.lat}&v${i + 1}lng=${stop.lng}&v${i + 1}name=${enc(stop.name)}`;
+            });
+
+            if (isAndroid) {
+                // Android: intent:// 스킴으로 Naver Maps 앱 패키지 직접 지정 (appname 불필요)
+                // 앱 미설치 시 웹 URL로 자동 폴백
+                window.location.href = `intent://route/car?${routeParams}#Intent;scheme=nmap;package=com.nhn.android.nmap;S.browser_fallback_url=${enc(webUrl)};end`;
+            } else if (isIOS) {
+                // iOS: nmap:// 스킴 (appname 없이 사용 가능)
+                const startTime = Date.now();
+                window.location.href = `nmap://route/car?${routeParams}`;
+                // 앱 미설치 시 웹 URL 폴백 (앱이 열리면 타이머 실행돼도 페이지 전환 완료)
+                setTimeout(() => {
+                    if (Date.now() - startTime < 2500) window.open(webUrl, '_blank');
+                }, 2000);
+            } else {
+                // 데스크탑: 웹 URL 새 탭
+                window.open(webUrl, '_blank');
+            }
         }
 
         function buildNaverWebRouteUrl(waypoints, dest, enc) {
