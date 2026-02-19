@@ -3721,7 +3721,7 @@
                 ...waypoints.map(s => `${s.lng},${s.lat},${enc(s.name)}`),
                 `${dest.lng},${dest.lat},${enc(dest.name)}`
             ];
-            return `https://map.naver.com/v5/directions/${parts.join('/')}/-/car`;
+            return `https://map.naver.com/p/directions/${parts.join('/')}/-/car/-/-/-/transit`;
         }
     </script>
 
