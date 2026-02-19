@@ -183,9 +183,15 @@ function doPost(e) {
       }
 
       // 전체 데이터 대상으로 이메일 발송 함수 실행
-      const sentCount = sendEmailsByManager(allDataObjects, managerConfig);
+      const result = sendEmailsByManager(allDataObjects, managerConfig);
 
-      return jsonResponse({ success: true, count: rows.length, emailsSent: sentCount > 0, sentCount: sentCount });
+      return jsonResponse({ 
+        success: true, 
+        count: rows.length, 
+        emailsSent: result.count > 0, 
+        sentCount: result.count,
+        logs: result.logs // 디버그 로그 포함
+      });
     }
 
     // --- 3. 담당자 이메일 매칭 (matchManagerEmail) ---
@@ -265,7 +271,8 @@ function sendEmailsByManager(allData, config) {
   const allTargets = filterEmailTargets(allData);
   if (allTargets.newObj.length === 0 && allTargets.revisitObj.length === 0) {
     Logger.log('이메일 발송 대상 없음 (D+14, D+28 조건 만족 건수 0)');
-    return 0;
+    // 로그가 있으면 반환
+    return { count: 0, logs: allTargets.logs };
   }
 
   const { managerEmailMap, branchManagers } = config;
@@ -301,7 +308,7 @@ function sendEmailsByManager(allData, config) {
     totalSent++;
   });
 
-  return totalSent;
+  return { count: totalSent, logs: allTargets.logs };
 }
 
 // ============================================================
@@ -336,6 +343,7 @@ function filterEmailTargets(data) {
 
   const newTargets = [];
   const revisitTargets = [];
+  let debugLogs = []; // 로그 배열 초기화
 
   data.forEach(row => {
     if (row['순위'] !== '1' && row['순위'] !== '2') return;
@@ -392,6 +400,11 @@ function filterEmailTargets(data) {
         nearby: findNearbyStores(row, data)
       };
 
+      // 디버깅용 로그 수집
+      if (daysDiff >= 14 || daysDiff >= 28) {
+         debugLogs.push(`[${row['사업장명']}] 날짜:${permitDateStr} (D+${daysDiff}), 상태:${row['거래여부(기입예정)']}`);
+      }
+
       // 1. D+14 이상: '인허가' 상태만 (14일 이상 경과한 모든 '인허가' 건)
       if (daysDiff >= 14 && row['거래여부(기입예정)'] === '인허가') {
         newTargets.push(item);
@@ -400,10 +413,18 @@ function filterEmailTargets(data) {
       else if (daysDiff >= 28 && row['거래여부(기입예정)'] === '공사중') {
         revisitTargets.push(item);
       }
-    } catch (e) {}
+    } catch (e) {
+      debugLogs.push(`[ERROR] ${row['사업장명']} : ${e.toString()}`);
+    }
   });
+  
+  // 로그가 너무 많으면 일부만 반환
+  if (debugLogs.length > 20) {
+    debugLogs = debugLogs.slice(0, 20);
+    debugLogs.push('... (too many logs)');
+  }
 
-  return { newObj: newTargets, revisitObj: revisitTargets };
+  return { newObj: newTargets, revisitObj: revisitTargets, logs: debugLogs };
 }
 
 // ============================================================

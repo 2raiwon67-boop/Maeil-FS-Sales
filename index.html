@@ -2943,7 +2943,13 @@
                     msg += `\n- 이메일 발송: 0통 (대상 없음)`;
                 }
 
+                // [디버그 로그 추가] 이메일 발송 0통이거나 디버그 로그가 있으면 보여줌
+                if (result.logs && result.logs.length > 0) {
+                    msg += `\n\n[디버그 로그 - 발송 안 된 이유 확인]\n` + result.logs.join('\n');
+                }
+
                 alert(msg);
+
 
                 // UI 정리
                 document.getElementById('loading2').classList.remove('active');
