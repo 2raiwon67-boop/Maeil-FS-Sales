@@ -2899,19 +2899,27 @@
                 }
 
                 // Apps Script로 전송
-                await fetch(APPS_SCRIPT_URL, {
+                const response = await fetch(APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     body: JSON.stringify({ action: 'upload', data: data })
                 });
 
+                if (!response.ok) {
+                    throw new Error('서버 응답 오류 (HTTP ' + response.status + ')');
+                }
+
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || '알 수 없는 서버 오류');
+                }
+
                 // 성공 메시지
                 document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'success',
-                    '✅ 업로드에 성공하였습니다!<br><br>' +
-                    `<strong>${data.length}건</strong>의 데이터가 Google Sheets에 저장되었습니다.<br>` +
-                    '<small>※ D+14 대상이 있으면 자동으로 이메일이 발송됩니다.</small>'
-                );
+                let msg = `✅ 업로드 완료!<br><br><strong>${result.count}건</strong>의 데이터가 저장되었습니다.`;
+                if (result.emailsSent) {
+                    msg += '<br>📧 담당자별 이메일 발송이 완료되었습니다.';
+                }
+                showAlert('alert2', 'success', msg);
 
                 closeFinalUploadModal();
 
