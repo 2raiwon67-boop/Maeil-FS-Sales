@@ -3782,7 +3782,7 @@
 
             document.getElementById('routeStopList').innerHTML = routeStops.map((stop, idx) => {
                 const [cls, label] = tagInfo[stop.type] || ['', ''];
-                const naverQ = encodeURIComponent(stop.name + (stop.address ? ' ' + stop.address : ''));
+                const naverQ = encodeURIComponent(stop.name);
                 const hasInvalidCoord = !isValidCoord(stop.lat, stop.lng);
                 const warnBadge = hasInvalidCoord
                     ? `<span title="주소 좌표 오류 - 데이터베이스 주소 확인 필요" style="color:#ff3b30;font-size:13px;flex-shrink:0;">⚠️</span>`
@@ -3866,8 +3866,7 @@
 
         function buildNaverWebRouteUrl(waypoints, dest, enc) {
             // Naver Maps 웹 directions URL: lng,lat,name 순서
-            // 주소가 있으면 이름+주소 조합으로 네이버 지도 인식률 향상
-            const displayName = s => enc(s.name + (s.address ? ' ' + s.address : ''));
+            const displayName = s => enc(s.name);
             const parts = [
                 `${routeStartCoord.lng},${routeStartCoord.lat},${enc('출발지')}`,
                 ...waypoints.map(s => `${s.lng},${s.lat},${displayName(s)}`),
