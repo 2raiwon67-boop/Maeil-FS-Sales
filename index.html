@@ -1242,7 +1242,6 @@
                 <a href="index.html" class="nav-link active">인허가</a>
                 <a href="방문일지.html" class="nav-link">방문일지</a>
                 <a href="proposal.html" class="nav-link">견적서</a>
-                <a href="#" class="nav-link" onclick="openRoutePanel(); return false;" style="color:#03c75a;">🗺️ 루트</a>
             </div>
         </div>
         <div class="nav-actions" style="display: flex; align-items: center;">
@@ -3240,6 +3239,8 @@
             const address = item['도로명전체주소'] || '-';
             const dealStatus = item['거래여부(기입예정)'] || '인허가';
             const permitDate = item['영업 허가일'] || '-';
+            const lat = parseFloat(item['위도']) || 0;
+            const lng = parseFloat(item['경도']) || 0;
 
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
 
@@ -3282,6 +3283,7 @@
                         <button class="naver-map-btn" onclick="window.open('${naverMapUrl}', '_blank')">
                             네이버 지도에서 보기
                         </button>
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng})">🗺️ 동선 최적화</button>` : ''}
                     </div>
                 </div>
             `;
@@ -3373,7 +3375,8 @@
                     <!-- JS로 버튼 생성 -->
                 </div>
             </div>
-            <button class="btn btn-secondary" style="width:100%; margin-top:20px;"
+            <div id="sheetActionBtns"></div>
+            <button class="btn btn-secondary" style="width:100%; margin-top:10px;"
                 onclick="closeBottomSheet()">닫기</button>
         </div>
     </div>
@@ -3425,6 +3428,18 @@
                     ${s}
                 </button>
             `).join('');
+
+            // 네이버 지도 / 동선 최적화 버튼
+            const sheetActionBtns = document.getElementById('sheetActionBtns');
+            if (sheetActionBtns) {
+                const itemLat = parseFloat(item['위도']) || 0;
+                const itemLng = parseFloat(item['경도']) || 0;
+                const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item['사업장명'] || '')}`;
+                sheetActionBtns.innerHTML = `
+                    <button class="naver-map-btn" style="margin-top:16px;" onclick="window.open('${naverUrl}', '_blank')">네이버 지도에서 보기</button>
+                    ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
+                `;
+            }
 
             // 시트 열기
             sheet.classList.add('active');
@@ -3483,13 +3498,35 @@
 
         function useCurrentLocation() {
             if (!navigator.geolocation) { alert('위치 서비스를 지원하지 않는 브라우저입니다.'); return; }
+            const infoEl = document.getElementById('routeStartInfo');
+            infoEl.textContent = '📍 위치 확인 중...';
             navigator.geolocation.getCurrentPosition(
                 (pos) => {
                     routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                    document.getElementById('routeStartInfo').textContent = `✅ 현재 위치 설정됨`;
+                    infoEl.textContent = `✅ 현재 위치 설정됨`;
+                    if (naverMap) {
+                        naverMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
+                        naverMap.setZoom(14);
+                    }
                 },
-                (err) => { alert('위치 정보를 가져올 수 없습니다: ' + err.message); }
+                (err) => {
+                    let msg = '위치 정보를 가져올 수 없습니다.';
+                    if (err.code === 1) msg = '위치 접근 권한이 거부되었습니다.\n브라우저/기기 설정에서 위치 권한을 허용한 후 다시 시도해주세요.';
+                    else if (err.code === 2) msg = '현재 위치를 확인할 수 없습니다.\nGPS 또는 네트워크 연결을 확인해주세요.';
+                    else if (err.code === 3) msg = '위치 확인 시간이 초과되었습니다.\n잠시 후 다시 시도해주세요.';
+                    infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
+                    alert(msg);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
+        }
+
+        function openRouteFromCoord(lat, lng) {
+            routeStartCoord = { lat: parseFloat(lat), lng: parseFloat(lng) };
+            document.getElementById('routePanel').classList.add('active');
+            updateRouteTargetSummary();
+            document.getElementById('routeStartInfo').textContent = '✅ 마커 위치 기준으로 설정됨';
+            closeCurrentInfoWindow();
         }
 
         async function geocodeStartAddress() {
