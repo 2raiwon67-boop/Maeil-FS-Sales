@@ -973,49 +973,6 @@
         </div>
     </div>
 
-    <!-- Gemini 챗봇 -->
-    <div class="chatbot-fab" onclick="toggleChatbot()">
-        <span class="chatbot-icon">🤖</span>
-    </div>
-
-    <div class="chatbot-container" id="chatbotContainer">
-        <div class="chatbot-header">
-            <h3>🤖 FS 영업 비서</h3>
-            <button class="close-btn" onclick="toggleChatbot()" style="color: white;">&times;</button>
-        </div>
-
-        <div class="chatbot-messages" id="chatMessages">
-            <div class="message bot">
-                <div class="message-avatar">🤖</div>
-                <div class="message-content">
-                    안녕하세요! 방문일지와 거래처 정보에 대해 무엇이든 물어보세요. 😊
-                </div>
-            </div>
-        </div>
-
-        <div class="loading-indicator" id="chatLoading">
-            AI가 답변을 생성하는 중...
-        </div>
-
-        <div class="chatbot-input-container">
-            <div class="chatbot-input">
-                <input type="text" id="chatInput" placeholder="질문을 입력하세요..." onkeypress="handleChatEnter(event)">
-                <button onclick="sendChatMessage()">전송</button>
-            </div>
-            <div class="chatbot-suggestions">
-                <button class="suggestion-btn" onclick="askQuestion('이도현 담당자 이번 주 방문 일정은?')">
-                    이번 주 방문 일정
-                </button>
-                <button class="suggestion-btn" onclick="askQuestion('남양주시 1순위 미방문 업체는?')">
-                    미방문 업체
-                </button>
-                <button class="suggestion-btn" onclick="askQuestion('이번 달 방문 건수는?')">
-                    이번 달 통계
-                </button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // ============================================================
         // 전역 변수
@@ -1697,12 +1654,13 @@
 
                 if (container.classList.contains('active')) {
                     document.getElementById('chatInput').focus();
-                    // 챗봇 데이터 컨텍스트 업데이트 (방문일지 데이터 사용)
+                    // 챗봇 데이터 컨텍스트 업데이트 (전체 방문일지 + 거래처 + 인허가 데이터)
                     if (typeof geminiBot !== 'undefined') {
-                        // filteredData가 있으면 사용, 없으면 빈 배열
-                        const currentData = typeof filteredData !== 'undefined' ? filteredData : [];
-                        geminiBot.setContext(currentData, [], []);
-                        console.log('챗봇 컨텍스트 업데이트 (방문일지):', currentData.length + '건');
+                        const visitData = typeof allVisitLogs !== 'undefined' ? allVisitLogs : [];
+                        const accountData = typeof allAccounts !== 'undefined' ? allAccounts : [];
+                        const licenseData = typeof allLicenses !== 'undefined' ? allLicenses : [];
+                        geminiBot.setContext(visitData, accountData, licenseData);
+                        console.log('챗봇 컨텍스트 업데이트 - 방문일지:', visitData.length + '건, 거래처:', accountData.length + '건, 인허가:', licenseData.length + '건');
                     }
                 }
             }

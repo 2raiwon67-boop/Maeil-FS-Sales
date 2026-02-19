@@ -10,6 +10,14 @@
 const NAVER_CLIENT_ID = '6P6YP1khuVO_XdLF_EI4';
 const NAVER_CLIENT_SECRET = 'Ok28cDSpmL';
 
+// ── Gemini AI 설정 ──
+const GEMINI_API_KEY = 'AIzaSyCQCe5f08gAUR29891Vrf8Xy4WlzKU-X60';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+
+// ── 방문일지 시트 설정 (방문일지.html SHEETS_CONFIG와 동일) ──
+const VISIT_LOGS_SHEET_ID = '1SuOT-Lb61S2vVa-AQdXRE1LYrr8c13Wo';
+const VISIT_LOGS_SHEET_GID = 444575455;
+
 const EMAIL_CONFIG = {
   senderName: '경기북부FS (인허가 알림)',
   subjectTemplate: '[인허가 알림] 금일 방문 대상: 신규 {newCount}건 / 재확인 {revisitCount}건'
@@ -271,40 +279,62 @@ function sendEmailsByManager(allData, config) {
   const allTargets = filterEmailTargets(allData);
   if (allTargets.newObj.length === 0 && allTargets.revisitObj.length === 0) {
     Logger.log('이메일 발송 대상 없음 (D+14, D+28 조건 만족 건수 0)');
-    // 로그가 있으면 반환
     return { count: 0, logs: allTargets.logs };
+  }
+
+  // 2. 방문일지 데이터 로드 (AI 분석용, 실패해도 이메일 발송 계속)
+  let visitLogs = [];
+  try {
+    visitLogs = loadVisitLogs();
+    Logger.log('방문일지 로드 완료: ' + visitLogs.length + '건 (AI 분석에 활용)');
+  } catch (e) {
+    Logger.log('방문일지 로드 실패 (AI 분석 없이 진행): ' + e.toString());
   }
 
   const { managerEmailMap, branchManagers } = config;
   let totalSent = 0;
 
-  // 2. 담당자별 발송
-  // (데이터에 있는 '담당자' 컬럼 값을 기준으로 그룹화)
+  // 3. 담당자별 발송
   const managersInNew = new Set(allTargets.newObj.map(t => t.manager));
   const managersInRevisit = new Set(allTargets.revisitObj.map(t => t.manager));
   const activeManagers = new Set([...managersInNew, ...managersInRevisit]);
 
   activeManagers.forEach(managerName => {
     if (!managerName || managerName === '미지정') return;
-    
+
     const email = managerEmailMap[managerName];
     if (!email) {
       Logger.log(`이메일 정보 없음: ${managerName}`);
-      return; 
+      return;
     }
 
     const myNew = allTargets.newObj.filter(t => t.manager === managerName);
     const myRevisit = allTargets.revisitObj.filter(t => t.manager === managerName);
 
     if (myNew.length > 0 || myRevisit.length > 0) {
-      sendSummaryEmail(email, { newObj: myNew, revisitObj: myRevisit });
+      const myTargets = { newObj: myNew, revisitObj: myRevisit };
+      // AI 전략 생성 (실패해도 이메일 발송 계속)
+      let aiStrategy = null;
+      try {
+        aiStrategy = generateAIStrategyForManager(managerName, myTargets, visitLogs);
+        if (aiStrategy) Logger.log(managerName + ' AI 전략 생성 완료');
+      } catch (e) {
+        Logger.log(managerName + ' AI 전략 생성 실패: ' + e.toString());
+      }
+      sendSummaryEmail(email, myTargets, managerName, aiStrategy);
       totalSent++;
     }
   });
 
-  // 3. 지점장 발송 (전체 리스트)
+  // 4. 지점장 발송 (전체 리스트, AI 전체 요약)
   branchManagers.forEach(email => {
-    sendSummaryEmail(email, allTargets);
+    let branchAiStrategy = null;
+    try {
+      branchAiStrategy = generateAIStrategyForManager('전체', allTargets, visitLogs);
+    } catch (e) {
+      Logger.log('지점장 AI 전략 생성 실패: ' + e.toString());
+    }
+    sendSummaryEmail(email, allTargets, '전체', branchAiStrategy);
     totalSent++;
   });
 
@@ -314,7 +344,7 @@ function sendEmailsByManager(allData, config) {
 // ============================================================
 // 이메일 발송 (단일 수신자)
 // ============================================================
-function sendSummaryEmail(recipientEmail, targets) {
+function sendSummaryEmail(recipientEmail, targets, managerName, aiStrategy) {
   const newCount = targets.newObj.length;
   const revisitCount = targets.revisitObj.length;
 
@@ -322,7 +352,7 @@ function sendSummaryEmail(recipientEmail, targets) {
     .replace('{newCount}', newCount)
     .replace('{revisitCount}', revisitCount);
 
-  const htmlBody = generateSummaryEmailHTML(targets);
+  const htmlBody = generateSummaryEmailHTML(targets, aiStrategy);
 
   try {
     GmailApp.sendEmail(recipientEmail, subject, 'HTML 지원 클라이언트에서 확인해주세요.', {
@@ -428,6 +458,123 @@ function filterEmailTargets(data) {
 }
 
 // ============================================================
+// AI 분석 모듈 (Gemini API 연동)
+// ============================================================
+
+// 방문일지 시트에서 방문 데이터 로드
+function loadVisitLogs() {
+  try {
+    const ss = SpreadsheetApp.openById(VISIT_LOGS_SHEET_ID);
+    let sheet = ss.getSheets()[0]; // 기본값: 첫 번째 시트
+    for (const s of ss.getSheets()) {
+      if (s.getSheetId() === VISIT_LOGS_SHEET_GID) { sheet = s; break; }
+    }
+    const data = sheet.getDataRange().getValues();
+    if (data.length < 2) return [];
+    const headers = data[0];
+    return data.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i] || ''; });
+      return obj;
+    });
+  } catch (e) {
+    Logger.log('방문일지 로드 실패: ' + e.toString());
+    return [];
+  }
+}
+
+// 특정 거래처의 방문 이력 조회 (최근 5건)
+function getVisitHistoryForStore(storeName, visitLogs) {
+  if (!storeName || !visitLogs || visitLogs.length === 0) return [];
+  const name = storeName.trim();
+  return visitLogs.filter(log => {
+    const place = (log['방문처(거래처)'] || '').toString().trim();
+    return place.includes(name) || name.includes(place.substring(0, 4));
+  }).slice(-5); // 최근 5건
+}
+
+// Gemini API 호출 (Apps Script용 - UrlFetchApp 사용)
+function callGeminiAPI(prompt) {
+  try {
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7, maxOutputTokens: 600, topP: 0.95 }
+    };
+    const response = UrlFetchApp.fetch(GEMINI_API_URL + '?key=' + GEMINI_API_KEY, {
+      method: 'POST',
+      contentType: 'application/json',
+      payload: JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+    if (response.getResponseCode() !== 200) {
+      Logger.log('Gemini API 오류: ' + response.getResponseCode() + ' / ' + response.getContentText().substring(0, 200));
+      return null;
+    }
+    const result = JSON.parse(response.getContentText());
+    return (result.candidates && result.candidates[0] && result.candidates[0].content &&
+            result.candidates[0].content.parts && result.candidates[0].content.parts[0])
+           ? result.candidates[0].content.parts[0].text : null;
+  } catch (e) {
+    Logger.log('Gemini API 호출 실패: ' + e.toString());
+    return null;
+  }
+}
+
+// 담당자별 AI 방문 전략 생성 (1회 호출로 전체 커버)
+function generateAIStrategyForManager(managerName, targets, visitLogs) {
+  const allTargets = [...targets.newObj, ...targets.revisitObj];
+  if (allTargets.length === 0 || visitLogs.length === 0) return null;
+
+  // 각 타겟별 인근 거래처 방문 이력 수집
+  const targetData = allTargets.map(t => {
+    const nearbyVisits = [];
+    if (t.nearby && t.nearby.length > 0) {
+      t.nearby.forEach(nearby => {
+        const history = getVisitHistoryForStore(nearby.name, visitLogs);
+        if (history.length > 0) {
+          nearbyVisits.push({
+            store: nearby.name,
+            dist: nearby.dist + 'km',
+            recentVisits: history.map(v => ({
+              date: (v['작성일'] || v['일정기간'] || '').toString().substring(0, 10),
+              manager: v['작성자'] || '',
+              summary: (v['내용'] || '').toString().substring(0, 80),
+              status: v['거래상태'] || ''
+            }))
+          });
+        }
+      });
+    }
+    return { name: t.name, status: t.status, nearbyWithHistory: nearbyVisits };
+  });
+
+  const hasHistory = targetData.some(t => t.nearbyWithHistory.length > 0);
+  if (!hasHistory) return null; // 인근 방문 이력이 없으면 AI 호출 생략
+
+  const prompt = `당신은 경기북부 FS 영업팀의 AI 전략 비서입니다.
+담당자 ${managerName}의 오늘 방문 대상 인근 거래처 방문 이력을 분석하여 실용적인 현장 전략을 제안해주세요.
+
+# 방문 대상 및 인근 거래처 방문 이력
+${JSON.stringify(targetData, null, 2)}
+
+# 요청사항
+각 방문 대상별로 인근 거래처 방문 이력을 참고하여:
+1. 지역 내 영업 분위기 (이전 방문 내용 기반)
+2. 함께 방문하면 효율적인 인근 거래처와 그 이유
+3. 이전 방문자의 경험에서 얻을 수 있는 영업 팁
+
+# 답변 규칙
+- 각 방문처마다 2-3줄로 핵심만 간결하게
+- 인근 이력이 있는 경우에만 해당 내용 포함
+- 전체 400자 이내
+- 이모지 활용하여 구분 명확히
+
+답변:`;
+
+  return callGeminiAPI(prompt);
+}
+
+// ============================================================
 // 인근 매장 검색
 // ============================================================
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -461,7 +608,7 @@ function findNearbyStores(target, allData) {
 // ============================================================
 // 이메일 HTML 생성
 // ============================================================
-function generateSummaryEmailHTML(targets) {
+function generateSummaryEmailHTML(targets, aiStrategy) {
   const createRows = (list) => list.map(t => {
     const mapLink = `https://map.naver.com/v5/search/${encodeURIComponent(t.address)}`;
     let nearbyHtml = '<span style="color:#adb5bd; font-size:11px;">없음</span>';
@@ -520,6 +667,17 @@ function generateSummaryEmailHTML(targets) {
           <tbody>${createRows(targets.revisitObj)}</tbody>
         </table>
       ` : '<p style="color:#868e96; margin-top:20px;">(금일 재확인 대상 없음)</p>'}
+
+      ${aiStrategy ? `
+        <div style="margin-top:40px; background:linear-gradient(135deg,#f0f7ff,#e8f4fd); border:1px solid #bee3f8; border-radius:12px; padding:20px;">
+          <h3 style="margin:0 0 12px; color:#1a56db; font-size:14px; display:flex; align-items:center; gap:6px;">
+            🤖 AI 방문 전략 추천
+            <span style="font-size:10px; font-weight:400; color:#5a8ad5; background:#dbeafe; padding:2px 8px; border-radius:10px; margin-left:6px;">인근 거래처 방문 이력 분석 기반</span>
+          </h3>
+          <div style="font-size:13px; color:#374151; line-height:1.8; white-space:pre-wrap;">${aiStrategy.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+          <p style="margin:12px 0 0; font-size:11px; color:#6b7280;">※ 본 추천은 기존 방문일지 데이터를 AI가 분석하여 생성한 참고 사항입니다.</p>
+        </div>
+      ` : ''}
 
       <div style="margin-top:40px; font-size:12px; color:#868e96; text-align:center; border-top:1px solid #eee; padding-top:20px;">
         경기북부 FS 영업팀 | 자동 발송 시스템
