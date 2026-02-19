@@ -3460,7 +3460,10 @@
                     <span>🟠 공사중</span><strong>${construction.length}건</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;">
-                    <span>⭐ 주요 미거래처 (3km 이내)</span><strong>${accounts.length}건 중 자동선택</strong>
+                    <span>⭐ 주요 미거래처</span><strong>${accounts.length}건 중 자동선택</strong>
+                </div>
+                <div style="margin-top:8px;font-size:10px;color:#86868b;border-top:1px solid #e8e8ed;padding-top:6px;">
+                    📍 출발지 기준 반경 3km 이내 자동 포함
                 </div>`;
         }
 
@@ -3500,11 +3503,19 @@
         function startRouteOptimization() {
             if (!routeStartCoord) { alert('출발지를 먼저 설정해주세요.\n(현재 위치 또는 주소 입력)'); return; }
 
-            // 1. 인허가 1순위 + 공사중 수집
+            const RADIUS_KM = 3; // 출발지 기준 반경 3km
+
+            // 1. 출발지 기준 3km 이내 인허가 1순위 + 공사중 수집
             const primaryStops = allData
                 .filter(d => (d['순위'] === '1' && d['거래여부(기입예정)'] === '인허가') ||
                     d['거래여부(기입예정)'] === '공사중')
                 .filter(d => d['위도'] && d['경도'])
+                .filter(d => {
+                    const lat = parseFloat(d['위도']);
+                    const lng = parseFloat(d['경도']);
+                    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return false;
+                    return haversineKm(routeStartCoord.lat, routeStartCoord.lng, lat, lng) <= RADIUS_KM;
+                })
                 .map(d => ({
                     name: d['사업장명'],
                     address: d['도로명전체주소'] || '',
@@ -3513,7 +3524,7 @@
                     type: d['거래여부(기입예정)'] === '공사중' ? 'construction' : 'primary'
                 }));
 
-            // 2. 주요 미거래처 중 1순위/공사중 stops의 3km 이내만 포함
+            // 2. 주요 미거래처: 출발지 3km 이내이거나 1순위/공사중 stops 3km 이내
             const addedKeys = new Set();
             const accountStops = [];
             accountMarkers
@@ -3521,8 +3532,9 @@
                 .forEach(m => {
                     const key = `${m._lat.toFixed(5)},${m._lng.toFixed(5)}`;
                     if (addedKeys.has(key)) return;
-                    const isNearby = primaryStops.some(p => haversineKm(p.lat, p.lng, m._lat, m._lng) <= 3);
-                    if (isNearby) {
+                    const isNearStart = haversineKm(routeStartCoord.lat, routeStartCoord.lng, m._lat, m._lng) <= RADIUS_KM;
+                    const isNearPrimary = primaryStops.some(p => haversineKm(p.lat, p.lng, m._lat, m._lng) <= RADIUS_KM);
+                    if (isNearStart || isNearPrimary) {
                         addedKeys.add(key);
                         accountStops.push({
                             name: m._name || '거래처',
@@ -3536,7 +3548,7 @@
 
             const allStops = [...primaryStops, ...accountStops];
             if (allStops.length === 0) {
-                alert('최적화할 방문 대상이 없습니다.\n인허가 1순위 또는 공사중 데이터를 확인해주세요.');
+                alert('출발지 반경 3km 이내에 방문 대상이 없습니다.\n출발지를 변경하거나 데이터를 확인해주세요.');
                 return;
             }
 
@@ -3655,9 +3667,47 @@
 
         function openNaverMapsRoute() {
             if (routeStops.length === 0) return;
-            const last = routeStops[routeStops.length - 1];
-            const url = `https://map.naver.com/v5/directions/${routeStartCoord.lng},${routeStartCoord.lat},출발지/${last.lng},${last.lat},${encodeURIComponent(last.name)}/-/car`;
-            window.open(url, '_blank');
+
+            const MAX_WP = 5; // 네이버 지도 최대 경유지 5개
+            const enc = s => encodeURIComponent(s);
+
+            // 경유지 초과 시 균등 분배: 첫 MAX_WP개 + 마지막(목적지) 보장
+            const usedStops = routeStops.length > MAX_WP + 1
+                ? [...routeStops.slice(0, MAX_WP), routeStops[routeStops.length - 1]]
+                : routeStops;
+
+            const dest = usedStops[usedStops.length - 1];
+            const waypoints = usedStops.slice(0, -1); // 경유지 (목적지 제외)
+
+            const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                // 모바일: nmap:// 딥링크로 네이버 지도 앱 직접 열기
+                let params = `slat=${routeStartCoord.lat}&slng=${routeStartCoord.lng}&sname=${enc('출발지')}`;
+                params += `&dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
+                waypoints.forEach((stop, i) => {
+                    params += `&v${i + 1}lat=${stop.lat}&v${i + 1}lng=${stop.lng}&v${i + 1}name=${enc(stop.name)}`;
+                });
+                params += `&appname=com.fsmassisales.app`;
+
+                // 앱 딥링크 시도 후 2초 뒤 웹으로 fallback
+                const webUrl = buildNaverWebRouteUrl(waypoints, dest, enc);
+                window.location.href = `nmap://route/car?${params}`;
+                setTimeout(() => { window.open(webUrl, '_blank'); }, 2000);
+            } else {
+                // 데스크탑: 웹 URL (경유지 전체 포함)
+                window.open(buildNaverWebRouteUrl(waypoints, dest, enc), '_blank');
+            }
+        }
+
+        function buildNaverWebRouteUrl(waypoints, dest, enc) {
+            const startStr = `${routeStartCoord.lng},${routeStartCoord.lat},${enc('출발지')}`;
+            const parts = [
+                startStr,
+                ...waypoints.map(s => `${s.lng},${s.lat},${enc(s.name)}`),
+                `${dest.lng},${dest.lat},${enc(dest.name)}`
+            ];
+            return `https://map.naver.com/v5/directions/${parts.join('/')}/-/car`;
         }
     </script>
 
