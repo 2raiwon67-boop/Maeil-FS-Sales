@@ -3567,7 +3567,7 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        function startRouteOptimization() {
+        async function startRouteOptimization() {
             if (!routeStartCoord) { alert('출발지를 먼저 설정해주세요.\n(현재 위치 또는 주소 입력)'); return; }
 
             const RADIUS_KM = 3; // 출발지 기준 반경 3km
@@ -3650,7 +3650,7 @@
             routeStops = nearestNeighborTSP(allStops, routeStartCoord);
 
             // 4. 지도 표시 및 결과 렌더링
-            drawRouteOnMap();
+            await drawRouteOnMap();
             renderRouteResult();
         }
 
@@ -3672,17 +3672,16 @@
             return ordered;
         }
 
-        function drawRouteOnMap() {
+        async function drawRouteOnMap() {
             clearRouteMarkers();
             if (!naverMap || routeStops.length === 0) return;
 
-            const pathCoords = [new naver.maps.LatLng(routeStartCoord.lat, routeStartCoord.lng)];
             const colorMap = { primary: '#ff3b30', construction: '#ff9500', account: '#FFD700' };
             const borderMap = { primary: '#c0392b', construction: '#e67e00', account: '#FFA500' };
 
+            // 마커 생성
             routeStops.forEach((stop, idx) => {
                 const pos = new naver.maps.LatLng(stop.lat, stop.lng);
-                pathCoords.push(pos);
                 const c = colorMap[stop.type];
                 const b = borderMap[stop.type];
                 const marker = new naver.maps.Marker({
@@ -3705,13 +3704,51 @@
                 routeMarkers.push(marker);
             });
 
-            routePolyline = new naver.maps.Polyline({
-                path: pathCoords, strokeColor: '#0071e3',
-                strokeWeight: 3, strokeOpacity: 0.65, strokeStyle: 'solid', map: naverMap
-            });
-
+            // 전체 경유지 좌표 (출발지 + 모든 stops)
+            const allWaypoints = [
+                { lat: routeStartCoord.lat, lng: routeStartCoord.lng },
+                ...routeStops.map(s => ({ lat: s.lat, lng: s.lng }))
+            ];
+            const straightCoords = allWaypoints.map(p => new naver.maps.LatLng(p.lat, p.lng));
             const bounds = new naver.maps.LatLngBounds();
-            pathCoords.forEach(c => bounds.extend(c));
+            straightCoords.forEach(c => bounds.extend(c));
+
+            // OSRM으로 실제 도로 경로 조회
+            try {
+                const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';');
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?geometries=geojson&overview=full`;
+                const res = await fetch(osrmUrl);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.routes && data.routes[0]) {
+                        const geoCoords = data.routes[0].geometry.coordinates;
+                        const roadPath = geoCoords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng));
+                        routePolyline = new naver.maps.Polyline({
+                            path: roadPath,
+                            strokeColor: '#0071e3',
+                            strokeWeight: 4,
+                            strokeOpacity: 0.85,
+                            strokeStyle: 'solid',
+                            map: naverMap
+                        });
+                        roadPath.forEach(c => bounds.extend(c));
+                        naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('도로 경로 조회 실패, 직선으로 표시합니다:', e);
+            }
+
+            // 폴백: 직선 연결 (점선으로 도로 경로와 구분)
+            routePolyline = new naver.maps.Polyline({
+                path: straightCoords,
+                strokeColor: '#0071e3',
+                strokeWeight: 3,
+                strokeOpacity: 0.55,
+                strokeStyle: 'shortDash',
+                map: naverMap
+            });
             naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
         }
 
@@ -3734,6 +3771,10 @@
             document.getElementById('routeStopList').innerHTML = routeStops.map((stop, idx) => {
                 const [cls, label] = tagInfo[stop.type] || ['', ''];
                 const naverQ = encodeURIComponent(stop.name + (stop.address ? ' ' + stop.address : ''));
+                const hasInvalidCoord = !isValidCoord(stop.lat, stop.lng);
+                const warnBadge = hasInvalidCoord
+                    ? `<span title="주소 좌표 오류 - 데이터베이스 주소 확인 필요" style="color:#ff3b30;font-size:13px;flex-shrink:0;">⚠️</span>`
+                    : '';
                 return `<div class="route-stop-item">
                     <div class="route-stop-num" style="background:${stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000'}">${idx + 1}</div>
                     <div class="route-stop-info">
@@ -3741,6 +3782,7 @@
                         <div class="route-stop-dist">${idx === 0 ? '출발지에서' : '이전에서'} ${stop._dist?.toFixed(1)}km</div>
                     </div>
                     <span class="route-stop-tag ${cls}">${label}</span>
+                    ${warnBadge}
                     <a href="https://map.naver.com/v5/search/${naverQ}" target="_blank" style="margin-left:5px;font-size:15px;text-decoration:none;flex-shrink:0;" title="네이버 지도에서 보기">🧭</a>
                 </div>`;
             }).join('');
@@ -3759,8 +3801,22 @@
             document.getElementById('routeResult').style.display = 'block';
         }
 
+        function isValidCoord(lat, lng) {
+            return lat && lng && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+        }
+
         function openNaverMapsRoute() {
             if (routeStops.length === 0) return;
+
+            // 유효하지 않은 좌표 가진 경유지 경고
+            const badStops = routeStops.filter(s => !isValidCoord(s.lat, s.lng));
+            if (badStops.length > 0) {
+                const names = badStops.map(s => `· ${s.name}${s.address ? ' (' + s.address + ')' : ''}`).join('\n');
+                const proceed = confirm(
+                    `다음 장소는 좌표 정보가 올바르지 않아\n네이버 지도에서 위치를 찾지 못할 수 있습니다:\n\n${names}\n\n계속 진행하시겠습니까?`
+                );
+                if (!proceed) return;
+            }
 
             const enc = s => encodeURIComponent(s);
             // routeStops는 이미 최대 5개로 제한됨
@@ -3793,10 +3849,12 @@
 
         function buildNaverWebRouteUrl(waypoints, dest, enc) {
             // Naver Maps 웹 directions URL: lng,lat,name 순서
+            // 주소가 있으면 이름+주소 조합으로 네이버 지도 인식률 향상
+            const displayName = s => enc(s.name + (s.address ? ' ' + s.address : ''));
             const parts = [
                 `${routeStartCoord.lng},${routeStartCoord.lat},${enc('출발지')}`,
-                ...waypoints.map(s => `${s.lng},${s.lat},${enc(s.name)}`),
-                `${dest.lng},${dest.lat},${enc(dest.name)}`
+                ...waypoints.map(s => `${s.lng},${s.lat},${displayName(s)}`),
+                `${dest.lng},${dest.lat},${displayName(dest)}`
             ];
             return `https://map.naver.com/p/directions/${parts.join('/')}/-/car`;
         }
