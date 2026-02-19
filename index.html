@@ -1055,6 +1055,181 @@
         .naver-map-btn:active {
             transform: translateY(0);
         }
+
+        /* =============== 루트 최적화 패널 =============== */
+        .route-panel {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            width: 290px;
+            max-height: calc(100% - 32px);
+            background: rgba(255, 255, 255, 0.97);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .route-panel.active {
+            display: flex;
+        }
+
+        .route-panel-header {
+            background: #1d1d1f;
+            color: white;
+            padding: 13px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .route-panel-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .route-panel-body {
+            padding: 14px 16px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .route-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 7px;
+            margin-top: 14px;
+        }
+
+        .route-section-label:first-child {
+            margin-top: 0;
+        }
+
+        .route-stop-item {
+            display: flex;
+            align-items: center;
+            padding: 7px 9px;
+            background: #f5f5f7;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+
+        .route-stop-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #0071e3;
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-right: 8px;
+        }
+
+        .route-stop-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .route-stop-name {
+            font-weight: 600;
+            color: #1d1d1f;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .route-stop-dist {
+            font-size: 10px;
+            color: #86868b;
+            margin-top: 1px;
+        }
+
+        .route-stop-tag {
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            margin-left: 5px;
+            font-weight: 600;
+        }
+
+        .route-tag-primary {
+            background: rgba(255, 59, 48, 0.12);
+            color: #ff3b30;
+        }
+
+        .route-tag-construction {
+            background: rgba(255, 149, 0, 0.12);
+            color: #ff9500;
+        }
+
+        .route-tag-account {
+            background: rgba(255, 215, 0, 0.2);
+            color: #c8a000;
+        }
+
+        .route-summary-box {
+            background: #f5f5f7;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .route-btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 7px;
+            transition: opacity 0.2s;
+        }
+
+        .route-btn:hover {
+            opacity: 0.85;
+        }
+
+        .route-btn-primary {
+            background: #0071e3;
+            color: white;
+        }
+
+        .route-btn-naver {
+            background: #03c75a;
+            color: white;
+        }
+
+        .route-btn-clear {
+            background: #e8e8ed;
+            color: #1d1d1f;
+        }
+
+        .route-start-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .route-start-row .route-btn {
+            flex: 1;
+            margin-top: 0;
+            padding: 9px 6px;
+        }
     </style>
 </head>
 
@@ -1067,6 +1242,7 @@
                 <a href="index.html" class="nav-link active">인허가</a>
                 <a href="방문일지.html" class="nav-link">방문일지</a>
                 <a href="proposal.html" class="nav-link">견적서</a>
+                <a href="#" class="nav-link" onclick="openRoutePanel(); return false;" style="color:#03c75a;">🗺️ 루트</a>
             </div>
         </div>
         <div class="nav-actions" style="display: flex; align-items: center;">
@@ -1186,6 +1362,46 @@
         <!-- 우측 지도 -->
         <div class="map-area">
             <div id="map"></div>
+
+            <!-- 루트 최적화 패널 -->
+            <div class="route-panel" id="routePanel">
+                <div class="route-panel-header">
+                    <h3>🗺️ 영업 루트 최적화</h3>
+                    <button onclick="closeRoutePanel()" style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
+                </div>
+                <div class="route-panel-body">
+                    <div class="route-section-label">출발지 설정</div>
+                    <div class="route-start-row">
+                        <button onclick="useCurrentLocation()" class="route-btn route-btn-primary">📍 현재 위치</button>
+                        <button onclick="openStartInput()" class="route-btn" style="background:#424245;color:white;">✏️ 직접 입력</button>
+                    </div>
+                    <div id="routeStartInput" style="display:none;margin-top:6px;">
+                        <input type="text" id="startAddressInput" placeholder="출발지 주소 입력"
+                            style="width:100%;padding:8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;"
+                            onkeypress="if(event.key==='Enter') geocodeStartAddress()">
+                        <button onclick="geocodeStartAddress()" class="route-btn route-btn-primary" style="margin-top:5px;">주소 확인</button>
+                    </div>
+                    <div id="routeStartInfo" style="font-size:11px;color:#86868b;margin-top:6px;min-height:16px;"></div>
+
+                    <div class="route-section-label">자동 포함 대상</div>
+                    <div id="routeTargetSummary" style="font-size:12px;color:#1d1d1f;background:#f5f5f7;border-radius:8px;padding:10px;">
+                        <span style="color:#86868b;">데이터 로딩 후 자동 계산됩니다</span>
+                    </div>
+
+                    <button onclick="startRouteOptimization()" class="route-btn route-btn-primary" style="margin-top:14px;">
+                        🔄 루트 최적화 시작
+                    </button>
+
+                    <div id="routeResult" style="display:none;">
+                        <div class="route-section-label" style="margin-top:16px;">최적화 결과</div>
+                        <div id="routeStopList"></div>
+                        <div class="route-summary-box" id="routeSummaryBox"></div>
+                        <button onclick="openNaverMapsRoute()" class="route-btn route-btn-naver">📱 네이버 지도 앱으로 열기</button>
+                        <button onclick="clearRoute()" class="route-btn route-btn-clear">🔄 루트 초기화</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="map-controls">
                 <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
                     <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
@@ -2250,6 +2466,10 @@
                     marker._dealStatus = dealStatus; // 필터용 상태 저장
                     marker._managerName = (account['담당자명'] || '').trim(); // 담당자별 필터용
                     marker._region = (account['주소2'] || '').trim(); // 지역별 필터용
+                    marker._name = name; // 루트 최적화용
+                    marker._address = address; // 루트 최적화용
+                    marker._lat = coords.lat; // 루트 최적화용
+                    marker._lng = coords.lng; // 루트 최적화용
                     accountMarkers.push(marker);
                     await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
                 } catch (e) {
@@ -3202,6 +3422,243 @@
 
         // 지도 클릭 시 바텀 시트 닫기 (배경 클릭 효과)
         // map.addListener('click', ...) 에서 처리 예정
+    </script>
+
+    <script>
+        // ============================================================
+        // 영업 루트 최적화
+        // ============================================================
+
+        let routeStops = [];
+        let routeMarkers = [];
+        let routePolyline = null;
+        let routeStartCoord = null;
+
+        function openRoutePanel() {
+            document.getElementById('routePanel').classList.add('active');
+            updateRouteTargetSummary();
+        }
+
+        function closeRoutePanel() {
+            document.getElementById('routePanel').classList.remove('active');
+        }
+
+        function openStartInput() {
+            const el = document.getElementById('routeStartInput');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function updateRouteTargetSummary() {
+            const licensed = allData.filter(d => d['순위'] === '1' && d['거래여부(기입예정)'] === '인허가' && d['위도'] && d['경도']);
+            const construction = allData.filter(d => d['거래여부(기입예정)'] === '공사중' && d['위도'] && d['경도']);
+            const accounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '미거래');
+            document.getElementById('routeTargetSummary').innerHTML = `
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span>🔴 인허가 1순위</span><strong>${licensed.length}건</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span>🟠 공사중</span><strong>${construction.length}건</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span>⭐ 주요 미거래처 (3km 이내)</span><strong>${accounts.length}건 중 자동선택</strong>
+                </div>`;
+        }
+
+        function useCurrentLocation() {
+            if (!navigator.geolocation) { alert('위치 서비스를 지원하지 않는 브라우저입니다.'); return; }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                    document.getElementById('routeStartInfo').textContent = `✅ 현재 위치 설정됨`;
+                },
+                (err) => { alert('위치 정보를 가져올 수 없습니다: ' + err.message); }
+            );
+        }
+
+        async function geocodeStartAddress() {
+            const addr = document.getElementById('startAddressInput').value.trim();
+            if (!addr) return;
+            document.getElementById('routeStartInfo').textContent = '주소 변환 중...';
+            const coords = await geocodeAddress(addr);
+            if (coords) {
+                routeStartCoord = coords;
+                document.getElementById('routeStartInfo').textContent = `✅ 출발지: ${addr}`;
+            } else {
+                document.getElementById('routeStartInfo').textContent = '❌ 주소를 찾을 수 없습니다.';
+            }
+        }
+
+        function haversineKm(lat1, lng1, lat2, lng2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function startRouteOptimization() {
+            if (!routeStartCoord) { alert('출발지를 먼저 설정해주세요.\n(현재 위치 또는 주소 입력)'); return; }
+
+            // 1. 인허가 1순위 + 공사중 수집
+            const primaryStops = allData
+                .filter(d => (d['순위'] === '1' && d['거래여부(기입예정)'] === '인허가') ||
+                    d['거래여부(기입예정)'] === '공사중')
+                .filter(d => d['위도'] && d['경도'])
+                .map(d => ({
+                    name: d['사업장명'],
+                    address: d['도로명전체주소'] || '',
+                    lat: parseFloat(d['위도']),
+                    lng: parseFloat(d['경도']),
+                    type: d['거래여부(기입예정)'] === '공사중' ? 'construction' : 'primary'
+                }));
+
+            // 2. 주요 미거래처 중 1순위/공사중 stops의 3km 이내만 포함
+            const addedKeys = new Set();
+            const accountStops = [];
+            accountMarkers
+                .filter(m => (m._dealStatus || '').trim() === '미거래' && m._lat && m._lng)
+                .forEach(m => {
+                    const key = `${m._lat.toFixed(5)},${m._lng.toFixed(5)}`;
+                    if (addedKeys.has(key)) return;
+                    const isNearby = primaryStops.some(p => haversineKm(p.lat, p.lng, m._lat, m._lng) <= 3);
+                    if (isNearby) {
+                        addedKeys.add(key);
+                        accountStops.push({
+                            name: m._name || '거래처',
+                            address: m._address || '',
+                            lat: m._lat,
+                            lng: m._lng,
+                            type: 'account'
+                        });
+                    }
+                });
+
+            const allStops = [...primaryStops, ...accountStops];
+            if (allStops.length === 0) {
+                alert('최적화할 방문 대상이 없습니다.\n인허가 1순위 또는 공사중 데이터를 확인해주세요.');
+                return;
+            }
+
+            // 3. 최근접 이웃 알고리즘 (Nearest Neighbor TSP)
+            routeStops = nearestNeighborTSP(allStops, routeStartCoord);
+
+            // 4. 지도 표시 및 결과 렌더링
+            drawRouteOnMap();
+            renderRouteResult();
+        }
+
+        function nearestNeighborTSP(stops, start) {
+            const unvisited = [...stops];
+            const ordered = [];
+            let cur = start;
+            while (unvisited.length > 0) {
+                let minDist = Infinity, nearestIdx = -1;
+                unvisited.forEach((s, i) => {
+                    const d = haversineKm(cur.lat, cur.lng, s.lat, s.lng);
+                    if (d < minDist) { minDist = d; nearestIdx = i; }
+                });
+                const nearest = unvisited.splice(nearestIdx, 1)[0];
+                nearest._dist = minDist;
+                ordered.push(nearest);
+                cur = nearest;
+            }
+            return ordered;
+        }
+
+        function drawRouteOnMap() {
+            clearRouteMarkers();
+            if (!naverMap || routeStops.length === 0) return;
+
+            const pathCoords = [new naver.maps.LatLng(routeStartCoord.lat, routeStartCoord.lng)];
+            const colorMap = { primary: '#ff3b30', construction: '#ff9500', account: '#FFD700' };
+            const borderMap = { primary: '#c0392b', construction: '#e67e00', account: '#FFA500' };
+
+            routeStops.forEach((stop, idx) => {
+                const pos = new naver.maps.LatLng(stop.lat, stop.lng);
+                pathCoords.push(pos);
+                const c = colorMap[stop.type];
+                const b = borderMap[stop.type];
+                const marker = new naver.maps.Marker({
+                    position: pos, map: naverMap,
+                    icon: {
+                        content: `<div style="width:22px;height:22px;background:${c};border:2px solid ${b};border-radius:50%;color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.35);">${idx + 1}</div>`,
+                        anchor: new naver.maps.Point(11, 11)
+                    },
+                    zIndex: 50
+                });
+                naver.maps.Event.addListener(marker, 'click', function () {
+                    if (currentInfoWindow) currentInfoWindow.close();
+                    const iw = new naver.maps.InfoWindow({
+                        content: `<div style="padding:10px 12px;font-size:12px;min-width:150px;"><strong>${stop.name}</strong><br><span style="color:#86868b;font-size:11px;">${stop.address}</span></div>`,
+                        backgroundColor: 'white', borderColor: '#e8e8ed', pixelOffset: new naver.maps.Point(0, -10)
+                    });
+                    iw.open(naverMap, marker);
+                    currentInfoWindow = iw;
+                });
+                routeMarkers.push(marker);
+            });
+
+            routePolyline = new naver.maps.Polyline({
+                path: pathCoords, strokeColor: '#0071e3',
+                strokeWeight: 3, strokeOpacity: 0.65, strokeStyle: 'solid', map: naverMap
+            });
+
+            const bounds = new naver.maps.LatLngBounds();
+            pathCoords.forEach(c => bounds.extend(c));
+            naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+        }
+
+        function clearRouteMarkers() {
+            routeMarkers.forEach(m => m.setMap(null));
+            routeMarkers = [];
+            if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
+        }
+
+        function clearRoute() {
+            clearRouteMarkers();
+            routeStops = [];
+            document.getElementById('routeResult').style.display = 'none';
+        }
+
+        function renderRouteResult() {
+            const totalDist = routeStops.reduce((s, r) => s + (r._dist || 0), 0);
+            const tagInfo = { primary: ['route-tag-primary', '인허가'], construction: ['route-tag-construction', '공사중'], account: ['route-tag-account', '미거래처'] };
+
+            document.getElementById('routeStopList').innerHTML = routeStops.map((stop, idx) => {
+                const [cls, label] = tagInfo[stop.type] || ['', ''];
+                const naverQ = encodeURIComponent(stop.name + (stop.address ? ' ' + stop.address : ''));
+                return `<div class="route-stop-item">
+                    <div class="route-stop-num" style="background:${stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000'}">${idx + 1}</div>
+                    <div class="route-stop-info">
+                        <div class="route-stop-name">${stop.name}</div>
+                        <div class="route-stop-dist">${idx === 0 ? '출발지에서' : '이전에서'} ${stop._dist?.toFixed(1)}km</div>
+                    </div>
+                    <span class="route-stop-tag ${cls}">${label}</span>
+                    <a href="https://map.naver.com/v5/search/${naverQ}" target="_blank" style="margin-left:5px;font-size:15px;text-decoration:none;flex-shrink:0;" title="네이버 지도에서 보기">🧭</a>
+                </div>`;
+            }).join('');
+
+            const primary = routeStops.filter(s => s.type === 'primary').length;
+            const cons = routeStops.filter(s => s.type === 'construction').length;
+            const acc = routeStops.filter(s => s.type === 'account').length;
+            document.getElementById('routeSummaryBox').innerHTML = `
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>인허가 1순위</span><strong>${primary}건</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>공사중</span><strong>${cons}건</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>주요 미거래처</span><strong>${acc}건</strong></div>
+                <div style="display:flex;justify-content:space-between;border-top:1px solid #e8e8ed;padding-top:6px;">
+                    <span>예상 총 거리 (직선)</span><strong>약 ${totalDist.toFixed(1)}km</strong>
+                </div>`;
+
+            document.getElementById('routeResult').style.display = 'block';
+        }
+
+        function openNaverMapsRoute() {
+            if (routeStops.length === 0) return;
+            const last = routeStops[routeStops.length - 1];
+            const url = `https://map.naver.com/v5/directions/${routeStartCoord.lng},${routeStartCoord.lat},출발지/${last.lng},${last.lat},${encodeURIComponent(last.name)}/-/car`;
+            window.open(url, '_blank');
+        }
     </script>
 
     <script src="auth.js"></script>
