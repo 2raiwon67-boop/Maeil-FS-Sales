@@ -846,175 +846,180 @@
             }
 
             /* 기본엔 숨김 (지도 모드) */
-            width: 100%;
-            height: calc(100vh - 52px - 60px);
-            /* 하단 탭 공간 등 고려 */
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 50;
-            background: #f5f5f7;
+            .sidebar {
+                width: 100%;
+                height: calc(100vh - 52px - 60px);
+                /* 하단 탭 공간 등 고려 */
+                position: absolute;
+                top: 0;
+                left: 0;
+                z-index: 50;
+                background: #f5f5f7;
+                display: none;
+                /* 추가: 모바일에서 명확히 숨김 제어 */
+            }
+
+            .map-area {
+                width: 100%;
+                height: 100%;
+                z-index: 10;
+            }
+
+            /* 2. 내비게이션 최적화 */
+            .nav-bar {
+                padding: 0 16px;
+                justify-content: space-between;
+                height: 52px;
+            }
+
+            .nav-logo {
+                font-size: 14px;
+                flex-shrink: 0;
+            }
+
+            .nav-menu {
+                display: flex;
+                gap: 12px;
+                overflow-x: auto;
+                margin: 0 10px;
+                -webkit-overflow-scrolling: touch;
+                /* 스크롤 부드럽게 */
+            }
+
+            .nav-menu::-webkit-scrollbar {
+                display: none;
+                /* 스크롤바 숨김 */
+            }
+
+            .nav-link {
+                margin: 0;
+                font-size: 13px;
+                white-space: nowrap;
+                padding: 16px 4px;
+            }
+
+            .nav-actions {
+                display: none;
+                /* 모바일에서 로그인 버튼은 일단 숨김 (공간 부족) */
+            }
+
+            /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
+
+            /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
+            .bottom-sheet .status-btn {
+                padding: 16px 0;
+                font-size: 15px;
+                font-weight: 600;
+            }
+
+            .bottom-sheet .status-button-group {
+                gap: 10px;
+            }
+
+            /* 3. 바텀 시트 (Bottom Sheet) */
+            .bottom-sheet {
+                position: fixed;
+                bottom: -100%;
+                /* 숨김 상태 */
+                left: 0;
+                width: 100%;
+                background: white;
+                border-radius: 20px 20px 0 0;
+                box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+                z-index: 1000;
+                transition: bottom 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+                padding: 24px;
+                padding-bottom: 40px;
+                /* Safe area */
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+
+            .bottom-sheet.active {
+                bottom: 0;
+            }
+
+            .sheet-handle {
+                width: 40px;
+                height: 4px;
+                background: #e5e5ea;
+                border-radius: 2px;
+                margin: 0 auto 16px;
+            }
+
+            .sheet-header {
+                margin-bottom: 20px;
+            }
+
+            .sheet-title {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 4px;
+            }
+
+            .sheet-subtitle {
+                font-size: 13px;
+                color: #86868b;
+            }
+
+            /* 4. 뷰 토글 플로팅 버튼 */
+            .view-toggle-btn {
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #1d1d1f;
+                color: white;
+                padding: 10px 24px;
+                border-radius: 30px;
+                font-size: 14px;
+                font-weight: 600;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                z-index: 900;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: none;
+                cursor: pointer;
+            }
+
+            .view-toggle-btn.hidden {
+                display: none;
+            }
+
+            /* 퀵 액션 버튼 */
+            .quick-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+                margin-top: 20px;
+            }
+
+            .quick-btn {
+                padding: 14px;
+                border-radius: 12px;
+                border: none;
+                font-weight: 600;
+                font-size: 14px;
+                color: white;
+                cursor: pointer;
+            }
+
+            .quick-btn.success {
+                background: #34C759;
+            }
+
+            .quick-btn.fail {
+                background: #FF3B30;
+            }
+
+            /* InfoWindow 숨김 (모바일은 바텀시트 사용) */
+            .custom-info-window {
+                display: none !important;
+            }
         }
 
-        .map-area {
-            width: 100%;
-            height: 100%;
-            z-index: 10;
-        }
-
-        /* 2. 내비게이션 최적화 */
-        .nav-bar {
-            padding: 0 16px;
-            justify-content: space-between;
-            height: 52px;
-        }
-
-        .nav-logo {
-            font-size: 14px;
-            flex-shrink: 0;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 12px;
-            overflow-x: auto;
-            margin: 0 10px;
-            -webkit-overflow-scrolling: touch;
-            /* 스크롤 부드럽게 */
-        }
-
-        .nav-menu::-webkit-scrollbar {
-            display: none;
-            /* 스크롤바 숨김 */
-        }
-
-        .nav-link {
-            margin: 0;
-            font-size: 13px;
-            white-space: nowrap;
-            padding: 16px 4px;
-        }
-
-        .nav-actions {
-            display: none;
-            /* 모바일에서 로그인 버튼은 일단 숨김 (공간 부족) */
-        }
-
-        /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
-
-        /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
-        .bottom-sheet .status-btn {
-            padding: 16px 0;
-            font-size: 15px;
-            font-weight: 600;
-        }
-
-        .bottom-sheet .status-button-group {
-            gap: 10px;
-        }
-
-        /* 3. 바텀 시트 (Bottom Sheet) */
-        .bottom-sheet {
-            position: fixed;
-            bottom: -100%;
-            /* 숨김 상태 */
-            left: 0;
-            width: 100%;
-            background: white;
-            border-radius: 20px 20px 0 0;
-            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            transition: bottom 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
-            padding: 24px;
-            padding-bottom: 40px;
-            /* Safe area */
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .bottom-sheet.active {
-            bottom: 0;
-        }
-
-        .sheet-handle {
-            width: 40px;
-            height: 4px;
-            background: #e5e5ea;
-            border-radius: 2px;
-            margin: 0 auto 16px;
-        }
-
-        .sheet-header {
-            margin-bottom: 20px;
-        }
-
-        .sheet-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-
-        .sheet-subtitle {
-            font-size: 13px;
-            color: #86868b;
-        }
-
-        /* 4. 뷰 토글 플로팅 버튼 */
-        .view-toggle-btn {
-            position: fixed;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1d1d1f;
-            color: white;
-            padding: 10px 24px;
-            border-radius: 30px;
-            font-size: 14px;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-            z-index: 900;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: none;
-            cursor: pointer;
-        }
-
-        .view-toggle-btn.hidden {
-            display: none;
-        }
-
-        /* 퀵 액션 버튼 */
-        .quick-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        .quick-btn {
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            font-weight: 600;
-            font-size: 14px;
-            color: white;
-            cursor: pointer;
-        }
-
-        .quick-btn.success {
-            background: #34C759;
-        }
-
-        .quick-btn.fail {
-            background: #FF3B30;
-        }
-
-        /* InfoWindow 숨김 (모바일은 바텀시트 사용) */
-        .custom-info-window {
-            display: none !important;
-        }
-        }
+        /* Add missing closing bracket for @media (max-width: 768px) */
 
         /* 데스크탑 전용 */
         @media (min-width: 769px) {
