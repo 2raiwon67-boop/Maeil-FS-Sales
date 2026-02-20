@@ -2629,6 +2629,12 @@
 
                             if (itemArray.length === 0) break;
 
+                            // [DEBUG] 첫 번째 페이지 첫 번째 아이템 구조 출력
+                            if (pageNo === 1 && allRawData.length === 0) {
+                                console.log(`[DEBUG] ${svcNm} 첫 번째 아이템 키:`, Object.keys(itemArray[0]));
+                                console.log(`[DEBUG] ${svcNm} 첫 번째 아이템 값:`, itemArray[0]);
+                            }
+
                             // API 필드명 → processData 컬럼명 매핑
                             const mapped = itemArray.map(item => ({
                                 '사업장명': item.bplcNm || '',
