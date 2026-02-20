@@ -2573,87 +2573,77 @@
 
                 // 업종 서비스명 (업태구분명 필터 대상의 상위 카테고리)
                 const serviceNames = ['일반음식점', '휴게음식점', '제과점영업'];
-                const MAX_PAGES = 300; // 안전 상한 (페이지당 100건 × 300 = 30,000건/업종)
+                const MAX_PAGES = 50;   // 서비스당 최대 50페이지 (≒5,000건)
+                const BATCH_SIZE = 10;  // 동시 병렬 호출 수
 
                 const rawMap = new Map(); // MNG_NO 기준 중복 제거
-                let svcIdx = 0;
 
+                // 단일 페이지 fetch 헬퍼
+                async function fetchPage(svcNm, pageNo) {
+                    const params = new URLSearchParams({
+                        serviceType: svcNm,
+                        pageNo,
+                        startDate,
+                        SALS_STTS_CD: '01',
+                        LOTNO_ADDR: '경기'
+                    });
+                    if (endDate) params.set('endDate', endDate);
+                    try {
+                        const res = await fetch(`/api/public-license?${params}`);
+                        if (!res.ok) return null;
+                        const json = await res.json();
+                        if (json.error) return null;
+                        const rb = json?.response?.body;
+                        const rawItems = rb?.items;
+                        let items = [];
+                        if (Array.isArray(rawItems)) items = rawItems;
+                        else if (rawItems?.item) items = Array.isArray(rawItems.item) ? rawItems.item : [rawItems.item];
+                        return { items, totalCount: parseInt(rb?.totalCount || 0) };
+                    } catch { return null; }
+                }
+
+                function addToMap(items) {
+                    items.forEach(item => {
+                        const key = item.MNG_NO || `${item.BPLC_NM}_${item.LOTNO_ADDR}`;
+                        if (!rawMap.has(key)) {
+                            rawMap.set(key, {
+                                '사업장명': item.BPLC_NM || '',
+                                '업태구분명': item.BZSTAT_SE_NM || item.SNTTN_BZSTAT_NM || '',
+                                '영업상태명': item.SALS_STTS_NM || '',
+                                '상세영업상태명': item.DTL_SALS_STTS_NM || '',
+                                '소재지전체주소': item.LOTNO_ADDR || '',
+                                '도로명전체주소': item.ROAD_NM_ADDR || '',
+                                '소재지면적': item.LCTN_AREA || '',
+                                '시설총규모': item.FCLT_TOTAL_SCL || item.LCTN_AREA || '',
+                                '인허가일자': item.LCPMT_YMD || '',
+                                '영업허가일': item.LCPMT_YMD || ''
+                            });
+                        }
+                    });
+                }
+
+                let svcIdx = 0;
                 for (const svcNm of serviceNames) {
                     svcIdx++;
-                    setStatus(`불러오는 중... (${svcIdx}/${serviceNames.length}) ${svcNm}`);
+                    setStatus(`(${svcIdx}/3) ${svcNm} — 1페이지 조회 중...`);
 
-                    let pageNo = 1;
-                    let totalPages = 1;
-                    let actualPageSize = 100; // API 실제 반환 크기 (첫 응답에서 확정)
+                    // 1페이지로 totalCount·실제 페이지 크기 확인
+                    const first = await fetchPage(svcNm, 1);
+                    if (!first || first.items.length === 0) continue;
 
-                    while (pageNo <= totalPages && pageNo <= MAX_PAGES) {
-                        const params = new URLSearchParams({
-                            serviceType: svcNm,
-                            pageNo,
-                            startDate,
-                            // 서버 필터 시도 (API가 지원하는 경우 적용됨)
-                            SALS_STTS_CD: '01',          // 영업중만
-                            LOTNO_ADDR: '경기'            // 경기도+인천 주소 포함
-                        });
-                        if (endDate) params.set('endDate', endDate);
+                    addToMap(first.items);
+                    const actualPageSize = first.items.length || 100;
+                    const totalPages = Math.min(Math.ceil(first.totalCount / actualPageSize), MAX_PAGES);
+                    console.log(`${svcNm}: 총 ${first.totalCount}건 → 최대 ${totalPages}페이지 수집`);
 
-                        const res = await fetch(`/api/public-license?${params}`);
-                        if (!res.ok) {
-                            console.warn(`API 오류 (${svcNm} p${pageNo}):`, res.status);
-                            break;
-                        }
-
-                        const json = await res.json();
-                        if (json.error) {
-                            setStatus('❌ ' + json.error);
-                            btn.disabled = false;
-                            return;
-                        }
-
-                        // 응답 구조 파싱 (data.go.kr JSON 형식)
-                        const responseBody = json?.response?.body;
-
-                        // items는 배열 또는 {item:[...]} 형태 모두 처리
-                        const rawItems = responseBody?.items;
-                        let itemArray = [];
-                        if (Array.isArray(rawItems)) {
-                            itemArray = rawItems;
-                        } else if (rawItems?.item) {
-                            itemArray = Array.isArray(rawItems.item) ? rawItems.item : [rawItems.item];
-                        }
-
-                        if (pageNo === 1) {
-                            const totalCount = parseInt(responseBody?.totalCount || 0);
-                            actualPageSize = itemArray.length || 100;
-                            totalPages = Math.ceil(totalCount / actualPageSize) || 1;
-                            console.log(`${svcNm}: 총 ${totalCount}건 (${totalPages}페이지, 페이지당 ${actualPageSize}건)`);
-                        }
-
-                        if (itemArray.length === 0) break;
-
-                        // API 필드명 → processData 컬럼명 매핑 (data.go.kr 대문자 형식)
-                        itemArray.forEach(item => {
-                            const mngNo = item.MNG_NO || `${item.BPLC_NM}_${item.LOTNO_ADDR}`;
-                            if (!rawMap.has(mngNo)) {
-                                rawMap.set(mngNo, {
-                                    '사업장명': item.BPLC_NM || '',
-                                    '업태구분명': item.BZSTAT_SE_NM || item.SNTTN_BZSTAT_NM || '',
-                                    '영업상태명': item.SALS_STTS_NM || '',
-                                    '상세영업상태명': item.DTL_SALS_STTS_NM || '',
-                                    '소재지전체주소': item.LOTNO_ADDR || '',
-                                    '도로명전체주소': item.ROAD_NM_ADDR || '',
-                                    '소재지면적': item.LCTN_AREA || '',
-                                    '시설총규모': item.FCLT_TOTAL_SCL || item.LCTN_AREA || '',
-                                    '인허가일자': item.LCPMT_YMD || '',
-                                    '영업허가일': item.LCPMT_YMD || ''
-                                });
-                            }
-                        });
-
-                        setStatus(`불러오는 중... (${svcIdx}/${serviceNames.length}) ${svcNm} — ${pageNo}/${Math.min(totalPages, MAX_PAGES)}페이지 (누적 ${rawMap.size}건)`);
-
-                        if (itemArray.length < actualPageSize) break; // 마지막 페이지
-                        pageNo++;
+                    // 나머지 페이지 병렬 수집 (BATCH_SIZE씩)
+                    for (let bStart = 2; bStart <= totalPages; bStart += BATCH_SIZE) {
+                        const bEnd = Math.min(bStart + BATCH_SIZE - 1, totalPages);
+                        const results = await Promise.all(
+                            Array.from({ length: bEnd - bStart + 1 }, (_, i) => fetchPage(svcNm, bStart + i))
+                        );
+                        results.forEach(r => r && addToMap(r.items));
+                        setStatus(`(${svcIdx}/3) ${svcNm} — ${bEnd}/${totalPages}페이지 완료 (누적 ${rawMap.size}건)`);
                     }
                 }
 
