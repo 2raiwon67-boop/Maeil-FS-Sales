@@ -551,6 +551,246 @@
             color: #1d1d1f;
         }
 
+        /* =============== 미니 CRM 사이드 패널 =============== */
+        .crm-panel {
+            position: fixed;
+            top: 52px;
+            /* nav-bar height */
+            right: -400px;
+            width: 360px;
+            height: calc(100vh - 52px);
+            background: #ffffff;
+            box-shadow: -4px 0 15px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .crm-panel.open {
+            right: 0;
+        }
+
+        .crm-header {
+            padding: 20px;
+            border-bottom: 1px solid #f0f0f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .crm-title-area {
+            flex: 1;
+        }
+
+        .crm-store-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin: 0 0 6px 0;
+            line-height: 1.3;
+        }
+
+        .crm-address {
+            font-size: 13px;
+            color: #86868b;
+            margin: 0 0 10px 0;
+            line-height: 1.4;
+        }
+
+        .crm-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .crm-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .crm-close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #86868b;
+            cursor: pointer;
+            padding: 4px;
+            margin-top: -4px;
+            border-radius: 50%;
+            transition: background 0.2s;
+        }
+
+        .crm-close-btn:hover {
+            background: #f5f5f7;
+            color: #1d1d1f;
+        }
+
+        .crm-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        /* 퀵 액션 버튼 */
+        .crm-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .crm-action-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+
+        .crm-action-btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-call {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #bbdefb;
+        }
+
+        .btn-record {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+
+        /* AI 요약 카드 */
+        .crm-ai-card {
+            background: linear-gradient(145deg, #f0f7ff, #ffffff);
+            border: 1px solid #d0e3ff;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .ai-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #0066cc;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ai-card-content {
+            font-size: 14px;
+            color: #333;
+            line-height: 1.5;
+            min-height: 42px;
+        }
+
+        .ai-loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(0, 102, 204, 0.2);
+            border-radius: 50%;
+            border-top-color: #0066cc;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 8px;
+        }
+
+        /* 타임라인 (History) */
+        .crm-section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 16px;
+        }
+
+        .crm-timeline {
+            position: relative;
+            padding-left: 16px;
+        }
+
+        .crm-timeline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 5px;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -16px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #0071e3;
+            z-index: 1;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            font-weight: 600;
+            color: #86868b;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .timeline-manager {
+            background: #f5f5f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #1d1d1f;
+        }
+
+        .timeline-content {
+            background: #fbfbfd;
+            border: 1px solid #f0f0f5;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 13px;
+            color: #333;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .timeline-empty {
+            text-align: center;
+            color: #86868b;
+            font-size: 14px;
+            padding: 30px 0;
+            background: #f5f5f7;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
         .upload-zone {
             border: 2px dashed #d2d2d7;
             border-radius: 12px;
@@ -587,186 +827,193 @@
         /* =============== 모바일 전용 UI (Mobile Field Mode) =============== */
         @media (max-width: 768px) {
 
-            /* 1. 레이아웃: 사이드바 숨기고 지도 전체화면 */
-            .main-layout {
-                grid-template-columns: 1fr;
-                /* 사이드바 제거, 1열 위주 */
-                display: block;
-                /* 그리드 대신 블록으로 (조건부 표시) */
-                position: relative;
-            }
-
-            .sidebar {
-                display: none;
-                /* 기본엔 숨김 (지도 모드) */
-                width: 100%;
-                height: calc(100vh - 52px - 60px);
-                /* 하단 탭 공간 등 고려 */
-                position: absolute;
-                top: 0;
-                left: 0;
-                z-index: 50;
-                background: #f5f5f7;
-            }
-
-            .map-area {
-                width: 100%;
-                height: 100%;
-                z-index: 10;
-            }
-
-            /* 2. 내비게이션 최적화 */
-            .nav-bar {
-                padding: 0 16px;
-                justify-content: space-between;
-                height: 52px;
-            }
-
-            .nav-logo {
-                font-size: 14px;
-                flex-shrink: 0;
-            }
-
-            .nav-menu {
-                display: flex;
-                gap: 12px;
-                overflow-x: auto;
-                margin: 0 10px;
-                -webkit-overflow-scrolling: touch;
-                /* 스크롤 부드럽게 */
-            }
-
-            .nav-menu::-webkit-scrollbar {
-                display: none;
-                /* 스크롤바 숨김 */
-            }
-
-            .nav-link {
-                margin: 0;
-                font-size: 13px;
-                white-space: nowrap;
-                padding: 16px 4px;
-            }
-
-            .nav-actions {
-                display: none;
-                /* 모바일에서 로그인 버튼은 일단 숨김 (공간 부족) */
-            }
-
-            /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
-
-            /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
-            .bottom-sheet .status-btn {
-                padding: 16px 0;
-                font-size: 15px;
-                font-weight: 600;
-            }
-
-            .bottom-sheet .status-button-group {
-                gap: 10px;
-            }
-
-            /* 3. 바텀 시트 (Bottom Sheet) */
-            .bottom-sheet {
-                position: fixed;
+            /* 모바일 미니 CRM 패널 폰 패밀리 적용 및 전체화면화 */
+            .crm-panel {
+                top: auto;
                 bottom: -100%;
-                /* 숨김 상태 */
-                left: 0;
+                right: 0;
                 width: 100%;
-                background: white;
+                height: 85vh;
+                /* 화면의 85% 차지 */
                 border-radius: 20px 20px 0 0;
                 box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
-                z-index: 1000;
-                transition: bottom 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
-                padding: 24px;
-                padding-bottom: 40px;
-                /* Safe area */
-                max-height: 80vh;
-                overflow-y: auto;
+                transition: bottom 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
-            .bottom-sheet.active {
+            .crm-panel.open {
                 bottom: 0;
+                right: 0;
             }
 
-            .sheet-handle {
-                width: 40px;
-                height: 4px;
-                background: #e5e5ea;
-                border-radius: 2px;
-                margin: 0 auto 16px;
-            }
+            /* 기본엔 숨김 (지도 모드) */
+            width: 100%;
+            height: calc(100vh - 52px - 60px);
+            /* 하단 탭 공간 등 고려 */
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 50;
+            background: #f5f5f7;
+        }
 
-            .sheet-header {
-                margin-bottom: 20px;
-            }
+        .map-area {
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
 
-            .sheet-title {
-                font-size: 18px;
-                font-weight: 700;
-                margin-bottom: 4px;
-            }
+        /* 2. 내비게이션 최적화 */
+        .nav-bar {
+            padding: 0 16px;
+            justify-content: space-between;
+            height: 52px;
+        }
 
-            .sheet-subtitle {
-                font-size: 13px;
-                color: #86868b;
-            }
+        .nav-logo {
+            font-size: 14px;
+            flex-shrink: 0;
+        }
 
-            /* 4. 뷰 토글 플로팅 버튼 */
-            .view-toggle-btn {
-                position: fixed;
-                bottom: 30px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: #1d1d1f;
-                color: white;
-                padding: 10px 24px;
-                border-radius: 30px;
-                font-size: 14px;
-                font-weight: 600;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                z-index: 900;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                border: none;
-                cursor: pointer;
-            }
+        .nav-menu {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            margin: 0 10px;
+            -webkit-overflow-scrolling: touch;
+            /* 스크롤 부드럽게 */
+        }
 
-            .view-toggle-btn.hidden {
-                display: none;
-            }
+        .nav-menu::-webkit-scrollbar {
+            display: none;
+            /* 스크롤바 숨김 */
+        }
 
-            /* 퀵 액션 버튼 */
-            .quick-actions {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-                margin-top: 20px;
-            }
+        .nav-link {
+            margin: 0;
+            font-size: 13px;
+            white-space: nowrap;
+            padding: 16px 4px;
+        }
 
-            .quick-btn {
-                padding: 14px;
-                border-radius: 12px;
-                border: none;
-                font-weight: 600;
-                font-size: 14px;
-                color: white;
-                cursor: pointer;
-            }
+        .nav-actions {
+            display: none;
+            /* 모바일에서 로그인 버튼은 일단 숨김 (공간 부족) */
+        }
 
-            .quick-btn.success {
-                background: #34C759;
-            }
+        /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
 
-            .quick-btn.fail {
-                background: #FF3B30;
-            }
+        /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
+        .bottom-sheet .status-btn {
+            padding: 16px 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
 
-            /* InfoWindow 숨김 (모바일은 바텀시트 사용) */
-            .custom-info-window {
-                display: none !important;
-            }
+        .bottom-sheet .status-button-group {
+            gap: 10px;
+        }
+
+        /* 3. 바텀 시트 (Bottom Sheet) */
+        .bottom-sheet {
+            position: fixed;
+            bottom: -100%;
+            /* 숨김 상태 */
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 20px 20px 0 0;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            transition: bottom 0.3s cubic-bezier(0.1, 0.7, 0.1, 1);
+            padding: 24px;
+            padding-bottom: 40px;
+            /* Safe area */
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .bottom-sheet.active {
+            bottom: 0;
+        }
+
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: #e5e5ea;
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+
+        .sheet-header {
+            margin-bottom: 20px;
+        }
+
+        .sheet-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .sheet-subtitle {
+            font-size: 13px;
+            color: #86868b;
+        }
+
+        /* 4. 뷰 토글 플로팅 버튼 */
+        .view-toggle-btn {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1d1d1f;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 900;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .view-toggle-btn.hidden {
+            display: none;
+        }
+
+        /* 퀵 액션 버튼 */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .quick-btn {
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 14px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .quick-btn.success {
+            background: #34C759;
+        }
+
+        .quick-btn.fail {
+            background: #FF3B30;
+        }
+
+        /* InfoWindow 숨김 (모바일은 바텀시트 사용) */
+        .custom-info-window {
+            display: none !important;
+        }
         }
 
         /* 데스크탑 전용 */
@@ -1678,18 +1925,21 @@
                     <div style="display: flex; flex-direction: column; gap: 6px;">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <label style="font-size:11px; color:#86868b; width:32px; flex-shrink:0;">시작일</label>
-                            <input type="date" id="apiStartDate" style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
+                            <input type="date" id="apiStartDate"
+                                style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             <label style="font-size:11px; color:#86868b; width:32px; flex-shrink:0;">종료일</label>
-                            <input type="date" id="apiEndDate" style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
+                            <input type="date" id="apiEndDate"
+                                style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
                         </div>
                     </div>
                     <button onclick="loadDataFromPublicAPI()" id="apiLoadBtn" class="naver-map-btn"
                         style="background: #FF9F0A; justify-content: center;">
                         🌐 공공데이터 자동 불러오기
                     </button>
-                    <div id="apiLoadStatus" style="font-size:11px; color:#86868b; text-align:center; display:none; line-height:1.5;"></div>
+                    <div id="apiLoadStatus"
+                        style="font-size:11px; color:#86868b; text-align:center; display:none; line-height:1.5;"></div>
                     <button onclick="openUploadModal()" class="naver-map-btn"
                         style="background: #34c759; justify-content: center;">
                         📂 RAW 파일 업로드
@@ -1704,6 +1954,47 @@
 
         <!-- 우측 지도 영역 -->
         <div class="map-area" style="position: relative;">
+            <!-- 🌟 미니 CRM 패널 HTML 마크업 -->
+            <div id="miniCrmPanel" class="crm-panel">
+                <div class="crm-header">
+                    <div class="crm-title-area">
+                        <h2 id="crmStoreName" class="crm-store-name">상호명</h2>
+                        <p id="crmAddress" class="crm-address">도로명 주소</p>
+                        <div id="crmBadges" class="crm-badges">
+                            <!-- 뱃지 동적 주입 -->
+                        </div>
+                    </div>
+                    <button class="crm-close-btn" onclick="closeCrmPanel()">✕</button>
+                </div>
+
+                <div class="crm-body">
+                    <!-- 퀵 액션 (전화, 방문일지) -->
+                    <div class="crm-actions">
+                        <a href="#" id="crmCallBtn" class="crm-action-btn btn-call" target="_blank">
+                            📞 전화걸기
+                        </a>
+                        <a href="방문일지.html" id="crmWriteBtn" class="crm-action-btn btn-record" target="_blank">
+                            📝 방문일지
+                        </a>
+                    </div>
+
+                    <!-- ✨ AI 거래처 핵심 요약 -->
+                    <div class="crm-ai-card">
+                        <div class="ai-card-title">✨ MISO AI 핵심 공략 포인트</div>
+                        <div id="crmAiContent" class="ai-card-content">
+                            방문 기록을 바탕으로 정보를 요약합니다...
+                            <div class="ai-loading-spinner" id="crmAiSpinner" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 과거 영업 타임라인 -->
+                    <h3 class="crm-section-title">⏱ 과거 영업 타임라인</h3>
+                    <div id="crmTimeline" class="crm-timeline">
+                        <!-- 타임라인 아이템 동적 주입 -->
+                    </div>
+                </div>
+            </div>
+
             <div id="map"></div>
 
             <!-- 대시보드 뷰 (통계 화면) -->
@@ -2094,6 +2385,159 @@
         }
 
         // ============================================================
+        // 🌟 미니 CRM 패널 (사이드바) 제어 로직
+        // ============================================================
+        function getBadgeHtml(statusText) {
+            let markerColor = '#8e8e93';
+            if (statusText.includes('1순위')) markerColor = '#ff3b30';
+            else if (statusText.includes('미거래')) markerColor = '#ff9500';
+            else if (statusText.includes('2순위')) markerColor = '#34c759';
+            else if (statusText.includes('거래')) markerColor = '#007aff';
+            else if (statusText.includes('폐업') || statusText.includes('반려')) markerColor = '#8e8e93';
+            else if (statusText.includes('인허가')) markerColor = '#af52de';
+            else if (statusText.includes('공사중')) markerColor = '#5856d6';
+
+            return `<span class="crm-badge" style="background: ${markerColor}15; color: ${markerColor};">${statusText}</span>`;
+        }
+
+        async function openMiniCrm(storeName, address, statusText, phone, focusMarkerCoord = null) {
+            // 정보 설정
+            document.getElementById('crmStoreName').textContent = storeName;
+            document.getElementById('crmAddress').textContent = address || '주소 정보 없음';
+
+            // 뱃지 설정
+            const badgesContainer = document.getElementById('crmBadges');
+            badgesContainer.innerHTML = getBadgeHtml(statusText);
+            if (phone && phone !== '번호 없음') {
+                badgesContainer.innerHTML += `<span class="crm-badge" style="background: #e5e5ea; color: #1d1d1f;">📞 ${phone}</span>`;
+            }
+
+            // 퀵 액션 연동
+            const callBtn = document.getElementById('crmCallBtn');
+            if (phone && phone !== '번호 없음') {
+                callBtn.href = `tel:${phone.replace(/[^0-9]/g, '')}`;
+                callBtn.style.opacity = '1';
+                callBtn.style.pointerEvents = 'auto';
+            } else {
+                callBtn.removeAttribute('href');
+                callBtn.style.opacity = '0.5';
+                callBtn.style.pointerEvents = 'none';
+            }
+
+            // 패널 열기 애니메이션
+            document.getElementById('miniCrmPanel').classList.add('open');
+
+            // 모바일일때 맵 약간 이동 (시야 확보)
+            if (window.innerWidth <= 768 && focusMarkerCoord) {
+                // 패널이 하단에서 올라오므로 센터를 약간 위로 조정
+                naverMap.panTo(focusMarkerCoord);
+                setTimeout(() => naverMap.panBy(new naver.maps.Point(0, 150)), 300);
+            }
+
+            // 데이터 연동 함수 호출
+            renderCrmTimeline(storeName);
+        }
+
+        function closeCrmPanel() {
+            document.getElementById('miniCrmPanel').classList.remove('open');
+        }
+
+        // 해당 상호명의 방문 기록을 검색하여 타임라인에 렌더링하고, AI에게 요약 요청
+        async function renderCrmTimeline(storeName) {
+            const timelineContainer = document.getElementById('crmTimeline');
+            const aiContent = document.getElementById('crmAiContent');
+            const aiSpinner = document.getElementById('crmAiSpinner');
+
+            timelineContainer.innerHTML = ''; // 초기화
+            aiContent.innerHTML = '방문 기록을 검색 중입니다...';
+            if (aiSpinner) aiSpinner.style.display = 'inline-block';
+
+            // 1. 데이터 가져오기 (방문일지 캐시)
+            const rawVisits = window.visitLogCache || [];
+
+            // 해당 거래처명과 일치하는 (또는 포함하는) 방문 기록 필터링
+            // 띄어쓰기나 오타 보정을 위해 포함 여부로 체크 (필요시 엄격하게 변경)
+            const storeVisits = rawVisits.filter(v => {
+                const visitTarget = (v['방문처(거래처)'] || '').replace(/\s/g, '');
+                const targetName = storeName.replace(/\s/g, '');
+                return visitTarget.includes(targetName) || targetName.includes(visitTarget);
+            });
+
+            // 시간 역순(최신순) 정렬
+            storeVisits.sort((a, b) => {
+                let da = a['일정기간'] || a['작성일'] || '';
+                let db = b['일정기간'] || b['작성일'] || '';
+                return db.localeCompare(da);
+            });
+
+            // 2. 타임라인 HTML 생성
+            if (storeVisits.length === 0) {
+                timelineContainer.innerHTML = `
+                    <div class="timeline-empty">
+                        <div style="font-size:24px; margin-bottom:8px;">📝</div>
+                        아직 기록된 방문일지가 없습니다.<br>첫 방문을 기록해 보세요!
+                    </div>`;
+                aiContent.innerHTML = '과거 방문 데이터가 없어 요약할 수 없습니다. 신규 개척을 시도해 보세요!';
+                if (aiSpinner) aiSpinner.style.display = 'none';
+                return;
+            }
+
+            storeVisits.forEach(v => {
+                const date = (v['일정기간'] || v['작성일'] || '').substring(0, 10);
+                const manager = v['담당자(영업사원)'] || v['담당자'] || '알 수 없음';
+                const content = v['방문상담내용'] || '내용 없음';
+
+                let followUpHtml = '';
+                if (v['추후 방문 및 조치사항']) {
+                    followUpHtml = `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #e5e5ea; font-size:12px; color:#c74822;">
+                        <strong>📌 To-do:</strong> ${v['추후 방문 및 조치사항']}
+                    </div>`;
+                }
+
+                const itemHtml = `
+                    <div class="timeline-item">
+                        <div class="timeline-date">
+                            <span>📅 ${date}</span>
+                            <span class="timeline-manager">${manager}</span>
+                        </div>
+                        <div class="timeline-content">
+                            ${content}
+                            ${followUpHtml}
+                        </div>
+                    </div>
+                `;
+                timelineContainer.insertAdjacentHTML('beforeend', itemHtml);
+            });
+
+            // 3. AI 1줄 핵심 요약 호출 (gemini-chatbot.js 객체 활용)
+            if (typeof geminiBot !== 'undefined') {
+                try {
+                    const prompt = `당신은 최고 실적 영업 팀장입니다. 방금 영업사원이 '${storeName}' 거래처에 대한 '미니 CRM' 창을 열었습니다.
+아래는 해당 거래처의 과거 방문일지 히스토리(최신순 정렬)입니다.
+
+# 거래처 과거 이력 (${storeVisits.length}건)
+${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성일'], 작성자: v['담당자'], 내용: v['방문상담내용'] })), null, 2)}
+
+# 지시사항
+1. 위 히스토리를 요약하여, 영업사원이 브리핑이나 후속 조치를 위해 **당장 1분 내에 알아야 할 가장 핵심적인 특징/주의사항/공략포인트 1~2줄**을 작성하세요.
+2. 예: "단가 인하에 매우 민감한 편임. 오후 3시경 방문 시 사장님과 대면 가능성 높음. 이전 방문 시 멸균우유 샘플 제공을 약속했으니 이번에 반드시 챙길 것."
+3. 군더더기 인사말 없이 딱 핵심 문장만 출력하세요. 이모지(🔥, ⚠️, 💡 등)를 1~2개 사용해 가독성을 높이세요.`;
+
+                    const summary = await geminiBot.generate(prompt);
+                    aiContent.innerHTML = summary;
+                } catch (err) {
+                    console.error('CRM AI 요약 에러:', err);
+                    aiContent.innerHTML = 'AI 요약을 불러오는 중 오류가 발생했습니다.';
+                } finally {
+                    if (aiSpinner) aiSpinner.style.display = 'none';
+                }
+            } else {
+                aiContent.innerHTML = 'AI 모듈(Gemini)이 로드되지 않았습니다.';
+                if (aiSpinner) aiSpinner.style.display = 'none';
+            }
+        }
+
+        // ============================================================
         // 초기화
         // ============================================================
 
@@ -2110,6 +2554,21 @@
             document.getElementById('apiStartDate').value = oneYearAgo.toISOString().split('T')[0];
 
             initNaverMap();
+
+            // 미니 CRM 외부 클릭 및 ESC 닫기 이벤트
+            document.addEventListener('click', function (e) {
+                const crmPanel = document.getElementById('miniCrmPanel');
+                if (!crmPanel.contains(e.target) && !e.target.closest('.timeline-item') && !e.target.closest('button')) {
+                    // 마커 클릭 시에도 닫히는 걸 방지하기 위해 button 이나 특정 클래스 제외 제어 필요
+                    // 가장 안전한 방식은 지도 빈 공간이나 딤 레이어를 뒀을 때 닫기 처리
+                    // 임시 주석 처리
+                }
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    closeCrmPanel();
+                }
+            });
 
             // 담당자 설정 로드 (비동기) -> 완료 후 데이터 처리 시 사용됨
             await loadManagerConfig();
@@ -3216,14 +3675,14 @@
                 let filterFrom, filterTo;
                 if (options.startDate) {
                     const s = options.startDate;
-                    filterFrom = new Date(parseInt(s.slice(0,4)), parseInt(s.slice(4,6))-1, parseInt(s.slice(6,8)));
+                    filterFrom = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
                 } else {
                     filterFrom = new Date();
                     filterFrom.setFullYear(filterFrom.getFullYear() - 1);
                 }
                 if (options.endDate) {
                     const e = options.endDate;
-                    filterTo = new Date(parseInt(e.slice(0,4)), parseInt(e.slice(4,6))-1, parseInt(e.slice(6,8)));
+                    filterTo = new Date(parseInt(e.slice(0, 4)), parseInt(e.slice(4, 6)) - 1, parseInt(e.slice(6, 8)));
                 } else {
                     filterTo = new Date();
                 }
