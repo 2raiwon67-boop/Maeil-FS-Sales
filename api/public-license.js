@@ -12,7 +12,7 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'API 키가 설정되지 않았습니다. Vercel 환경변수 PUBLIC_DATA_API_KEY를 설정해주세요.' });
     }
 
-    const { opnSvcNm, siteWhlAddr, startDate, pageIndex = '1' } = req.query;
+    const { opnSvcNm, siteWhlAddr, startDate, endDate, pageIndex = '1' } = req.query;
     if (!opnSvcNm) {
         return res.status(400).json({ error: 'opnSvcNm 파라미터가 필요합니다.' });
     }
@@ -28,6 +28,7 @@ export default async function handler(req, res) {
 
     if (siteWhlAddr) params.set('siteWhlAddr', siteWhlAddr);
     if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
 
     const url = `https://www.localdata.go.kr/platform/rest/TO0/openDataApi?${params}`;
 

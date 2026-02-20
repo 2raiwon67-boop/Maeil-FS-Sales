@@ -1675,6 +1675,16 @@
             <div class="section">
                 <div class="section-header">💾 데이터 관리</div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <label style="font-size:11px; color:#86868b; width:32px; flex-shrink:0;">시작일</label>
+                            <input type="date" id="apiStartDate" style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <label style="font-size:11px; color:#86868b; width:32px; flex-shrink:0;">종료일</label>
+                            <input type="date" id="apiEndDate" style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
+                        </div>
+                    </div>
                     <button onclick="loadDataFromPublicAPI()" id="apiLoadBtn" class="naver-map-btn"
                         style="background: #FF9F0A; justify-content: center;">
                         🌐 공공데이터 자동 불러오기
@@ -2091,6 +2101,13 @@
             document.body.classList.add('loaded'); // 페이지 로드 시 페이드 인 효과 적용
             console.log('페이지 로드 완료');
             setupUploadZones();
+
+            // 날짜 기본값: 시작일 = 1년 전, 종료일 = 오늘
+            const today = new Date();
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(today.getFullYear() - 1);
+            document.getElementById('apiEndDate').value = today.toISOString().split('T')[0];
+            document.getElementById('apiStartDate').value = oneYearAgo.toISOString().split('T')[0];
 
             initNaverMap();
 
@@ -2543,10 +2560,16 @@
             }
 
             try {
-                // 1년 전 날짜 계산 (YYYYMMDD)
-                const oneYearAgo = new Date();
-                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-                const startDate = oneYearAgo.toISOString().split('T')[0].replace(/-/g, '');
+                // 날짜 input 값 읽기 (YYYYMMDD 형식으로 변환)
+                const startDateVal = document.getElementById('apiStartDate').value;
+                const endDateVal = document.getElementById('apiEndDate').value;
+                if (!startDateVal) {
+                    setStatus('❌ 시작일을 입력해주세요.');
+                    btn.disabled = false;
+                    return;
+                }
+                const startDate = startDateVal.replace(/-/g, '');
+                const endDate = endDateVal ? endDateVal.replace(/-/g, '') : '';
 
                 // 업종 서비스명 (업태구분명 필터 대상의 상위 카테고리)
                 const serviceNames = ['일반음식점', '휴게음식점', '제과점영업'];
@@ -2572,6 +2595,7 @@
                                 startDate,
                                 pageIndex
                             });
+                            if (endDate) params.set('endDate', endDate);
 
                             const res = await fetch(`/api/public-license?${params}`);
                             if (!res.ok) {
