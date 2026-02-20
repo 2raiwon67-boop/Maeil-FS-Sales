@@ -1,5 +1,12 @@
 // 공공데이터포털 지방행정 인허가 데이터 API 프록시
 // API 키는 Vercel 환경변수 PUBLIC_DATA_API_KEY 에 설정
+
+const SERVICE_ENDPOINTS = {
+    '일반음식점': 'https://apis.data.go.kr/1741000/general_restaurants/info',
+    '제과점영업':  'https://apis.data.go.kr/1741000/bakeries/info',
+    '휴게음식점': 'https://apis.data.go.kr/1741000/rest_cafes/info'
+};
+
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -12,25 +19,24 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'API 키가 설정되지 않았습니다. Vercel 환경변수 PUBLIC_DATA_API_KEY를 설정해주세요.' });
     }
 
-    const { opnSvcNm, siteWhlAddr, startDate, endDate, pageIndex = '1' } = req.query;
-    if (!opnSvcNm) {
-        return res.status(400).json({ error: 'opnSvcNm 파라미터가 필요합니다.' });
+    const { serviceType, siteWhlAddr, startDate, endDate, pageNo = '1' } = req.query;
+    const endpoint = SERVICE_ENDPOINTS[serviceType];
+    if (!endpoint) {
+        return res.status(400).json({ error: '유효하지 않은 serviceType입니다. (일반음식점/제과점영업/휴게음식점)' });
     }
 
     const params = new URLSearchParams({
-        authKey: API_KEY,
-        opnSvcNm,
-        state1: '01',       // 영업/정상만
-        pageIndex,
-        pageSize: '1000',
-        resultType: 'json'
+        serviceKey: API_KEY,
+        pageNo,
+        numOfRows: '1000',
+        returnType: 'json'
     });
 
     if (siteWhlAddr) params.set('siteWhlAddr', siteWhlAddr);
-    if (startDate) params.set('startDate', startDate);
-    if (endDate) params.set('endDate', endDate);
+    if (startDate)   params.set('startDate', startDate);
+    if (endDate)     params.set('endDate', endDate);
 
-    const url = `https://www.localdata.go.kr/platform/rest/TO0/openDataApi?${params}`;
+    const url = `${endpoint}?${params}`;
 
     try {
         const response = await fetch(url, {

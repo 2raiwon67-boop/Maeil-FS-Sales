@@ -2585,21 +2585,21 @@
                         combo++;
                         setStatus(`불러오는 중... (${combo}/${totalCombos}) ${svcNm} · ${region}`);
 
-                        let pageIndex = 1;
+                        let pageNo = 1;
                         let totalPages = 1;
 
-                        while (pageIndex <= totalPages) {
+                        while (pageNo <= totalPages) {
                             const params = new URLSearchParams({
-                                opnSvcNm: svcNm,
+                                serviceType: svcNm,
                                 siteWhlAddr: region,
                                 startDate,
-                                pageIndex
+                                pageNo
                             });
                             if (endDate) params.set('endDate', endDate);
 
                             const res = await fetch(`/api/public-license?${params}`);
                             if (!res.ok) {
-                                console.warn(`API 오류 (${svcNm}/${region} p${pageIndex}):`, res.status);
+                                console.warn(`API 오류 (${svcNm}/${region} p${pageNo}):`, res.status);
                                 break;
                             }
 
@@ -2610,20 +2610,27 @@
                                 return;
                             }
 
-                            // 응답 구조 파싱 (localdata.go.kr JSON 형식)
-                            const header = json?.result?.header || json?.header || {};
-                            const body = json?.result?.body || json?.body || [];
-
-                            if (pageIndex === 1) {
-                                const totalCount = parseInt(header.totalCount || 0);
+                            // 응답 구조 파싱 (data.go.kr JSON 형식)
+                            const responseBody = json?.response?.body;
+                            if (pageNo === 1) {
+                                const totalCount = parseInt(responseBody?.totalCount || 0);
                                 totalPages = Math.ceil(totalCount / 1000) || 1;
                                 console.log(`${svcNm}/${region}: 총 ${totalCount}건 (${totalPages}페이지)`);
                             }
 
-                            if (!Array.isArray(body) || body.length === 0) break;
+                            // items는 배열 또는 {item:[...]} 형태 모두 처리
+                            const rawItems = responseBody?.items;
+                            let itemArray = [];
+                            if (Array.isArray(rawItems)) {
+                                itemArray = rawItems;
+                            } else if (rawItems?.item) {
+                                itemArray = Array.isArray(rawItems.item) ? rawItems.item : [rawItems.item];
+                            }
+
+                            if (itemArray.length === 0) break;
 
                             // API 필드명 → processData 컬럼명 매핑
-                            const mapped = body.map(item => ({
+                            const mapped = itemArray.map(item => ({
                                 '사업장명': item.bplcNm || '',
                                 '업태구분명': item.uptaeNm || '',
                                 '영업상태명': item.stateGbnNm || '',
@@ -2638,8 +2645,8 @@
 
                             allRawData.push(...mapped);
 
-                            if (body.length < 1000) break; // 마지막 페이지
-                            pageIndex++;
+                            if (itemArray.length < 1000) break; // 마지막 페이지
+                            pageNo++;
                         }
                     }
                 }
