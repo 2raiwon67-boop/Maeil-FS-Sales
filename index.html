@@ -2629,24 +2629,18 @@
 
                             if (itemArray.length === 0) break;
 
-                            // [DEBUG] 첫 번째 페이지 첫 번째 아이템 구조 출력
-                            if (pageNo === 1 && allRawData.length === 0) {
-                                console.log(`[DEBUG] ${svcNm} 첫 번째 아이템 키:`, Object.keys(itemArray[0]));
-                                console.log(`[DEBUG] ${svcNm} 첫 번째 아이템 값:`, itemArray[0]);
-                            }
-
-                            // API 필드명 → processData 컬럼명 매핑
+                            // API 필드명 → processData 컬럼명 매핑 (data.go.kr 대문자 형식)
                             const mapped = itemArray.map(item => ({
-                                '사업장명': item.bplcNm || '',
-                                '업태구분명': item.uptaeNm || '',
-                                '영업상태명': item.stateGbnNm || '',
-                                '상세영업상태명': item.dtlStateGbnNm || '',
-                                '소재지전체주소': item.siteWhlAddr || '',
-                                '도로명전체주소': item.rdnWhlAddr || '',
-                                '소재지면적': item.siteArea || '',
-                                '시설총규모': item.totFacltScp || item.siteArea || '',
-                                '인허가일자': item.apvPermYmd || '',
-                                '영업허가일': item.apvPermYmd || ''
+                                '사업장명': item.BPLC_NM || '',
+                                '업태구분명': item.BZSTAT_SE_NM || item.SNTTN_BZSTAT_NM || '',
+                                '영업상태명': item.SALS_STTS_NM || '',
+                                '상세영업상태명': item.DTL_SALS_STTS_NM || '',
+                                '소재지전체주소': item.LOTNO_ADDR || '',
+                                '도로명전체주소': item.ROAD_NM_ADDR || '',
+                                '소재지면적': item.LCTN_AREA || '',
+                                '시설총규모': item.FCLT_TOTAL_SCL || item.LCTN_AREA || '',
+                                '인허가일자': item.LCPMT_YMD || '',
+                                '영업허가일': item.LCPMT_YMD || ''
                             }));
 
                             allRawData.push(...mapped);
