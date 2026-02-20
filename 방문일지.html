@@ -1102,7 +1102,7 @@
             // 2. 인허가/주요거래처 이름과 상태를 매핑하는 Map 생성
             // 주요거래처: '거래처명', 인허가: '사업장명'
             const accountMap = new Map(allAccounts.filter(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'])).map(a => [normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호']), a['거래상태']]));
-            const licenseMap = new Map(allLicenses.filter(l => normalize(l['사업장명'] || l['업소명'] || l['상호명'])).map(l => [normalize(l['사업장명'] || l['업소명'] || l['상호명']), l['진행상태'] || l['거래상태']]));
+            const licenseMap = new Map(allLicenses.filter(l => normalize(l['사업장명'] || l['업소명'] || l['상호명'])).map(l => [normalize(l['사업장명'] || l['업소명'] || l['상호명']), l['거래여부(기입예정)'] || l['거래여부'] || l['진행상태'] || l['거래상태']]));
 
             allVisitLogs.forEach(log => {
                 const rawName = log['방문처(거래처)'] || '미지정';
