@@ -426,52 +426,6 @@
             height: 100%;
         }
 
-        .map-controls {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 14px 16px;
-            border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-            z-index: 100;
-        }
-
-        .filter-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #86868b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .filter-buttons {
-            display: flex;
-            gap: 6px;
-        }
-
-        .filter-btn {
-            padding: 6px 14px;
-            border: 1px solid #d2d2d7;
-            background: white;
-            border-radius: 980px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .filter-btn:hover {
-            background: #f5f5f7;
-        }
-
-        .filter-btn.active {
-            background: #0071e3;
-            color: white;
-            border-color: #0071e3;
-        }
 
         /* 📍 마커 글로우 효과 (2주 경과 인허가) */
         @keyframes pulse-yellow {
@@ -1840,25 +1794,6 @@
                 </div>
             </div>
 
-            <div class="map-controls">
-                <div class="search-box" style="margin-bottom: 12px; display: flex; gap: 6px;">
-                    <input type="text" id="mapSearchInput" placeholder="장소 또는 상호명 검색"
-                        style="flex: 1; padding: 8px; border: 1px solid #d2d2d7; border-radius: 6px; font-size: 13px;"
-                        onkeypress="if(event.key === 'Enter') searchMapPlaces()">
-                    <button onclick="searchMapPlaces()"
-                        style="padding: 8px 12px; background: #0071e3; color: white; border: none; border-radius: 6px; cursor: pointer;">검색</button>
-                </div>
-                <div class="filter-label">순위 필터</div>
-                <div class="filter-buttons">
-                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">전체</button>
-                    <button class="filter-btn" data-filter="1" onclick="setFilter('1')">1순위</button>
-                    <button class="filter-btn" data-filter="2" onclick="setFilter('2')">2순위</button>
-                    <button class="filter-btn" data-filter="3" onclick="setFilter('3')">3순위</button>
-                </div>
-                <button onclick="resetFilters()"
-                    style="margin-top: 10px; width: 100%; padding: 8px; background: #000; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">🔄
-                    모든 필터 초기화</button>
-            </div>
         </div>
     </div>
 
@@ -1932,7 +1867,6 @@
         let currentRegion = null;
         let currentManager = null;
         let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
-        let temporaryMarker = null;     // 검색으로 생성된 임시 마커
 
         // ── 주요거래처 전용 ──
         let accountsData = [];          // 주요거래처 원본 데이터
@@ -2161,7 +2095,6 @@
             document.body.classList.add('loaded'); // 페이지 로드 시 페이드 인 효과 적용
             console.log('페이지 로드 완료');
             setupUploadZones();
-            setupFilters();
 
             initNaverMap();
 
@@ -2190,21 +2123,6 @@
         // 필터 관리
         // ============================================================
 
-        function setFilter(filter) {
-            currentFilter = filter;
-
-            // 버튼 활성화 상태 변경
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-filter') === filter) {
-                    btn.classList.add('active');
-                }
-            });
-
-            // 대시보드 및 지도 업데이트
-            updateDashboard();
-            updateMap();
-        }
 
         function setRegionFilter(region) {
             // 같은 지역 클릭 시 필터 해제
@@ -2244,25 +2162,6 @@
             updateMap();
         }
 
-        function resetFilters() {
-            currentFilter = 'all';
-            currentRegion = null;
-            currentManager = null;
-
-            // 순위 필터 버튼 초기화
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-filter') === 'all') {
-                    btn.classList.add('active');
-                }
-            });
-
-            // 주요거래처 별 마커 전체 표시
-            accountMarkers.forEach(m => m.setMap(naverMap));
-
-            updateDashboard();
-            updateMap();
-        }
 
         // 방문 현황 카드 클릭 필터 (인허가 데이터)
         function filterByStatus(status) {
@@ -2334,10 +2233,6 @@
         function filterByRank(rank) {
             if (currentFilter === rank) {
                 currentFilter = 'all';
-                document.querySelectorAll('.filter-btn').forEach(btn => {
-                    btn.classList.remove('active');
-                    if (btn.getAttribute('data-filter') === 'all') btn.classList.add('active');
-                });
                 // 순위 필터 해제 시 별 마커 다시 표시
                 accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
@@ -3122,20 +3017,6 @@
             console.log(`주요거래처 별 마커 표시 완료: ${accountMarkers.length}개`);
         }
 
-        // ============================================================
-        // 필터
-        // ============================================================
-
-        function setupFilters() {
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    currentFilter = this.dataset.filter;
-                    updateMap();
-                });
-            });
-        }
 
         // ============================================================
         // 모달
@@ -3151,215 +3032,6 @@
         // 지도 업데이트 및 검색
         // ============================================================
 
-        async function searchMapPlaces() {
-            const keyword = document.getElementById('mapSearchInput').value.trim();
-            if (!keyword) {
-                alert('검색어를 입력해주세요!');
-                return;
-            }
-
-            // 1. DB 데이터 검색 (우선순위)
-            const dbResult = allData.find(item =>
-                (item['사업장명'] && item['사업장명'].includes(keyword)) ||
-                (item['도로명전체주소'] && item['도로명전체주소'].includes(keyword))
-            );
-
-            if (dbResult && dbResult['위도'] && dbResult['경도']) {
-                const lat = parseFloat(dbResult['위도']);
-                const lng = parseFloat(dbResult['경도']);
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    naverMap.setCenter(new naver.maps.LatLng(lat, lng));
-                    naverMap.setZoom(16);
-                    return;
-                }
-            }
-
-            // 2. 네이버 장소 검색 (Apps Script 프록시)
-            console.log('네이버 장소 검색 시도:', keyword);
-            try {
-                const naverResults = await searchNaverPlaces(keyword);
-                if (naverResults && naverResults.length > 0) {
-                    showNaverSearchResults(naverResults, keyword);
-                    return;
-                }
-            } catch (e) {
-                console.warn('네이버 장소 검색 실패 (주소 검색으로 대체):', e.message);
-            }
-
-            // 3. 최종 fallback → Geocoding
-            const coords = await geocodeAddress(keyword);
-            if (coords) {
-                naverMap.setCenter(new naver.maps.LatLng(coords.lat, coords.lng));
-                naverMap.setZoom(16);
-                createTemporaryMarker(coords.lat, coords.lng, keyword);
-            } else {
-                alert('검색 결과를 찾을 수 없습니다.\n\n주소 또는 상호명을 입력해주세요.');
-            }
-        }
-
-        // 네이버 장소 검색 (Apps Script 프록시 경유)
-        async function searchNaverPlaces(keyword) {
-            const response = await fetch(
-                APPS_SCRIPT_URL + '?action=naverSearch&query=' + encodeURIComponent(keyword)
-            );
-            const data = await response.json();
-            if (!data.success) throw new Error(data.error || '검색 실패');
-            return data.items || [];
-        }
-
-        // 네이버 장소 검색 결과를 지도에 마커로 표시
-        function showNaverSearchResults(items, keyword) {
-            // 기존 임시 마커 제거
-            if (temporaryMarker) {
-                temporaryMarker.setMap(null);
-                temporaryMarker = null;
-            }
-            if (window._naverSearchMarkers) {
-                window._naverSearchMarkers.forEach(m => m.setMap(null));
-            }
-            window._naverSearchMarkers = [];
-
-            if (currentInfoWindow) currentInfoWindow.close();
-
-            // KATECH 좌표 → WGS84 변환 (네이버 검색 API는 KATECH 좌표 반환)
-            // mapx = 경도 * 10^7, mapy = 위도 * 10^7
-            const bounds = new naver.maps.LatLngBounds();
-            let firstPos = null;
-
-            items.forEach((item, idx) => {
-                const lat = parseFloat(item.mapy) / 1e7;
-                const lng = parseFloat(item.mapx) / 1e7;
-                if (isNaN(lat) || isNaN(lng)) return;
-
-                const pos = new naver.maps.LatLng(lat, lng);
-                bounds.extend(pos);
-                if (!firstPos) firstPos = pos;
-
-                const marker = new naver.maps.Marker({
-                    position: pos,
-                    map: naverMap,
-                    icon: {
-                        content: `<div style="
-                            background:#AF52DE; color:white;
-                            border-radius:50%; width:22px; height:22px;
-                            display:flex; align-items:center; justify-content:center;
-                            font-size:11px; font-weight:700;
-                            border:2px solid white;
-                            box-shadow:0 2px 6px rgba(0,0,0,0.3);
-                            cursor:pointer;">${idx + 1}</div>`,
-                        anchor: new naver.maps.Point(11, 11)
-                    },
-                    zIndex: 20
-                });
-
-                naver.maps.Event.addListener(marker, 'click', function () {
-                    if (currentInfoWindow) currentInfoWindow.close();
-                    const naverPlaceUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item.title)}`;
-                    const iw = new naver.maps.InfoWindow({
-                        content: `
-                            <div class="custom-info-window" style="min-width:240px;">
-                                <div class="info-header" style="background:linear-gradient(135deg,#6f42c1,#AF52DE);">
-                                    <h3>🔍 ${item.title}</h3>
-                                    <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
-                                </div>
-                                <div class="info-body">
-                                    ${item.category ? `<div class="info-row"><span class="info-label">업종</span><span class="info-value" style="color:#AF52DE;">${item.category}</span></div>` : ''}
-                                    ${item.roadAddress ? `<div class="info-row"><span class="info-label">도로명</span><span class="info-value" style="font-size:12px;">${item.roadAddress}</span></div>` : ''}
-                                    ${item.address ? `<div class="info-row"><span class="info-label">지번</span><span class="info-value" style="font-size:12px;">${item.address}</span></div>` : ''}
-                                    ${item.telephone ? `<div class="info-row"><span class="info-label">전화</span><span class="info-value">${item.telephone}</span></div>` : ''}
-                                </div>
-                                <div class="info-footer">
-                                    <button class="naver-map-btn" onclick="window.open('${naverPlaceUrl}','_blank')">
-                                        네이버 지도에서 보기
-                                    </button>
-                                </div>
-                            </div>`,
-                        backgroundColor: 'transparent',
-                        borderColor: 'transparent',
-                        anchorSkew: true,
-                        pixelOffset: new naver.maps.Point(0, -10)
-                    });
-                    iw.open(naverMap, marker);
-                    currentInfoWindow = iw;
-                });
-
-                window._naverSearchMarkers.push(marker);
-            });
-
-            if (window._naverSearchMarkers.length === 1 && firstPos) {
-                naverMap.setCenter(firstPos);
-                naverMap.setZoom(16);
-            } else if (window._naverSearchMarkers.length > 1) {
-                naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
-            }
-
-            // 첫 번째 결과 자동 InfoWindow 표시
-            if (window._naverSearchMarkers.length > 0) {
-                naver.maps.Event.trigger(window._naverSearchMarkers[0], 'click');
-            }
-        }
-
-        function createTemporaryMarker(lat, lng, address) {
-            // 기존 임시 마커 제거
-            if (temporaryMarker) {
-                temporaryMarker.setMap(null);
-            }
-
-            const pos = new naver.maps.LatLng(lat, lng);
-
-            temporaryMarker = new naver.maps.Marker({
-                position: pos,
-                map: naverMap,
-                icon: {
-                    content: `
-                        <div style="
-                            width: 16px; height: 16px;
-                            background: #AF52DE;
-                            border: 2px solid white;
-                            border-radius: 50%;
-                            box-shadow: 0 3px 6px rgba(0,0,0,0.4);
-                        "></div>
-                    `,
-                    anchor: new naver.maps.Point(8, 8)
-                }
-            });
-
-            // 임시 마커 클릭 시 InfoWindow
-            naver.maps.Event.addListener(temporaryMarker, 'click', function () {
-                if (currentInfoWindow) {
-                    currentInfoWindow.close();
-                }
-
-                const infoWindow = new naver.maps.InfoWindow({
-                    content: `
-                        <div class="custom-info-window">
-                            <div class="info-header">
-                                <h3>검색 결과</h3>
-                                <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
-                            </div>
-                            <div class="info-body">
-                                <div class="info-row">
-                                    <span class="info-label">주소:</span>
-                                    <span class="info-value">${address}</span>
-                                </div>
-                            </div>
-                            <div class="info-footer">
-                                <button class="naver-map-btn" onclick="window.open('https://map.naver.com/v5/search/${encodeURIComponent(address)}', '_blank')">
-                                    네이버 지도에서 보기
-                                </button>
-                            </div>
-                        </div>
-                    `,
-                    backgroundColor: 'transparent',
-                    borderColor: 'transparent',
-                    anchorSkew: true,
-                    pixelOffset: new naver.maps.Point(0, -10)
-                });
-
-                infoWindow.open(naverMap, temporaryMarker);
-                currentInfoWindow = infoWindow;
-            });
-        }
 
 
         function openUploadModal() {
