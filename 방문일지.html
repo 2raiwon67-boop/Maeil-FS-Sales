@@ -1099,22 +1099,32 @@
                     .trim();
             };
 
-            // 2. 인허가/주요거래처 이름 세트 생성 (정규화된 이름 저장)
+            // 2. 인허가/주요거래처 이름과 상태를 매핑하는 Map 생성
             // 주요거래처: '거래처명', 인허가: '사업장명'
-            const accountNames = new Set(allAccounts.map(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'])).filter(Boolean));
-            const licenseNames = new Set(allLicenses.map(l => normalize(l['사업장명'] || l['업소명'] || l['상호명'])).filter(Boolean));
+            const accountMap = new Map(allAccounts.filter(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'])).map(a => [normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호']), a['거래상태']]));
+            const licenseMap = new Map(allLicenses.filter(l => normalize(l['사업장명'] || l['업소명'] || l['상호명'])).map(l => [normalize(l['사업장명'] || l['업소명'] || l['상호명']), l['진행상태'] || l['거래상태']]));
 
             allVisitLogs.forEach(log => {
                 const rawName = log['방문처(거래처)'] || '미지정';
                 const accountName = rawName.trim(); // 표시용 이름
                 const normalizedName = normalize(accountName); // 비교용 이름
-                const status = (log['거래상태'] || '').trim();
 
                 // 3. 타입 판별 (매칭 안 되면 'other'로 분류, 표시는 함)
                 let type = null;
-                if (accountNames.has(normalizedName)) type = 'major';
-                else if (licenseNames.has(normalizedName)) type = 'license';
-                else type = 'other'; // 매칭 안 되면 기타로 분류 (표시는 함)
+                let actualStatus = '';
+
+                if (accountMap.has(normalizedName)) {
+                    type = 'major';
+                    actualStatus = accountMap.get(normalizedName) || '';
+                } else if (licenseMap.has(normalizedName)) {
+                    type = 'license';
+                    actualStatus = licenseMap.get(normalizedName) || '';
+                } else {
+                    type = 'other';
+                    actualStatus = log['거래상태'] || '';
+                }
+
+                const status = actualStatus.trim();
 
                 if (!grouped[accountName]) {
                     grouped[accountName] = {
