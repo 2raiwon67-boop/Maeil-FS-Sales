@@ -111,14 +111,41 @@
             height: calc(100vh - var(--header-height));
         }
 
-        /* 좌측 분석 패널 */
+        /* 메인 레이아웃 분할 */
+        .workspace {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            background: #fbfbfd;
+        }
+
+        /* 좌측 프리뷰 영역 */
+        .preview-side {
+            flex: 1.2;
+            padding: 30px;
+            overflow-y: auto;
+            border-right: 1px solid #d2d2d7;
+            background: #f5f5f7;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 우측 컨트롤 패널 영역 */
+        .editor-side {
+            flex: 0.8;
+            padding: 24px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        /* 좌측 분석 패널 (기존 유지하되 크기 조정) */
         .analysis-panel {
-            width: 350px;
+            width: 280px;
             background: white;
             border-right: 1px solid #d2d2d7;
             display: flex;
             flex-direction: column;
-            padding: 20px;
+            padding: 15px;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
             z-index: 10;
         }
@@ -195,22 +222,16 @@
         }
 
         /* 우측 견적서 작성 영역 */
-        .workspace {
-            flex: 1;
-            padding: 30px;
-            overflow-y: auto;
-            background: #fbfbfd;
-        }
-
         .paper {
             background: white;
             width: 210mm;
             min-height: 297mm;
-            margin: 0 auto;
             padding: 20mm;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             position: relative;
             box-sizing: border-box;
+            transform: scale(0.9);
+            transform-origin: top center;
         }
 
         .paper-header {
@@ -287,9 +308,10 @@
         }
 
         .cell-input.readonly {
-            background: #f9f9f9;
-            color: #555;
+            background: transparent;
+            color: #1d1d1f;
             cursor: default;
+            border: none;
         }
 
         .cell-input.highlight {
@@ -465,87 +487,126 @@
 
         <!-- 2. 견적서 설정 및 작성 영역 -->
         <div class="workspace">
-            <div class="settings-panel no-print"
-                style="margin-bottom: 20px; display: flex; gap: 20px; align-items: center;">
-                <label style="font-weight: 600; font-size: 14px;">견적서 유형:</label>
-                <div style="display: flex; gap: 10px;">
-                    <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                        <input type="radio" name="quoteMode" value="custom" checked onchange="setQuoteMode('custom')">
-                        맞춤형
-                        (개별 거래처)
-                    </label>
-                    <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                        <input type="radio" name="quoteMode" value="general" onchange="setQuoteMode('general')"> 범용
-                        (지역/불특정)
-                    </label>
+            <!-- 2-1. 좌측 프리뷰 영역 -->
+            <div class="preview-side">
+                <div class="paper" id="proposalPaper">
+                    <div class="paper-header">
+                        <div class="paper-title">매일유업 견적서</div>
+                        <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
+                    </div>
+
+                    <table class="info-table">
+                        <tr>
+                            <td class="info-label">수신</td>
+                            <td colspan="3" id="preview-customerName" style="font-size: 14px; font-weight: 600;"></td>
+                        </tr>
+                        <tr>
+                            <td class="info-label">담당자</td>
+                            <td id="preview-managerName">이도현</td>
+                            <td class="info-label">연락처</td>
+                            <td id="preview-managerPhone"></td>
+                        </tr>
+                    </table>
+
+                    <table class="quote-table">
+                        <colgroup>
+                            <col style="width: 5%">
+                            <col style="width: 30%">
+                            <col style="width: 15%">
+                            <col style="width: 8%">
+                            <col style="width: 15%">
+                            <col style="width: 12%">
+                            <col style="width: 15%">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>품명</th>
+                                <th>규격</th>
+                                <th>면세</th>
+                                <th>출고가</th>
+                                <th>DC(%)</th>
+                                <th>최종가</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-quoteBody">
+                            <!-- 프리뷰 행들이 동적으로 추가됨 -->
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #fbfbfd; font-weight: 700;">
+                                <td colspan="6" style="text-align: center; padding: 10px;">합 계</td>
+                                <td style="text-align: right; padding: 0 6px;">
+                                    <span id="preview-totalAmount">0</span>원
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+
+                    <div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">
+                        * 부가세(VAT) 포함가 기준입니다.
+                    </div>
                 </div>
             </div>
 
-            <div class="paper" id="proposalPaper">
-                <div class="paper-header">
-                    <div class="paper-title">매일유업 견적서</div>
-                    <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
+            <!-- 2-2. 우측 컨트롤 패널 영역 -->
+            <div class="editor-side">
+                <div class="panel-header">📝 견적 설정</div>
+
+                <div class="settings-panel"
+                    style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;">
+                    <div class="input-group">
+                        <label class="input-label">견적서 유형</label>
+                        <div style="display: flex; gap: 15px;">
+                            <label
+                                style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                                <input type="radio" name="quoteMode" value="custom" checked
+                                    onchange="setQuoteMode('custom')"> 맞춤형
+                            </label>
+                            <label
+                                style="cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 14px;">
+                                <input type="radio" name="quoteMode" value="general" onchange="setQuoteMode('general')">
+                                범용
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">거래처 명</label>
+                        <input type="text" id="edit-customerName" class="input-field" placeholder="상호명 입력"
+                            oninput="syncInfo()">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div class="input-group">
+                            <label class="input-label">담당자</label>
+                            <input type="text" id="edit-managerName" class="input-field" value="이도현"
+                                oninput="syncInfo()">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">연락처</label>
+                            <input type="text" id="edit-managerPhone" class="input-field" placeholder="010-0000-0000"
+                                oninput="syncInfo()">
+                        </div>
+                    </div>
                 </div>
 
-                <table class="info-table">
-                    <tr id="recipientRow">
-                        <td class="info-label">수신</td>
-                        <td colspan="3"><input type="text" id="customerName" class="cell-input text-left"
-                                placeholder="상호명 입력" style="font-size: 14px; font-weight: 600;"></td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">담당자</td>
-                        <td><input type="text" class="cell-input text-left" value="이도현"></td>
-                        <td class="info-label">연락처</td>
-                        <td><input type="text" class="cell-input text-left" placeholder="010-0000-0000"></td>
-                    </tr>
-                </table>
+                <div class="panel-header" style="margin-top: 30px;">📊 품목 및 계산</div>
+                <div id="editor-items-container">
+                    <!-- 편집 로우들이 여기에 들어감 -->
+                </div>
 
-                <table class="quote-table">
-                    <colgroup>
-                        <col style="width: 5%">
-                        <col style="width: 25%">
-                        <col style="width: 10%">
-                        <col style="width: 5%">
-                        <col style="width: 12%">
-                        <col style="width: 10%">
-                        <col style="width: 12%">
-                        <col style="width: 13%"> <!-- 최종가 -->
-                        <col style="width: 8%" class="no-print"> <!-- 마진율 (출력 제외) -->
-                    </colgroup>
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>품명</th>
-                            <th>규격</th>
-                            <th>면세</th>
-                            <th>출고가</th>
-                            <th>DC(%)</th>
-                            <th>공급가(VAT포함)</th>
-                            <th>최종판매가</th>
-                            <th class="no-print">마진</th>
-                        </tr>
-                    </thead>
-                    <tbody id="quoteBody">
-                        <!-- 행들이 자바스크립트로 추가됨 -->
-                    </tbody>
-                    <tfoot>
-                        <tr style="background: #fbfbfd; font-weight: 700;">
-                            <td colspan="7" style="text-align: center; padding: 10px;">합 계</td>
-                            <td style="text-align: right; padding: 0 6px;">
-                                <span id="totalAmount">0</span>원
-                            </td>
-                            <td class="no-print" style="text-align: center;">
-                                <span id="totalMargin">0%</span>
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
+                <button class="add-row-btn" onclick="addRow()" style="margin-top: 15px; width: 100%;">+ 품목 추가하기</button>
 
-                <button class="add-row-btn no-print" onclick="addRow()">+ 행 추가하기</button>
-
-                <div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">
-                    * 부가세(VAT) 포함가 기준입니다.
+                <div class="result-card active" style="margin-top: 20px; background: #f8f9fa;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="font-weight: 600;">전체 합계:</span>
+                        <span style="font-weight: 700; color: var(--primary-color);"><span
+                                id="edit-totalAmount">0</span>원</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="font-weight: 600;">평균 마진율:</span>
+                        <span id="edit-totalMargin" style="font-weight: 700;">0%</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -580,118 +641,178 @@
             { name: "바리스타룰스", spec: "325ml", price: 2500, taxFree: false, image: "🥤", maxDc: 12 }
         ];
 
-        // 1. 행 추가 로직
+        // 1. 정보 동기화 (상단 기본 정보)
+        function syncInfo() {
+            const customerName = document.getElementById('edit-customerName').value;
+            const managerName = document.getElementById('edit-managerName').value;
+            const managerPhone = document.getElementById('edit-managerPhone').value;
+
+            document.getElementById('preview-customerName').innerText = customerName;
+            document.getElementById('preview-managerName').innerText = managerName;
+            document.getElementById('preview-managerPhone').innerText = managerPhone;
+        }
+
+        // 2. 행 추가 로직 (컨트롤 패널 & 프리뷰 동시 추가)
         function addRow(data = null) {
-            const tbody = document.getElementById('quoteBody');
-            const rowCount = tbody.children.length + 1;
-            const tr = document.createElement('tr');
+            const editorContainer = document.getElementById('editor-items-container');
+            const previewTbody = document.getElementById('preview-quoteBody');
+
+            const rowId = 'row-' + Date.now();
+            const rowCount = editorContainer.children.length + 1;
 
             const name = data ? data.name : '';
             const spec = data ? data.spec : '';
             const price = data ? data.price : 0;
             const isTaxFree = data ? data.taxFree : false;
-
             const maxDc = data ? data.maxDc : 0;
 
-            // 초기값 설정
-            const dcRate = 0; // DC율 0%
-            // 출고가에서 DC 적용
-            const dcAmount = price * (dcRate / 100);
-            const supplyBeforeTax = price - dcAmount;
-            // VAT 계산 (면세면 0, 아니면 10%)
-            const vat = isTaxFree ? 0 : Math.floor(supplyBeforeTax * 0.1);
-            const costPrice = supplyBeforeTax + vat; // 최종매입가 (원가)
-            // 기본 마진 20% 가정하여 판매가 제안
-            const suggestedPrice = Math.floor(costPrice * 1.2 / 10) * 10;
+            // 2-1. 에디터 행 생성
+            const editorRow = document.createElement('div');
+            editorRow.className = 'result-card active';
+            editorRow.id = `editor-${rowId}`;
+            editorRow.style.marginBottom = '10px';
+            editorRow.style.padding = '12px';
+            editorRow.style.background = '#fff';
+            editorRow.style.border = '1px solid #d2d2d7';
 
-            tr.innerHTML = `
-                <td style="text-align: center; color: #888;">${rowCount}</td>
-                <td><input type="text" class="cell-input text-left project-name" value="${name}" placeholder="품명"></td>
-                <td><input type="text" class="cell-input" value="${spec}" placeholder="규격"></td>
-                <td style="text-align: center;">
-                    <input type="checkbox" class="tax-free-check" ${isTaxFree ? 'checked' : ''} onchange="calculateRow(this)">
-                </td>
-                <td><input type="number" class="cell-input factory-price" value="${price}" oninput="calculateRow(this)"></td>
-                <td>
-                    <input type="number" class="cell-input dc-rate" value="${dcRate}" placeholder="Max ${maxDc}%" title="정책 최대 DC: ${maxDc}%" oninput="calculateRow(this)">
-                </td>
-                <td><input type="text" class="cell-input readonly cost-price" value="${costPrice.toLocaleString()}" readonly></td>
-                <td><input type="number" class="cell-input highlight sales-price" value="${suggestedPrice}" oninput="calculateRow(this)"></td>
-                <td class="no-print" style="text-align: center;">
-                    <span class="margin-display">0%</span>
-                </td>
-                <td style="display:none;"><input type="hidden" class="real-cost" value="${costPrice}"></td>
+            editorRow.innerHTML = `
+                <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                    <span style="font-weight: 700; color: #888; width: 20px;">${rowCount}</span>
+                    <input type="text" class="input-field project-name" value="${name}" placeholder="품명" oninput="calculateRow(this)">
+                    <input type="text" class="input-field" value="${spec}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
+                    <button onclick="removeRow('${rowId}')" style="background: none; border: none; color: #ff3b30; cursor: pointer;">✕</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                    <div>
+                        <label class="input-label">출고가</label>
+                        <input type="number" class="input-field factory-price" value="${price}" oninput="calculateRow(this)">
+                    </div>
+                    <div>
+                        <label class="input-label">DC(%) <small title="정책 최대 DC: ${maxDc}%">Max ${maxDc}%</small></label>
+                        <input type="number" class="input-field dc-rate" value="0" oninput="calculateRow(this)">
+                    </div>
+                    <div>
+                        <label class="input-label">판매가</label>
+                        <input type="number" class="input-field sales-price" value="${price}" oninput="calculateRow(this)">
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px;">
+                    <label style="display: flex; align-items: center; gap: 4px; color: #666;">
+                        <input type="checkbox" class="tax-free-check" ${isTaxFree ? 'checked' : ''} onchange="calculateRow(this)"> 면세
+                    </label>
+                    <span style="color: #666;">공급가: <span class="cost-price-display">0</span>원</span>
+                    <span class="margin-display margin-badge">0%</span>
+                </div>
+                <input type="hidden" class="real-cost" value="0">
+                <input type="hidden" class="row-id" value="${rowId}">
             `;
-            tbody.appendChild(tr);
-            calculateRow(tr.querySelector('.factory-price'));
+            editorContainer.appendChild(editorRow);
+
+            // 2-2. 프리뷰 행 생성
+            const previewRow = document.createElement('tr');
+            previewRow.id = `preview-${rowId}`;
+            previewRow.innerHTML = `
+                <td style="text-align: center; color: #888;">${rowCount}</td>
+                <td class="p-name">${name}</td>
+                <td class="p-spec" style="text-align: center;">${spec}</td>
+                <td class="p-tax" style="text-align: center;">${isTaxFree ? '○' : ''}</td>
+                <td class="p-factory" style="text-align: right; padding: 0 6px;">${price.toLocaleString()}</td>
+                <td class="p-dc" style="text-align: center;">0</td>
+                <td class="p-sales" style="text-align: right; padding: 0 6px; font-weight: 600;">${price.toLocaleString()}</td>
+            `;
+            previewTbody.appendChild(previewRow);
+
+            calculateRow(editorRow.querySelector('.factory-price'));
         }
 
-        // 2. 계산 로직 (핵심)
+        // 3. 행 삭제 로직
+        function removeRow(rowId) {
+            document.getElementById(`editor-${rowId}`).remove();
+            document.getElementById(`preview-${rowId}`).remove();
+
+            // 번호 다시 매기기
+            const editorRows = document.querySelectorAll('#editor-items-container > div');
+            editorRows.forEach((row, idx) => {
+                row.querySelector('span').innerText = idx + 1;
+            });
+            const previewRows = document.querySelectorAll('#preview-quoteBody > tr');
+            previewRows.forEach((row, idx) => {
+                row.querySelector('td').innerText = idx + 1;
+            });
+
+            updateTotal();
+        }
+
+        // 4. 계산 및 동기화 로직
         function calculateRow(element) {
-            const row = element.closest('tr');
+            const row = element.closest('.active');
+            const rowId = row.querySelector('.row-id').value;
+            const previewRow = document.getElementById(`preview-${rowId}`);
 
             // 입력값 가져오기
+            const name = row.querySelector('.project-name').value;
+            const spec = row.querySelectorAll('input[type="text"]')[1].value;
             const factoryPrice = parseFloat(row.querySelector('.factory-price').value) || 0;
             const dcRate = parseFloat(row.querySelector('.dc-rate').value) || 0;
             const salesPrice = parseFloat(row.querySelector('.sales-price').value) || 0;
             const isTaxFree = row.querySelector('.tax-free-check').checked;
 
-            // 1. DC금액 및 실공급가 계산 (출고가 - DC금액)
-            // DC는 %로 입력 (예: 10 입력 시 10% 할인)
+            // 4-1. 계산
             const dcAmount = factoryPrice * (dcRate / 100);
             const supplyWithDC = factoryPrice - dcAmount;
-
-            // 2. VAT 적용 (면세 0%, 과세 10%)
             const vat = isTaxFree ? 0 : Math.floor(supplyWithDC * 0.1);
-
-            // 3. 최종 매입원가 (영업사원 입장에서의 비용)
             const totalCost = supplyWithDC + vat;
 
-            // 4. 마진 계산
-            // 마진액 = 판매가 - 최종매입원가
             const marginAmount = salesPrice - totalCost;
-            // 마진율 = (마진액 / 판매가) * 100
             let marginRate = 0;
             if (salesPrice > 0) {
                 marginRate = (marginAmount / salesPrice) * 100;
             }
 
-            // UI 업데이트
-            row.querySelector('.cost-price').value = Math.floor(totalCost).toLocaleString();
-            row.querySelector('.real-cost').value = totalCost; // 숨겨진 필드에 실제값 저장
+            // 4-2. 에디터 UI 업데이트
+            row.querySelector('.cost-price-display').innerText = Math.floor(totalCost).toLocaleString();
+            row.querySelector('.real-cost').value = totalCost;
 
-            // 마진율 표시 및 색상
             const marginDisplay = row.querySelector('.margin-display');
             marginDisplay.innerText = marginRate.toFixed(1) + '%';
-
             marginDisplay.className = 'margin-display margin-badge';
             if (marginRate >= 20) marginDisplay.classList.add('margin-high');
             else if (marginRate >= 10) marginDisplay.classList.add('margin-med');
             else marginDisplay.classList.add('margin-low');
 
+            // 4-3. 프리뷰 UI 업데이트
+            previewRow.querySelector('.p-name').innerText = name;
+            previewRow.querySelector('.p-spec').innerText = spec;
+            previewRow.querySelector('.p-tax').innerText = isTaxFree ? '○' : '';
+            previewRow.querySelector('.p-factory').innerText = Math.floor(factoryPrice).toLocaleString();
+            previewRow.querySelector('.p-dc').innerText = dcRate;
+            previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString();
+
             updateTotal();
         }
 
         function updateTotal() {
-            const rows = document.querySelectorAll('#quoteBody tr');
+            const editorRows = document.querySelectorAll('#editor-items-container > div');
             let totalSales = 0;
             let totalCost = 0;
 
-            rows.forEach(row => {
+            editorRows.forEach(row => {
                 const sales = parseFloat(row.querySelector('.sales-price').value) || 0;
                 const cost = parseFloat(row.querySelector('.real-cost').value) || 0;
                 totalSales += sales;
                 totalCost += cost;
             });
 
-            document.getElementById('totalAmount').innerText = totalSales.toLocaleString();
+            document.getElementById('edit-totalAmount').innerText = Math.floor(totalSales).toLocaleString();
+            document.getElementById('preview-totalAmount').innerText = Math.floor(totalSales).toLocaleString();
 
-            // 전체 평균 마진율
             let totalMarginRate = 0;
             if (totalSales > 0) {
                 totalMarginRate = ((totalSales - totalCost) / totalSales) * 100;
             }
-            document.getElementById('totalMargin').innerText = totalMarginRate.toFixed(1) + '%';
+            const marginLabel = document.getElementById('edit-totalMargin');
+            marginLabel.innerText = totalMarginRate.toFixed(1) + '%';
+            marginLabel.style.color = totalMarginRate >= 15 ? '#34c759' : (totalMarginRate >= 5 ? '#ff9500' : '#ff3b30');
         }
 
         // 3. AI 분석 (네이버 리뷰 + Gemini) - 캐싱 및 Rate Limiting 적용
