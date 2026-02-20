@@ -3709,24 +3709,23 @@
                 }
             }
 
-            // 네트워크 기반(WiFi/LTE) 위치 우선 시도 - GPS보다 빠르고 웹에서 안정적
+            // GPS 우선 시도 (캐시 금지 - 오래된 위치 방지)
             navigator.geolocation.getCurrentPosition(
                 applyLocation,
                 (err) => {
                     if (err.code === 1) {
-                        // 권한 거부 - 재시도 불필요
                         onLocationError(err);
                     } else {
-                        // 타임아웃(3) 또는 위치 사용 불가(2) → GPS로 재시도
-                        infoEl.textContent = '📍 GPS로 재시도 중...';
+                        // GPS 타임아웃 → 네트워크 기반으로 폴백 (캐시 5초까지 허용)
+                        infoEl.textContent = '📍 네트워크 위치로 재시도 중...';
                         navigator.geolocation.getCurrentPosition(
                             applyLocation,
                             onLocationError,
-                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                            { enableHighAccuracy: false, timeout: 10000, maximumAge: 5000 }
                         );
                     }
                 },
-                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
             );
         }
 
@@ -3775,11 +3774,12 @@
                 applyGPS,
                 err => {
                     if (err.code !== 1) {
+                        infoEl.textContent = '📍 네트워크 위치로 재시도 중...';
                         navigator.geolocation.getCurrentPosition(applyGPS, onGPSError,
-                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+                            { enableHighAccuracy: false, timeout: 10000, maximumAge: 5000 });
                     } else { onGPSError(err); }
                 },
-                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+                { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
             );
         }
 
@@ -3987,8 +3987,11 @@
                 const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';');
                 const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?geometries=geojson&overview=full`;
                 const res = await fetch(osrmUrl);
+                // fetch 완료 시점에 이미 clearRoute() 됐으면 그리지 않음
+                if (routeStops.length === 0) return;
                 if (res.ok) {
                     const data = await res.json();
+                    if (routeStops.length === 0) return; // json 파싱 중 clearRoute 된 경우도 방어
                     if (data.routes && data.routes[0]) {
                         const geoCoords = data.routes[0].geometry.coordinates;
                         const roadPath = geoCoords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng));
@@ -4007,6 +4010,7 @@
                 }
             } catch (e) {
                 console.warn('도로 경로 조회 실패, 직선으로 표시합니다:', e);
+                if (routeStops.length === 0) return;
             }
 
             // 폴백: 직선 연결 (점선으로 도로 경로와 구분)
