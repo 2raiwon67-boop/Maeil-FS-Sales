@@ -3356,8 +3356,8 @@ ${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성�
 
         async function loadAccountsData() {
             try {
-                const ACCOUNTS_SHEET_ID = '115RdNFitLpJQgSFYTKQxU5QE1msutWbZ';
-                const ACCOUNTS_GID = '912048257';
+                const ACCOUNTS_SHEET_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
+                const ACCOUNTS_GID = '43116531';
                 const url = `https://docs.google.com/spreadsheets/d/${ACCOUNTS_SHEET_ID}/export?format=csv&gid=${ACCOUNTS_GID}`;
                 const response = await fetch(url);
                 if (!response.ok) throw new Error('주요거래처 시트 접근 실패');
@@ -3384,8 +3384,8 @@ ${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성�
         // 방문일지 캐시 로드 (InfoWindow에서 최신 방문 기록 표시용)
         async function loadVisitLogCache() {
             try {
-                const VISIT_SHEET_ID = '1SuOT-Lb61S2vVa-AQdXRE1LYrr8c13Wo';
-                const VISIT_GID = '444575455';
+                const VISIT_SHEET_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
+                const VISIT_GID = '7066983';
                 const url = `https://docs.google.com/spreadsheets/d/${VISIT_SHEET_ID}/export?format=csv&gid=${VISIT_GID}`;
                 const response = await fetch(url);
                 if (!response.ok) return;
