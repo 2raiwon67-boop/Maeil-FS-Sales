@@ -1675,6 +1675,11 @@
             <div class="section">
                 <div class="section-header">💾 데이터 관리</div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <button onclick="loadDataFromPublicAPI()" id="apiLoadBtn" class="naver-map-btn"
+                        style="background: #FF9F0A; justify-content: center;">
+                        🌐 공공데이터 자동 불러오기
+                    </button>
+                    <div id="apiLoadStatus" style="font-size:11px; color:#86868b; text-align:center; display:none; line-height:1.5;"></div>
                     <button onclick="openUploadModal()" class="naver-map-btn"
                         style="background: #34c759; justify-content: center;">
                         📂 RAW 파일 업로드
@@ -2518,6 +2523,122 @@
             } catch (error) {
                 console.warn('Google Sheets 로드 실패:', error.message);
                 console.log('대시보드는 최종본 업로드 후 표시됩니다');
+            }
+        }
+
+        // ============================================================
+        // 공공데이터포털 API 자동 로딩
+        // ============================================================
+
+        async function loadDataFromPublicAPI() {
+            const btn = document.getElementById('apiLoadBtn');
+            const statusEl = document.getElementById('apiLoadStatus');
+
+            btn.disabled = true;
+            statusEl.style.display = 'block';
+
+            function setStatus(msg) {
+                statusEl.textContent = msg;
+                console.log('[공공데이터 API]', msg);
+            }
+
+            try {
+                // 1년 전 날짜 계산 (YYYYMMDD)
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                const startDate = oneYearAgo.toISOString().split('T')[0].replace(/-/g, '');
+
+                // 업종 서비스명 (업태구분명 필터 대상의 상위 카테고리)
+                const serviceNames = ['일반음식점', '휴게음식점', '제과점영업'];
+                // 담당 지역 기준 광역시도
+                const regions = ['경기도', '인천광역시'];
+
+                const allRawData = [];
+                let combo = 0;
+                const totalCombos = serviceNames.length * regions.length;
+
+                for (const region of regions) {
+                    for (const svcNm of serviceNames) {
+                        combo++;
+                        setStatus(`불러오는 중... (${combo}/${totalCombos}) ${svcNm} · ${region}`);
+
+                        let pageIndex = 1;
+                        let totalPages = 1;
+
+                        while (pageIndex <= totalPages) {
+                            const params = new URLSearchParams({
+                                opnSvcNm: svcNm,
+                                siteWhlAddr: region,
+                                startDate,
+                                pageIndex
+                            });
+
+                            const res = await fetch(`/api/public-license?${params}`);
+                            if (!res.ok) {
+                                console.warn(`API 오류 (${svcNm}/${region} p${pageIndex}):`, res.status);
+                                break;
+                            }
+
+                            const json = await res.json();
+                            if (json.error) {
+                                setStatus('❌ ' + json.error);
+                                btn.disabled = false;
+                                return;
+                            }
+
+                            // 응답 구조 파싱 (localdata.go.kr JSON 형식)
+                            const header = json?.result?.header || json?.header || {};
+                            const body = json?.result?.body || json?.body || [];
+
+                            if (pageIndex === 1) {
+                                const totalCount = parseInt(header.totalCount || 0);
+                                totalPages = Math.ceil(totalCount / 1000) || 1;
+                                console.log(`${svcNm}/${region}: 총 ${totalCount}건 (${totalPages}페이지)`);
+                            }
+
+                            if (!Array.isArray(body) || body.length === 0) break;
+
+                            // API 필드명 → processData 컬럼명 매핑
+                            const mapped = body.map(item => ({
+                                '사업장명': item.bplcNm || '',
+                                '업태구분명': item.uptaeNm || '',
+                                '영업상태명': item.stateGbnNm || '',
+                                '상세영업상태명': item.dtlStateGbnNm || '',
+                                '소재지전체주소': item.siteWhlAddr || '',
+                                '도로명전체주소': item.rdnWhlAddr || '',
+                                '소재지면적': item.siteArea || '',
+                                '시설총규모': item.totFacltScp || item.siteArea || '',
+                                '인허가일자': item.apvPermYmd || '',
+                                '영업허가일': item.apvPermYmd || ''
+                            }));
+
+                            allRawData.push(...mapped);
+
+                            if (body.length < 1000) break; // 마지막 페이지
+                            pageIndex++;
+                        }
+                    }
+                }
+
+                if (allRawData.length === 0) {
+                    setStatus('❌ 데이터 없음. API 키를 확인해주세요.');
+                    btn.disabled = false;
+                    return;
+                }
+
+                setStatus(`총 ${allRawData.length}건 수신. 필터링 중...`);
+                console.log(`공공데이터 API: 총 ${allRawData.length}건 로드`);
+
+                // 기존 processData 파이프라인 그대로 사용
+                await processData(allRawData);
+
+                setStatus(`✅ ${processedData.length}건 처리 완료 — 다운로드 버튼으로 저장 후 최종본 업로드 해주세요.`);
+
+            } catch (e) {
+                console.error('공공데이터 API 로드 오류:', e);
+                setStatus('❌ 오류: ' + e.message);
+            } finally {
+                btn.disabled = false;
             }
         }
 
