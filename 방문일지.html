@@ -797,7 +797,19 @@
             display: flex;
             gap: 8px;
             margin-top: 12px;
-            flex-wrap: wrap;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 4px;
+            /* for scrollbar */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        .chatbot-suggestions::-webkit-scrollbar {
+            display: none;
+            /* Chrome, Safari and Opera */
         }
 
         .suggestion-btn {
@@ -1609,14 +1621,14 @@
 
     <div class="chatbot-container" id="chatbotContainer">
         <div class="chatbot-header">
-            <h3>✨ FS AI 비서 (Gemini 2.5)</h3>
+            <h3>✨ MISO(Maeil AI 영업비서)</h3>
             <span class="close-btn" onclick="toggleChatbot()" style="color: white;">&times;</span>
         </div>
         <div class="chatbot-messages" id="chatbotMessages">
             <div class="message bot">
                 <div class="message-avatar">🤖</div>
                 <div class="message-content">
-                    안녕하세요! 경기북부 FS 영업팀 AI 비서입니다.<br>
+                    안녕하세요! MISO(Maeil AI 영업비서) 입니다.<br>
                     인허가 현황에 대해 궁금한 점을 물어보세요.
                 </div>
             </div>
@@ -1627,20 +1639,18 @@
         </div>
 
         <div class="chatbot-input-container">
-            <div class="chatbot-suggestions"
-                style="overflow-x: auto; white-space: nowrap; padding-bottom: 8px; margin-bottom: 8px; display: flex; gap: 8px;">
+            <div class="chatbot-suggestions">
                 <button class="suggestion-btn"
-                    onclick="askQuestion('💡 이번 달 전체 방문 실적과 주요 성과(인허가, 공사중 등)를 영업 관점에서 요약 분석해줘.')"
-                    style="white-space: nowrap;">📊 실적 브리핑</button>
+                    onclick="askQuestion('💡 이번 달 전체 방문 실적과 주요 성과(인허가, 공사중 등)를 영업 관점에서 요약 분석해줘.')">📊 실적 브리핑</button>
                 <button class="suggestion-btn"
-                    onclick="askQuestion('💡 현재 가장 많이 방문한 지역은 어디이며, 해당 지역의 거래처 상태 분포를 볼 때 앞으로 어떤 전략을 취하면 좋을지 조언해줘.')"
-                    style="white-space: nowrap;">🎯 지역별 공략</button>
+                    onclick="askQuestion('💡 현재 가장 많이 방문한 지역은 어디이며, 해당 지역의 거래처 상태 분포를 볼 때 앞으로 어떤 전략을 취하면 좋을지 조언해줘.')">🎯
+                    지역별 공략</button>
                 <button class="suggestion-btn"
-                    onclick="askQuestion('💡 신규 인허가 또는 공사중인 매장에 처음 방문할 때 담당자에게 어필하기 좋은 인사말이나 아이스브레이킹 대화 주제 3가지를 추천해줘.')"
-                    style="white-space: nowrap;">🤝 첫 방문 멘트</button>
+                    onclick="askQuestion('💡 신규 인허가 또는 공사중인 매장에 처음 방문할 때 담당자에게 어필하기 좋은 인사말이나 아이스브레이킹 대화 주제 3가지를 추천해줘.')">🤝
+                    첫 방문 멘트</button>
                 <button class="suggestion-btn"
-                    onclick="askQuestion('💡 내가 관리하는 거래처 목록을 바탕으로, 이번 주에 우선적으로 재방문해야 할 곳의 특징을 꼽아주고 방문 명분을 만들어줘.')"
-                    style="white-space: nowrap;">📅 재방문 명분</button>
+                    onclick="askQuestion('💡 내가 관리하는 거래처 목록을 바탕으로, 이번 주에 우선적으로 재방문해야 할 곳의 특징을 꼽아주고 방문 명분을 만들어줘.')">📅
+                    재방문 명분</button>
             </div>
             <div class="chatbot-input">
                 <input type="text" id="chatInput" placeholder="데이터 분석, 영업 조언 등 무엇이든 물어보세요..."

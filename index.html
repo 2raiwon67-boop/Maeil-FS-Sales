@@ -1463,7 +1463,19 @@
             display: flex;
             gap: 6px;
             margin-top: 10px;
-            flex-wrap: wrap;
+            overflow-x: auto;
+            white-space: nowrap;
+            padding-bottom: 4px;
+            /* for scrollbar */
+            -ms-overflow-style: none;
+            /* IE and Edge */
+            scrollbar-width: none;
+            /* Firefox */
+        }
+
+        .chatbot-suggestions::-webkit-scrollbar {
+            display: none;
+            /* Chrome, Safari and Opera */
         }
 
         .chatbot-suggestion-btn {
@@ -4615,14 +4627,14 @@
 
     <div class="chatbot-container" id="indexChatbotContainer">
         <div class="chatbot-header">
-            <h3>✨ FS AI 비서 (인허가 전담)</h3>
+            <h3>✨ MISO(Maeil AI 영업비서)</h3>
             <button class="chatbot-close-btn" onclick="toggleIndexChatbot()">&times;</button>
         </div>
         <div class="chatbot-messages" id="indexChatMessages">
             <div class="chatbot-message bot">
                 <div class="chatbot-message-avatar">🤖</div>
                 <div class="chatbot-message-content">
-                    안녕하세요! 인허가 현황, 거래처 우선순위, 영업 전략에 대해 무엇이든 물어보세요.
+                    안녕하세요! MISO(Maeil AI 영업비서) 입니다.<br>인허가 현황, 거래처 우선순위, 영업 전략에 대해 무엇이든 물어보세요.
                 </div>
             </div>
         </div>
