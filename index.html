@@ -1699,8 +1699,8 @@
                         <div class="sv-value" id="dashTotVisits">0</div>
                     </div>
                     <div class="summary-value-card">
-                        <div class="sv-label">유효 영업 비율 <span style="cursor:help; border-bottom:1px dotted #86868b;"
-                                title="전체 방문일지 중 상담결과에 '성공, 계약, 납품, 긍정, 약속' 키워드가 포함된 비율입니다.">ℹ️</span></div>
+                        <div class="sv-label">인입 대비 개척 비율 <span style="cursor:help; border-bottom:1px dotted #86868b;"
+                                title="전체 인허가 데이터 중 현재 '거래' 상태인 곳의 비율입니다.">ℹ️</span></div>
                         <div class="sv-value" id="dashSuccessRate">0%</div>
                     </div>
                     <div class="summary-value-card">
@@ -1928,21 +1928,10 @@
             const totalVisits = visits.length;
             document.getElementById('dashTotVisits').innerText = totalVisits;
 
-            // 성공 비율 계산 (방문일지 기준 목적 달성 혹은 차기 방문 약속)
-            let successVisits = 0;
-            const regionCountObj = {};
-
-            visits.forEach(v => {
-                const res = v['상담결과/요청사항'] || '';
-                if (res.includes('성공') || res.includes('계약') || res.includes('납품') || res.includes('긍정') || res.includes('약속')) {
-                    successVisits++;
-                }
-
-                // 방문 지역 빈도 계산 (주소 필드가 없으므로 거래처명으로 매핑 시도 or 대략적으로 파악, 여기선 단순 처리)
-                // 대신 전체 거래처 주소 텍스트 기반 지역 추출 (combinedData 활용)
-            });
-
-            const successRate = totalVisits > 0 ? Math.round((successVisits / totalVisits) * 100) : 0;
+            // 인입 대비 개척 비율 계산 (전체 인허가 중 거래 성사 비율)
+            const totalAccounts = combinedData.length;
+            const dealAccounts = combinedData.filter(d => d.status === '거래').length;
+            const successRate = totalAccounts > 0 ? Math.round((dealAccounts / totalAccounts) * 100) : 0;
             document.getElementById('dashSuccessRate').innerText = successRate + '%';
 
             // 3. 차트용 데이터 집계
@@ -1976,23 +1965,29 @@
                 plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } } }
             };
 
-            // [차트 1] 지역별 분포 (Doughnut)
+            // [차트 1] 지역별 분포 (Bar Chart로 변경하여 가독성 개선)
             if (dashRegionChartInstance) dashRegionChartInstance.destroy();
             const ctxRegion = document.getElementById('dashRegionChart').getContext('2d');
-            const regionLabels = Object.keys(regionCount).filter(k => k !== '기타' && regionCount[k] > 0);
+
+            // 데이터 수치가 큰 순서대로 정렬 (Bar 차트 가독성 향상)
+            const regionLabels = Object.keys(regionCount).filter(k => k !== '기타' && regionCount[k] > 0).sort((a, b) => regionCount[b] - regionCount[a]);
             const regionData = regionLabels.map(k => regionCount[k]);
 
             dashRegionChartInstance = new Chart(ctxRegion, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
-                    labels: regionLabels,
+                    labels: regionLabels.length ? regionLabels : ['데이터 없음'],
                     datasets: [{
-                        data: regionData,
-                        backgroundColor: ['#0071e3', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5856d6', '#ffcc00', '#ff2d55'],
-                        borderWidth: 0
+                        label: '업장 수',
+                        data: regionData.length ? regionData : [0],
+                        backgroundColor: '#0071e3',
+                        borderRadius: 6
                     }]
                 },
-                options: Object.assign({}, commonOptions, { cutout: '65%' })
+                options: Object.assign({}, commonOptions, {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
+                })
             });
 
             // [차트 2] 상태별 분포 (Bar)
@@ -2027,10 +2022,13 @@
             // [차트 3] 월별 추이 (Line)
             const monthCount = {};
             visits.forEach(v => {
-                const dateStr = v['방문일자'] || '';
+                const dateStr = v['일정기간'] || v['작성일'] || '';
                 if (dateStr && typeof dateStr === 'string' && dateStr.length >= 7) {
-                    const month = dateStr.substring(0, 7); // 예: '2023-10'
-                    monthCount[month] = (monthCount[month] || 0) + 1;
+                    const match = dateStr.match(/(\d{4}-\d{2})/);
+                    if (match) {
+                        const month = match[1];
+                        monthCount[month] = (monthCount[month] || 0) + 1;
+                    }
                 }
             });
             const sortedMonths = Object.keys(monthCount).sort();
