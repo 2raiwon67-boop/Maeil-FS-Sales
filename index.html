@@ -4216,6 +4216,8 @@
                 <button onclick="sendIndexChatMessage()">전송</button>
             </div>
             <div class="chatbot-suggestions">
+                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('오늘 강하게 푸시할 추천 타겟 5곳과 동선 브리핑해줘')">💡 오늘
+                    타겟/동선 추천</button>
                 <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('오늘 방문해야 할 1순위 인허가 업체 알려줘')">1순위
                     현황</button>
                 <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('공사중인 업체 중 28일 넘긴 곳은?')">공사중
@@ -4259,10 +4261,19 @@
             try {
                 let answer;
                 if (typeof geminiBot !== 'undefined') {
-                    // 인허가 데이터 컨텍스트로 질문
-                    const licenseContext = typeof allData !== 'undefined' ? allData.slice(0, 80) : [];
+                    // 현재 선택된 담당자 정보 확인
+                    let managerContext = "";
+                    if (typeof window.currentManager !== 'undefined' && window.currentManager && window.currentManager !== '전체') {
+                        managerContext = `\n# 👤 질문자 정보: 현재 질문하는 영업사원은 '${window.currentManager}' 담당자입니다.\n답변 시 담당자님의 관점에서 구역과 타겟(1순위 등)을 추천하고, 동선 브리핑 시 개인화된 어조를 사용하세요.\n`;
+                    }
+
+                    // 인허가 데이터 컨텍스트 (담당자 필터링된 dashFilteredData 우선, 없으면 allData)
+                    let baseData = typeof dashFilteredData !== 'undefined' ? dashFilteredData : (typeof allData !== 'undefined' ? allData : []);
+                    const licenseContext = baseData.slice(0, 80);
+
                     const prompt = `당신은 경기북부 FS 인허가 영업팀의 AI 비서입니다.
 아래 인허가 데이터를 기반으로 핵심만 간결하게 답변해주세요.
+${managerContext}
 
 # 인허가 데이터 (${licenseContext.length}건)
 ${JSON.stringify(licenseContext, null, 2)}
@@ -4276,7 +4287,7 @@ ${question}
 3. 인사말, 서론 없이 본론부터 시작하세요.
 4. 데이터가 없으면 "해당 데이터 없음"으로 표기하세요.
 5. 이모지를 활용해 가독성을 높이세요.
-6. 순위(1순위/2순위), 거래여부(인허가/공사중/거래/미거래), 담당자를 중심으로 분석하세요.
+6. 순위(1순위/2순위), 동선 최적화, 거래여부(인허가/공사중/거래/미거래), 담당자를 중심으로 브리핑하세요.
 
 답변:`;
                     answer = await geminiBot.generate(prompt);

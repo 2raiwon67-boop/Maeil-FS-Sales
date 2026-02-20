@@ -68,11 +68,17 @@ class GeminiChatbot {
         const keywords = this.extractKeywords(question);
         let relevantVisits = [...this.dataContext.visitLogs];
 
+        // 🌟 담당자 개인화: 화면 우측 상단 콤보박스(currentManager)가 선택되어 있다면 자동 필터링 적용
+        let activeManager = keywords.manager;
+        if (!activeManager && typeof window.currentManager !== 'undefined' && window.currentManager && window.currentManager !== '전체') {
+            activeManager = window.currentManager;
+        }
+
         // 1. 사전 정의된 키워드 필터링 적용 (담당자, 기간, 지역)
-        if (keywords.manager) {
+        if (activeManager) {
             relevantVisits = relevantVisits.filter(v =>
-                v['작성자'] === keywords.manager ||
-                v['참여자']?.includes(keywords.manager)
+                v['작성자'] === activeManager ||
+                v['참여자']?.includes(activeManager)
             );
         }
 
@@ -323,11 +329,18 @@ class GeminiChatbot {
 
     // 프롬프트 생성 (영업 코치 고도화 버전)
     buildPrompt(question, relevantData) {
-        const summary = this.buildContextSummary(this.dataContext.visitLogs);
-        const dateRange = this.getDateRange(this.dataContext.visitLogs);
+        const summary = this.buildContextSummary(relevantData); // 개인화된 데이터 기준 통계
+        const dateRange = this.getDateRange(relevantData);
+
+        let personalInstruction = "";
+        let activeManager = null;
+        if (typeof window.currentManager !== 'undefined' && window.currentManager && window.currentManager !== '전체') {
+            activeManager = window.currentManager;
+            personalInstruction = `\n# 👤 사용자(영업사원) 개인화 모드\n현재 질문자는 '${activeManager}' 담당자입니다. 제공된 1순위/미거래/방치 데이터 목록은 모두 '${activeManager}' 담당자의 구역/이력과 관련된 것들입니다. 답변 시 '${activeManager} 담당자님의 맞춤 추천입니다' 처럼 개인화된 어조를 사용하고, AI 동선 최적화 전략(가까운 지역 묶기, 방치된 가망고객 터치 등)을 반영하여 당일 방문해야 할 구체적인 3~5곳의 목적지와 방문 순서(동선)를 이유와 함께 명확히 짚어주세요.\n`;
+        }
 
         return `당신은 '매일유업 경기북부 FS 영업팀'의 최고 실적 영업 코치인 'MISO(Maeil AI 영업비서)'입니다. 단순한 데이터 요약을 넘어, 데이터를 기반으로 실질적이고 구체적인 '영업 행동 지침(Action Item)'과 '전략적 조언'을 제공해야 합니다.
-
+${personalInstruction}
 # ⚠️ 절대 규칙 (반드시 준수 — 위반 시 답변 무효)
 1. 아래 "JS 집계 수치"와 "방문일지 상세 데이터"에만 근거하여 답변하세요.
 2. 데이터에 없는 정보는 절대 추측하거나 생성하지 마세요. 언급하는 거래처명·담당자명은 데이터에 실제로 존재하는 것만 사용하세요.
@@ -389,7 +402,7 @@ class DataCollector {
     loadFromSheets(visitLogs, accounts) {
         this.visitData = visitLogs;
         this.accountData = accounts;
-        console.log(`✅ 데이터 로드: 방문일지 ${visitLogs.length}건, 거래처 ${accounts.length}건`);
+        console.log(`✅ 데이터 로드: 방문일지 ${visitLogs.length} 건, 거래처 ${accounts.length} 건`);
     }
 
     // 데이터 전처리
@@ -695,7 +708,7 @@ class StrategyAnalyzer {
             opportunities.push({
                 type: 'high_potential',
                 priority: 'high',
-                description: `${region} 지역은 전환율 ${(conversionRate * 100).toFixed(0)}%로 매우 높으나 방문 횟수가 적습니다. 집중 공략 권장.`
+                description: `${region} 지역은 전환율 ${(conversionRate * 100).toFixed(0)}% 로 매우 높으나 방문 횟수가 적습니다.집중 공략 권장.`
             });
         }
 
@@ -707,7 +720,7 @@ class StrategyAnalyzer {
                 opportunities.push({
                     type: 'follow_up',
                     priority: 'medium',
-                    description: `마지막 방문 후 ${daysSinceLastVisit}일 경과. 재방문 필요.`
+                    description: `마지막 방문 후 ${daysSinceLastVisit}일 경과.재방문 필요.`
                 });
             }
         }
@@ -718,7 +731,7 @@ class StrategyAnalyzer {
             opportunities.push({
                 type: 'new_accounts',
                 priority: 'medium',
-                description: `현재 ${uniqueAccounts}개 거래처만 관리 중. 신규 거래처 발굴 여력 있음.`
+                description: `현재 ${uniqueAccounts}개 거래처만 관리 중.신규 거래처 발굴 여력 있음.`
             });
         }
 
@@ -734,7 +747,7 @@ class StrategyAnalyzer {
             risks.push({
                 type: 'low_conversion',
                 severity: 'high',
-                description: `전환율 ${(conversionRate * 100).toFixed(0)}%로 낮음. 영업 접근 방식 재검토 필요.`
+                description: `전환율 ${(conversionRate * 100).toFixed(0)}% 로 낮음.영업 접근 방식 재검토 필요.`
             });
         }
 
@@ -743,7 +756,7 @@ class StrategyAnalyzer {
             risks.push({
                 type: 'single_point_failure',
                 severity: 'medium',
-                description: `1명의 담당자만 관리. 담당자 이탈 시 리스크 존재.`
+                description: `1명의 담당자만 관리.담당자 이탈 시 리스크 존재.`
             });
         }
 
@@ -752,7 +765,7 @@ class StrategyAnalyzer {
             risks.push({
                 type: 'insufficient_success',
                 severity: 'high',
-                description: `성공 사례가 ${regionData.successCount}건으로 부족. 영업 전략 전면 재검토 필요.`
+                description: `성공 사례가 ${regionData.successCount}건으로 부족.영업 전략 전면 재검토 필요.`
             });
         }
 
@@ -868,8 +881,8 @@ class StrategyAnalyzer {
 
         return {
             Q1: [
-                `S급 지역 (${topRegions.map(r => r.region).join(', ')}) 매출 20% 증대`,
-                `B급 지역 (${struggling.map(r => r.region).join(', ')}) 전환율 개선`
+                `S급 지역(${topRegions.map(r => r.region).join(', ')}) 매출 20 % 증대`,
+                `B급 지역(${struggling.map(r => r.region).join(', ')}) 전환율 개선`
             ],
             Q2: [
                 '신규 거래처 10개 이상 확보',
@@ -891,7 +904,7 @@ class StrategyAnalyzer {
         const totalSuccess = regions.reduce((sum, r) => sum + aggregated[r].successCount, 0);
         const overallRate = (totalSuccess / totalVisits * 100).toFixed(1);
 
-        insights.push(`전체 전환율: ${overallRate}%`);
+        insights.push(`전체 전환율: ${overallRate}% `);
 
         // 가장 활발한 지역
         const mostActive = regions.sort((a, b) =>
@@ -935,10 +948,10 @@ class AIAssistant {
 # 📊 ${region} 지역 데이터 분석
 
 ## 현황
-- 총 방문: ${analysis.overview.totalVisits}회
-- 성공: ${analysis.overview.successCount}건
-- 전환율: ${analysis.overview.conversionRate}%
-- 담당자: ${analysis.overview.activeManagers.join(', ')}
+    - 총 방문: ${analysis.overview.totalVisits} 회
+        - 성공: ${analysis.overview.successCount} 건
+            - 전환율: ${analysis.overview.conversionRate}%
+                - 담당자: ${analysis.overview.activeManagers.join(', ')}
 
 ## 기회 요인
 ${JSON.stringify(analysis.opportunities, null, 2)}
@@ -953,25 +966,25 @@ ${JSON.stringify(analysis.recommendations, null, 2)}
 ${JSON.stringify(learnedPatterns, null, 2)}
 
 # 🎯 미션
-위 데이터를 기반으로 **실행 가능한 전략**을 다음 형식으로 제시하세요:
+위 데이터를 기반으로 ** 실행 가능한 전략 ** 을 다음 형식으로 제시하세요:
 
-## 1. 핵심 진단 (3줄 요약)
+## 1. 핵심 진단(3줄 요약)
 
-## 2. 즉시 실행 항목 (Quick Wins)
-- [ ] 액션1
-- [ ] 액션2
-- [ ] 액션3
+## 2. 즉시 실행 항목(Quick Wins)
+    - [] 액션1
+        - [] 액션2
+            - [] 액션3
 
-## 3. 중장기 전략 (3개월)
+## 3. 중장기 전략(3개월)
 
 ## 4. 예상 성과
-- KPI 목표
-- 달성 시나리오
+    - KPI 목표
+        - 달성 시나리오
 
 ## 5. 리스크 대응
 
 답변 형식: 경영진 보고서 수준, 구체적 수치 포함
-`;
+    `;
 
         // [MODIFIED] Use generate instead of ask to avoid Persona wrapping
         return await this.bot.generate(prompt);
@@ -995,25 +1008,25 @@ ${JSON.stringify(overall.resourceAllocation, null, 2)}
 ${overall.keyInsights.join('\n')}
 
 # 🎯 미션
-경영진에게 보고할 **분기별 영업 전략**을 수립하세요:
+경영진에게 보고할 ** 분기별 영업 전략 ** 을 수립하세요:
 
 ## Executive Summary
-- 현 상황 진단 (SWOT)
-- 핵심 성과 지표
+    - 현 상황 진단(SWOT)
+        - 핵심 성과 지표
 
 ## 지역별 전략
-- S급: 공격적 확장
-- A급: 안정적 성장
-- B급: 체질 개선
+    - S급: 공격적 확장
+        - A급: 안정적 성장
+            - B급: 체질 개선
 
 ## 분기별 로드맵
-- Q1 (즉시): 
-- Q2 (확장):
-- Q3-Q4 (장기):
+    - Q1(즉시):
+- Q2(확장):
+- Q3 - Q4(장기):
 
 ## 의사결정 포인트
-- 경영진 승인 필요 사항
-- 팀 자율 실행 가능 사항
+    - 경영진 승인 필요 사항
+        - 팀 자율 실행 가능 사항
 
 ## 예산 및 인력 배분
 
