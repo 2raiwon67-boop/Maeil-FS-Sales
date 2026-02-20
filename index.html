@@ -2668,6 +2668,12 @@ ${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성�
                         icon: { content: `<div class="${glowClass}" style="width:12px;height:12px;background:${color};border:1px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`, anchor: new naver.maps.Point(6, 6) }
                     });
                     naver.maps.Event.addListener(marker, 'click', function (e) {
+                        // 미니 CRM 패널 열기
+                        const storeName = item['사업장명'] || item['상호명'] || '이름 없음';
+                        const address = item['주소2'] || item['소재지(도로명)'] || '';
+                        const statusText = item['거래여부(기입예정)'] || '미기입';
+                        openMiniCrm(storeName, address, statusText, null, e.coord);
+
                         if (window.innerWidth <= 768) {
                             if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
                         } else {
@@ -3270,6 +3276,12 @@ ${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성�
 
                     // 마커 클릭 시 동작 (모바일/데스크탑 분기)
                     naver.maps.Event.addListener(marker, 'click', function (e) {
+                        // 미니 CRM 패널 열기
+                        const storeName = item['사업장명'] || item['상호명'] || '이름 없음';
+                        const address = item['주소2'] || item['소재지(도로명)'] || '';
+                        const statusText = item['거래여부(기입예정)'] || '미기입';
+                        openMiniCrm(storeName, address, statusText, null, e.coord);
+
                         // 모바일 (768px 이하) -> 바텀 시트 열기
                         if (window.innerWidth <= 768) {
                             if (typeof openBottomSheet === 'function') {
@@ -3443,8 +3455,11 @@ ${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성�
                         zIndex: 5  // 인허가 마커보다 위에 표시
                     });
 
-                    // 클릭 시 InfoWindow (방문일지 최신 기록 포함)
-                    naver.maps.Event.addListener(marker, 'click', function () {
+                    // 클릭 시 미니 CRM 및 InfoWindow 연동
+                    naver.maps.Event.addListener(marker, 'click', function (e) {
+                        // 미니 CRM 패널 열기
+                        openMiniCrm(name, address, dealStatus, null, e.coord);
+
                         if (currentInfoWindow) currentInfoWindow.close();
 
                         // 방문일지에서 해당 거래처 최신 방문 기록 검색
