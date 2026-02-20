@@ -1699,7 +1699,8 @@
                         <div class="sv-value" id="dashTotVisits">0</div>
                     </div>
                     <div class="summary-value-card">
-                        <div class="sv-label">유효 영업 비율 (공사/인허가/입점)</div>
+                        <div class="sv-label">유효 영업 비율 <span style="cursor:help; border-bottom:1px dotted #86868b;"
+                                title="전체 방문일지 중 상담결과에 '성공, 계약, 납품, 긍정, 약속' 키워드가 포함된 비율입니다.">ℹ️</span></div>
                         <div class="sv-value" id="dashSuccessRate">0%</div>
                     </div>
                     <div class="summary-value-card">
@@ -1710,19 +1711,25 @@
 
                 <div class="dashboard-grid">
                     <div class="dashboard-card" style="height: 340px;">
-                        <div class="dashboard-title">📍 지역별 거래처 분포</div>
+                        <div class="dashboard-title">📍 지역별 분포 <span
+                                style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '주소2' 기준)</span>
+                        </div>
                         <div style="position: relative; height: 260px; width: 100%;">
                             <canvas id="dashRegionChart"></canvas>
                         </div>
                     </div>
                     <div class="dashboard-card" style="height: 340px;">
-                        <div class="dashboard-title">📊 현재 거래 상태 현황</div>
+                        <div class="dashboard-title">📊 현재 거래 상태 <span
+                                style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '거래여부' 기준)</span>
+                        </div>
                         <div style="position: relative; height: 260px; width: 100%;">
                             <canvas id="dashStatusChart"></canvas>
                         </div>
                     </div>
                     <div class="dashboard-card full-width" style="height: 340px;">
-                        <div class="dashboard-title">📈 월별 누적 방문 추이</div>
+                        <div class="dashboard-title">📈 월별 누적 방문 추이 <span
+                                style="font-size:11px; color:#86868b; font-weight:normal;">(해당 월에 맵핑된 방문일지 총 건수)</span>
+                        </div>
                         <div style="position: relative; height: 260px; width: 100%;">
                             <canvas id="dashTrendChart"></canvas>
                         </div>
@@ -1904,8 +1911,8 @@
                     validAccountNames.add(name);
                     combinedData.push({
                         name: name,
-                        status: item['영업상태명'] === '영업/정상' ? '인허가' : (item['기존/신규'] || '기타'),
-                        address: item['지번주소'] || item['도로명주소'] || ''
+                        status: item['거래여부(기입예정)'] ? item['거래여부(기입예정)'].trim() : '미기입',
+                        address: item['주소2'] ? item['주소2'].trim() : '기타'
                     });
                 }
             });
@@ -1943,28 +1950,13 @@
             const regionCount = {};
 
             combinedData.forEach(d => {
-                // 상태 카운트
+                // 상태 카운트 ('거래여부(기입예정)' 직접 활용)
                 const s = d.status;
-                if (['거래', '미거래', '인허가', '공사중', 'DROP'].includes(s)) {
-                    statusCount[s]++;
-                } else {
-                    statusCount['기타']++;
-                }
+                statusCount[s] = (statusCount[s] || 0) + 1;
 
-                // 지역 카운트 (행정구역명 추출)
-                let region = '기타';
-                const addr = d.address || '';
-                if (addr.includes('고양시')) region = '고양시';
-                else if (addr.includes('파주시')) region = '파주시';
-                else if (addr.includes('의정부시')) region = '의정부시';
-                else if (addr.includes('양주시')) region = '양주시';
-                else if (addr.includes('김포시')) region = '김포시';
-                else if (addr.includes('남양주시')) region = '남양주시';
-                else if (addr.includes('구리시')) region = '구리시';
-                else if (addr.includes('포천시')) region = '포천시';
-                else if (addr.includes('동두천시')) region = '동두천시';
-                else if (addr.includes('연천군')) region = '연천군';
-                else if (addr.includes('가평군')) region = '가평군';
+                // 지역 카운트 ('주소2' 직접 활용)
+                let region = d.address || '기타';
+                if (!region || region === '') region = '기타';
 
                 regionCount[region] = (regionCount[region] || 0) + 1;
             });
@@ -2006,14 +1998,23 @@
             // [차트 2] 상태별 분포 (Bar)
             if (dashStatusChartInstance) dashStatusChartInstance.destroy();
             const ctxStatus = document.getElementById('dashStatusChart').getContext('2d');
+
+            // 거래여부(상태명) 유효한 것들만 추출 (미기입은 맨 뒤로 배치 혹은 제외 가능. 여기선 포함)
+            const statusLabels = Object.keys(statusCount).sort((a, b) => statusCount[b] - statusCount[a]);
+            const statusData = statusLabels.map(k => statusCount[k]);
+
+            // 색상 동적 배치
+            const colorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93'];
+            const bgColors = statusLabels.map((_, i) => colorPalette[i % colorPalette.length]);
+
             dashStatusChartInstance = new Chart(ctxStatus, {
                 type: 'bar',
                 data: {
-                    labels: ['거래', '미거래', '인허가', '공사중', 'DROP'],
+                    labels: statusLabels.length ? statusLabels : ['데이터 없음'],
                     datasets: [{
                         label: '업장 수',
-                        data: [statusCount['거래'], statusCount['미거래'], statusCount['인허가'], statusCount['공사중'], statusCount['DROP']],
-                        backgroundColor: ['#007AFF', '#FF9595', '#34C759', '#FF9500', '#8E8E93'],
+                        data: statusData.length ? statusData : [0],
+                        backgroundColor: bgColors,
                         borderRadius: 6
                     }]
                 },
