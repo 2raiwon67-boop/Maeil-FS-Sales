@@ -496,7 +496,7 @@
                     </div>
 
                     <table class="info-table">
-                        <tr>
+                        <tr id="preview-recipientRow">
                             <td class="info-label">수신</td>
                             <td colspan="3" id="preview-customerName" style="font-size: 14px; font-weight: 600;"></td>
                         </tr>
@@ -570,7 +570,7 @@
                         </div>
                     </div>
 
-                    <div class="input-group">
+                    <div class="input-group" id="edit-customerGroup">
                         <label class="input-label">거래처 명</label>
                         <input type="text" id="edit-customerName" class="input-field" placeholder="상호명 입력"
                             oninput="syncInfo()">
@@ -1078,11 +1078,15 @@
 
         // 6. 견적서 모드 설정
         function setQuoteMode(mode) {
-            const recipientRow = document.getElementById('recipientRow');
+            const previewRecipient = document.getElementById('preview-recipientRow');
+            const editCustomerGroup = document.getElementById('edit-customerGroup');
+
             if (mode === 'general') {
-                recipientRow.style.display = 'none';
+                previewRecipient.style.display = 'none';
+                editCustomerGroup.style.display = 'none';
             } else {
-                recipientRow.style.display = 'table-row';
+                previewRecipient.style.display = 'table-row';
+                editCustomerGroup.style.display = 'block';
             }
         }
 
