@@ -608,7 +608,10 @@
                 </div>
             </div>
         </div>
-    </div>
+        <!-- 제품 자동완성 데이터리스트 -->
+        <datalist id="productOptions">
+            <!-- JS에서 동적으로 채워짐 -->
+        </datalist>
     </div>
 
     <!-- 플로팅 액션 버튼 -->
@@ -630,14 +633,19 @@
         // 초기화
         // document.getElementById('todayDate').innerText = new Date().toLocaleDateString(); // 날짜 표시 제거됨
 
-        // 전역변수 (매일유업 제품으로 변경)
         let productDB = [
-            { name: "매일우유 오리지널", spec: "1000ml", price: 2850, taxFree: true, image: "🥛", maxDc: 10 },
-            { name: "마이카페라떼 마일드", spec: "220ml", price: 1200, taxFree: false, image: "☕", maxDc: 15 },
-            { name: "상하목장 유기농우유", spec: "125ml", price: 1100, taxFree: true, image: "🌿", maxDc: 5 },
-            { name: "허쉬 초콜릿 드링크", spec: "235ml", price: 1000, taxFree: false, image: "🍫", maxDc: 20 },
-            { name: "바리스타룰스", spec: "325ml", price: 2500, taxFree: false, image: "🥤", maxDc: 12 }
+            { name: "매일우유 오리지널", spec: "1000ml", price: 2850, taxFree: true, image: "🥛", maxDc: 10, desc: "신선한 국산 원유 100%" },
+            { name: "마이카페라떼 마일드", spec: "220ml", price: 1200, taxFree: false, image: "☕", maxDc: 15, desc: "부드러운 우유와 깊은 커피의 조화" },
+            { name: "상하목장 유기농우유", spec: "125ml", price: 1100, taxFree: true, image: "🌿", maxDc: 5, desc: "자연 그대로 유기농 환경에서 자란 우유" },
+            { name: "허쉬 초콜릿 드링크", spec: "235ml", price: 1000, taxFree: false, image: "🍫", maxDc: 20, desc: "진한 초컬릿 풍미의 정통 허쉬 드링크" },
+            { name: "바리스타룰스", spec: "325ml", price: 2500, taxFree: false, image: "🥤", maxDc: 12, desc: "바리스타가 엄선한 원두로 만든 프리미엄 커피" }
         ];
+
+        function updateDatalist() {
+            const list = document.getElementById('productOptions');
+            list.innerHTML = productDB.map(p => `<option value="${p.name}">${p.spec}</option>`).join('');
+        }
+        updateDatalist();
 
         // 1. 정보 동기화 (상단 기본 정보)
         function syncInfo() {
@@ -676,8 +684,8 @@
             editorRow.innerHTML = `
                 <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
                     <span style="font-weight: 700; color: #888; width: 20px;">${rowCount}</span>
-                    <input type="text" class="input-field project-name" value="${name}" placeholder="품명" oninput="calculateRow(this)">
-                    <input type="text" class="input-field" value="${spec}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
+                    <input type="text" class="input-field project-name" value="${name}" list="productOptions" placeholder="품명" oninput="calculateRow(this)">
+                    <input type="text" class="input-field p-spec-input" value="${spec}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
                     <button onclick="removeRow('${rowId}')" style="background: none; border: none; color: #ff3b30; cursor: pointer;">✕</button>
                 </div>
                 <div style="margin-bottom: 8px;">
@@ -752,8 +760,22 @@
             const previewRow = document.getElementById(`preview-${rowId}`);
 
             // 입력값 가져오기
-            const name = row.querySelector('.project-name').value;
-            const spec = row.querySelectorAll('input[type="text"]')[1].value;
+            let name = row.querySelector('.project-name').value;
+
+            // 제품명 자동완성 및 데이터 자동입력 체크 (중복 실행 방지를 위한 체크)
+            const matchedProduct = productDB.find(p => p.name === name);
+            if (matchedProduct && !row.dataset.lastMatched) {
+                row.querySelector('.p-spec-input').value = matchedProduct.spec;
+                row.querySelector('.factory-price').value = matchedProduct.price;
+                row.querySelector('.sales-price').value = matchedProduct.price;
+                row.querySelector('.tax-free-check').checked = matchedProduct.taxFree;
+                row.querySelector('.p-description').value = matchedProduct.desc || '';
+                row.dataset.lastMatched = name; // 한번 매칭되면 세팅 완료 표시
+            } else if (!matchedProduct) {
+                row.removeAttribute('data-last-matched');
+            }
+
+            const spec = row.querySelector('.p-spec-input').value;
             const desc = row.querySelector('.p-description').value;
             const factoryPrice = parseFloat(row.querySelector('.factory-price').value) || 0;
             const dcRate = parseFloat(row.querySelector('.dc-rate').value) || 0;
@@ -1073,6 +1095,7 @@
                 }));
 
                 alert(`✅ 제품 ${productDB.length}개가 로드되었습니다.`);
+                updateDatalist();
             };
             reader.readAsArrayBuffer(file);
         });
