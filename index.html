@@ -1704,7 +1704,8 @@
                         <div class="sv-value" id="dashSuccessRate">0%</div>
                     </div>
                     <div class="summary-value-card">
-                        <div class="sv-label">최다 방문 지역</div>
+                        <div class="sv-label">최빈 방문 거래처 <span style="cursor:help; border-bottom:1px dotted #86868b;"
+                                title="가장 여러 번 방문일지가 작성된 거래처명입니다.">ℹ️</span></div>
                         <div class="sv-value" id="dashTopRegion">-</div>
                     </div>
                 </div>
@@ -1950,10 +1951,19 @@
                 regionCount[region] = (regionCount[region] || 0) + 1;
             });
 
-            // 최다 방문 지역(등록 거래처 최상위 지역으로 대체)
-            const sortedRegions = Object.entries(regionCount).sort((a, b) => b[1] - a[1]);
-            if (sortedRegions.length > 0) {
-                document.getElementById('dashTopRegion').innerText = sortedRegions[0][0];
+            // 최빈 방문 거래처 계산
+            const visitFreq = {};
+            visits.forEach(v => {
+                const name = (v['방문처(거래처)'] || '').trim();
+                if (name) {
+                    visitFreq[name] = (visitFreq[name] || 0) + 1;
+                }
+            });
+            const sortedAccounts = Object.entries(visitFreq).sort((a, b) => b[1] - a[1]);
+            if (sortedAccounts.length > 0) {
+                document.getElementById('dashTopRegion').innerText = sortedAccounts[0][0];
+            } else {
+                document.getElementById('dashTopRegion').innerText = '-';
             }
 
             // 4. Chart.js 렌더링
