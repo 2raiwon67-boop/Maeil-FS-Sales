@@ -19,7 +19,8 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'API 키가 설정되지 않았습니다. Vercel 환경변수 PUBLIC_DATA_API_KEY를 설정해주세요.' });
     }
 
-    const { serviceType, siteWhlAddr, startDate, endDate, pageNo = '1' } = req.query;
+    const { serviceType, startDate, endDate, pageNo = '1',
+            SALS_STTS_CD, LOTNO_ADDR } = req.query;
     const endpoint = SERVICE_ENDPOINTS[serviceType];
     if (!endpoint) {
         return res.status(400).json({ error: '유효하지 않은 serviceType입니다. (일반음식점/제과점영업/휴게음식점)' });
@@ -32,9 +33,11 @@ export default async function handler(req, res) {
         returnType: 'json'
     });
 
-    if (siteWhlAddr) params.set('siteWhlAddr', siteWhlAddr);
-    if (startDate)   params.set('startDate', startDate);
-    if (endDate)     params.set('endDate', endDate);
+    // 서버 필터 (API가 지원하면 적용, 미지원이면 무시됨)
+    if (SALS_STTS_CD) params.set('SALS_STTS_CD', SALS_STTS_CD);
+    if (LOTNO_ADDR)   params.set('LOTNO_ADDR', LOTNO_ADDR);
+    if (startDate)    params.set('startDate', startDate);
+    if (endDate)      params.set('endDate', endDate);
 
     const url = `${endpoint}?${params}`;
 
