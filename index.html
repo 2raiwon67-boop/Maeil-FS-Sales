@@ -1984,15 +1984,17 @@
                     <div class="crm-ai-card">
                         <div class="ai-card-title">✨ MISO AI 핵심 공략 포인트</div>
                         <div id="crmAiContent" class="ai-card-content">
-                            방문 기록을 바탕으로 정보를 요약합니다...
+                            방문 이력 및 네이버 동향을 분석합니다...
                             <div class="ai-loading-spinner" id="crmAiSpinner" style="display:none;"></div>
                         </div>
                     </div>
 
-                    <!-- 과거 영업 타임라인 -->
-                    <h3 class="crm-section-title">⏱ 과거 영업 타임라인</h3>
-                    <div id="crmTimeline" class="crm-timeline">
-                        <!-- 타임라인 아이템 동적 주입 -->
+                    <!-- 과거 영업 타임라인 (방문 기록 있을 때만 표시) -->
+                    <div id="crmTimelineSection">
+                        <h3 class="crm-section-title">⏱ 과거 영업 타임라인</h3>
+                        <div id="crmTimeline" class="crm-timeline">
+                            <!-- 타임라인 아이템 동적 주입 -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2432,83 +2434,113 @@
         // 해당 상호명의 방문 기록을 검색하여 타임라인에 렌더링하고, AI에게 요약 요청
         async function renderCrmTimeline(storeName) {
             const timelineContainer = document.getElementById('crmTimeline');
+            const timelineSection = document.getElementById('crmTimelineSection');
             const aiContent = document.getElementById('crmAiContent');
             const aiSpinner = document.getElementById('crmAiSpinner');
 
-            timelineContainer.innerHTML = ''; // 초기화
-            aiContent.innerHTML = '방문 기록을 검색 중입니다...';
+            timelineContainer.innerHTML = '';
+            aiContent.innerHTML = '네이버 동향 및 방문 이력 분석 중...';
             if (aiSpinner) aiSpinner.style.display = 'inline-block';
 
-            // 1. 데이터 가져오기 (방문일지 캐시)
+            // 1. 방문일지 캐시에서 해당 거래처 기록 필터링
             const rawVisits = window.visitLogCache || [];
-
-            // 해당 거래처명과 일치하는 (또는 포함하는) 방문 기록 필터링
-            // 띄어쓰기나 오타 보정을 위해 포함 여부로 체크 (필요시 엄격하게 변경)
             const storeVisits = rawVisits.filter(v => {
                 const visitTarget = (v['방문처(거래처)'] || '').replace(/\s/g, '');
                 const targetName = storeName.replace(/\s/g, '');
                 return visitTarget.includes(targetName) || targetName.includes(visitTarget);
             });
-
-            // 시간 역순(최신순) 정렬
             storeVisits.sort((a, b) => {
                 let da = a['일정기간'] || a['작성일'] || '';
                 let db = b['일정기간'] || b['작성일'] || '';
                 return db.localeCompare(da);
             });
 
-            // 2. 타임라인 HTML 생성
-            if (storeVisits.length === 0) {
-                timelineContainer.innerHTML = `
-                    <div class="timeline-empty">
-                        <div style="font-size:24px; margin-bottom:8px;">📝</div>
-                        아직 기록된 방문일지가 없습니다.<br>첫 방문을 기록해 보세요!
-                    </div>`;
-                aiContent.innerHTML = '과거 방문 데이터가 없어 요약할 수 없습니다. 신규 개척을 시도해 보세요!';
-                if (aiSpinner) aiSpinner.style.display = 'none';
-                return;
+            // 2. 네이버 동향 데이터 병렬 조회
+            let naverData = null;
+            try {
+                const naverRes = await fetch('/api/naver-crm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storeName })
+                });
+                if (naverRes.ok) naverData = await naverRes.json();
+            } catch (e) {
+                console.warn('네이버 CRM 조회 실패:', e.message);
             }
 
-            storeVisits.forEach(v => {
-                const date = (v['일정기간'] || v['작성일'] || '').substring(0, 10);
-                const manager = v['담당자(영업사원)'] || v['담당자'] || '알 수 없음';
-                const content = v['방문상담내용'] || '내용 없음';
+            // 3. 타임라인 표시: 방문 기록 있을 때만
+            if (storeVisits.length === 0) {
+                timelineSection.style.display = 'none';
+            } else {
+                timelineSection.style.display = '';
+                storeVisits.forEach(v => {
+                    const date = (v['일정기간'] || v['작성일'] || '').substring(0, 10);
+                    const manager = v['담당자(영업사원)'] || v['담당자'] || '알 수 없음';
+                    const content = v['방문상담내용'] || '내용 없음';
 
-                let followUpHtml = '';
-                if (v['추후 방문 및 조치사항']) {
-                    followUpHtml = `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #e5e5ea; font-size:12px; color:#c74822;">
-                        <strong>📌 To-do:</strong> ${v['추후 방문 및 조치사항']}
-                    </div>`;
-                }
+                    let followUpHtml = '';
+                    if (v['추후 방문 및 조치사항']) {
+                        followUpHtml = `<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #e5e5ea; font-size:12px; color:#c74822;">
+                            <strong>📌 To-do:</strong> ${v['추후 방문 및 조치사항']}
+                        </div>`;
+                    }
 
-                const itemHtml = `
-                    <div class="timeline-item">
-                        <div class="timeline-date">
-                            <span>📅 ${date}</span>
-                            <span class="timeline-manager">${manager}</span>
+                    const itemHtml = `
+                        <div class="timeline-item">
+                            <div class="timeline-date">
+                                <span>📅 ${date}</span>
+                                <span class="timeline-manager">${manager}</span>
+                            </div>
+                            <div class="timeline-content">
+                                ${content}
+                                ${followUpHtml}
+                            </div>
                         </div>
-                        <div class="timeline-content">
-                            ${content}
-                            ${followUpHtml}
-                        </div>
-                    </div>
-                `;
-                timelineContainer.insertAdjacentHTML('beforeend', itemHtml);
-            });
+                    `;
+                    timelineContainer.insertAdjacentHTML('beforeend', itemHtml);
+                });
+            }
 
-            // 3. AI 1줄 핵심 요약 호출 (gemini-chatbot.js 객체 활용)
+            // 4. AI 분석: 방문 이력 + 네이버 동향 통합
             if (typeof geminiBot !== 'undefined') {
                 try {
-                    const prompt = `당신은 최고 실적 영업 팀장입니다. 방금 영업사원이 '${storeName}' 거래처에 대한 '미니 CRM' 창을 열었습니다.
-아래는 해당 거래처의 과거 방문일지 히스토리(최신순 정렬)입니다.
+                    // 네이버 섹션 구성
+                    let naverSection = '';
+                    if (naverData?.success) {
+                        const localInfo = (naverData.local || []).slice(0, 2).map(l =>
+                            `- ${l.name} (${l.category || '업종 미상'}) ${l.address || ''}`
+                        ).join('\n');
+                        const blogInfo = (naverData.blog || []).slice(0, 3).map(b =>
+                            `- [${b.date || ''}] ${b.title}: ${b.description}`
+                        ).join('\n');
+                        if (localInfo || blogInfo) {
+                            naverSection = `\n\n# 네이버 최신 동향\n## 지역 검색 결과\n${localInfo || '검색 결과 없음'}\n## 블로그/SNS 리뷰 (최신순)\n${blogInfo || '리뷰 없음'}`;
+                        }
+                    }
 
-# 거래처 과거 이력 (${storeVisits.length}건)
-${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성일'], 작성자: v['담당자'], 내용: v['방문상담내용'] })), null, 2)}
+                    let prompt;
+                    if (storeVisits.length > 0) {
+                        // 방문 이력 + 네이버 동향 모두 있을 때
+                        prompt = `당신은 최고 실적 영업 팀장입니다. 영업사원이 '${storeName}' 거래처의 미니 CRM을 열었습니다.
+
+# 내부 방문일지 이력 (${storeVisits.length}건, 최신순)
+${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성일'], 작성자: v['담당자'], 내용: v['방문상담내용'] })), null, 2)}${naverSection}
 
 # 지시사항
-1. 위 히스토리를 요약하여, 영업사원이 브리핑이나 후속 조치를 위해 **당장 1분 내에 알아야 할 가장 핵심적인 특징/주의사항/공략포인트 1~2줄**을 작성하세요.
-2. 예: "단가 인하에 매우 민감한 편임. 오후 3시경 방문 시 사장님과 대면 가능성 높음. 이전 방문 시 멸균우유 샘플 제공을 약속했으니 이번에 반드시 챙길 것."
-3. 군더더기 인사말 없이 딱 핵심 문장만 출력하세요. 이모지(🔥, ⚠️, 💡 등)를 1~2개 사용해 가독성을 높이세요.`;
+1. 방문일지 이력을 중심으로, 네이버 외부 동향을 참고하여 핵심 공략포인트 1~2줄을 작성하세요.
+2. 이전 방문 데이터 기반: 특이사항, 약속된 후속조치, 접촉 주기 등을 반영하세요.
+3. 네이버 정보가 있다면: 업종/분위기/최근 이슈를 간략히 언급하세요.
+4. 군더더기 없이 핵심만, 이모지(🔥⚠️💡) 1~2개 사용.`;
+                    } else {
+                        // 방문 이력 없음 - 네이버 동향만으로 신규 개척 포인트 제시
+                        prompt = `당신은 최고 실적 영업 팀장입니다. 영업사원이 '${storeName}' 거래처의 미니 CRM을 열었습니다. 이 거래처는 아직 방문 이력이 없는 신규 개척 대상입니다.${naverSection || '\n\n# 네이버 동향\n검색 결과 없음'}
+
+# 지시사항
+1. 네이버 검색 결과(업종, 리뷰, 분위기)를 근거로 신규 첫 방문 공략 포인트 1~2줄을 작성하세요.
+2. 어떤 제품/서비스 제안 각도로 접근할지 힌트를 주세요.
+3. 네이버 정보가 부족하면 업종명 기반으로 추론하세요.
+4. 군더더기 없이 핵심만, 이모지(🔥💡🗺️) 1~2개 사용.`;
+                    }
 
                     const summary = await geminiBot.generate(prompt);
                     aiContent.innerHTML = summary;
