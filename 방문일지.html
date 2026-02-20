@@ -1002,7 +1002,7 @@
         const SHEETS_CONFIG = {
             visitLogs: {
                 id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-                gid: '7066983'
+                gid: '707066983'
             },
             accounts: {
                 id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
@@ -1130,10 +1130,10 @@
                     };
                 }
 
-                const visitDate = parseVisitDate(log['일정기간']);
+                const visitDate = parseVisitDate(log['작성일'] || log['일정기간']);
 
                 grouped[accountName].visits.push({
-                    date: log['일정기간'],
+                    date: log['작성일'] || log['일정기간'],
                     dateObj: visitDate,
                     manager: log['작성자'],
                     issue: log['주요이슈'],
@@ -1280,7 +1280,7 @@
             let monthCount = 0;
 
             allVisitLogs.forEach(log => {
-                const visitDate = parseVisitDate(log['일정기간']);
+                const visitDate = parseVisitDate(log['작성일'] || log['일정기간']);
                 if (!visitDate) return;
 
                 if (visitDate >= today) todayCount++;
@@ -1559,8 +1559,8 @@
 
             modalBody.innerHTML = `
                 <div class="detail-section">
-                    <div class="detail-label">일정 기간</div>
-                    <div class="detail-value">${log['일정기간'] || '-'}</div>
+                    <div class="detail-label">일정 기간(작성일)</div>
+                    <div class="detail-value">${log['작성일'] || log['일정기간'] || '-'}</div>
                 </div>
                 <div class="detail-section">
                     <div class="detail-label">작성자 / 참여자</div>
@@ -1569,7 +1569,7 @@
                 <div class="detail-section">
                     <div class="detail-label">방문처</div>
                     <div class="detail-value">
-                        ${log['방문처(거래처)'] || '-'}<br>
+                        ${log['방문처(거래처)'] || '-'} <span style="color:#86868b; font-size:12px;">(${log['방문처(거래처 코드)'] || '코드없음'})</span><br>
                         <small style="color: #86868b;">${log['방문처(대리점)'] || ''}</small>
                     </div>
                 </div>

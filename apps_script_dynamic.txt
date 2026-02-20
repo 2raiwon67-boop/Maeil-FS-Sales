@@ -18,7 +18,7 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/
 
 // ── 방문일지 시트 설정 (방문일지.html SHEETS_CONFIG와 동일) ──
 const VISIT_LOGS_SHEET_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
-const VISIT_LOGS_SHEET_GID = 7066983;
+const VISIT_LOGS_SHEET_GID = 707066983;
 
 const EMAIL_CONFIG = {
   senderName: '경기북부FS (인허가 알림)',

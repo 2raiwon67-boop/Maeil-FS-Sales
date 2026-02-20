@@ -3385,7 +3385,7 @@ ${JSON.stringify(storeVisits.map(v => ({ 날짜: v['일정기간'] || v['작성�
         async function loadVisitLogCache() {
             try {
                 const VISIT_SHEET_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
-                const VISIT_GID = '7066983';
+                const VISIT_GID = '707066983';
                 const url = `https://docs.google.com/spreadsheets/d/${VISIT_SHEET_ID}/export?format=csv&gid=${VISIT_GID}`;
                 const response = await fetch(url);
                 if (!response.ok) return;
