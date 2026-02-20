@@ -1062,7 +1062,7 @@
             const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogs.id}/export?format=csv&gid=${SHEETS_CONFIG.visitLogs.gid}`;
             const response = await fetch(url);
             const csv = await response.text();
-            allVisitLogs = parseCSV(csv);
+            allVisitLogs = parseCSV(csv).filter(row => row['작성자'] && row['작성자'].trim() !== '');
 
             console.log(`방문일지 로드 완료: ${allVisitLogs.length}건`);
 
@@ -1258,7 +1258,7 @@
                         obj[h] = values[i] || '';
                     });
                     return obj;
-                }).filter(row => row['작성자'] && row['작성자'].trim() !== '');
+                });
             }
 
             return [];
