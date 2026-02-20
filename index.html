@@ -1063,6 +1063,31 @@
             transform: translateY(0);
         }
 
+        /* =============== 현재 위치 마커 펄스 애니메이션 =============== */
+        @keyframes myLocationPulse {
+            0%   { transform: scale(1);   opacity: 0.8; }
+            50%  { transform: scale(1.7); opacity: 0.15; }
+            100% { transform: scale(1);   opacity: 0.8; }
+        }
+        .my-location-dot {
+            width: 16px; height: 16px;
+            background: #ff3b30;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px #ff3b30;
+            position: relative;
+        }
+        .my-location-dot::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 36px; height: 36px;
+            background: rgba(255, 59, 48, 0.35);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: myLocationPulse 2s ease-in-out infinite;
+        }
+
         /* =============== 루트 최적화 패널 =============== */
         .route-panel {
             position: absolute;
@@ -3439,7 +3464,7 @@
                         <button class="naver-map-btn" onclick="window.open('${naverMapUrl}', '_blank')">
                             네이버 지도에서 보기
                         </button>
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng})">🗺️ 동선 최적화</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng}, '${name.replace(/'/g, "\\'")}', '${address.replace(/'/g, "\\'")}')">🗺️ 동선 최적화</button>` : ''}
                     </div>
                 </div>
             `;
@@ -3593,7 +3618,7 @@
                 const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item['사업장명'] || '')}`;
                 sheetActionBtns.innerHTML = `
                     <button class="naver-map-btn" style="margin-top:16px;" onclick="window.open('${naverUrl}', '_blank')">네이버 지도에서 보기</button>
-                    ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
+                    ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
                 `;
             }
 
@@ -3618,6 +3643,8 @@
         let routeMarkers = [];
         let routePolyline = null;
         let routeStartCoord = null;
+        let forcedFirstStop = null;       // 마커 클릭으로 선택된 1번 목적지
+        let currentLocationMarker = null; // 현재 위치 붉은 원 마커
 
         function openRoutePanel() {
             document.getElementById('routePanel').classList.add('active');
@@ -3638,6 +3665,9 @@
             const licensed = allData.filter(d => d['순위'] === '1' && d['거래여부(기입예정)'] === '인허가' && d['위도'] && d['경도']);
             const construction = allData.filter(d => d['거래여부(기입예정)'] === '공사중' && d['위도'] && d['경도']);
             const accounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '미거래');
+            const radiusNote = forcedFirstStop
+                ? `🎯 [${forcedFirstStop.name}] 인근 반경 3km 자동 포함`
+                : '📍 출발지 기준 반경 3km 이내 자동 포함';
             document.getElementById('routeTargetSummary').innerHTML = `
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
                     <span>🔴 인허가 1순위</span><strong>${licensed.length}건</strong>
@@ -3649,7 +3679,7 @@
                     <span>⭐ 주요 미거래처</span><strong>${accounts.length}건 중 자동선택</strong>
                 </div>
                 <div style="margin-top:8px;font-size:10px;color:#86868b;border-top:1px solid #e8e8ed;padding-top:6px;">
-                    📍 출발지 기준 반경 3km 이내 자동 포함
+                    ${radiusNote}
                 </div>`;
         }
 
@@ -3660,7 +3690,9 @@
 
             function applyLocation(pos) {
                 routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                forcedFirstStop = null; // 직접 현재위치 설정 시 강제 1번 목적지 초기화
                 infoEl.textContent = '✅ 현재 위치 설정됨';
+                showCurrentLocationMarker(pos.coords.latitude, pos.coords.longitude);
                 if (naverMap) {
                     naverMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
                     naverMap.setZoom(14);
@@ -3698,12 +3730,57 @@
             );
         }
 
-        function openRouteFromCoord(lat, lng) {
-            routeStartCoord = { lat: parseFloat(lat), lng: parseFloat(lng) };
+        function openRouteFromCoord(lat, lng, name, address) {
+            // 선택한 마커 = 1번 목적지 (출발지가 아님)
+            forcedFirstStop = {
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                name: name || '선택 목적지',
+                address: address || '',
+                type: 'primary'
+            };
+
             document.getElementById('routePanel').classList.add('active');
             updateRouteTargetSummary();
-            document.getElementById('routeStartInfo').textContent = '✅ 마커 위치 기준으로 설정됨';
             closeCurrentInfoWindow();
+
+            const infoEl = document.getElementById('routeStartInfo');
+
+            // 이미 GPS 위치가 잡혀 있으면 그대로 사용
+            if (routeStartCoord) {
+                infoEl.textContent = `✅ 현위치 출발 → [${forcedFirstStop.name}] 1번 목적지`;
+                return;
+            }
+
+            // GPS 현재 위치 자동 취득 시도
+            if (!navigator.geolocation) {
+                infoEl.textContent = '⚠️ 위치 서비스 미지원 – 직접 입력 필요';
+                return;
+            }
+            infoEl.textContent = '📍 현재 위치 확인 중...';
+
+            function applyGPS(pos) {
+                routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                showCurrentLocationMarker(pos.coords.latitude, pos.coords.longitude);
+                infoEl.textContent = `✅ 현위치 출발 → [${forcedFirstStop.name}] 1번 목적지`;
+            }
+            function onGPSError(err) {
+                if (err.code === 1) {
+                    infoEl.textContent = '❌ 위치 권한 거부 – 직접 입력 또는 위치 허용 후 재시도';
+                } else {
+                    infoEl.textContent = '❌ 위치 확인 실패 – 직접 입력 이용';
+                }
+            }
+            navigator.geolocation.getCurrentPosition(
+                applyGPS,
+                err => {
+                    if (err.code !== 1) {
+                        navigator.geolocation.getCurrentPosition(applyGPS, onGPSError,
+                            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+                    } else { onGPSError(err); }
+                },
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 30000 }
+            );
         }
 
         async function geocodeStartAddress() {
@@ -3731,9 +3808,15 @@
         async function startRouteOptimization() {
             if (!routeStartCoord) { alert('출발지를 먼저 설정해주세요.\n(현재 위치 또는 주소 입력)'); return; }
 
-            const RADIUS_KM = 3; // 출발지 기준 반경 3km
+            const RADIUS_KM = 3;
 
-            // 1. 출발지 기준 3km 이내 인허가 1순위 + 공사중 수집
+            // forcedFirstStop: 마커 클릭으로 지정된 1번 목적지
+            // 조건 검색 기준점 = forcedFirstStop이 있으면 그 위치, 없으면 출발지
+            const searchCenter = forcedFirstStop
+                ? { lat: forcedFirstStop.lat, lng: forcedFirstStop.lng }
+                : routeStartCoord;
+
+            // 1. 검색 기준점 반경 3km 이내 인허가 1순위 + 공사중 수집
             const primaryStops = allData
                 .filter(d => (d['순위'] === '1' && d['거래여부(기입예정)'] === '인허가') ||
                     d['거래여부(기입예정)'] === '공사중')
@@ -3742,7 +3825,11 @@
                     const lat = parseFloat(d['위도']);
                     const lng = parseFloat(d['경도']);
                     if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return false;
-                    return haversineKm(routeStartCoord.lat, routeStartCoord.lng, lat, lng) <= RADIUS_KM;
+                    // forcedFirstStop 자신은 중복 제외
+                    if (forcedFirstStop &&
+                        Math.abs(lat - forcedFirstStop.lat) < 0.0001 &&
+                        Math.abs(lng - forcedFirstStop.lng) < 0.0001) return false;
+                    return haversineKm(searchCenter.lat, searchCenter.lng, lat, lng) <= RADIUS_KM;
                 })
                 .map(d => ({
                     name: d['사업장명'],
@@ -3752,17 +3839,20 @@
                     type: d['거래여부(기입예정)'] === '공사중' ? 'construction' : 'primary'
                 }));
 
-            // 2. 주요 미거래처: 출발지 3km 이내이거나 1순위/공사중 stops 3km 이내
+            // 2. 주요 미거래처: 검색 기준점 3km 이내이거나 1순위/공사중 stops 3km 이내
             const addedKeys = new Set();
+            if (forcedFirstStop) {
+                addedKeys.add(`${forcedFirstStop.lat.toFixed(5)},${forcedFirstStop.lng.toFixed(5)}`);
+            }
             const accountStops = [];
             accountMarkers
                 .filter(m => (m._dealStatus || '').trim() === '미거래' && m._lat && m._lng)
                 .forEach(m => {
                     const key = `${m._lat.toFixed(5)},${m._lng.toFixed(5)}`;
                     if (addedKeys.has(key)) return;
-                    const isNearStart = haversineKm(routeStartCoord.lat, routeStartCoord.lng, m._lat, m._lng) <= RADIUS_KM;
+                    const isNearCenter = haversineKm(searchCenter.lat, searchCenter.lng, m._lat, m._lng) <= RADIUS_KM;
                     const isNearPrimary = primaryStops.some(p => haversineKm(p.lat, p.lng, m._lat, m._lng) <= RADIUS_KM);
-                    if (isNearStart || isNearPrimary) {
+                    if (isNearCenter || isNearPrimary) {
                         addedKeys.add(key);
                         accountStops.push({
                             name: m._name || '거래처',
@@ -3774,18 +3864,19 @@
                     }
                 });
 
-            // 3. 최대 5개 제한 (네이버 지도 경유지 한계)
-            const MAX_TOTAL = 5;
+            // 3. 최대 슬롯 계산 (네이버 지도 경유지 한계 5개)
+            // forcedFirstStop이 있으면 그것이 1번을 차지하므로 나머지 4개
+            const MAX_TOTAL = forcedFirstStop ? 4 : 5;
 
-            // 인허가 1순위 + 공사중: 출발지 기준 가까운 순으로 최대 MAX_TOTAL개
+            // 인허가 1순위 + 공사중: 검색 기준점에서 가까운 순
             primaryStops.sort((a, b) =>
-                haversineKm(routeStartCoord.lat, routeStartCoord.lng, a.lat, a.lng) -
-                haversineKm(routeStartCoord.lat, routeStartCoord.lng, b.lat, b.lng)
+                haversineKm(searchCenter.lat, searchCenter.lng, a.lat, a.lng) -
+                haversineKm(searchCenter.lat, searchCenter.lng, b.lat, b.lng)
             );
             const selectedPrimaries = primaryStops.slice(0, MAX_TOTAL);
             const remainingSlots = MAX_TOTAL - selectedPrimaries.length;
 
-            // 미거래처: 잔여 슬롯 내에서 방문일지 기반 우선순위 (미방문 > 오래된 방문 순)
+            // 미거래처: 잔여 슬롯 내 방문일지 기반 우선순위 (미방문 > 오래된 방문 순)
             let selectedAccounts = [];
             if (remainingSlots > 0 && accountStops.length > 0) {
                 const sortedAccounts = accountStops.map(stop => {
@@ -3794,23 +3885,40 @@
                         : null;
                     return { ...stop, _lastVisitDate: lastVisit ? (lastVisit['일정기간'] || '') : '' };
                 }).sort((a, b) => {
-                    if (!a._lastVisitDate && b._lastVisitDate) return -1; // 미방문 우선
+                    if (!a._lastVisitDate && b._lastVisitDate) return -1;
                     if (a._lastVisitDate && !b._lastVisitDate) return 1;
-                    return a._lastVisitDate.localeCompare(b._lastVisitDate); // 오래된 방문 우선
+                    return a._lastVisitDate.localeCompare(b._lastVisitDate);
                 });
                 selectedAccounts = sortedAccounts.slice(0, remainingSlots);
             }
 
-            const allStops = [...selectedPrimaries, ...selectedAccounts];
-            if (allStops.length === 0) {
-                alert('출발지 반경 3km 이내에 방문 대상이 없습니다.\n출발지를 변경하거나 데이터를 확인해주세요.');
-                return;
+            const additionalStops = [...selectedPrimaries, ...selectedAccounts];
+
+            // forcedFirstStop이 있으면: [강제1번목적지] + TSP(나머지, 강제1번에서 출발)
+            // 없으면: 기존 방식 – TSP(전체, 출발지에서 출발)
+            if (forcedFirstStop) {
+                if (additionalStops.length === 0) {
+                    // 강제 1번만 존재
+                    const dist = haversineKm(routeStartCoord.lat, routeStartCoord.lng,
+                        forcedFirstStop.lat, forcedFirstStop.lng);
+                    forcedFirstStop._dist = dist;
+                    routeStops = [forcedFirstStop];
+                } else {
+                    // 강제 1번에서 나머지 TSP
+                    const orderedRest = nearestNeighborTSP(additionalStops, forcedFirstStop);
+                    const distToFirst = haversineKm(routeStartCoord.lat, routeStartCoord.lng,
+                        forcedFirstStop.lat, forcedFirstStop.lng);
+                    forcedFirstStop._dist = distToFirst;
+                    routeStops = [forcedFirstStop, ...orderedRest];
+                }
+            } else {
+                if (additionalStops.length === 0) {
+                    alert('출발지 반경 3km 이내에 방문 대상이 없습니다.\n출발지를 변경하거나 데이터를 확인해주세요.');
+                    return;
+                }
+                routeStops = nearestNeighborTSP(additionalStops, routeStartCoord);
             }
 
-            // 4. 최근접 이웃 알고리즘 (Nearest Neighbor TSP)
-            routeStops = nearestNeighborTSP(allStops, routeStartCoord);
-
-            // 4. 지도 표시 및 결과 렌더링
             await drawRouteOnMap();
             renderRouteResult();
         }
@@ -3922,7 +4030,26 @@
         function clearRoute() {
             clearRouteMarkers();
             routeStops = [];
+            forcedFirstStop = null;
+            routeStartCoord = null;
+            if (currentLocationMarker) { currentLocationMarker.setMap(null); currentLocationMarker = null; }
             document.getElementById('routeResult').style.display = 'none';
+            document.getElementById('routeStartInfo').textContent = '';
+        }
+
+        function showCurrentLocationMarker(lat, lng) {
+            if (!naverMap) return;
+            if (currentLocationMarker) currentLocationMarker.setMap(null);
+            currentLocationMarker = new naver.maps.Marker({
+                position: new naver.maps.LatLng(lat, lng),
+                map: naverMap,
+                icon: {
+                    content: '<div class="my-location-dot"></div>',
+                    anchor: new naver.maps.Point(8, 8)
+                },
+                zIndex: 300,
+                title: '현재 위치'
+            });
         }
 
         function renderRouteResult() {
@@ -3940,7 +4067,7 @@
                     <div class="route-stop-num" style="background:${stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000'}">${idx + 1}</div>
                     <div class="route-stop-info">
                         <div class="route-stop-name">${stop.name}</div>
-                        <div class="route-stop-dist">${idx === 0 ? '출발지에서' : '이전에서'} ${stop._dist?.toFixed(1)}km</div>
+                        <div class="route-stop-dist">${idx === 0 ? '현위치에서' : idx === 1 && forcedFirstStop ? '1번 목적지에서' : '이전에서'} ${stop._dist?.toFixed(1)}km</div>
                     </div>
                     <span class="route-stop-tag ${cls}">${label}</span>
                     ${warnBadge}
@@ -3988,9 +4115,8 @@
             const isAndroid = /Android/i.test(navigator.userAgent);
             const isIOS = /iPhone|iPad/i.test(navigator.userAgent);
 
-            // 경로 파라미터 조립 (appname 제거 - 미등록 ID가 경로 거부 원인이었음)
-            let routeParams = `slat=${routeStartCoord.lat}&slng=${routeStartCoord.lng}&sname=${enc('출발지')}`;
-            routeParams += `&dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
+            // 출발지 파라미터 생략 → 네이버 지도 앱이 기기 GPS 현위치를 자동 사용
+            let routeParams = `dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
             waypoints.forEach((stop, i) => {
                 routeParams += `&v${i + 1}lat=${stop.lat}&v${i + 1}lng=${stop.lng}&v${i + 1}name=${enc(stop.name)}`;
             });
@@ -4015,13 +4141,13 @@
 
         function buildNaverWebRouteUrl(waypoints, dest, enc) {
             // Naver Maps 웹 directions URL: lng,lat,name 순서
+            // 출발지 생략 → 네이버 지도가 현위치 자동 사용
             const displayName = s => enc(s.name);
             const parts = [
-                `${routeStartCoord.lng},${routeStartCoord.lat},${enc('출발지')}`,
                 ...waypoints.map(s => `${s.lng},${s.lat},${displayName(s)}`),
                 `${dest.lng},${dest.lat},${displayName(dest)}`
             ];
-            return `https://map.naver.com/p/directions/${parts.join('/')}/-/car`;
+            return `https://map.naver.com/p/directions/-/${parts.join('/')}/-/car`;
         }
     </script>
 
