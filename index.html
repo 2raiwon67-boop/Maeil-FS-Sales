@@ -1968,13 +1968,10 @@
                 </div>
 
                 <div class="crm-body">
-                    <!-- 퀵 액션 (전화, 방문일지) -->
-                    <div class="crm-actions">
-                        <a href="#" id="crmCallBtn" class="crm-action-btn btn-call" target="_blank">
-                            📞 전화걸기
-                        </a>
+                    <!-- 퀵 액션 (방문일지) -->
+                    <div class="crm-actions" style="grid-template-columns: 1fr;">
                         <a href="방문일지.html" id="crmWriteBtn" class="crm-action-btn btn-record" target="_blank">
-                            📝 방문일지
+                            📝 방문일지 작성하기
                         </a>
                     </div>
 
@@ -2408,21 +2405,6 @@
             // 뱃지 설정
             const badgesContainer = document.getElementById('crmBadges');
             badgesContainer.innerHTML = getBadgeHtml(statusText);
-            if (phone && phone !== '번호 없음') {
-                badgesContainer.innerHTML += `<span class="crm-badge" style="background: #e5e5ea; color: #1d1d1f;">📞 ${phone}</span>`;
-            }
-
-            // 퀵 액션 연동
-            const callBtn = document.getElementById('crmCallBtn');
-            if (phone && phone !== '번호 없음') {
-                callBtn.href = `tel:${phone.replace(/[^0-9]/g, '')}`;
-                callBtn.style.opacity = '1';
-                callBtn.style.pointerEvents = 'auto';
-            } else {
-                callBtn.removeAttribute('href');
-                callBtn.style.opacity = '0.5';
-                callBtn.style.pointerEvents = 'none';
-            }
 
             // 패널 열기 애니메이션
             document.getElementById('miniCrmPanel').classList.add('open');
