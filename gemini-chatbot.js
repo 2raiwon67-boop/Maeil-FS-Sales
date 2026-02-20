@@ -68,7 +68,7 @@ class GeminiChatbot {
         const keywords = this.extractKeywords(question);
         let relevantVisits = [...this.dataContext.visitLogs];
 
-        // 담당자 필터
+        // 1. 사전 정의된 키워드 필터링 적용 (담당자, 기간, 지역)
         if (keywords.manager) {
             relevantVisits = relevantVisits.filter(v =>
                 v['작성자'] === keywords.manager ||
@@ -76,7 +76,6 @@ class GeminiChatbot {
             );
         }
 
-        // 기간 필터
         if (keywords.period) {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -99,12 +98,65 @@ class GeminiChatbot {
             });
         }
 
-        // 지역 필터
         if (keywords.region) {
             relevantVisits = relevantVisits.filter(v =>
                 v['방문처(거래처)']?.includes(keywords.region)
             );
         }
+
+        // 2. 텍스트 스캔 방식의 동적 검색 추가 (오월당 등 특정 거래처/내용 질문 대응)
+        // 만약 사전 정의 키워드로 충분히 좁혀지지 않았거나, 무언가 이름 같은 고유명사를 물어보는 경우 대비
+        const words = question.split(/\s+/).filter(w => w.length >= 2);
+        // 2글자 이상 단어로 필터 (너무 흔한 단어는 제외하기 위함)
+        // 조사 제거 등 얕은 처리 지원
+        const searchTerms = words.map(w => w.replace(/[은는이갸을를에에서에게뿐만도]+$/g, ''));
+
+        let scoreMap = new Map();
+
+        relevantVisits.forEach(v => {
+            let score = 0;
+            const targetText = [
+                v['방문처(거래처)'],
+                v['만남대상자'],
+                v['내용'],
+                v['주요이슈'],
+                v['TO-DO']
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            searchTerms.forEach(term => {
+                if (targetText.includes(term.toLowerCase())) {
+                    // 거래처명이 정확히 일치하면 가중치 부여
+                    if (v['방문처(거래처)'] && v['방문처(거래처)'].toLowerCase().includes(term.toLowerCase())) {
+                        score += 10;
+                    } else {
+                        score += 1;
+                    }
+                }
+            });
+            v._searchScore = score;
+        });
+
+        // 텍스트 기반 점수가 있는 경우, 내림차순 정렬 후 최상위 결과 위주로 포함.
+        // 다만 질문이 '오월당 현황 어때?' 처럼 특정 거래처 지목일 때는 score가 큰 객체들을 
+        // 우선적으로 뽑아내도록 정렬합니다.
+
+        // 검색어가 파생시킨 의미있는 연관결과(Score > 0)가 있다면 우선 정렬
+        const hasScores = relevantVisits.some(v => v._searchScore > 0);
+
+        if (hasScores) {
+            relevantVisits.sort((a, b) => {
+                if (b._searchScore !== a._searchScore) {
+                    return b._searchScore - a._searchScore;
+                }
+                // 점수가 같으면 최신 날짜 순
+                const da = this.parseVisitDate(a['일정기간']) || 0;
+                const db = this.parseVisitDate(b['일정기간']) || 0;
+                return db - da;
+            });
+        }
+
+        // 임시 사용 프로퍼티 삭제
+        relevantVisits.forEach(v => delete v._searchScore);
 
         // 최신 100건만 반환 (토큰 제한)
         return relevantVisits.slice(0, 100);
