@@ -924,9 +924,8 @@
                 <select class="filter-select" id="statusFilter" onchange="filterData()">
                     <option value="">전체 상태</option>
                     <optgroup label="주요거래처">
-                        <option value="정상">정상</option>
-                        <option value="중지">중지</option>
-                        <option value="폐업">폐업</option>
+                        <option value="거래">거래</option>
+                        <option value="미거래">미거래</option>
                     </optgroup>
                     <optgroup label="인허가">
                         <option value="공사중">공사중</option>
@@ -1418,16 +1417,14 @@
 
             grid.innerHTML = accountsToRender.map((account, index) => {
                 const statusClass =
-                    // 주요거래처 상태
-                    account.status === '정상' ? 'status-normal' :
-                        account.status === '중지' ? 'status-stopped' :
-                            account.status === '폐업' ? 'status-closed' :
-                                // 인허가 상태
-                                account.status === '공사중' ? 'status-construction' :
-                                    account.status === '인허가' ? 'status-license' :
-                                        account.status === '거래' ? 'status-trade' :
-                                            account.status === '미거래' ? 'status-notrade' :
-                                                account.status === 'DROP' ? 'status-drop' : '';
+                    account.status === '공사중' ? 'status-construction' :
+                        account.status === '인허가' ? 'status-license' :
+                            account.status === '거래' ? 'status-trade' :
+                                account.status === '미거래' ? 'status-notrade' :
+                                    account.status === 'DROP' ? 'status-drop' :
+                                        account.status === '정상' ? 'status-normal' :
+                                            account.status === '중지' ? 'status-stopped' :
+                                                account.status === '폐업' ? 'status-closed' : '';
 
                 const lastVisitFormatted = formatPeriod(account.lastVisit);
 
@@ -1482,9 +1479,14 @@
                 <div class="timeline">
                     ${account.visits.map(visit => {
                 const statusClass =
-                    visit.status === '정상' ? 'status-normal' :
-                        visit.status === '중지' ? 'status-stopped' :
-                            visit.status === '폐업' ? 'status-closed' : '';
+                    visit.status === '공사중' ? 'status-construction' :
+                        visit.status === '인허가' ? 'status-license' :
+                            visit.status === '거래' ? 'status-trade' :
+                                visit.status === '미거래' ? 'status-notrade' :
+                                    visit.status === 'DROP' ? 'status-drop' :
+                                        visit.status === '정상' ? 'status-normal' :
+                                            visit.status === '중지' ? 'status-stopped' :
+                                                visit.status === '폐업' ? 'status-closed' : '';
 
                 return `
                             <div class="timeline-item">
