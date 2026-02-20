@@ -14,8 +14,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
     <!-- 네이버 지도 API (geocoder는 동적 로드로 분리하여 document.write 경고 방지) -->
-    <script type="text/javascript"
-        src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl"></script>
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl"></script>
     <script>
         (function () {
             var s = document.createElement('script');
@@ -1065,23 +1064,39 @@
 
         /* =============== 현재 위치 마커 펄스 애니메이션 =============== */
         @keyframes myLocationPulse {
-            0%   { transform: scale(1);   opacity: 0.8; }
-            50%  { transform: scale(1.7); opacity: 0.15; }
-            100% { transform: scale(1);   opacity: 0.8; }
+            0% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.7);
+                opacity: 0.15;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 0.8;
+            }
         }
+
         .my-location-dot {
-            width: 8px; height: 8px;
+            width: 8px;
+            height: 8px;
             background: #ff3b30;
             border: 2px solid #fff;
             border-radius: 50%;
             box-shadow: 0 0 0 1px #ff3b30;
             position: relative;
         }
+
         .my-location-dot::after {
             content: '';
             position: absolute;
-            top: 50%; left: 50%;
-            width: 18px; height: 18px;
+            top: 50%;
+            left: 50%;
+            width: 18px;
+            height: 18px;
             background: rgba(255, 59, 48, 0.35);
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -1280,8 +1295,15 @@
             transition: transform 0.2s;
             z-index: 1000;
         }
-        .chatbot-fab:hover { transform: scale(1.1); }
-        .chatbot-icon { font-size: 22px; }
+
+        .chatbot-fab:hover {
+            transform: scale(1.1);
+        }
+
+        .chatbot-icon {
+            font-size: 22px;
+        }
+
         .chatbot-container {
             position: fixed;
             bottom: 84px;
@@ -1290,12 +1312,16 @@
             height: 560px;
             background: white;
             border-radius: 16px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             display: none;
             flex-direction: column;
             z-index: 999;
         }
-        .chatbot-container.active { display: flex; }
+
+        .chatbot-container.active {
+            display: flex;
+        }
+
         .chatbot-header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -1305,7 +1331,12 @@
             justify-content: space-between;
             align-items: center;
         }
-        .chatbot-header h3 { font-size: 15px; font-weight: 600; }
+
+        .chatbot-header h3 {
+            font-size: 15px;
+            font-weight: 600;
+        }
+
         .chatbot-close-btn {
             background: none;
             border: none;
@@ -1314,23 +1345,37 @@
             cursor: pointer;
             line-height: 1;
         }
+
         .chatbot-messages {
             flex: 1;
             overflow-y: auto;
             padding: 16px;
             background: #fafafa;
         }
+
         .chatbot-message {
             display: flex;
             gap: 10px;
             margin-bottom: 14px;
             animation: chatSlideIn 0.3s ease;
         }
+
         @keyframes chatSlideIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .chatbot-message.user { flex-direction: row-reverse; }
+
+        .chatbot-message.user {
+            flex-direction: row-reverse;
+        }
+
         .chatbot-message-avatar {
             width: 30px;
             height: 30px;
@@ -1341,18 +1386,30 @@
             font-size: 16px;
             flex-shrink: 0;
         }
-        .chatbot-message.bot .chatbot-message-avatar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .chatbot-message.user .chatbot-message-avatar { background: #0071e3; }
+
+        .chatbot-message.bot .chatbot-message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .chatbot-message.user .chatbot-message-avatar {
+            background: #0071e3;
+        }
+
         .chatbot-message-content {
             background: white;
             padding: 10px 14px;
             border-radius: 12px;
             max-width: 72%;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
             line-height: 1.5;
             font-size: 13px;
         }
-        .chatbot-message.user .chatbot-message-content { background: #0071e3; color: white; }
+
+        .chatbot-message.user .chatbot-message-content {
+            background: #0071e3;
+            color: white;
+        }
+
         .chatbot-loading {
             display: none;
             text-align: center;
@@ -1360,17 +1417,23 @@
             color: #86868b;
             font-size: 12px;
         }
-        .chatbot-loading.active { display: block; }
+
+        .chatbot-loading.active {
+            display: block;
+        }
+
         .chatbot-input-area {
             padding: 14px;
             border-top: 1px solid #e8e8ed;
             background: white;
             border-radius: 0 0 16px 16px;
         }
+
         .chatbot-input-row {
             display: flex;
             gap: 8px;
         }
+
         .chatbot-input-row input {
             flex: 1;
             padding: 9px 14px;
@@ -1380,7 +1443,11 @@
             font-family: inherit;
             outline: none;
         }
-        .chatbot-input-row input:focus { border-color: #667eea; }
+
+        .chatbot-input-row input:focus {
+            border-color: #667eea;
+        }
+
         .chatbot-input-row button {
             padding: 9px 18px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1391,12 +1458,14 @@
             font-size: 13px;
             cursor: pointer;
         }
+
         .chatbot-suggestions {
             display: flex;
             gap: 6px;
             margin-top: 10px;
             flex-wrap: wrap;
         }
+
         .chatbot-suggestion-btn {
             padding: 5px 10px;
             background: #f5f5f7;
@@ -1406,10 +1475,137 @@
             cursor: pointer;
             transition: background 0.15s;
         }
-        .chatbot-suggestion-btn:hover { background: #e8e8ed; }
+
+        .chatbot-suggestion-btn:hover {
+            background: #e8e8ed;
+        }
+
         @media (max-width: 768px) {
-            .chatbot-container { width: calc(100% - 32px); right: 16px; }
-            .chatbot-fab { bottom: 80px; }
+            .chatbot-container {
+                width: calc(100% - 32px);
+                right: 16px;
+            }
+
+            .chatbot-fab {
+                bottom: 80px;
+            }
+        }
+
+        /* =============== 대시보드(통계 뷰) 스타일 =============== */
+        .dashboard-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #f5f5f7;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        .dashboard-container.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e8e8ed;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+            position: relative;
+        }
+
+        .dashboard-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .dashboard-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 20px;
+        }
+
+        .summary-cards-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .summary-value-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #e8e8ed;
+            border-left: 4px solid #0071e3;
+        }
+
+        .summary-value-card:nth-child(2) {
+            border-left-color: #34c759;
+        }
+
+        .summary-value-card:nth-child(3) {
+            border-left-color: #ff9500;
+        }
+
+        .sv-label {
+            font-size: 13px;
+            color: #86868b;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .sv-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+
+        /* 뷰 토글 버튼 */
+        .view-toggle {
+            display: flex;
+            background: #2c2c2e;
+            border-radius: 8px;
+            padding: 2px;
+            margin-right: 20px;
+        }
+
+        .view-btn {
+            border: none;
+            background: transparent;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #a1a1a6;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .view-btn.active {
+            background: #4a4a4d;
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
@@ -1426,6 +1622,10 @@
             </div>
         </div>
         <div class="nav-actions" style="display: flex; align-items: center;">
+            <div class="view-toggle">
+                <button class="view-btn active" id="btn-map-view" onclick="switchMainView('map')">🗺️ 지도</button>
+                <button class="view-btn" id="btn-dashboard-view" onclick="switchMainView('dashboard')">📈 통계</button>
+            </div>
             <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
             <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>
         </div>
@@ -1539,36 +1739,81 @@
             </div>
         </div>
 
-        <!-- 우측 지도 -->
-        <div class="map-area">
+        <!-- 우측 지도 영역 -->
+        <div class="map-area" style="position: relative;">
             <div id="map"></div>
+
+            <!-- 대시보드 뷰 (통계 화면) -->
+            <div class="dashboard-container" id="dashboardView">
+                <div class="summary-cards-container">
+                    <div class="summary-value-card">
+                        <div class="sv-label">누적 방문 건수</div>
+                        <div class="sv-value" id="dashTotVisits">0</div>
+                    </div>
+                    <div class="summary-value-card">
+                        <div class="sv-label">유효 영업 비율 (공사/인허가/입점)</div>
+                        <div class="sv-value" id="dashSuccessRate">0%</div>
+                    </div>
+                    <div class="summary-value-card">
+                        <div class="sv-label">최다 방문 지역</div>
+                        <div class="sv-value" id="dashTopRegion">-</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card" style="height: 340px;">
+                        <div class="dashboard-title">📍 지역별 거래처 분포</div>
+                        <div style="position: relative; height: 260px; width: 100%;">
+                            <canvas id="dashRegionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="dashboard-card" style="height: 340px;">
+                        <div class="dashboard-title">📊 현재 거래 상태 현황</div>
+                        <div style="position: relative; height: 260px; width: 100%;">
+                            <canvas id="dashStatusChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="dashboard-card full-width" style="height: 340px;">
+                        <div class="dashboard-title">📈 월별 누적 방문 추이</div>
+                        <div style="position: relative; height: 260px; width: 100%;">
+                            <canvas id="dashTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
 
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
                 <div class="route-panel-header">
                     <h3>🗺️ 영업 루트 최적화</h3>
-                    <button onclick="closeRoutePanel()" style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
+                    <button onclick="closeRoutePanel()"
+                        style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
                 </div>
                 <div class="route-panel-body">
                     <div class="route-section-label">출발지 설정</div>
                     <div class="route-start-row">
                         <button onclick="useCurrentLocation()" class="route-btn route-btn-primary">📍 현재 위치</button>
-                        <button onclick="openStartInput()" class="route-btn" style="background:#424245;color:white;">✏️ 직접 입력</button>
+                        <button onclick="openStartInput()" class="route-btn" style="background:#424245;color:white;">✏️
+                            직접 입력</button>
                     </div>
                     <div id="routeStartInput" style="display:none;margin-top:6px;">
                         <input type="text" id="startAddressInput" placeholder="출발지 주소 입력"
                             style="width:100%;padding:8px;border:1px solid #d2d2d7;border-radius:6px;font-size:12px;"
                             onkeypress="if(event.key==='Enter') geocodeStartAddress()">
-                        <button onclick="geocodeStartAddress()" class="route-btn route-btn-primary" style="margin-top:5px;">주소 확인</button>
+                        <button onclick="geocodeStartAddress()" class="route-btn route-btn-primary"
+                            style="margin-top:5px;">주소 확인</button>
                     </div>
                     <div id="routeStartInfo" style="font-size:11px;color:#86868b;margin-top:6px;min-height:16px;"></div>
 
                     <div class="route-section-label">자동 포함 대상</div>
-                    <div id="routeTargetSummary" style="font-size:12px;color:#1d1d1f;background:#f5f5f7;border-radius:8px;padding:10px;">
+                    <div id="routeTargetSummary"
+                        style="font-size:12px;color:#1d1d1f;background:#f5f5f7;border-radius:8px;padding:10px;">
                         <span style="color:#86868b;">데이터 로딩 후 자동 계산됩니다</span>
                     </div>
 
-                    <button onclick="startRouteOptimization()" class="route-btn route-btn-primary" style="margin-top:14px;">
+                    <button onclick="startRouteOptimization()" class="route-btn route-btn-primary"
+                        style="margin-top:14px;">
                         🔄 루트 최적화 시작
                     </button>
 
@@ -1576,7 +1821,8 @@
                         <div class="route-section-label" style="margin-top:16px;">최적화 결과</div>
                         <div id="routeStopList"></div>
                         <div class="route-summary-box" id="routeSummaryBox"></div>
-                        <button onclick="openNaverMapsRoute()" class="route-btn route-btn-naver">📱 네이버 지도 앱으로 열기</button>
+                        <button onclick="openNaverMapsRoute()" class="route-btn route-btn-naver">📱 네이버 지도 앱으로
+                            열기</button>
                         <button onclick="clearRoute()" class="route-btn route-btn-clear">🔄 루트 초기화</button>
                     </div>
                 </div>
@@ -1682,6 +1928,211 @@
 
         // ── 담당자 설정 (동적 로드) ──
         let managerMap = {};            // 지역명 -> 담당자명 매핑
+
+        // ── 대시보드 차트 인스턴스 ──
+        let dashRegionChartInstance = null;
+        let dashStatusChartInstance = null;
+        let dashTrendChartInstance = null;
+
+        // 메인 뷰 전환 함수 (지도 <-> 통계)
+        function switchMainView(view) {
+            const mapArea = document.getElementById('map');
+            const dashboardView = document.getElementById('dashboardView');
+            const routePanel = document.getElementById('routePanel');
+            const btnMap = document.getElementById('btn-map-view');
+            const btnDash = document.getElementById('btn-dashboard-view');
+
+            if (view === 'dashboard') {
+                mapArea.style.opacity = '0';
+                mapArea.style.pointerEvents = 'none';
+                if (routePanel) routePanel.classList.remove('active');
+
+                dashboardView.classList.add('active');
+                btnDash.classList.add('active');
+                btnMap.classList.remove('active');
+
+                // 차트 업데이트 실행
+                updateDashboardCharts();
+            } else {
+                mapArea.style.opacity = '1';
+                mapArea.style.pointerEvents = 'auto';
+
+                dashboardView.classList.remove('active');
+                btnMap.classList.add('active');
+                btnDash.classList.remove('active');
+            }
+        }
+
+        // 지표 및 차트 업데이트
+        function updateDashboardCharts() {
+            // 1. 데이터 취합 (allData + accountsData)
+            const combinedData = [];
+
+            // 인허가 데이터 처리
+            allData.forEach(item => {
+                combinedData.push({
+                    name: item['사업장명'] || item['상호명'],
+                    status: item['영업상태명'] === '영업/정상' ? '인허가' : (item['기존/신규'] || '기타'),
+                    address: item['지번주소'] || item['도로명주소'] || ''
+                });
+            });
+
+            // 주요거래처 데이터 (중복 방지를 위한 이름 체킹 제외 단순화)
+            accountsData.forEach(item => {
+                combinedData.push({
+                    name: item['상호명/가맹점명'],
+                    status: item['마커'] === 'Rank-1' ? '거래' : 'DROP', // 단순 매핑
+                    address: item['상세주소/건물명'] || ''
+                });
+            });
+
+            // 방문일지 캐시 (방문 통계용)
+            const visits = window.visitLogCache || [];
+
+            // 2. 상단 요약 카드 계산
+            const totalVisits = visits.length;
+            document.getElementById('dashTotVisits').innerText = totalVisits;
+
+            // 성공 비율 계산 (방문일지 기준 목적 달성 혹은 차기 방문 약속)
+            let successVisits = 0;
+            const regionCountObj = {};
+
+            visits.forEach(v => {
+                const res = v['상담결과/요청사항'] || '';
+                if (res.includes('성공') || res.includes('계약') || res.includes('납품') || res.includes('긍정') || res.includes('약속')) {
+                    successVisits++;
+                }
+
+                // 방문 지역 빈도 계산 (주소 필드가 없으므로 거래처명으로 매핑 시도 or 대략적으로 파악, 여기선 단순 처리)
+                // 대신 전체 거래처 주소 텍스트 기반 지역 추출 (combinedData 활용)
+            });
+
+            const successRate = totalVisits > 0 ? Math.round((successVisits / totalVisits) * 100) : 0;
+            document.getElementById('dashSuccessRate').innerText = successRate + '%';
+
+            // 3. 차트용 데이터 집계
+            const statusCount = { '거래': 0, '미거래': 0, '인허가': 0, '공사중': 0, 'DROP': 0, '기타': 0 };
+            const regionCount = {};
+
+            combinedData.forEach(d => {
+                // 상태 카운트
+                const s = d.status;
+                if (['거래', '미거래', '인허가', '공사중', 'DROP'].includes(s)) {
+                    statusCount[s]++;
+                } else {
+                    statusCount['기타']++;
+                }
+
+                // 지역 카운트 (행정구역명 추출)
+                let region = '기타';
+                const addr = d.address || '';
+                if (addr.includes('고양시')) region = '고양시';
+                else if (addr.includes('파주시')) region = '파주시';
+                else if (addr.includes('의정부시')) region = '의정부시';
+                else if (addr.includes('양주시')) region = '양주시';
+                else if (addr.includes('김포시')) region = '김포시';
+                else if (addr.includes('남양주시')) region = '남양주시';
+                else if (addr.includes('구리시')) region = '구리시';
+                else if (addr.includes('포천시')) region = '포천시';
+                else if (addr.includes('동두천시')) region = '동두천시';
+                else if (addr.includes('연천군')) region = '연천군';
+                else if (addr.includes('가평군')) region = '가평군';
+
+                regionCount[region] = (regionCount[region] || 0) + 1;
+            });
+
+            // 최다 방문 지역(등록 거래처 최상위 지역으로 대체)
+            const sortedRegions = Object.entries(regionCount).sort((a, b) => b[1] - a[1]);
+            if (sortedRegions.length > 0) {
+                document.getElementById('dashTopRegion').innerText = sortedRegions[0][0];
+            }
+
+            // 4. Chart.js 렌더링
+
+            // 공통 옵션
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } } }
+            };
+
+            // [차트 1] 지역별 분포 (Doughnut)
+            if (dashRegionChartInstance) dashRegionChartInstance.destroy();
+            const ctxRegion = document.getElementById('dashRegionChart').getContext('2d');
+            const regionLabels = Object.keys(regionCount).filter(k => k !== '기타' && regionCount[k] > 0);
+            const regionData = regionLabels.map(k => regionCount[k]);
+
+            dashRegionChartInstance = new Chart(ctxRegion, {
+                type: 'doughnut',
+                data: {
+                    labels: regionLabels,
+                    datasets: [{
+                        data: regionData,
+                        backgroundColor: ['#0071e3', '#34c759', '#ff9500', '#ff3b30', '#af52de', '#5856d6', '#ffcc00', '#ff2d55'],
+                        borderWidth: 0
+                    }]
+                },
+                options: Object.assign({}, commonOptions, { cutout: '65%' })
+            });
+
+            // [차트 2] 상태별 분포 (Bar)
+            if (dashStatusChartInstance) dashStatusChartInstance.destroy();
+            const ctxStatus = document.getElementById('dashStatusChart').getContext('2d');
+            dashStatusChartInstance = new Chart(ctxStatus, {
+                type: 'bar',
+                data: {
+                    labels: ['거래', '미거래', '인허가', '공사중', 'DROP'],
+                    datasets: [{
+                        label: '업장 수',
+                        data: [statusCount['거래'], statusCount['미거래'], statusCount['인허가'], statusCount['공사중'], statusCount['DROP']],
+                        backgroundColor: ['#007AFF', '#FF9595', '#34C759', '#FF9500', '#8E8E93'],
+                        borderRadius: 6
+                    }]
+                },
+                options: Object.assign({}, commonOptions, {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
+                })
+            });
+
+            // [차트 3] 월별 추이 (Line)
+            const monthCount = {};
+            visits.forEach(v => {
+                const dateStr = v['방문일자'] || '';
+                if (dateStr && typeof dateStr === 'string' && dateStr.length >= 7) {
+                    const month = dateStr.substring(0, 7); // 예: '2023-10'
+                    monthCount[month] = (monthCount[month] || 0) + 1;
+                }
+            });
+            const sortedMonths = Object.keys(monthCount).sort();
+
+            if (dashTrendChartInstance) dashTrendChartInstance.destroy();
+            const ctxTrend = document.getElementById('dashTrendChart').getContext('2d');
+            dashTrendChartInstance = new Chart(ctxTrend, {
+                type: 'line',
+                data: {
+                    labels: sortedMonths.length > 0 ? sortedMonths : ['데이터 없음'],
+                    datasets: [{
+                        label: '월별 방문 횟수',
+                        data: sortedMonths.length > 0 ? sortedMonths.map(m => monthCount[m]) : [0],
+                        borderColor: '#0071e3',
+                        backgroundColor: 'rgba(0, 113, 227, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#0071e3',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: Object.assign({}, commonOptions, {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
+                })
+            });
+        }
+
 
         function closeCurrentInfoWindow() {
             if (currentInfoWindow) {
@@ -4178,14 +4629,18 @@
         <div class="chatbot-loading" id="indexChatLoading">AI가 분석 중입니다...</div>
         <div class="chatbot-input-area">
             <div class="chatbot-input-row">
-                <input type="text" id="indexChatInput" placeholder="예: 1순위 인허가 현황 알려줘" onkeypress="if(event.key==='Enter') sendIndexChatMessage()">
+                <input type="text" id="indexChatInput" placeholder="예: 1순위 인허가 현황 알려줘"
+                    onkeypress="if(event.key==='Enter') sendIndexChatMessage()">
                 <button onclick="sendIndexChatMessage()">전송</button>
             </div>
             <div class="chatbot-suggestions">
-                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('오늘 방문해야 할 1순위 인허가 업체 알려줘')">1순위 현황</button>
-                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('공사중인 업체 중 28일 넘긴 곳은?')">공사중 경과</button>
+                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('오늘 방문해야 할 1순위 인허가 업체 알려줘')">1순위
+                    현황</button>
+                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('공사중인 업체 중 28일 넘긴 곳은?')">공사중
+                    경과</button>
                 <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('남양주 지역 인허가 현황 요약해줘')">남양주 현황</button>
-                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('최근 인허가 등록된 업체 리스트 알려줘')">최근 등록</button>
+                <button class="chatbot-suggestion-btn" onclick="askIndexQuestion('최근 인허가 등록된 업체 리스트 알려줘')">최근
+                    등록</button>
             </div>
         </div>
     </div>
