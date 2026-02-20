@@ -1088,10 +1088,11 @@
         function groupAccountsByVisits() {
             const grouped = {};
 
-            // 1. 이름 정규화 함수 (공백 및 특수문자, (주) 등 제거)
+            // 1. 이름 정규화 함수 (공백 및 특수문자, 대괄호 안의 지역 등 제거)
             const normalize = (str) => {
                 if (!str) return '';
                 return str
+                    .replace(/\[.*?\]/g, '') // [ㅇㅇ시], [ㅇㅇ구] 등 대괄호로 묶인 내용 제거
                     .replace(/\(주\)/g, '')
                     .replace(/\（주\）/g, '')
                     .replace(/주식회사/g, '')
@@ -1444,7 +1445,7 @@
                             <!-- 대리점 정보 제거 (사용자 요청) -->
                         </div>
                         <div class="account-footer">
-                            <div class="last-visit">최근 방문: ${lastVisitFormatted}</div>
+                            <div class="last-visit">최근 작성일: ${lastVisitFormatted}</div>
                             <span class="status-badge ${statusClass}">${account.status}</span>
                         </div>
                     </div>
@@ -1489,12 +1490,12 @@
                             <div class="timeline-item">
                                 <div class="timeline-dot"></div>
                                 <div class="timeline-content">
-                                    <div class="timeline-date">${formatPeriod(visit.date)}</div>
-                                    <div class="timeline-details">
-                                        <div class="timeline-detail-row">
-                                            <span class="timeline-label">담당자:</span>
-                                            <span>${visit.manager || '-'}</span>
-                                        </div>
+                                        <div class="timeline-date">${formatPeriod(visit.fullData['작성일'] || visit.date)}</div>
+                                        <div class="timeline-details">
+                                            <div class="timeline-manager" style="display: flex; gap: 8px;">
+                                                <span><i class="fas fa-user"></i> ${visit.manager || '-'}</span>
+                                                ${visit.issue === 'Y' ? '<span style="color: #ff3b30; font-size: 11px;"><i class="fas fa-exclamation-triangle"></i> 주요이슈</span>' : ''}
+                                            </div>
 
                                         <div class="timeline-detail-row">
                                             <span class="timeline-label">거래상태:</span>
