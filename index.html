@@ -1070,18 +1070,18 @@
             100% { transform: scale(1);   opacity: 0.8; }
         }
         .my-location-dot {
-            width: 16px; height: 16px;
+            width: 8px; height: 8px;
             background: #ff3b30;
-            border: 3px solid #fff;
+            border: 2px solid #fff;
             border-radius: 50%;
-            box-shadow: 0 0 0 2px #ff3b30;
+            box-shadow: 0 0 0 1px #ff3b30;
             position: relative;
         }
         .my-location-dot::after {
             content: '';
             position: absolute;
             top: 50%; left: 50%;
-            width: 36px; height: 36px;
+            width: 18px; height: 18px;
             background: rgba(255, 59, 48, 0.35);
             border-radius: 50%;
             transform: translate(-50%, -50%);
@@ -4049,7 +4049,7 @@
                 map: naverMap,
                 icon: {
                     content: '<div class="my-location-dot"></div>',
-                    anchor: new naver.maps.Point(8, 8)
+                    anchor: new naver.maps.Point(4, 4)
                 },
                 zIndex: 300,
                 title: '현재 위치'
