@@ -403,17 +403,7 @@
             font-weight: 600;
         }
 
-        /* =============== 주간 추이 차트 =============== */
-        .chart-card {
-            background: #ffffff;
-            border-radius: 10px;
-            padding: 14px;
-            border: 1px solid #e8e8ed;
-        }
 
-        .chart-wrapper {
-            height: 120px;
-        }
 
         /* =============== 우측 지도 영역 =============== */
         .map-area {
@@ -1679,15 +1669,7 @@
                 </div>
             </div>
 
-            <!-- 주간 추이 -->
-            <div class="section">
-                <div class="section-header">📈 주간 추이</div>
-                <div class="chart-card">
-                    <div class="chart-wrapper">
-                        <canvas id="weeklyChart"></canvas>
-                    </div>
-                </div>
-            </div>
+
 
             <!-- 데이터 관리 -->
             <div class="section">
@@ -1911,29 +1893,29 @@
 
         // 지표 및 차트 업데이트
         function updateDashboardCharts() {
-            // 1. 데이터 취합 (allData + accountsData)
+            // 1. 데이터 취합 ('인허가 데이터' 기반)
+            const validAccountNames = new Set();
             const combinedData = [];
 
             // 인허가 데이터 처리
             allData.forEach(item => {
-                combinedData.push({
-                    name: item['사업장명'] || item['상호명'],
-                    status: item['영업상태명'] === '영업/정상' ? '인허가' : (item['기존/신규'] || '기타'),
-                    address: item['지번주소'] || item['도로명주소'] || ''
-                });
+                const name = (item['사업장명'] || item['상호명'] || '').trim();
+                if (name) {
+                    validAccountNames.add(name);
+                    combinedData.push({
+                        name: name,
+                        status: item['영업상태명'] === '영업/정상' ? '인허가' : (item['기존/신규'] || '기타'),
+                        address: item['지번주소'] || item['도로명주소'] || ''
+                    });
+                }
             });
 
-            // 주요거래처 데이터 (중복 방지를 위한 이름 체킹 제외 단순화)
-            accountsData.forEach(item => {
-                combinedData.push({
-                    name: item['상호명/가맹점명'],
-                    status: item['마커'] === 'Rank-1' ? '거래' : 'DROP', // 단순 매핑
-                    address: item['상세주소/건물명'] || ''
-                });
+            // 방문일지 캐시 (방문 통계용) - 사업장명이 일치하는 방문일지만 필터링
+            const rawVisits = window.visitLogCache || [];
+            const visits = rawVisits.filter(v => {
+                const visitName = (v['방문처(거래처)'] || '').trim();
+                return validAccountNames.has(visitName);
             });
-
-            // 방문일지 캐시 (방문 통계용)
-            const visits = window.visitLogCache || [];
 
             // 2. 상단 요약 카드 계산
             const totalVisits = visits.length;
@@ -2097,8 +2079,6 @@
             setupUploadZones();
 
             initNaverMap();
-
-            initChart();
 
             // 담당자 설정 로드 (비동기) -> 완료 후 데이터 처리 시 사용됨
             await loadManagerConfig();
@@ -2308,97 +2288,6 @@
             }
         }
 
-        // ============================================================
-        // 차트
-        // ============================================================
-
-        let weeklyChart;
-
-        function initChart() {
-            const ctx = document.getElementById('weeklyChart');
-            weeklyChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['월', '화', '수', '목', '금', '토', '일'],
-                    datasets: [{
-                        label: '1순위 신규',
-                        data: [0, 0, 0, 0, 0, 0, 0],
-                        borderColor: '#ff3b30',
-                        backgroundColor: 'rgba(255, 59, 48, 0.1)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#ff3b30'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: {
-                            display: true,
-                            beginAtZero: true,
-                            ticks: {
-                                font: { size: 10 },
-                                stepSize: 1
-                            },
-                            grid: { color: 'rgba(0,0,0,0.05)' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { size: 10 } }
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateChart() {
-            if (!weeklyChart) return;
-
-            // 한국 표준시 기준 오늘 날짜
-            const today = new Date();
-            const kstOffset = 9 * 60; // KST = UTC+9
-            const kstToday = new Date(today.getTime() + (kstOffset - today.getTimezoneOffset()) * 60000);
-
-            // 이번 주 월요일 계산
-            const dayOfWeek = kstToday.getDay(); // 0=일요일, 1=월요일, ...
-            const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 일요일이면 6일 전, 아니면 (요일-1)
-            const monday = new Date(kstToday);
-            monday.setDate(kstToday.getDate() - daysFromMonday);
-            monday.setHours(0, 0, 0, 0);
-
-            // 주간 데이터 집계 (월~일)
-            const weekData = [0, 0, 0, 0, 0, 0, 0];
-
-            allData.forEach(item => {
-                if (item['순위'] !== '1') return; // 1순위만
-
-                const regDate = item['앱시트등록일'];
-                if (!regDate) return;
-
-                try {
-                    const date = new Date(regDate);
-
-                    // 이번 주 데이터인지 확인
-                    if (date >= monday && date <= kstToday) {
-                        const dayIndex = date.getDay(); // 0=일요일
-                        const chartIndex = dayIndex === 0 ? 6 : dayIndex - 1; // 월=0, 화=1, ..., 일=6
-                        weekData[chartIndex]++;
-                    }
-                } catch (e) {
-                    // 날짜 파싱 실패 시 무시
-                }
-            });
-
-            // 차트 업데이트
-            weeklyChart.data.datasets[0].data = weekData;
-            weeklyChart.update();
-
-            console.log('주간 추이 업데이트:', weekData);
-        }
 
         // ============================================================
         // 데이터 로드
