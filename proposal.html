@@ -511,22 +511,20 @@
                     <table class="quote-table">
                         <colgroup>
                             <col style="width: 5%">
-                            <col style="width: 30%">
-                            <col style="width: 15%">
-                            <col style="width: 8%">
-                            <col style="width: 15%">
+                            <col style="width: 20%">
                             <col style="width: 12%">
+                            <col style="width: 25%">
                             <col style="width: 15%">
+                            <col style="width: 23%">
                         </colgroup>
                         <thead>
                             <tr>
                                 <th>No</th>
                                 <th>품명</th>
                                 <th>규격</th>
-                                <th>면세</th>
-                                <th>출고가</th>
-                                <th>DC(%)</th>
-                                <th>최종가</th>
+                                <th>내용</th>
+                                <th>판매가</th>
+                                <th>사진</th>
                             </tr>
                         </thead>
                         <tbody id="preview-quoteBody">
@@ -534,8 +532,8 @@
                         </tbody>
                         <tfoot>
                             <tr style="background: #fbfbfd; font-weight: 700;">
-                                <td colspan="6" style="text-align: center; padding: 10px;">합 계</td>
-                                <td style="text-align: right; padding: 0 6px;">
+                                <td colspan="4" style="text-align: center; padding: 10px;">합 계</td>
+                                <td colspan="2" style="text-align: right; padding: 0 15px;">
                                     <span id="preview-totalAmount">0</span>원
                                 </td>
                             </tr>
@@ -682,6 +680,9 @@
                     <input type="text" class="input-field" value="${spec}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
                     <button onclick="removeRow('${rowId}')" style="background: none; border: none; color: #ff3b30; cursor: pointer;">✕</button>
                 </div>
+                <div style="margin-bottom: 8px;">
+                    <input type="text" class="input-field p-description" placeholder="제품 상세 내용 입력" oninput="calculateRow(this)">
+                </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
                     <div>
                         <label class="input-label">출고가</label>
@@ -715,10 +716,11 @@
                 <td style="text-align: center; color: #888;">${rowCount}</td>
                 <td class="p-name">${name}</td>
                 <td class="p-spec" style="text-align: center;">${spec}</td>
-                <td class="p-tax" style="text-align: center;">${isTaxFree ? '○' : ''}</td>
-                <td class="p-factory" style="text-align: right; padding: 0 6px;">${price.toLocaleString()}</td>
-                <td class="p-dc" style="text-align: center;">0</td>
+                <td class="p-desc" style="text-align: left; padding: 0 8px; font-size: 11px; color: #666;"></td>
                 <td class="p-sales" style="text-align: right; padding: 0 6px; font-weight: 600;">${price.toLocaleString()}</td>
+                <td class="p-img" style="text-align: center; padding: 4px;">
+                    <div class="img-placeholder" style="width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">IMG</div>
+                </td>
             `;
             previewTbody.appendChild(previewRow);
 
@@ -752,6 +754,7 @@
             // 입력값 가져오기
             const name = row.querySelector('.project-name').value;
             const spec = row.querySelectorAll('input[type="text"]')[1].value;
+            const desc = row.querySelector('.p-description').value;
             const factoryPrice = parseFloat(row.querySelector('.factory-price').value) || 0;
             const dcRate = parseFloat(row.querySelector('.dc-rate').value) || 0;
             const salesPrice = parseFloat(row.querySelector('.sales-price').value) || 0;
@@ -783,10 +786,15 @@
             // 4-3. 프리뷰 UI 업데이트
             previewRow.querySelector('.p-name').innerText = name;
             previewRow.querySelector('.p-spec').innerText = spec;
-            previewRow.querySelector('.p-tax').innerText = isTaxFree ? '○' : '';
-            previewRow.querySelector('.p-factory').innerText = Math.floor(factoryPrice).toLocaleString();
-            previewRow.querySelector('.p-dc').innerText = dcRate;
+            previewRow.querySelector('.p-desc').innerText = desc;
             previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString();
+
+            // 사진 자동 로드 로직 (assets/images/파일명.jpg 혹은 png 기대)
+            const imgCell = previewRow.querySelector('.p-img');
+            const cleanName = name.replace(/\s+/g, '').replace(/[🥛☕🌿🍫🥤📦]/g, ''); // 공백 제거 및 아이콘 제거
+            if (cleanName) {
+                imgCell.innerHTML = `<img src="assets/images/${cleanName}.jpg" onerror="this.src='assets/images/${cleanName}.png'; this.onerror=function(){ this.parentElement.innerHTML='<div class=\\'img-placeholder\\' style=\\'width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;\\'>NO IMG</div>'; }" style="width: 80px; height: auto; max-height: 50px; object-fit: contain; border-radius: 4px;">`;
+            }
 
             updateTotal();
         }
