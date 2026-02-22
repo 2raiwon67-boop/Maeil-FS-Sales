@@ -2772,7 +2772,7 @@
                     // DROP: 지도에 마커 미표시
                     const status = (item['거래여부(기입예정)'] || '').toString().trim();
 
-                    if (status === 'DROP') continue; // DROP은 지도에 표시하지 않음
+                    if (status === 'DROP') return; // DROP은 지도에 표시하지 않음
 
                     let color = '#34C759'; // 기본: 초록 (인허가)
 
