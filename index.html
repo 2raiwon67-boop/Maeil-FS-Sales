@@ -745,8 +745,21 @@
             .nav-bar > div:first-child {
                 flex: 1;
                 min-width: 0;
+                display: flex;
+                align-items: center;
                 overflow: hidden;
             }
+
+            /* nav-menu는 가로 스크롤 허용 */
+            .nav-menu {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .nav-menu::-webkit-scrollbar { display: none; }
 
             #userNameDisplay {
                 display: none;

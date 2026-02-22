@@ -392,6 +392,41 @@
         }
 
         @media (max-width: 700px) {
+            /* 네비게이션 모바일 대응 */
+            .nav-bar { padding: 0 12px; }
+
+            .nav-bar > div:first-child {
+                flex: 1;
+                min-width: 0;
+                display: flex;
+                align-items: center;
+                overflow: hidden;
+            }
+
+            .nav-bar > div:last-child { flex-shrink: 0; }
+
+            .nav-logo { font-size: 13px !important; margin-right: 8px !important; flex-shrink: 0; }
+
+            .nav-menu {
+                flex: 1;
+                min-width: 0;
+                gap: 8px !important;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+            }
+
+            .nav-menu::-webkit-scrollbar { display: none; }
+
+            .nav-link {
+                font-size: 12px !important;
+                white-space: nowrap;
+                padding: 14px 4px !important;
+            }
+
+            #userNameDisplay { display: none !important; }
+
+            /* 콘텐츠 */
             .summary-grid { grid-template-columns: repeat(2, 1fr); }
             .report-header { flex-direction: column; gap: 12px; }
         }
