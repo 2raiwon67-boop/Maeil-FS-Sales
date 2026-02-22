@@ -519,7 +519,7 @@
                         </tr>
                         <tr>
                             <td class="info-label">담당자</td>
-                            <td id="preview-managerName">이도현</td>
+                            <td id="preview-managerName"></td>
                             <td class="info-label">연락처</td>
                             <td id="preview-managerPhone"></td>
                         </tr>
@@ -594,7 +594,7 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                         <div class="input-group">
                             <label class="input-label">담당자</label>
-                            <input type="text" id="edit-managerName" class="input-field" value="이도현"
+                            <input type="text" id="edit-managerName" class="input-field" placeholder="담당자 이름"
                                 oninput="syncInfo()">
                         </div>
                         <div class="input-group">
@@ -1180,8 +1180,20 @@
     </script>
     <script src="auth.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
+
+            // 로그인된 사용자 정보로 담당자/연락처 자동 채우기
+            if (typeof getUser === 'function') {
+                const user = await getUser();
+                if (user && user.user_metadata) {
+                    const name = user.user_metadata.full_name || '';
+                    const phone = user.user_metadata.phone || '';
+                    if (name) document.getElementById('edit-managerName').value = name;
+                    if (phone) document.getElementById('edit-managerPhone').value = phone;
+                    if (name || phone) syncInfo();
+                }
+            }
         });
     </script>
 </body>
