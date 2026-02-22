@@ -1067,15 +1067,15 @@
                     <input type="text" id="searchInput" placeholder="거래처명 또는 담당자 검색..." onkeyup="filterData()">
                 </div>
                 <select class="filter-select" id="typeFilter" onchange="filterData()">
-                    <option value="">전체 구분</option>
+                    <option value="">구분(주요/인허가)</option>
                     <option value="major">주요거래처</option>
                     <option value="license">인허가</option>
                 </select>
                 <select class="filter-select" id="managerFilter" onchange="filterData()">
-                    <option value="">전체 담당자</option>
+                    <option value="">(담당자)</option>
                 </select>
                 <select class="filter-select" id="statusFilter" onchange="filterData()">
-                    <option value="">전체 상태</option>
+                    <option value="">거래상태</option>
                     <optgroup label="주요거래처">
                         <option value="거래">거래</option>
                         <option value="미거래">미거래</option>
@@ -1088,14 +1088,8 @@
                         <option value="DROP">DROP</option>
                     </optgroup>
                 </select>
-                <select class="filter-select" id="periodFilter" onchange="filterData()">
-                    <option value="all">전체 기간</option>
-                    <option value="today">오늘</option>
-                    <option value="week">이번 주</option>
-                    <option value="month">이번 달</option>
-                </select>
                 <select class="filter-select" id="rejectionFilter" onchange="filterData()">
-                    <option value="">전체 거절사유</option>
+                    <option value="">거절사유</option>
                     <option value="가격">가격</option>
                     <option value="기존관계">기존관계</option>
                     <option value="시기부적절">시기부적절</option>
@@ -1567,7 +1561,6 @@
             const typeFilter = document.getElementById('typeFilter').value;
             const managerFilter = document.getElementById('managerFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
-            const periodFilter = document.getElementById('periodFilter').value;
             const rejectionFilter = document.getElementById('rejectionFilter').value;
 
             filteredAccounts = groupedAccounts.filter(account => {
@@ -1591,33 +1584,6 @@
 
                 // 상태 필터
                 if (statusFilter && account.status !== statusFilter) return false;
-
-                // 기간 필터 (해당 기간 내 방문 기록이 있는 거래처만 표시)
-                if (periodFilter !== 'all') {
-                    const now = new Date();
-                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-                    const hasVisitInPeriod = account.visits.some(visit => {
-                        if (!visit.dateObj) return false;
-
-                        if (periodFilter === 'today') return visit.dateObj >= today;
-
-                        if (periodFilter === 'week') {
-                            const weekStart = new Date(today);
-                            weekStart.setDate(today.getDate() - today.getDay());
-                            return visit.dateObj >= weekStart;
-                        }
-
-                        if (periodFilter === 'month') {
-                            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-                            return visit.dateObj >= monthStart;
-                        }
-
-                        return false;
-                    });
-
-                    if (!hasVisitInPeriod) return false;
-                }
 
                 // 거절사유 필터
                 if (rejectionFilter) {
