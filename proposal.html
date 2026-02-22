@@ -890,8 +890,12 @@
                 const all = parseCSV(csv).filter(r => r['작성자'] && r['작성자'].trim());
                 const kw = keyword.toLowerCase().replace(/\s/g, '');
                 return all.filter(log => {
-                    const name = (log['방문처(거래처)'] || '').toLowerCase().replace(/\s/g, '');
-                    return name.includes(kw) || kw.includes(name.substring(0, 4));
+                    const rawName = (log['방문처(거래처)'] || '').trim();
+                    if (!rawName) return false;
+                    // [지역명] 접두사 제거 후 매칭
+                    const cleanName = rawName.replace(/^\[[^\]]+\]\s*/, '');
+                    const name = cleanName.toLowerCase().replace(/\s/g, '');
+                    return name.includes(kw) || kw.includes(name);
                 });
             } catch (e) {
                 console.warn('방문일지 로드 실패:', e.message);
