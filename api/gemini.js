@@ -1,6 +1,17 @@
 // Gemini API 프록시 (API 키를 서버 환경변수로 안전하게 보관)
+const ALLOWED_ORIGINS = [
+    'https://2raiwon67-boop.github.io',
+    'http://localhost:3000',
+    'http://localhost:5500',
+    'http://127.0.0.1:5500',
+    'http://localhost:8080'
+];
+
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers.origin;
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin || ALLOWED_ORIGINS[0]);
+    }
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
