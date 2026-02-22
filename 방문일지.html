@@ -950,21 +950,149 @@
 
         /* =============== 반응형 =============== */
         @media (max-width: 768px) {
+            /* ── 챗봇 ── */
             .chatbot-container {
-                width: calc(100% - 48px);
-                height: 500px;
+                width: calc(100% - 32px);
+                right: 16px;
+                height: 480px;
+                bottom: 70px;
             }
 
+            .chatbot-fab {
+                bottom: 20px;
+                right: 16px;
+            }
+
+            /* ── 네비게이션 ── */
+            .nav-bar {
+                padding: 0 16px;
+            }
+
+            .nav-bar > div:first-child {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+            }
+
+            .nav-menu {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                gap: 0;
+            }
+
+            .nav-menu::-webkit-scrollbar {
+                display: none;
+            }
+
+            .nav-link {
+                margin: 0;
+                padding: 16px 4px;
+                white-space: nowrap;
+            }
+
+            .nav-actions {
+                flex-shrink: 0;
+            }
+
+            #userNameDisplay {
+                display: none;
+            }
+
+            #logoutBtn {
+                font-size: 11px !important;
+                padding: 4px 6px !important;
+                margin: 0 !important;
+                white-space: nowrap;
+            }
+
+            /* ── 메인 컨테이너 ── */
+            .main-container {
+                padding: 16px;
+            }
+
+            /* ── 페이지 헤더 ── */
+            .page-title {
+                font-size: 24px;
+            }
+
+            .page-subtitle {
+                font-size: 13px;
+            }
+
+            /* ── 통계 카드 ── */
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .stat-card {
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 28px;
+            }
+
+            /* ── 필터바 ── */
+            .filter-bar {
+                padding: 14px;
             }
 
             .filter-row {
                 flex-direction: column;
+                gap: 8px;
             }
 
             .search-box {
                 width: 100%;
+                min-width: unset;
+            }
+
+            .filter-select {
+                width: 100%;
+            }
+
+            /* ── 거래처 카드 ── */
+            .accounts-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+
+            .account-name {
+                font-size: 16px;
+            }
+
+            /* ── 거절사유 통계 ── */
+            .rejection-items {
+                gap: 10px;
+            }
+
+            /* ── 모달 ── */
+            .modal-content {
+                width: 100%;
+                margin: 0;
+                max-height: 100vh;
+                border-radius: 16px 16px 0 0;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+            }
+
+            .modal-header {
+                padding: 16px 20px;
+            }
+
+            .modal-header h2 {
+                font-size: 18px;
+            }
+
+            #timelineContent {
+                padding: 16px 20px 32px;
+            }
+
+            .timeline-label {
+                min-width: 64px;
+                font-size: 12px;
             }
         }
     </style>
@@ -1175,30 +1303,24 @@
             const threeMonthsAgo = new Date();
             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
 
-            // 구분 필터 적용 시 해당 type의 거래처명 Set 구성
-            let allowedAccounts = null;
-            if (typeFilter) {
-                allowedAccounts = new Set(
-                    groupedAccounts
-                        .filter(a => a.type === typeFilter)
-                        .map(a => a.accountName)
-                );
-            }
-
+            // groupedAccounts의 visits에는 licenseMap/accountMap으로 resolve된 status 기반의
+            // rejectionReason이 이미 계산되어 있으므로 그것을 사용
             const counts = {};
-            allVisitLogs.forEach(log => {
-                const visitDate = parseVisitDate(log['작성일'] || log['일정기간']);
-                if (!visitDate || visitDate < threeMonthsAgo) return;
-
+            groupedAccounts.forEach(account => {
                 // 구분 필터
-                if (allowedAccounts && !allowedAccounts.has((log['방문처(거래처)'] || '').trim())) return;
+                if (typeFilter && account.type !== typeFilter) return;
 
-                // 담당자 필터
-                if (managerFilter && log['작성자'] !== managerFilter) return;
+                account.visits.forEach(visit => {
+                    // 3개월 필터
+                    if (!visit.dateObj || visit.dateObj < threeMonthsAgo) return;
 
-                const reason = classifyRejectionReason(log['내용'], log['거래상태'] || '');
-                if (!reason) return;
-                counts[reason] = (counts[reason] || 0) + 1;
+                    // 담당자 필터
+                    if (managerFilter && visit.manager !== managerFilter) return;
+
+                    // 이미 올바른 status로 계산된 rejectionReason 사용
+                    if (!visit.rejectionReason) return;
+                    counts[visit.rejectionReason] = (counts[visit.rejectionReason] || 0) + 1;
+                });
             });
 
             const total = Object.values(counts).reduce((a, b) => a + b, 0);

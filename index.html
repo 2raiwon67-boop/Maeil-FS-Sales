@@ -729,6 +729,95 @@
             .custom-info-window {
                 display: none !important;
             }
+
+            /* ── 메인 레이아웃: 그리드 해제 (지도 전체 너비) ── */
+            .main-layout {
+                display: block;
+            }
+
+            /* ── 네비게이션: 우측 액션 영역 압축 ── */
+            .nav-actions {
+                display: flex !important;
+                flex-shrink: 0;
+                gap: 4px;
+            }
+
+            .nav-bar > div:first-child {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+            }
+
+            #userNameDisplay {
+                display: none;
+            }
+
+            #logoutBtn {
+                font-size: 11px !important;
+                padding: 4px 6px !important;
+                margin: 0 !important;
+                white-space: nowrap;
+            }
+
+            .view-toggle {
+                margin-right: 0;
+            }
+
+            .view-btn {
+                padding: 5px 8px;
+                font-size: 11px;
+            }
+
+            /* ── 대시보드 모바일 최적화 ── */
+            .dashboard-container {
+                padding: 16px;
+            }
+
+            .summary-cards-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 16px;
+            }
+
+            .summary-value-card:nth-child(3) {
+                grid-column: 1 / -1;
+            }
+
+            .sv-label {
+                font-size: 12px;
+            }
+
+            .sv-value {
+                font-size: 22px;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .dashboard-card {
+                height: auto !important;
+                padding: 16px;
+            }
+
+            .dashboard-title {
+                font-size: 13px;
+                margin-bottom: 12px;
+            }
+
+            /* ── 사이드바 모바일 표시 시 상태카드 ── */
+            .status-card .value {
+                font-size: 18px;
+            }
+
+            .status-card .label {
+                font-size: 9px;
+            }
+
+            .priority-card .value {
+                font-size: 20px;
+            }
         }
 
         /* Add missing closing bracket for @media (max-width: 768px) */
@@ -1404,10 +1493,16 @@
             .chatbot-container {
                 width: calc(100% - 32px);
                 right: 16px;
+                height: 480px;
             }
 
             .chatbot-fab {
                 bottom: 80px;
+            }
+
+            /* 대시보드 차트 래퍼 인라인 height 무력화 */
+            .dashboard-card > div[style*="height: 260px"] {
+                height: 200px !important;
             }
         }
 
