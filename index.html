@@ -204,23 +204,23 @@
         }
 
         .status-card.deal {
-            border-left: 3px solid #0071e3;
+            border-left: 3px solid #0050FF;
         }
 
         .status-card.no-deal {
-            border-left: 3px solid #ff3b30;
+            border-left: 3px solid #FF1A1A;
         }
 
         .status-card.licensed {
-            border-left: 3px solid #34c759;
+            border-left: 3px solid #00B33C;
         }
 
         .status-card.drop {
-            border-left: 3px solid #ff3b30;
+            border-left: 3px solid #8e8e93;
         }
 
         .status-card.construction {
-            border-left: 3px solid #ff9500;
+            border-left: 3px solid #FF7700;
         }
 
         .status-card .label {
@@ -2767,19 +2767,19 @@
                     const lng = parseFloat(item['경도']);
                     const pos = new naver.maps.LatLng(lat, lng);
 
-                    // 거래 상태에 따른 색상 지정
-                    // 거래: 파랑 (#007AFF), 미거래: 빨강 (#ff3b30), 인허가: 초록 (#34C759), 공사중: 주황 (#FF9500)
+                    // 거래 상태에 따른 색상 지정 (원색 계열, 가시성 최우선)
+                    // 거래: 파랑 / 미거래: 빨강 / 인허가: 초록 / 공사중: 주황
                     // DROP: 지도에 마커 미표시
                     const status = (item['거래여부(기입예정)'] || '').toString().trim();
 
                     if (status === 'DROP') return; // DROP은 지도에 표시하지 않음
 
-                    let color = '#34C759'; // 기본: 초록 (인허가)
+                    let color = '#00B33C'; // 기본: 초록 (인허가)
 
-                    if (status === '거래') color = '#007AFF';       // 파랑
-                    else if (status === '미거래') color = '#ff3b30'; // 빨강
-                    else if (status === '공사중') color = '#FF9500'; // 주황
-                    else if (status === '인허가') color = '#34C759'; // 초록
+                    if (status === '거래') color = '#0050FF';       // 원색 파랑
+                    else if (status === '미거래') color = '#FF1A1A'; // 원색 빨강
+                    else if (status === '공사중') color = '#FF7700'; // 원색 주황
+                    else if (status === '인허가') color = '#00B33C'; // 원색 초록
 
                     // 14일 경과 여부 확인 (인허가 상태일 때만)
                     let isOldPermit = false;
@@ -2808,14 +2808,14 @@
                         icon: {
                             content: `
                                 <div class="${glowClass}" style="
-                                    width: 12px; height: 12px;
+                                    width: 16px; height: 16px;
                                     background: ${color};
-                                    border: 1px solid white;
+                                    border: 2.5px solid white;
                                     border-radius: 50%;
-                                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
                                 "></div>
                             `,
-                            anchor: new naver.maps.Point(6, 6)
+                            anchor: new naver.maps.Point(8, 8)
                         }
                     });
 
