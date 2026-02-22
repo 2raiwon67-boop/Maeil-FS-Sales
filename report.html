@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FS MASSI - 월별 보고서</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #0071e3;
+            --bg: #f5f5f7;
+            --header-height: 52px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            background: var(--bg);
+            color: #1d1d1f;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        body.loaded { opacity: 1; }
+
+        /* ── 네비게이션 ── */
+        .nav-bar {
+            background: #1d1d1f;
+            padding: 0 24px;
+            height: var(--header-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-logo { font-size: 15px; font-weight: 600; color: #fff; margin-right: 20px; }
+        .nav-menu { display: flex; gap: 24px; }
+
+        .nav-link {
+            color: #a1a1a6;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 400;
+            padding: 4px 0;
+            margin: 0 14px;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-link:hover, .nav-link.active { color: #f5f5f7; }
+        .nav-link.active { font-weight: 600; }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            bottom: 0;
+            left: 0;
+            background: #f5f5f7;
+            transform: scaleX(0);
+            transition: transform 0.2s;
+        }
+
+        .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); }
+
+        #logoutBtn:hover { color: #ff4b4b !important; }
+
+        /* ── 메인 레이아웃 ── */
+        .main-container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 36px 24px 80px;
+        }
+
+        .page-header {
+            margin-bottom: 28px;
+        }
+
+        .page-title { font-size: 26px; font-weight: 700; margin: 0 0 6px; }
+        .page-subtitle { font-size: 14px; color: #86868b; margin: 0; }
+
+        /* ── 컨트롤 바 ── */
+        .controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: white;
+            border-radius: 14px;
+            padding: 16px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+        }
+
+        .controls-bar label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #86868b;
+        }
+
+        .month-select {
+            padding: 8px 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn-generate {
+            padding: 9px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-generate:hover { background: #0077ed; }
+        .btn-generate:disabled { background: #c7c7cc; cursor: not-allowed; }
+
+        .btn-print {
+            padding: 9px 20px;
+            background: white;
+            color: #1d1d1f;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: auto;
+        }
+
+        .btn-print:hover { border-color: var(--primary); color: var(--primary); }
+
+        /* ── 로딩 ── */
+        .loading-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #86868b;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #e5e5ea;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── 보고서 출력 영역 ── */
+        #reportOutput { display: none; }
+
+        /* ── 보고서 헤더 ── */
+        .report-header {
+            background: linear-gradient(135deg, #1d1d1f 0%, #3a3a3c 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 28px 32px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .report-header-left h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+
+        .report-header-left p {
+            font-size: 14px;
+            color: #a1a1a6;
+            margin: 0;
+        }
+
+        .report-header-right {
+            text-align: right;
+            font-size: 13px;
+            color: #a1a1a6;
+            line-height: 1.7;
+        }
+
+        /* ── 요약 카드 ── */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 24px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .summary-card .label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #86868b;
+            margin-bottom: 8px;
+        }
+
+        .summary-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+
+        .summary-card .value span {
+            font-size: 14px;
+            font-weight: 400;
+            color: #86868b;
+        }
+
+        .summary-card.accent .value { color: var(--primary); }
+        .summary-card.warning .value { color: #ff9500; }
+
+        /* ── 섹션 ── */
+        .section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0 0 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        /* ── 거래처 테이블 ── */
+        .account-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .account-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .account-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f9f9f9;
+            vertical-align: top;
+        }
+
+        .account-table tr:last-child td { border-bottom: none; }
+        .account-table tr:hover td { background: #fafafa; }
+
+        .account-name {
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .issue-text {
+            font-size: 12px;
+            color: #86868b;
+            margin-top: 3px;
+            line-height: 1.4;
+        }
+
+        /* ── 상태 배지 ── */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-construction { background: #fff3cd; color: #856404; }
+        .badge-trade       { background: #d1e7dd; color: #0a5c36; }
+        .badge-notrade     { background: #f8d7da; color: #842029; }
+        .badge-major       { background: #cfe2ff; color: #084298; }
+        .badge-license     { background: #e2d9f3; color: #432874; }
+        .badge-other       { background: #f0f0f0; color: #6c757d; }
+
+        /* ── 방문 기록 (인라인) ── */
+        .visit-row {
+            font-size: 12px;
+            color: #86868b;
+            padding: 4px 0;
+            border-bottom: 1px dashed #f0f0f0;
+            line-height: 1.5;
+        }
+
+        .visit-row:last-child { border-bottom: none; }
+
+        .visit-date {
+            font-weight: 600;
+            color: #3a3a3c;
+            min-width: 80px;
+            display: inline-block;
+        }
+
+        /* ── 미방문 섹션 ── */
+        .no-visit-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .no-visit-tag {
+            background: #fff8e1;
+            border: 1px solid #ffe082;
+            color: #7c5000;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* ── AI 분석 ── */
+        .ai-section {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 100%);
+            border: 1px solid #c7d9ff;
+        }
+
+        .ai-content {
+            font-size: 14px;
+            line-height: 1.8;
+            color: #1d1d1f;
+            white-space: pre-wrap;
+        }
+
+        .ai-loading {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #86868b;
+            font-size: 14px;
+        }
+
+        /* ── 빈 상태 ── */
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: #86868b;
+            font-size: 13px;
+        }
+
+        /* ── 인쇄 스타일 ── */
+        @media print {
+            .nav-bar, .controls-bar, .btn-print { display: none !important; }
+            body { background: white; opacity: 1; }
+            .main-container { padding: 0; max-width: 100%; }
+            .section, .report-header, .summary-card {
+                box-shadow: none;
+                border: 1px solid #e5e5ea;
+                break-inside: avoid;
+            }
+            .summary-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        @media (max-width: 700px) {
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .report-header { flex-direction: column; gap: 12px; }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 네비게이션 -->
+    <nav class="nav-bar">
+        <div style="display: flex; align-items: center;">
+            <div class="nav-logo">FS MASSI</div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">인허가</a>
+                <a href="방문일지.html" class="nav-link">방문일지</a>
+                <a href="proposal.html" class="nav-link">견적서</a>
+                <a href="report.html" class="nav-link active">월별 보고서</a>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
+            <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="page-header">
+            <h1 class="page-title">월별 보고서</h1>
+            <p class="page-subtitle">공사중 거래처 · 주요거래처 활동 중심의 담당자 맞춤 보고서</p>
+        </div>
+
+        <!-- 컨트롤 -->
+        <div class="controls-bar">
+            <label>보고 기간</label>
+            <select class="month-select" id="monthSelect"></select>
+            <button class="btn-generate" id="generateBtn" onclick="generateReport()">보고서 생성</button>
+            <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
+        </div>
+
+        <!-- 로딩 -->
+        <div class="loading-state" id="loadingState">
+            <div class="spinner"></div>
+            <p>데이터를 불러오는 중...</p>
+        </div>
+
+        <!-- 보고서 출력 -->
+        <div id="reportOutput"></div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        // ── 설정 ──────────────────────────────────────────────
+        const SHEETS_CONFIG = {
+            visitLogs: { id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI', gid: '707066983' },
+            accounts:  { id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI', gid: '43116531' },
+            licenses:  { id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI', gid: '0' }
+        };
+
+        // ── 전역 변수 ──────────────────────────────────────────
+        let allVisitLogs = [], allAccounts = [], allLicenses = [];
+        let currentUser = null;
+
+        // ── 초기화 ────────────────────────────────────────────
+        window.addEventListener('load', () => document.body.classList.add('loaded'));
+
+        window.onload = async function () {
+            // 월 선택기 초기화
+            initMonthSelect();
+
+            // 인증
+            if (typeof setupLogoutButton === 'function') setupLogoutButton();
+            if (typeof getUser === 'function') {
+                currentUser = await getUser();
+                if (currentUser) {
+                    const name = currentUser.user_metadata?.full_name || currentUser.email;
+                    document.getElementById('userNameDisplay').textContent = name;
+                }
+            }
+
+            // 데이터 로드
+            await loadAllData();
+            document.getElementById('loadingState').style.display = 'none';
+        };
+
+        // ── 월 선택기 ─────────────────────────────────────────
+        function initMonthSelect() {
+            const select = document.getElementById('monthSelect');
+            const now = new Date();
+            // 지난달을 기본값으로
+            const defaultMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+            for (let i = 0; i < 12; i++) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                const label = `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+                const opt = new Option(label, value);
+                if (i === 1) opt.selected = true; // 지난달 기본 선택
+                select.appendChild(opt);
+            }
+        }
+
+        // ── CSV 파싱 ──────────────────────────────────────────
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) return [];
+            const headers = parseCSVLine(lines[0]);
+            return lines.slice(1).map(line => {
+                const values = parseCSVLine(line);
+                const obj = {};
+                headers.forEach((h, i) => { obj[h.trim()] = (values[i] || '').trim(); });
+                return obj;
+            });
+        }
+
+        function parseCSVLine(line) {
+            const result = [];
+            let cur = '', inQuote = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (c === '"') {
+                    if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
+                    else inQuote = !inQuote;
+                } else if (c === ',' && !inQuote) {
+                    result.push(cur); cur = '';
+                } else cur += c;
+            }
+            result.push(cur);
+            return result;
+        }
+
+        function normalize(str) {
+            return (str || '').replace(/\s+/g, '').toLowerCase();
+        }
+
+        // ── 데이터 로드 ───────────────────────────────────────
+        async function loadAllData() {
+            try {
+                const [visitRes, accountRes, licenseRes] = await Promise.all([
+                    fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogs.id}/export?format=csv&gid=${SHEETS_CONFIG.visitLogs.gid}`),
+                    fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.accounts.id}/export?format=csv&gid=${SHEETS_CONFIG.accounts.gid}`),
+                    fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.licenses.id}/export?format=csv&gid=${SHEETS_CONFIG.licenses.gid}`)
+                ]);
+
+                allVisitLogs = parseCSV(await visitRes.text()).filter(r => r['작성자']?.trim());
+                allAccounts  = parseCSV(await accountRes.text()).filter(r => {
+                    const name = r['거래처명'] || r['매장명'] || r['사업장명'] || r['상호'];
+                    return name?.trim();
+                });
+                allLicenses  = parseCSV(await licenseRes.text()).filter(r => {
+                    const name = r['사업장명'] || r['업소명'] || r['상호명'];
+                    return name?.trim();
+                });
+            } catch (e) {
+                console.error('데이터 로드 오류:', e);
+                document.getElementById('loadingState').innerHTML = '<p style="color:#ff3b30">데이터 로드 실패. 새로고침해 주세요.</p>';
+            }
+        }
+
+        // ── 날짜 파싱 ─────────────────────────────────────────
+        function parseDate(str) {
+            if (!str) return null;
+            // "2024-01-15", "2024.01.15", "2024/01/15", "24.01.15" 등 처리
+            const cleaned = str.replace(/[.\\/]/g, '-').trim();
+            const m = cleaned.match(/(\d{2,4})-(\d{1,2})-(\d{1,2})/);
+            if (!m) return null;
+            let y = parseInt(m[1]);
+            if (y < 100) y += 2000;
+            return new Date(y, parseInt(m[2]) - 1, parseInt(m[3]));
+        }
+
+        // ── 보고서 생성 ───────────────────────────────────────
+        async function generateReport() {
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = '생성 중...';
+
+            const [selYear, selMonth] = document.getElementById('monthSelect').value.split('-').map(Number);
+
+            // 담당자 이름 (로그인 사용자)
+            const managerName = currentUser?.user_metadata?.full_name || null;
+
+            // 이달 방문일지 필터 (담당자 + 월)
+            const monthLogs = allVisitLogs.filter(log => {
+                const d = parseDate(log['작성일'] || log['일정기간']);
+                if (!d) return false;
+                if (d.getFullYear() !== selYear || d.getMonth() + 1 !== selMonth) return false;
+                // 담당자 필터: 관리자면 전체, 아니면 본인 것만
+                if (managerName && managerName !== '관리자') {
+                    return normalize(log['작성자']) === normalize(managerName);
+                }
+                return true;
+            });
+
+            // 매핑 맵 생성
+            const accountMap = new Map(
+                allAccounts.map(a => [
+                    normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호']),
+                    { status: a['거래상태'] || '', type: 'major' }
+                ])
+            );
+            const licenseMap = new Map(
+                allLicenses.map(l => [
+                    normalize(l['사업장명'] || l['업소명'] || l['상호명']),
+                    { status: l['거래여부(기입예정)'] || l['거래여부'] || l['진행상태'] || l['거래상태'] || '', type: 'license' }
+                ])
+            );
+
+            // 거래처별 방문 그룹화
+            const grouped = {};
+            monthLogs.forEach(log => {
+                const rawName = (log['방문처(거래처)'] || '미지정').trim();
+                const key = normalize(rawName);
+
+                let type = 'other', status = '';
+                if (accountMap.has(key)) {
+                    type = 'major';
+                    status = accountMap.get(key).status;
+                } else if (licenseMap.has(key)) {
+                    type = 'license';
+                    status = licenseMap.get(key).status;
+                } else {
+                    status = log['거래상태'] || '';
+                }
+
+                if (!grouped[rawName]) {
+                    grouped[rawName] = { name: rawName, type, status: status.trim(), visits: [] };
+                }
+
+                grouped[rawName].visits.push({
+                    date: log['작성일'] || log['일정기간'],
+                    dateObj: parseDate(log['작성일'] || log['일정기간']),
+                    manager: log['작성자'] || '-',
+                    issue: log['주요이슈'] || '',
+                    content: log['내용'] || ''
+                });
+            });
+
+            // 방문별 날짜 정렬
+            Object.values(grouped).forEach(acc => {
+                acc.visits.sort((a, b) => (b.dateObj || 0) - (a.dateObj || 0));
+            });
+
+            const accounts = Object.values(grouped);
+
+            // 공사중 거래처 (방문한 것 중)
+            const constructionAccounts = accounts.filter(a => a.status === '공사중');
+
+            // 공사중이지만 이달 미방문 (전체 거래처 시트에서)
+            const allConstructionNames = new Set(
+                [...allAccounts, ...allLicenses]
+                    .filter(a => {
+                        const s = a['거래상태'] || a['거래여부(기입예정)'] || a['거래여부'] || a['진행상태'] || '';
+                        return s.trim() === '공사중';
+                    })
+                    .map(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'] || a['업소명'] || a['상호명']))
+            );
+            const visitedNames = new Set(accounts.map(a => normalize(a.name)));
+            const noVisitConstruction = [...allConstructionNames]
+                .filter(n => !visitedNames.has(n))
+                .map(n => {
+                    const acc = allAccounts.find(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호']) === n)
+                              || allLicenses.find(a => normalize(a['사업장명'] || a['업소명'] || a['상호명']) === n);
+                    return acc ? (acc['거래처명'] || acc['매장명'] || acc['사업장명'] || acc['상호'] || acc['사업장명'] || acc['업소명'] || acc['상호명']) : n;
+                });
+
+            // 주요거래처 활동
+            const majorAccounts = accounts.filter(a => a.type === 'major');
+
+            // 인허가 활동
+            const licenseAccounts = accounts.filter(a => a.type === 'license');
+
+            // 보고서 렌더링
+            renderReport({
+                selYear, selMonth, managerName,
+                total: monthLogs.length,
+                totalAccounts: accounts.length,
+                constructionAccounts, noVisitConstruction,
+                majorAccounts, licenseAccounts, monthLogs
+            });
+
+            btn.disabled = false;
+            btn.textContent = '보고서 생성';
+        }
+
+        // ── 렌더링 ────────────────────────────────────────────
+        function renderReport(data) {
+            const { selYear, selMonth, managerName, total, totalAccounts,
+                    constructionAccounts, noVisitConstruction,
+                    majorAccounts, licenseAccounts, monthLogs } = data;
+
+            const periodLabel = `${selYear}년 ${selMonth}월`;
+            const displayName = managerName || '전체';
+            const today = new Date().toLocaleDateString('ko-KR');
+
+            const output = document.getElementById('reportOutput');
+            output.style.display = 'block';
+
+            output.innerHTML = `
+                <!-- 보고서 헤더 -->
+                <div class="report-header">
+                    <div class="report-header-left">
+                        <h2>📊 ${periodLabel} 영업 보고서</h2>
+                        <p>담당자: ${displayName} · 매일유업 경기북부 FS팀</p>
+                    </div>
+                    <div class="report-header-right">
+                        작성일: ${today}<br>
+                        대상 기간: ${periodLabel}
+                    </div>
+                </div>
+
+                <!-- 요약 카드 -->
+                <div class="summary-grid">
+                    <div class="summary-card accent">
+                        <div class="label">총 방문 횟수</div>
+                        <div class="value">${total}<span> 회</span></div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">방문 거래처 수</div>
+                        <div class="value">${totalAccounts}<span> 곳</span></div>
+                    </div>
+                    <div class="summary-card warning">
+                        <div class="label">공사중 거래처 방문</div>
+                        <div class="value">${constructionAccounts.length}<span> 곳</span></div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="label">주요거래처 방문</div>
+                        <div class="value">${majorAccounts.length}<span> 곳</span></div>
+                    </div>
+                </div>
+
+                <!-- 공사중 거래처 섹션 -->
+                <div class="section">
+                    <div class="section-title">🚧 공사중 거래처 방문 현황 <span style="font-size:13px; font-weight:400; color:#86868b;">(${periodLabel} 방문)</span></div>
+                    ${renderConstructionTable(constructionAccounts)}
+                </div>
+
+                ${noVisitConstruction.length > 0 ? `
+                <div class="section" style="border-left: 4px solid #ff9500;">
+                    <div class="section-title">⚠️ 이달 미방문 공사중 거래처</div>
+                    <div class="no-visit-list">
+                        ${noVisitConstruction.map(n => `<span class="no-visit-tag">${n}</span>`).join('')}
+                    </div>
+                </div>` : ''}
+
+                <!-- 주요거래처 활동 섹션 -->
+                <div class="section">
+                    <div class="section-title">⭐ 주요거래처 활동 <span style="font-size:13px; font-weight:400; color:#86868b;">(${majorAccounts.length}곳)</span></div>
+                    ${renderMajorTable(majorAccounts)}
+                </div>
+
+                ${licenseAccounts.length > 0 ? `
+                <!-- 인허가 활동 섹션 -->
+                <div class="section">
+                    <div class="section-title">📋 인허가 거래처 방문 <span style="font-size:13px; font-weight:400; color:#86868b;">(${licenseAccounts.length}곳)</span></div>
+                    ${renderMajorTable(licenseAccounts)}
+                </div>` : ''}
+
+                <!-- AI 종합 분석 섹션 -->
+                <div class="section ai-section" id="aiSection">
+                    <div class="section-title">🤖 AI 종합 분석</div>
+                    <div id="aiContent">
+                        <div class="ai-loading">
+                            <div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>
+                            Gemini가 ${periodLabel} 활동을 분석하고 있습니다...
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // AI 분석 비동기 실행
+            runAIAnalysis(data);
+
+            // 스크롤
+            output.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // ── 공사중 테이블 렌더링 ──────────────────────────────
+        function renderConstructionTable(accounts) {
+            if (accounts.length === 0) {
+                return '<div class="empty-state">이달 방문한 공사중 거래처가 없습니다.</div>';
+            }
+
+            return `
+                <table class="account-table">
+                    <thead>
+                        <tr>
+                            <th>거래처명</th>
+                            <th>방문 횟수</th>
+                            <th>최근 방문일</th>
+                            <th>주요 이슈</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${accounts.map(acc => `
+                            <tr>
+                                <td>
+                                    <div class="account-name">${acc.name}</div>
+                                    <span class="badge badge-construction">공사중</span>
+                                </td>
+                                <td style="font-weight:600; color:var(--primary);">${acc.visits.length}회</td>
+                                <td style="color:#86868b; font-size:13px;">${acc.visits[0]?.date || '-'}</td>
+                                <td>
+                                    ${acc.visits.map(v => `
+                                        <div class="visit-row">
+                                            <span class="visit-date">${v.date}</span>
+                                            ${v.issue || v.content?.slice(0, 60) || '-'}
+                                        </div>
+                                    `).join('')}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // ── 주요거래처 테이블 렌더링 ─────────────────────────
+        function renderMajorTable(accounts) {
+            if (accounts.length === 0) {
+                return '<div class="empty-state">이달 방문 기록이 없습니다.</div>';
+            }
+
+            return `
+                <table class="account-table">
+                    <thead>
+                        <tr>
+                            <th>거래처명</th>
+                            <th>거래 상태</th>
+                            <th>방문 기록</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${accounts.map(acc => {
+                            const badgeClass = getStatusBadge(acc.status);
+                            return `
+                                <tr>
+                                    <td>
+                                        <div class="account-name">${acc.name}</div>
+                                        <span class="badge ${acc.type === 'major' ? 'badge-major' : 'badge-license'}">${acc.type === 'major' ? '주요거래처' : '인허가'}</span>
+                                    </td>
+                                    <td><span class="badge ${badgeClass}">${acc.status || '-'}</span></td>
+                                    <td>
+                                        ${acc.visits.map(v => `
+                                            <div class="visit-row">
+                                                <span class="visit-date">${v.date}</span>
+                                                ${v.issue || v.content?.slice(0, 80) || '-'}
+                                            </div>
+                                        `).join('')}
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function getStatusBadge(status) {
+            const s = (status || '').trim();
+            if (s === '공사중') return 'badge-construction';
+            if (s === '거래중' || s === '거래') return 'badge-trade';
+            if (s === '미거래') return 'badge-notrade';
+            return 'badge-other';
+        }
+
+        // ── Gemini AI 분석 ────────────────────────────────────
+        async function runAIAnalysis({ selYear, selMonth, managerName, constructionAccounts,
+                                       majorAccounts, licenseAccounts, noVisitConstruction, monthLogs }) {
+            const periodLabel = `${selYear}년 ${selMonth}월`;
+
+            const visitSummary = monthLogs.slice(0, 60).map(l =>
+                `- [${l['작성일'] || l['일정기간']}] ${l['방문처(거래처)']} | 이슈: ${l['주요이슈'] || '없음'} | 내용: ${(l['내용'] || '').slice(0, 80)}`
+            ).join('\n');
+
+            const prompt = `당신은 매일유업 경기북부 FS팀의 영업 분석 전문가입니다.
+아래는 ${managerName || '담당자'}의 ${periodLabel} 방문일지 데이터입니다.
+
+[방문 요약]
+${visitSummary || '방문 기록 없음'}
+
+[공사중 거래처 방문: ${constructionAccounts.length}곳]
+${constructionAccounts.map(a => `- ${a.name}: ${a.visits.length}회 방문, 최근 이슈: ${a.visits[0]?.issue || '없음'}`).join('\n') || '없음'}
+
+[이달 미방문 공사중 거래처: ${noVisitConstruction.length}곳]
+${noVisitConstruction.join(', ') || '없음'}
+
+[주요거래처 방문: ${majorAccounts.length}곳]
+${majorAccounts.map(a => `- ${a.name} (${a.status}): ${a.visits.length}회`).join('\n') || '없음'}
+
+위 데이터를 바탕으로 아래 형식의 월간 보고서 분석을 작성해주세요. 실제 데이터에 근거해서 구체적으로 작성하세요.
+
+1. 이달 활동 요약 (3~4문장)
+2. 공사중 거래처 관리 현황 및 주요 포인트
+3. 주요거래처 활동 평가 및 주목할 거래처
+4. 다음 달 우선 방문 권고 거래처 및 이유
+5. 종합 의견 한 줄
+
+간결하고 실무적으로 작성해주세요.`;
+
+            try {
+                const res = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        generationConfig: { temperature: 0.5, maxOutputTokens: 1024 }
+                    })
+                });
+
+                const json = await res.json();
+                const text = json.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 가져오지 못했습니다.';
+
+                document.getElementById('aiContent').innerHTML =
+                    `<div class="ai-content">${text}</div>`;
+            } catch (e) {
+                document.getElementById('aiContent').innerHTML =
+                    `<div class="ai-content" style="color:#86868b;">AI 분석을 불러올 수 없습니다. (${e.message})</div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>
