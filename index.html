@@ -742,7 +742,7 @@
                 gap: 4px;
             }
 
-            .nav-bar > div:first-child {
+            .nav-bar>div:first-child {
                 flex: 1;
                 min-width: 0;
                 display: flex;
@@ -759,7 +759,9 @@
                 min-width: 0;
             }
 
-            .nav-menu::-webkit-scrollbar { display: none; }
+            .nav-menu::-webkit-scrollbar {
+                display: none;
+            }
 
             #userNameDisplay {
                 display: none;
@@ -1509,7 +1511,7 @@
             }
 
             /* 대시보드 차트 래퍼 인라인 height 무력화 */
-            .dashboard-card > div[style*="height: 260px"] {
+            .dashboard-card>div[style*="height: 260px"] {
                 height: 200px !important;
             }
         }
@@ -1651,7 +1653,8 @@
                 <button class="view-btn" id="btn-dashboard-view" onclick="switchMainView('dashboard')">📈 통계</button>
             </div>
             <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
-            <a href="admin.html" id="adminPanelLink" class="nav-link" style="display:none; margin-right:8px; color:#f5c542;">관리자</a>
+            <a href="admin.html" id="adminPanelLink" class="nav-link"
+                style="display:none; margin-right:8px; color:#f5c542;">관리자</a>
             <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>
         </div>
     </nav>
@@ -1734,6 +1737,21 @@
                     </div>
                     <div class="dropdown-content">
                         <div class="dropdown-list" id="regionList"></div>
+                    </div>
+                </div>
+
+                <div class="dropdown-card" id="aiTagDropdown">
+                    <div class="dropdown-header" onclick="toggleDropdown('aiTagDropdown')">
+                        <h4 style="color: #667eea;">🚀 AI 인사이트 필터</h4>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-list" id="aiTagList">
+                            <!-- AI tags will be populated here -->
+                            <div class="dropdown-item" onclick="filterByAITag(null)">
+                                <span>전체 보기</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1945,6 +1963,7 @@
         let currentFilter = 'all';
         let currentRegion = null;
         let currentManager = null;
+        let currentAITag = null;       // AI 태그 필터 (Proposal 3)
         let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
 
         // ── 주요거래처 전용 ──
@@ -2290,6 +2309,7 @@
             let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
             if (currentRegion) filtered = filtered.filter(d => (d['주소2'] || '기타') === currentRegion);
             if (currentManager) filtered = filtered.filter(d => (d['담당자'] || '미지정') === currentManager);
+            if (currentAITag) filtered = filtered.filter(d => (d['AI_핵심태그'] || '').includes(currentAITag));
             if (window.currentDealStatusFilter) {
                 filtered = filtered.filter(d => (d['거래여부(기입예정)'] || '').trim() === window.currentDealStatusFilter);
             }
@@ -2360,6 +2380,7 @@
                 accountMarkers.forEach(m => {
                     let visible = true;
                     if (currentManager) visible = visible && (m._managerName || '').trim() === currentManager;
+                    if (currentAITag) visible = visible && (m._aiTags || '').includes(currentAITag);
                     if (currentRegion) visible = visible && (m._region || '').trim() === currentRegion;
                     m.setMap(visible ? naverMap : null);
                 });
@@ -2373,6 +2394,7 @@
                     const ds = (m._dealStatus || '').trim();
                     let visible = ds === status;
                     if (currentManager) visible = visible && (m._managerName || '').trim() === currentManager;
+                    if (currentAITag) visible = visible && (m._aiTags || '').includes(currentAITag);
                     if (currentRegion) visible = visible && (m._region || '').trim() === currentRegion;
                     m.setMap(visible ? naverMap : null);
                 });
@@ -2837,7 +2859,48 @@
                     return `<div class="dropdown-item" onclick="setManagerFilter('${m}')"${isActive}><span class="dropdown-item-name">${m}</span><span class="dropdown-item-count">${c}건</span></div>`;
                 }).join('');
 
+            // AI 태그 리스트 조립 (항목 분리 및 빈도수 계산)
+            const aiTagCounts = {};
+            filteredData.forEach(item => {
+                const tagsRaw = item['AI_핵심태그'] || '';
+                if (tagsRaw.trim() !== '') {
+                    // 콤마로 분리하고 양옆 공백 제거
+                    const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                    tags.forEach(t => {
+                        aiTagCounts[t] = (aiTagCounts[t] || 0) + 1;
+                    });
+                }
+            });
+
+            // "전체 보기" 옵션을 맨 위에 고정
+            let aiTagHtml = `<div class="dropdown-item" onclick="setAITagFilter(null)" style="${!currentAITag ? 'background: #e3f2fd; font-weight: 600;' : ''}"><span class="dropdown-item-name">전체 보기</span></div>`;
+
+            aiTagHtml += Object.entries(aiTagCounts)
+                .sort((a, b) => b[1] - a[1]) // 빈도수 높은 순
+                .map(([tag, count]) => {
+                    const isActive = currentAITag === tag ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
+                    return `<div class="dropdown-item" onclick="setAITagFilter('${tag}')"${isActive}><span class="dropdown-item-name">#${tag}</span><span class="dropdown-item-count">${count}건</span></div>`;
+                }).join('');
+
+            // DOM 요소가 존재할 경우에만 업데이트
+            const aiTagListElem = document.getElementById('aiTagList');
+            if (aiTagListElem) {
+                aiTagListElem.innerHTML = aiTagHtml;
+            }
             updateDashboardCharts();
+        }
+
+        function setAITagFilter(tag) {
+            if (currentAITag === tag) {
+                currentAITag = null; // 같은 태그 클릭 시 해제
+            } else {
+                currentAITag = tag;
+            }
+            updateDashboard();
+            filterData(); // 마커 필터링 및 지도 업데이트
+        }
+
+        function setRegionFilter(region) {
         }
 
         // ============================================================
@@ -2861,8 +2924,11 @@
             if (currentManager) {
                 filtered = filtered.filter(d => (d['담당자'] || '미지정') === currentManager);
             }
+            if (currentAITag) {
+                filtered = filtered.filter(d => (d['AI_핵심태그'] || '').includes(currentAITag));
+            }
 
-            console.log(`지도 표시 데이터: ${filtered.length}건 (필터: 순위=${currentFilter}, 지역=${currentRegion || '전체'}, 담당자=${currentManager || '전체'})`);
+            console.log(`지도 표시 데이터: ${filtered.length}건 (필터: 순위=${currentFilter}, 지역=${currentRegion || '전체'}, 담당자=${currentManager || '전체'}, AI태그=${currentAITag || '전체'})`);
 
             filtered.forEach(item => {
                 if (!item['위도'] || !item['경도']) return;
@@ -3147,8 +3213,9 @@
                     });
 
                     marker._dealStatus = dealStatus; // 필터용 상태 저장
-                    marker._managerName = (account['담당자명'] || '').trim(); // 담당자별 필터용
                     marker._region = (account['주소2'] || '').trim(); // 지역별 필터용
+                    marker._managerName = account['담당자명'] || account['담당자'] || '미지정'; // 담당자별 필터용
+                    marker._aiTags = account['AI_핵심태그'] || ''; // AI 태그 필터용
                     marker._name = name; // 루트 최적화용
                     marker._address = address; // 루트 최적화용
                     marker._lat = coords.lat; // 루트 최적화용
