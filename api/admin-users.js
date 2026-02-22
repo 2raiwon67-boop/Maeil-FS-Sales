@@ -91,8 +91,8 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, message: '승인 완료' });
         }
 
-        if (action === 'reject') {
-            // 계정 삭제
+        if (action === 'reject' || action === 'delete') {
+            // 계정 삭제 (거절 또는 퇴사 처리)
             const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
                 method: 'DELETE',
                 headers: supabaseHeaders
@@ -101,7 +101,8 @@ export default async function handler(req, res) {
                 const data = await response.json();
                 return res.status(response.status).json(data);
             }
-            return res.status(200).json({ success: true, message: '거절 및 계정 삭제 완료' });
+            const message = action === 'delete' ? '계정 삭제 완료' : '거절 및 계정 삭제 완료';
+            return res.status(200).json({ success: true, message });
         }
 
         return res.status(400).json({ error: '알 수 없는 action입니다.' });

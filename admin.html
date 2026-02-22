@@ -167,6 +167,25 @@
         .btn-reject:hover { background: #fff0ef; }
         .btn-reject:disabled { opacity: 0.4; cursor: default; }
 
+        .btn-delete {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            background: white;
+            color: #ff3b30;
+            border: 1px solid #ffc7c5;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-delete:hover { background: #fff0ef; }
+        .btn-delete:disabled { opacity: 0.4; cursor: default; }
+
         /* 빈 상태 */
         .empty-state {
             text-align: center;
@@ -317,11 +336,19 @@
             else if (isApproved) badge = '<span class="badge badge-approved">승인됨</span>';
             else                 badge = '<span class="badge badge-legacy">기존 계정</span>';
 
+            const safeName = (u.full_name || u.email).replace(/'/g, "\\'");
             const actions = isPending ? `
                 <div class="actions">
                     <button class="btn-approve" onclick="approveUser('${u.id}', this)" data-meta='${JSON.stringify({full_name: u.full_name, phone: u.phone})}'>승인</button>
-                    <button class="btn-reject" onclick="rejectUser('${u.id}', '${u.full_name || u.email}', this)">거절</button>
-                </div>` : '';
+                    <button class="btn-reject" onclick="rejectUser('${u.id}', '${safeName}', this)">거절</button>
+                </div>` : `
+                <div class="actions">
+                    <button class="btn-delete" title="계정 삭제 (퇴사 처리)" onclick="deleteUser('${u.id}', '${safeName}', this)">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                        </svg>
+                    </button>
+                </div>`;
 
             return `
                 <div class="card-row" id="row-${u.id}">
@@ -382,6 +409,31 @@
                 showToast('❌ ' + e.message, true);
                 btn.disabled = false;
                 btn.textContent = '거절';
+            }
+        }
+
+        // ── 계정 삭제 (퇴사 처리) ────────────────────────────
+        async function deleteUser(userId, name, btn) {
+            if (!confirm(`'${name}' 계정을 삭제하시겠습니까?\n\n퇴사 처리 시 해당 계정으로 더 이상 로그인할 수 없습니다.`)) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<div style="width:14px;height:14px;border:2px solid #ffc7c5;border-top-color:#ff3b30;border-radius:50%;animation:spin 0.8s linear infinite"></div>';
+
+            try {
+                const res = await fetch('/api/admin-users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Code': getAdminCode() },
+                    body: JSON.stringify({ action: 'delete', userId, adminCode: getAdminCode() })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                showToast('🗑️ 계정이 삭제되었습니다.');
+                await loadUsers();
+            } catch (e) {
+                showToast('❌ ' + e.message, true);
+                btn.disabled = false;
+                btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
             }
         }
 
