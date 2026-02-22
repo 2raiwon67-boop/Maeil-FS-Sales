@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이메일 인증 - FS AIOD</title>
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background: #f5f5f7;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 420px;
+            padding: 52px 40px;
+            text-align: center;
+        }
+
+        /* 아이콘 영역 */
+        .icon-wrap {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 로딩 상태 */
+        .state-loading .icon-wrap {
+            background: #f0f4ff;
+        }
+
+        .spinner {
+            width: 36px;
+            height: 36px;
+            border: 3px solid #d0d8ff;
+            border-top-color: #0071e3;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 성공 상태 */
+        .state-success .icon-wrap {
+            background: #e8f8f0;
+            animation: pop 0.4s ease;
+        }
+
+        @keyframes pop {
+            0%   { transform: scale(0.7); opacity: 0; }
+            70%  { transform: scale(1.1); }
+            100% { transform: scale(1);   opacity: 1; }
+        }
+
+        .checkmark {
+            width: 36px;
+            height: 36px;
+            stroke: #1db954;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+            stroke-dasharray: 60;
+            stroke-dashoffset: 60;
+            animation: draw 0.5s 0.2s ease forwards;
+        }
+
+        @keyframes draw { to { stroke-dashoffset: 0; } }
+
+        /* 오류 상태 */
+        .state-error .icon-wrap {
+            background: #fff0ef;
+        }
+
+        .x-mark {
+            width: 36px;
+            height: 36px;
+            stroke: #ff3b30;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            fill: none;
+        }
+
+        /* 텍스트 */
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 10px;
+        }
+
+        .desc {
+            font-size: 14px;
+            color: #86868b;
+            line-height: 1.7;
+        }
+
+        /* 대기 안내 박스 (성공 시) */
+        .pending-box {
+            display: none;
+            margin-top: 24px;
+            background: #f0f4ff;
+            border-radius: 12px;
+            padding: 16px 20px;
+            text-align: left;
+        }
+
+        .state-success .pending-box { display: block; }
+
+        .pending-box .label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #0071e3;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        .pending-box p {
+            font-size: 13px;
+            color: #3a3a3c;
+            line-height: 1.6;
+        }
+
+        /* 리다이렉트 카운트다운 */
+        .redirect-note {
+            display: none;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #aeaeb2;
+        }
+
+        .state-success .redirect-note { display: block; }
+
+        /* 버튼 */
+        .btn {
+            display: none;
+            margin-top: 24px;
+            width: 100%;
+            padding: 12px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+
+        .btn:hover { background: #0077ed; }
+        .state-error .btn { display: block; }
+    </style>
+</head>
+
+<body>
+    <div class="card state-loading" id="card">
+
+        <!-- 로딩 -->
+        <div class="icon-wrap">
+            <div class="spinner" id="spinnerIcon"></div>
+
+            <!-- 체크마크 (성공) -->
+            <svg class="checkmark" id="checkIcon" style="display:none" viewBox="0 0 48 48">
+                <polyline points="10,25 20,35 38,14"/>
+            </svg>
+
+            <!-- X 마크 (오류) -->
+            <svg class="x-mark" id="errorIcon" style="display:none" viewBox="0 0 48 48">
+                <line x1="14" y1="14" x2="34" y2="34"/>
+                <line x1="34" y1="14" x2="14" y2="34"/>
+            </svg>
+        </div>
+
+        <h1 class="title" id="title">인증 처리 중…</h1>
+        <p class="desc" id="desc">잠시만 기다려주세요.</p>
+
+        <!-- 성공 시 안내 박스 -->
+        <div class="pending-box">
+            <div class="label">다음 단계</div>
+            <p>이메일 인증이 완료되었습니다.<br>
+               관리자 승인 후 서비스를 이용하실 수 있습니다.<br>
+               승인이 완료되면 동일한 계정으로 로그인해 주세요.</p>
+        </div>
+
+        <p class="redirect-note" id="redirectNote"></p>
+        <button class="btn" id="retryBtn" onclick="window.location.href='login.html'">로그인 페이지로 이동</button>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        const card        = document.getElementById('card');
+        const title       = document.getElementById('title');
+        const desc        = document.getElementById('desc');
+        const spinnerIcon = document.getElementById('spinnerIcon');
+        const checkIcon   = document.getElementById('checkIcon');
+        const errorIcon   = document.getElementById('errorIcon');
+        const redirectNote = document.getElementById('redirectNote');
+
+        function showSuccess() {
+            card.className = 'card state-success';
+            spinnerIcon.style.display = 'none';
+            checkIcon.style.display   = 'block';
+            title.textContent = '이메일 인증 완료';
+            desc.textContent  = '가입 신청이 정상적으로 접수되었습니다.';
+
+            let count = 5;
+            redirectNote.textContent = `${count}초 후 자동으로 이동합니다…`;
+            const timer = setInterval(() => {
+                count--;
+                redirectNote.textContent = `${count}초 후 자동으로 이동합니다…`;
+                if (count <= 0) {
+                    clearInterval(timer);
+                    window.location.href = 'pending.html';
+                }
+            }, 1000);
+        }
+
+        function showError(msg) {
+            card.className = 'card state-error';
+            spinnerIcon.style.display = 'none';
+            errorIcon.style.display   = 'block';
+            title.textContent = '인증에 실패했습니다';
+            desc.textContent  = msg || '링크가 만료되었거나 이미 사용된 링크입니다.';
+        }
+
+        // Supabase가 URL 해시/쿼리의 토큰을 자동으로 처리함
+        async function handleConfirm() {
+            if (!client) {
+                showError('서비스 초기화에 실패했습니다.');
+                return;
+            }
+
+            // URL에 error 파라미터가 있는 경우 (Supabase가 에러를 전달)
+            const hashParams = new URLSearchParams(window.location.hash.slice(1));
+            const queryParams = new URLSearchParams(window.location.search);
+            const errorDesc = hashParams.get('error_description') || queryParams.get('error_description');
+            if (errorDesc) {
+                showError(decodeURIComponent(errorDesc));
+                return;
+            }
+
+            // onAuthStateChange로 세션 처리
+            const { data: { subscription } } = client.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+                    subscription.unsubscribe();
+                    showSuccess();
+                }
+            });
+
+            // 이미 세션이 있는 경우도 처리
+            const { data: { session } } = await client.auth.getSession();
+            if (session) {
+                subscription.unsubscribe();
+                showSuccess();
+                return;
+            }
+
+            // 일정 시간 후 세션이 없으면 오류 처리
+            setTimeout(() => {
+                subscription.unsubscribe();
+                showError('인증 링크를 확인할 수 없습니다. 링크가 만료되었을 수 있습니다.');
+            }, 8000);
+        }
+
+        handleConfirm();
+    </script>
+</body>
+
+</html>
