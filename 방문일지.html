@@ -1072,7 +1072,7 @@
                     <option value="license">인허가</option>
                 </select>
                 <select class="filter-select" id="managerFilter" onchange="filterData()">
-                    <option value="">(담당자)</option>
+                    <option value="">담당자</option>
                 </select>
                 <select class="filter-select" id="statusFilter" onchange="filterData()">
                     <option value="">거래상태</option>
@@ -1169,13 +1169,33 @@
         }
 
         function updateRejectionStats() {
+            const typeFilter = document.getElementById('typeFilter')?.value || '';
+            const managerFilter = document.getElementById('managerFilter')?.value || '';
+
             const threeMonthsAgo = new Date();
             threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+            // 구분 필터 적용 시 해당 type의 거래처명 Set 구성
+            let allowedAccounts = null;
+            if (typeFilter) {
+                allowedAccounts = new Set(
+                    groupedAccounts
+                        .filter(a => a.type === typeFilter)
+                        .map(a => a.accountName)
+                );
+            }
 
             const counts = {};
             allVisitLogs.forEach(log => {
                 const visitDate = parseVisitDate(log['작성일'] || log['일정기간']);
                 if (!visitDate || visitDate < threeMonthsAgo) return;
+
+                // 구분 필터
+                if (allowedAccounts && !allowedAccounts.has((log['방문처(거래처)'] || '').trim())) return;
+
+                // 담당자 필터
+                if (managerFilter && log['작성자'] !== managerFilter) return;
+
                 const reason = classifyRejectionReason(log['내용'], log['거래상태'] || '');
                 if (!reason) return;
                 counts[reason] = (counts[reason] || 0) + 1;
@@ -1593,6 +1613,9 @@
 
                 return true;
             });
+
+            // 거절사유 통계 갱신 (구분/담당자 필터 연동)
+            updateRejectionStats();
 
             // 필터링 후 처음부터 다시 렌더링
             displayedCount = 0;
