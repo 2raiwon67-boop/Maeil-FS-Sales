@@ -484,6 +484,16 @@
                     <div id="signatureMenuList" style="display: flex; flex-direction: column; gap: 8px;"></div>
                 </div>
 
+                <!-- 영업 메모 -->
+                <div style="margin-top: 14px; padding: 12px 14px; background: #f8f9ff; border-radius: 10px; border: 1px solid #dce3f5;">
+                    <label style="font-size: 12px; color: #5c6bc0; font-weight: 700; display: block; margin-bottom: 7px;">📝 영업 메모</label>
+                    <textarea id="salesMemo"
+                        placeholder="방문 전략, 핵심 포인트, 오너 특성 등을 자유롭게 입력하세요..."
+                        style="width: 100%; box-sizing: border-box; min-height: 72px; padding: 9px 11px; font-size: 13px; border: 1px solid #dce3f5; border-radius: 8px; resize: vertical; line-height: 1.6; color: #333; font-family: inherit; background: #fff; outline: none; transition: border-color 0.15s;"
+                        onfocus="this.style.borderColor='#5c6bc0'"
+                        onblur="this.style.borderColor='#dce3f5'"></textarea>
+                </div>
+
                 <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 15px 0;">
                 <h4 style="margin: 0 0 10px 0;">✨ 추천 상품 (클릭하여 추가)</h4>
                 <div id="recommendList" style="display: flex; flex-direction: column; gap: 8px;">
