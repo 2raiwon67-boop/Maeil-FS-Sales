@@ -24,20 +24,31 @@
     <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <div class="text-center mb-8">
             <img src="assets/images/logo.png" alt="Maeil Logo" class="mx-auto mb-4 w-32">
-            <h1 class="text-2xl font-bold text-gray-800">FS AIOD</h1>
+            <h1 id="formTitle" class="text-2xl font-bold text-gray-800">FS AIOD</h1>
             <p class="text-blue-600 font-medium mt-1 mb-2">FS 영업사원을 위한 All-In-One 대시보드</p>
             <p class="text-gray-500 text-sm">안전한 서비스 이용을 위해 로그인해주세요.</p>
         </div>
 
-        <form id="loginForm" class="space-y-6">
-            <div>
+        <!-- novalidate: 브라우저 기본 유효성 검사 비활성화, JS에서 직접 처리 -->
+        <form id="loginForm" class="space-y-6" novalidate>
+
+            <!-- 이메일 -->
+            <div id="emailField">
                 <label for="email" class="block text-sm font-medium text-gray-700">이메일</label>
-                <input type="email" id="email" required
+                <input type="email" id="email"
                     class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     placeholder="admin@maeil.com">
             </div>
 
-            <!-- 추가 정보 입력 필드 (회원가입 시 표시) -->
+            <!-- 비밀번호 -->
+            <div id="passwordField">
+                <label for="password" class="block text-sm font-medium text-gray-700">비밀번호</label>
+                <input type="password" id="password"
+                    class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="••••••••">
+            </div>
+
+            <!-- 회원가입 추가 정보 -->
             <div id="signupFields" class="hidden space-y-4">
                 <div>
                     <label for="fullName" class="block text-sm font-medium text-gray-700">이름</label>
@@ -53,7 +64,7 @@
                 </div>
             </div>
 
-            <!-- 관리자 코드 입력 필드 -->
+            <!-- 관리자 코드 -->
             <div id="adminField" class="hidden">
                 <label for="adminCode" class="block text-sm font-medium text-gray-700">관리자 인증 코드</label>
                 <input type="password" id="adminCode"
@@ -70,104 +81,75 @@
         </form>
 
         <div class="mt-6 text-center text-sm text-gray-500 space-y-2">
-            <p>계정이 없으신가요? <a href="#" id="signupToggle" class="text-blue-600 hover:text-blue-500">회원가입</a></p>
+            <p id="signupRow">계정이 없으신가요? <a href="#" id="signupToggle" class="text-blue-600 hover:text-blue-500">회원가입</a></p>
             <p><a href="#" id="adminToggle" class="text-gray-400 hover:text-gray-600 text-xs">관리자 로그인</a></p>
         </div>
     </div>
 
     <script src="auth.js"></script>
     <script>
-        const loginForm = document.getElementById('loginForm');
-        const errorMsg = document.getElementById('errorMessage');
-        const loginBtn = document.getElementById('loginBtn');
+        const loginForm    = document.getElementById('loginForm');
+        const errorMsg     = document.getElementById('errorMessage');
+        const loginBtn     = document.getElementById('loginBtn');
         const signupToggle = document.getElementById('signupToggle');
-        const adminToggle = document.getElementById('adminToggle');
-
-        const emailContainer = document.getElementById('email').parentElement; // 이메일 컨테이너
-        const passwordContainer = document.getElementById('password') ? document.getElementById('password').parentElement : null; // 비밀번호 컨테이너 (동적 생성은 아니지만 확실히 하기 위해)
-        // 주의: password 필드가 HTML에 명시적으로 없었음? form 안에 email만 보였었나? 아님 생략됐었나?
-        // 기존 코드 확인: 30-60행 사이에 password input이 안 보였음. 누락된 듯? 
-        // 아, signIn 함수는 email, password를 받는데 HTML에 password input이 없었으면 로그인도 안 됨.
-        // 확인 결과: 이전 파일 뷰에서 password input이 안 보였음. email input 바로 뒤에 있어야 함.
-
+        const adminToggle  = document.getElementById('adminToggle');
+        const signupRow    = document.getElementById('signupRow');
         const signupFields = document.getElementById('signupFields');
-        const adminField = document.getElementById('adminField');
+        const adminField   = document.getElementById('adminField');
+        const emailField   = document.getElementById('emailField');
+        const passwordField= document.getElementById('passwordField');
+        const formTitle    = document.getElementById('formTitle');
 
-        let mode = 'login'; // 'login', 'signup', 'admin'
+        let mode = 'login'; // 'login' | 'signup' | 'admin'
 
-        // 비밀번호 필드가 누락되어 있었다면 복구 필요. 
-        // 하지만 기존 코드 99행에서 document.getElementById('password').value를 읽고 있음.
-        // 따라서 HTML 어딘가에 password 필드가 있어야 함. 
-        // 35-37행 근처에 email만 있고 password가 안 보였음. 실수로 지워졌거나 뷰에서 잘렸을 수 있음.
-        // 안전하게 복구.
-
-        // 모드 전환 함수
         function updateUI() {
             errorMsg.classList.add('hidden');
 
-            // 모든 필드 초기화 (숨김/보임)
-            // 여기서 직접 제어
-            const emailInputDiv = document.querySelector('label[for="email"]').parentElement;
-
-            // 비밀번호 필드 찾기 (없으면 생성 - 복구 로직)
-            let passwordInput = document.getElementById('password');
-            let passwordInputDiv;
-            if (!passwordInput) {
-                passwordInputDiv = document.createElement('div');
-                passwordInputDiv.id = 'passwordContainer';
-                passwordInputDiv.innerHTML = `
-                    <label for="password" class="block text-sm font-medium text-gray-700">비밀번호</label>
-                    <input type="password" id="password" required
-                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="••••••••">
-                `;
-                // 이메일 뒤에 삽입
-                emailInputDiv.after(passwordInputDiv);
-                passwordInput = document.getElementById('password');
-            } else {
-                passwordInputDiv = passwordInput.parentElement;
-            }
-
             if (mode === 'admin') {
-                document.querySelector('h1').innerText = '관리자 접속';
-                emailInputDiv.classList.add('hidden');
-                passwordInputDiv.classList.add('hidden');
+                formTitle.innerText = '관리자 접속';
+                emailField.classList.add('hidden');
+                passwordField.classList.add('hidden');
                 signupFields.classList.add('hidden');
                 adminField.classList.remove('hidden');
+                signupRow.classList.add('hidden');
 
                 loginBtn.innerText = '관리자 접속';
-                loginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                loginBtn.classList.add('bg-gray-800', 'hover:bg-gray-900');
+                loginBtn.className = loginBtn.className
+                    .replace('bg-blue-600', 'bg-gray-800')
+                    .replace('hover:bg-blue-700', 'hover:bg-gray-900');
 
-                signupToggle.parentElement.classList.add('hidden');
                 adminToggle.innerText = '일반 로그인으로 돌아가기';
+
             } else if (mode === 'signup') {
-                document.querySelector('h1').innerText = '계정 생성';
-                emailInputDiv.classList.remove('hidden');
-                passwordInputDiv.classList.remove('hidden');
+                formTitle.innerText = '계정 생성';
+                emailField.classList.remove('hidden');
+                passwordField.classList.remove('hidden');
                 signupFields.classList.remove('hidden');
                 adminField.classList.add('hidden');
+                signupRow.classList.remove('hidden');
 
                 loginBtn.innerText = '회원가입 신청';
-                loginBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                loginBtn.classList.remove('bg-gray-800', 'hover:bg-gray-900');
+                loginBtn.className = loginBtn.className
+                    .replace('bg-gray-800', 'bg-blue-600')
+                    .replace('hover:bg-gray-900', 'hover:bg-blue-700');
 
                 signupToggle.innerText = '로그인으로 돌아가기';
-                signupToggle.parentElement.classList.remove('hidden');
                 adminToggle.innerText = '관리자 로그인';
+
             } else { // login
-                document.querySelector('h1').innerText = 'FS AIOD';
-                emailInputDiv.classList.remove('hidden');
-                passwordInputDiv.classList.remove('hidden');
+                formTitle.innerText = 'FS AIOD';
+                emailField.classList.remove('hidden');
+                passwordField.classList.remove('hidden');
                 signupFields.classList.add('hidden');
                 adminField.classList.add('hidden');
+                signupRow.classList.remove('hidden');
 
                 loginBtn.innerText = '로그인';
-                loginBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                loginBtn.classList.remove('bg-gray-800', 'hover:bg-gray-900');
+                loginBtn.className = loginBtn.className
+                    .replace('bg-gray-800', 'bg-blue-600')
+                    .replace('hover:bg-gray-900', 'hover:bg-blue-700');
 
                 signupToggle.innerText = '회원가입';
-                signupToggle.parentElement.classList.remove('hidden');
                 adminToggle.innerText = '관리자 로그인';
             }
         }
@@ -184,98 +166,86 @@
             updateUI();
         });
 
-        // 초기 실행 (비밀번호 필드 복구 포함)
         updateUI();
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             errorMsg.classList.add('hidden');
 
+            // ── 관리자 모드 ──
             if (mode === 'admin') {
-                const code = document.getElementById('adminCode').value;
+                const code = document.getElementById('adminCode').value.trim();
                 if (code === '532753') {
-                    // 관리자 인증 성공
                     try {
                         localStorage.setItem('fs_admin_access', 'true');
-                        console.log('Admin access granted.');
-                        alert('관리자 모드로 접속합니다.');
                         window.location.href = 'index.html';
-                    } catch (e) {
-                        console.error('Local storage error:', e);
-                        alert('브라우저 설정 오류로 로그인이 차단되었습니다. 쿠키/사이트 데이터 설정을 확인해주세요.');
+                    } catch {
+                        showError('브라우저 설정 오류로 로그인이 차단되었습니다. 쿠키/사이트 데이터 설정을 확인해주세요.');
                     }
                 } else {
-                    errorMsg.innerText = '인증 코드가 올바르지 않습니다.';
-                    errorMsg.classList.remove('hidden');
+                    showError('인증 코드가 올바르지 않습니다.');
                 }
                 return;
             }
 
-            const email = document.getElementById('email').value;
+            // ── 일반 / 회원가입 모드 ──
+            const email    = document.getElementById('email').value.trim();
             const password = document.getElementById('password').value;
-            const fullName = document.getElementById('fullName').value;
-            const phone = document.getElementById('phone').value;
 
-            // 로딩 표시
+            if (!email || !password) { showError('이메일과 비밀번호를 입력해주세요.'); return; }
+
             loginBtn.disabled = true;
             loginBtn.innerText = '처리 중...';
 
             try {
-                let result;
                 if (mode === 'signup') {
-                    if (!fullName || !phone) throw new Error("이름과 연락처를 모두 입력해주세요.");
+                    const fullName = document.getElementById('fullName').value.trim();
+                    const phone    = document.getElementById('phone').value.trim();
+                    if (!fullName || !phone) throw new Error('이름과 연락처를 모두 입력해주세요.');
 
-                    // Supabase js 로딩 체크
-                    if (typeof signUp !== 'function') throw new Error("시스템 오류: 인증 모듈이 로드되지 않았습니다.");
-
-                    result = await signUp(email, password, { full_name: fullName, phone: phone });
-
+                    const result = await signUp(email, password, { full_name: fullName, phone });
                     if (result.error) throw result.error;
 
-                    // 세션이 없으면 이메일 확인 필요
                     if (result.data && !result.data.session && result.data.user) {
-                        alert('회원가입 신청이 완료되었습니다!\n이메일로 발송된 인증 링크를 먼저 클릭해주셔야 로그인이 가능합니다.');
+                        alert('회원가입 신청 완료!\n이메일로 발송된 인증 링크를 클릭 후 로그인해주세요.');
                         mode = 'login';
                         updateUI();
                         return;
                     }
 
-                    alert('회원가입 및 로그인이 완료되었습니다!');
-                    // 담당자 이메일 자동 매칭 (백그라운드, 실패해도 무관)
                     if (typeof matchManagerEmail === 'function') {
                         matchManagerEmail(fullName, email).catch(() => {});
                     }
                     window.location.href = 'index.html';
-                } else {
-                    // Supabase js 로딩 체크
-                    if (typeof signIn !== 'function') throw new Error("시스템 오류: 인증 모듈이 로드되지 않았습니다.");
 
-                    result = await signIn(email, password);
+                } else {
+                    const result = await signIn(email, password);
                     if (result.error) {
                         if (result.error.message.includes('Email not confirmed')) {
-                            throw new Error('이메일 인증이 완료되지 않았습니다.\n가입하신 이메일의 수신함을 확인하여 인증 링크를 클릭해주세요.');
+                            throw new Error('이메일 인증이 완료되지 않았습니다.\n수신함의 인증 링크를 클릭해주세요.');
                         }
                         throw result.error;
                     }
-                    // 로그인 시 담당자 이름 추출 후 매칭
-                    const loggedUser = result.data?.user;
-                    const loggedName = loggedUser?.user_metadata?.full_name || '';
+                    const loggedName = result.data?.user?.user_metadata?.full_name || '';
                     if (typeof matchManagerEmail === 'function' && loggedName) {
                         matchManagerEmail(loggedName, email).catch(() => {});
                     }
                     window.location.href = 'index.html';
                 }
             } catch (error) {
-                console.error(error);
                 let msg = error.message;
                 if (msg === 'Invalid login credentials') msg = '이메일 또는 비밀번호가 일치하지 않습니다.';
-                errorMsg.innerText = msg || "알 수 없는 오류가 발생했습니다.";
-                errorMsg.classList.remove('hidden');
+                showError(msg || '알 수 없는 오류가 발생했습니다.');
             } finally {
                 loginBtn.disabled = false;
                 loginBtn.innerText = (mode === 'signup') ? '회원가입 신청' : '로그인';
             }
         });
+
+        function showError(msg) {
+            errorMsg.innerText = msg;
+            errorMsg.classList.remove('hidden');
+        }
     </script>
 </body>
 
