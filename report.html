@@ -638,23 +638,30 @@
             // 공사중 거래처 (방문한 것 중)
             const constructionAccounts = accounts.filter(a => a.status === '공사중');
 
-            // 공사중이지만 이달 미방문 (전체 거래처 시트에서)
-            const allConstructionNames = new Set(
-                [...allAccounts, ...allLicenses]
-                    .filter(a => {
-                        const s = a['거래상태'] || a['거래여부(기입예정)'] || a['거래여부'] || a['진행상태'] || '';
-                        return s.trim() === '공사중';
-                    })
-                    .map(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'] || a['업소명'] || a['상호명']))
+            // 공사중이지만 이달 미방문
+            // → 이 담당자가 과거에 한 번이라도 방문한 적 있는 거래처 중, 현재 공사중이고 이달 미방문인 곳만 표시
+            const myAllTimeLogs = allVisitLogs.filter(log => {
+                if (!managerName || managerName === '관리자') return true;
+                return normalize(log['작성자']) === normalize(managerName);
+            });
+            const myEverVisited = new Set(
+                myAllTimeLogs.map(log => normalize((log['방문처(거래처)'] || '').trim()))
             );
-            const visitedNames = new Set(accounts.map(a => normalize(a.name)));
-            const noVisitConstruction = [...allConstructionNames]
-                .filter(n => !visitedNames.has(n))
-                .map(n => {
-                    const acc = allAccounts.find(a => normalize(a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호']) === n)
-                              || allLicenses.find(a => normalize(a['사업장명'] || a['업소명'] || a['상호명']) === n);
-                    return acc ? (acc['거래처명'] || acc['매장명'] || acc['사업장명'] || acc['상호'] || acc['사업장명'] || acc['업소명'] || acc['상호명']) : n;
-                });
+
+            // 공사중 상태 맵 (거래처 시트 기준)
+            const constructionStatusMap = new Map();
+            [...allAccounts, ...allLicenses].forEach(a => {
+                const name = a['거래처명'] || a['매장명'] || a['사업장명'] || a['상호'] || a['업소명'] || a['상호명'] || '';
+                const s = a['거래상태'] || a['거래여부(기입예정)'] || a['거래여부'] || a['진행상태'] || '';
+                if (name.trim() && s.trim() === '공사중') {
+                    constructionStatusMap.set(normalize(name), name.trim());
+                }
+            });
+
+            const visitedThisMonthNames = new Set(accounts.map(a => normalize(a.name)));
+            const noVisitConstruction = [...constructionStatusMap.entries()]
+                .filter(([key]) => myEverVisited.has(key) && !visitedThisMonthNames.has(key))
+                .map(([, displayName]) => displayName);
 
             // 주요거래처 활동
             const majorAccounts = accounts.filter(a => a.type === 'major');
@@ -896,7 +903,7 @@ ${majorAccounts.map(a => `- ${a.name} (${a.status}): ${a.visits.length}회`).joi
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt,
-                        generationConfig: { temperature: 0.5, maxOutputTokens: 1024 }
+                        generationConfig: { temperature: 0.5, maxOutputTokens: 3000 }
                     })
                 });
 
