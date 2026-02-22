@@ -121,18 +121,48 @@
 
         /* 좌측 프리뷰 영역 */
         .preview-side {
-            flex: 1.2;
+            width: 60%;
+            min-width: 300px;
+            flex-shrink: 0;
             padding: 30px;
             overflow-y: auto;
-            border-right: 1px solid #d2d2d7;
             background: #f5f5f7;
             display: flex;
             justify-content: center;
         }
 
+        /* 리사이저 핸들 */
+        .resizer {
+            width: 6px;
+            flex-shrink: 0;
+            background: #d2d2d7;
+            cursor: col-resize;
+            position: relative;
+            transition: background 0.2s;
+            z-index: 5;
+        }
+
+        .resizer:hover,
+        .resizer.dragging {
+            background: #0071e3;
+        }
+
+        .resizer::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 40px;
+            background: rgba(255,255,255,0.6);
+            border-radius: 2px;
+        }
+
         /* 우측 컨트롤 패널 영역 */
         .editor-side {
-            flex: 0.8;
+            flex: 1;
+            min-width: 260px;
             padding: 24px;
             overflow-y: auto;
             background: white;
@@ -230,7 +260,6 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             position: relative;
             box-sizing: border-box;
-            transform: scale(0.9);
             transform-origin: top center;
         }
 
@@ -562,6 +591,9 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 리사이저 핸들 -->
+            <div class="resizer" id="workspaceResizer"></div>
 
             <!-- 2-2. 우측 컨트롤 패널 영역 -->
             <div class="editor-side">
@@ -1195,6 +1227,65 @@
                 }
             }
         });
+    </script>
+
+    <!-- 리사이저 드래그 기능 -->
+    <script>
+        (function () {
+            const resizer = document.getElementById('workspaceResizer');
+            const previewSide = resizer.previousElementSibling;
+            const editorSide = resizer.nextElementSibling;
+            const workspace = resizer.parentElement;
+            const paper = document.getElementById('proposalPaper');
+
+            // 210mm = 약 794px (96dpi 기준)
+            const PAPER_NATURAL_PX = 794;
+            const PREVIEW_PADDING = 60; // 좌우 padding 30px * 2
+
+            function scalePaper() {
+                const availableWidth = previewSide.clientWidth - PREVIEW_PADDING;
+                const scale = Math.min(Math.max(availableWidth / PAPER_NATURAL_PX, 0.4), 1.0);
+                paper.style.transform = `scale(${scale})`;
+            }
+
+            // 초기 스케일 적용 (레이아웃 완료 후)
+            requestAnimationFrame(scalePaper);
+
+            let startX, startWidth;
+
+            resizer.addEventListener('mousedown', function (e) {
+                startX = e.clientX;
+                startWidth = previewSide.getBoundingClientRect().width;
+                resizer.classList.add('dragging');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+
+                function onMouseMove(e) {
+                    const dx = e.clientX - startX;
+                    const workspaceWidth = workspace.getBoundingClientRect().width;
+                    const newWidth = Math.min(
+                        Math.max(startWidth + dx, 300),
+                        workspaceWidth - 260 - 6
+                    );
+                    previewSide.style.width = newWidth + 'px';
+                    scalePaper();
+                }
+
+                function onMouseUp() {
+                    resizer.classList.remove('dragging');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+
+            // 창 크기 변경 시에도 재조정
+            window.addEventListener('resize', scalePaper);
+        })();
     </script>
 </body>
 
