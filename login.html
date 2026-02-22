@@ -81,6 +81,17 @@
                 </label>
             </div>
 
+            <!-- 로그인 저장 (로그인 모드 전용) -->
+            <div id="rememberField" class="hidden">
+                <label class="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" id="rememberMe"
+                        class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <span class="text-sm text-gray-600">로그인 저장
+                        <span class="text-xs text-gray-400">(이 기기에서 자동 입력 · PC/모바일 각 1대)</span>
+                    </span>
+                </label>
+            </div>
+
             <!-- 관리자 코드 -->
             <div id="adminField" class="hidden">
                 <label for="adminCode" class="block text-sm font-medium text-gray-700">관리자 인증 코드</label>
@@ -114,9 +125,17 @@
         const signupFields = document.getElementById('signupFields');
         const privacyField = document.getElementById('privacyField');
         const adminField   = document.getElementById('adminField');
+        const rememberField= document.getElementById('rememberField');
         const emailField   = document.getElementById('emailField');
         const passwordField= document.getElementById('passwordField');
         const formTitle    = document.getElementById('formTitle');
+
+        // 저장된 이메일 자동 입력
+        const savedEmail = localStorage.getItem('fs_saved_email');
+        if (savedEmail) {
+            document.getElementById('email').value = savedEmail;
+            document.getElementById('rememberMe').checked = true;
+        }
 
         let mode = 'login'; // 'login' | 'signup' | 'admin'
 
@@ -130,6 +149,7 @@
                 signupFields.classList.add('hidden');
                 privacyField.classList.add('hidden');
                 adminField.classList.remove('hidden');
+                rememberField.classList.add('hidden');
                 signupRow.classList.add('hidden');
 
                 loginBtn.innerText = '관리자 접속';
@@ -146,6 +166,7 @@
                 signupFields.classList.remove('hidden');
                 privacyField.classList.remove('hidden');
                 adminField.classList.add('hidden');
+                rememberField.classList.add('hidden');
                 signupRow.classList.remove('hidden');
 
                 loginBtn.innerText = '회원가입 신청';
@@ -163,6 +184,7 @@
                 signupFields.classList.add('hidden');
                 privacyField.classList.add('hidden');
                 adminField.classList.add('hidden');
+                rememberField.classList.remove('hidden');
                 signupRow.classList.remove('hidden');
 
                 loginBtn.innerText = '로그인';
@@ -248,10 +270,36 @@
                         }
                         throw result.error;
                     }
+
                     const loggedName = result.data?.user?.user_metadata?.full_name || '';
                     if (typeof matchManagerEmail === 'function' && loggedName) {
                         matchManagerEmail(loggedName, email).catch(() => {});
                     }
+
+                    // 로그인 저장 처리
+                    const remember = document.getElementById('rememberMe').checked;
+                    if (remember) {
+                        localStorage.setItem('fs_saved_email', email);
+                        const reg = await registerDevice();
+                        if (!reg.ok && reg.conflictDevice) {
+                            const typeLabel = reg.deviceType === 'pc' ? 'PC' : '모바일';
+                            const conflict  = reg.conflictDevice;
+                            const replace = confirm(
+                                `이미 다른 ${typeLabel} 기기(${conflict.name})에서 로그인이 저장되어 있습니다.\n\n기존 기기를 해제하고 이 기기로 교체하시겠습니까?`
+                            );
+                            if (replace) {
+                                await replaceDevice();
+                            }
+                            // 교체하지 않아도 로그인은 정상 진행
+                        }
+                    } else {
+                        // 체크 해제 시 저장 이메일 및 기기 등록 제거
+                        localStorage.removeItem('fs_saved_email');
+                        if (typeof unregisterDevice === 'function') {
+                            await unregisterDevice();
+                        }
+                    }
+
                     window.location.href = 'index.html';
                 }
             } catch (error) {

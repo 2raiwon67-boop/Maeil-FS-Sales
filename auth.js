@@ -161,6 +161,116 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
 });
 
+// ============================================================
+// 7. 로그인 저장 / 기기 관리
+// - 1계정당 PC 1대 + 모바일 1대까지 로그인 저장 허용
+// - 기기 정보는 Supabase user_metadata.registered_devices 에 저장
+// ============================================================
+
+function getDeviceId() {
+    let id = localStorage.getItem('fs_device_id');
+    if (!id) {
+        const arr = new Uint8Array(16);
+        crypto.getRandomValues(arr);
+        arr[6] = (arr[6] & 0x0f) | 0x40;
+        arr[8] = (arr[8] & 0x3f) | 0x80;
+        id = [...arr].map((b, i) =>
+            ([4,6,8,10].includes(i) ? '-' : '') + b.toString(16).padStart(2,'0')
+        ).join('');
+        localStorage.setItem('fs_device_id', id);
+    }
+    return id;
+}
+
+function getDeviceType() {
+    return /Mobile|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'mobile' : 'pc';
+}
+
+function getDeviceName() {
+    const ua = navigator.userAgent;
+    let os = 'Unknown';
+    let browser = 'Unknown';
+    if      (/iPhone/i.test(ua))   os = 'iPhone';
+    else if (/iPad/i.test(ua))     os = 'iPad';
+    else if (/Android/i.test(ua))  os = 'Android';
+    else if (/Windows/i.test(ua))  os = 'Windows';
+    else if (/Mac/i.test(ua))      os = 'macOS';
+    if      (/Edg/i.test(ua))      browser = 'Edge';
+    else if (/Chrome/i.test(ua))   browser = 'Chrome';
+    else if (/Safari/i.test(ua))   browser = 'Safari';
+    else if (/Firefox/i.test(ua))  browser = 'Firefox';
+    return `${browser} / ${os}`;
+}
+
+// 기기 등록 시도 → { ok, error?, conflictDevice? }
+async function registerDevice() {
+    if (!client) return { ok: false, error: '클라이언트 오류' };
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return { ok: false, error: '사용자 정보 없음' };
+
+    const deviceId   = getDeviceId();
+    const deviceType = getDeviceType();
+    const deviceName = getDeviceName();
+    let devices = user.user_metadata?.registered_devices || [];
+
+    // 이미 이 기기가 등록된 경우 → last_seen만 갱신
+    if (devices.find(d => d.id === deviceId)) {
+        const updated = devices.map(d =>
+            d.id === deviceId ? { ...d, last_seen: new Date().toISOString() } : d
+        );
+        await client.auth.updateUser({ data: { registered_devices: updated } });
+        return { ok: true };
+    }
+
+    // 같은 유형의 다른 기기가 이미 등록된 경우
+    const conflict = devices.find(d => d.type === deviceType);
+    if (conflict) {
+        return { ok: false, conflictDevice: conflict, deviceType };
+    }
+
+    // 신규 등록
+    const newDevice = {
+        id: deviceId, type: deviceType, name: deviceName,
+        registered_at: new Date().toISOString(),
+        last_seen:     new Date().toISOString()
+    };
+    await client.auth.updateUser({ data: { registered_devices: [...devices, newDevice] } });
+    return { ok: true };
+}
+
+// 기존 같은 유형 기기를 교체하고 현재 기기 등록
+async function replaceDevice() {
+    if (!client) return false;
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return false;
+
+    const deviceId   = getDeviceId();
+    const deviceType = getDeviceType();
+    const deviceName = getDeviceName();
+    let devices = (user.user_metadata?.registered_devices || [])
+        .filter(d => d.type !== deviceType); // 같은 유형 제거
+
+    devices.push({
+        id: deviceId, type: deviceType, name: deviceName,
+        registered_at: new Date().toISOString(),
+        last_seen:     new Date().toISOString()
+    });
+    await client.auth.updateUser({ data: { registered_devices: devices } });
+    return true;
+}
+
+// 현재 기기의 로그인 저장 해제
+async function unregisterDevice() {
+    if (!client) return;
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) return;
+    const deviceId = getDeviceId();
+    const devices  = (user.user_metadata?.registered_devices || [])
+        .filter(d => d.id !== deviceId);
+    await client.auth.updateUser({ data: { registered_devices: devices } });
+    localStorage.removeItem('fs_saved_email');
+}
+
 // UI 헬퍼: 로그아웃 버튼 이벤트 & 사용자 이름 표시
 async function setupLogoutButton(buttonId = 'logoutBtn', nameDisplayId = 'userNameDisplay') {
     const btn = document.getElementById(buttonId);
