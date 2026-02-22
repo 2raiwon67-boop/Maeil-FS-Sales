@@ -24,28 +24,45 @@ try {
 // 1. 로그인 여부 확인 및 리다이렉트
 async function checkAuth() {
     const path = window.location.pathname;
-    const isLoginPage = path.includes('login.html') || path.endsWith('/login');
+    const isLoginPage   = path.includes('login.html')   || path.endsWith('/login');
+    const isPendingPage = path.includes('pending.html');
+    const isAdminPage   = path.includes('admin.html');
 
     // 관리자 우회 체크
     if (localStorage.getItem('fs_admin_access') === 'true') {
-        if (isLoginPage) {
-            window.location.href = 'index.html';
-        }
-        return { user: { email: 'admin@maeil.com', user_metadata: { full_name: '관리자' } } };
+        if (isLoginPage) window.location.href = 'index.html';
+        return { user: { email: 'admin@maeil.com', user_metadata: { full_name: '관리자', approved: true } } };
     }
 
     if (!client) return null;
 
     const { data: { session } } = await client.auth.getSession();
 
-    // 현재 페이지가 login.html이 아닌데 세션이 없으면 -> 로그인 페이지로 이동
+    // 세션 없음 → 로그인 페이지로
     if (!session && !isLoginPage) {
         window.location.href = 'login.html';
+        return null;
     }
 
-    // 현재 페이지가 login.html인데 세션이 있으면 -> 메인 페이지로 이동
-    if (session && isLoginPage) {
-        window.location.href = 'index.html';
+    if (session) {
+        const meta = session.user.user_metadata || {};
+        // approved가 명시적으로 false인 경우만 대기 처리 (기존 계정은 undefined → 통과)
+        const isPending = meta.approved === false;
+
+        if (isPending && !isPendingPage && !isLoginPage) {
+            window.location.href = 'pending.html';
+            return null;
+        }
+
+        if (!isPending && isPendingPage) {
+            window.location.href = 'index.html';
+            return null;
+        }
+
+        if (isLoginPage) {
+            window.location.href = isPending ? 'pending.html' : 'index.html';
+            return null;
+        }
     }
 
     return session;
@@ -81,14 +98,14 @@ async function signOut() {
     }
 }
 
-// 4. 회원가입 (메타데이터 포함)
+// 4. 회원가입 (메타데이터 포함 + 승인 대기 상태로 시작)
 async function signUp(email, password, metadata = {}) {
     if (!client) return { error: { message: 'Supabase client not initialized' } };
     const { data, error } = await client.auth.signUp({
         email,
         password,
         options: {
-            data: metadata // full_name, phone 등
+            data: { ...metadata, approved: false } // 관리자 승인 전까지 접근 차단
         }
     });
     return { data, error };

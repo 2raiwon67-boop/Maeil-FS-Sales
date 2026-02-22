@@ -1638,6 +1638,7 @@
                 <button class="view-btn" id="btn-dashboard-view" onclick="switchMainView('dashboard')">📈 통계</button>
             </div>
             <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
+            <a href="admin.html" id="adminPanelLink" class="nav-link" style="display:none; margin-right:8px; color:#f5c542;">관리자</a>
             <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>
         </div>
     </nav>
@@ -4589,6 +4590,11 @@ ${question}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
+            // 관리자 로그인 시 관리자 패널 링크 표시
+            if (localStorage.getItem('fs_admin_access') === 'true') {
+                const link = document.getElementById('adminPanelLink');
+                if (link) link.style.display = 'inline';
+            }
         });
     </script>
 </body>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 패널 - FS AIOD</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔐</text></svg>">
+    <link rel="stylesheet" as="style" crossorigin
+        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root { --primary: #0071e3; }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        body.loaded { opacity: 1; }
+
+        .nav-bar {
+            background: #1d1d1f;
+            padding: 0 24px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo { font-size: 15px; font-weight: 600; color: #fff; }
+        .nav-sub  { font-size: 13px; color: #a1a1a6; margin-left: 12px; }
+
+        .back-link {
+            color: #a1a1a6;
+            font-size: 13px;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover { color: #f5f5f7; }
+
+        .container {
+            max-width: 880px;
+            margin: 0 auto;
+            padding: 36px 24px 80px;
+        }
+
+        .page-title  { font-size: 24px; font-weight: 700; margin: 0 0 4px; }
+        .page-sub    { font-size: 14px; color: #86868b; margin: 0 0 28px; }
+
+        /* 탭 */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: #e5e5ea;
+            border-radius: 10px;
+            padding: 4px;
+            width: fit-content;
+            margin-bottom: 24px;
+        }
+
+        .tab {
+            padding: 7px 18px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: #86868b;
+            transition: all 0.15s;
+        }
+
+        .tab.active {
+            background: white;
+            color: #1d1d1f;
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 카드 */
+        .card {
+            background: white;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 14px;
+        }
+
+        .card-row {
+            display: flex;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #f5f5f7;
+            gap: 14px;
+        }
+
+        .card-row:last-child { border-bottom: none; }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0071e3, #34aadc);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .user-info { flex: 1; min-width: 0; }
+        .user-name { font-size: 14px; font-weight: 600; }
+        .user-meta { font-size: 12px; color: #86868b; margin-top: 2px; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-pending  { background: #fff3cd; color: #856404; }
+        .badge-approved { background: #d1e7dd; color: #0a5c36; }
+        .badge-legacy   { background: #e2d9f3; color: #432874; }
+
+        .actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+        .btn-approve {
+            padding: 7px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-approve:hover { background: #0077ed; }
+        .btn-approve:disabled { background: #c7c7cc; cursor: default; }
+
+        .btn-reject {
+            padding: 7px 16px;
+            background: white;
+            color: #ff3b30;
+            border: 1px solid #ffc7c5;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-reject:hover { background: #fff0ef; }
+        .btn-reject:disabled { opacity: 0.4; cursor: default; }
+
+        /* 빈 상태 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #86868b;
+        }
+
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+
+        /* 로딩 */
+        .spinner {
+            width: 28px; height: 28px;
+            border: 3px solid #e5e5ea;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 40px auto;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 알림 토스트 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: #1d1d1f;
+            color: white;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.3s ease;
+            z-index: 999;
+            white-space: nowrap;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+
+<body>
+    <nav class="nav-bar">
+        <div style="display:flex; align-items:center;">
+            <span class="nav-logo">FS MASSI</span>
+            <span class="nav-sub">관리자 패널</span>
+        </div>
+        <a href="index.html" class="back-link">← 대시보드로</a>
+    </nav>
+
+    <div class="container">
+        <h1 class="page-title">사용자 관리</h1>
+        <p class="page-sub">가입 신청 승인 및 전체 사용자 현황을 관리합니다.</p>
+
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('pending')">
+                승인 대기 <span id="pendingCount"></span>
+            </button>
+            <button class="tab" onclick="switchTab('all')">전체 사용자</button>
+        </div>
+
+        <div id="listArea">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="auth.js"></script>
+    <script>
+        let allUsers = [];
+        let currentTab = 'pending';
+
+        // ── 관리자 권한 확인 ──────────────────────────────────
+        window.addEventListener('load', () => document.body.classList.add('loaded'));
+
+        window.onload = async function () {
+            if (localStorage.getItem('fs_admin_access') !== 'true') {
+                alert('관리자만 접근 가능한 페이지입니다.');
+                window.location.href = 'index.html';
+                return;
+            }
+            await loadUsers();
+        };
+
+        // ── 사용자 목록 로드 ──────────────────────────────────
+        async function loadUsers() {
+            document.getElementById('listArea').innerHTML = '<div class="spinner"></div>';
+            try {
+                const res = await fetch('/api/admin-users', {
+                    headers: { 'X-Admin-Code': getAdminCode() }
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || '로드 실패');
+
+                allUsers = data.users;
+                const pendingCount = allUsers.filter(u => u.approved === false).length;
+                document.getElementById('pendingCount').textContent =
+                    pendingCount > 0 ? `(${pendingCount})` : '';
+
+                renderList();
+            } catch (e) {
+                document.getElementById('listArea').innerHTML =
+                    `<div class="empty-state"><p style="color:#ff3b30">${e.message}</p></div>`;
+            }
+        }
+
+        // ── 탭 전환 ──────────────────────────────────────────
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach((el, i) => {
+                el.classList.toggle('active', (i === 0 && tab === 'pending') || (i === 1 && tab === 'all'));
+            });
+            renderList();
+        }
+
+        // ── 목록 렌더링 ───────────────────────────────────────
+        function renderList() {
+            const users = currentTab === 'pending'
+                ? allUsers.filter(u => u.approved === false)
+                : allUsers;
+
+            if (users.length === 0) {
+                document.getElementById('listArea').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">${currentTab === 'pending' ? '✅' : '👥'}</div>
+                        <p>${currentTab === 'pending' ? '승인 대기 중인 사용자가 없습니다.' : '등록된 사용자가 없습니다.'}</p>
+                    </div>`;
+                return;
+            }
+
+            document.getElementById('listArea').innerHTML = `
+                <div class="card">
+                    ${users.map(u => renderUserRow(u)).join('')}
+                </div>`;
+        }
+
+        function renderUserRow(u) {
+            const initial = (u.full_name || u.email).charAt(0).toUpperCase();
+            const createdAt = new Date(u.created_at).toLocaleDateString('ko-KR');
+            const isPending  = u.approved === false;
+            const isApproved = u.approved === true;
+
+            let badge = '';
+            if (isPending)       badge = '<span class="badge badge-pending">승인 대기</span>';
+            else if (isApproved) badge = '<span class="badge badge-approved">승인됨</span>';
+            else                 badge = '<span class="badge badge-legacy">기존 계정</span>';
+
+            const actions = isPending ? `
+                <div class="actions">
+                    <button class="btn-approve" onclick="approveUser('${u.id}', this)" data-meta='${JSON.stringify({full_name: u.full_name, phone: u.phone})}'>승인</button>
+                    <button class="btn-reject" onclick="rejectUser('${u.id}', '${u.full_name || u.email}', this)">거절</button>
+                </div>` : '';
+
+            return `
+                <div class="card-row" id="row-${u.id}">
+                    <div class="avatar">${initial}</div>
+                    <div class="user-info">
+                        <div class="user-name">${u.full_name || '(이름 없음)'} ${badge}</div>
+                        <div class="user-meta">${u.email} · ${u.phone ? u.phone + ' · ' : ''}가입 ${createdAt}</div>
+                    </div>
+                    ${actions}
+                </div>`;
+        }
+
+        // ── 승인 ─────────────────────────────────────────────
+        async function approveUser(userId, btn) {
+            const meta = JSON.parse(btn.dataset.meta || '{}');
+            btn.disabled = true;
+            btn.nextElementSibling && (btn.nextElementSibling.disabled = true);
+            btn.textContent = '처리 중...';
+
+            try {
+                const res = await fetch('/api/admin-users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Code': getAdminCode() },
+                    body: JSON.stringify({ action: 'approve', userId, existingMetadata: meta, adminCode: getAdminCode() })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                showToast('✅ 승인 완료됐습니다.');
+                await loadUsers();
+            } catch (e) {
+                showToast('❌ ' + e.message, true);
+                btn.disabled = false;
+                btn.textContent = '승인';
+            }
+        }
+
+        // ── 거절 ─────────────────────────────────────────────
+        async function rejectUser(userId, name, btn) {
+            if (!confirm(`'${name}' 계정을 거절하고 삭제하시겠습니까?`)) return;
+
+            btn.disabled = true;
+            btn.previousElementSibling && (btn.previousElementSibling.disabled = true);
+            btn.textContent = '처리 중...';
+
+            try {
+                const res = await fetch('/api/admin-users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Code': getAdminCode() },
+                    body: JSON.stringify({ action: 'reject', userId, adminCode: getAdminCode() })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+
+                showToast('🗑️ 거절 처리됐습니다.');
+                await loadUsers();
+            } catch (e) {
+                showToast('❌ ' + e.message, true);
+                btn.disabled = false;
+                btn.textContent = '거절';
+            }
+        }
+
+        // ── 헬퍼 ─────────────────────────────────────────────
+        function getAdminCode() {
+            // 환경변수 기반 검증은 서버에서 처리
+            // 클라이언트는 sessionStorage에 임시 저장된 코드 전달
+            return sessionStorage.getItem('admin_code') || '';
+        }
+
+        let toastTimer;
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        // ── 관리자 코드 요청 (첫 진입 시) ────────────────────
+        (function askAdminCode() {
+            if (!sessionStorage.getItem('admin_code')) {
+                const code = prompt('관리자 코드를 입력하세요:');
+                if (!code) { window.location.href = 'index.html'; return; }
+                sessionStorage.setItem('admin_code', code);
+            }
+        })();
+    </script>
+</body>
+
+</html>
