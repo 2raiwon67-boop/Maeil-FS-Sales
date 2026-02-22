@@ -102,17 +102,15 @@ export default async function handler(req, res) {
 
         const updateNote = isIncrementalUpdate ? '\n⚠️ 이번 분석은 **증분 업데이트**입니다. 아래는 최근 추가된 리뷰만 포함되어 있습니다.\n' : '';
 
-        // 🆕 방문일지 데이터 정리
+        // 방문일지 데이터 정리 (실제 필드명 기반)
         let visitHistorySection = '';
         if (hasVisitHistory) {
             const historyItems = storeHistory.slice(0, 5).map(log => ({
-                방문일: log['등록일'] || log['방문일'],
-                담당자: log['담당자'],
-                거래여부: log['거래여부(기입예정)'],
-                순위: log['순위'],
-                특이사항: log['특이사항'] || log['비고'],
-                제안제품: log['제안제품'] || '',
-                매출: log['매출'] || ''
+                방문일: log['작성일'] || log['일정기간'] || '',
+                담당자: log['작성자'] || '',
+                거래상태: log['거래상태'] || '',
+                방문내용: (log['내용'] || '').substring(0, 150),
+                주요이슈: log['주요이슈'] || ''
             }));
 
             visitHistorySection = `\n## ✨ 우리 팀 방문 기록 (${storeHistory.length}건, 최근 5건 표시)
@@ -121,8 +119,8 @@ ${JSON.stringify(historyItems, null, 2)}
 ⚠️ **중요**: 이 매장은 우리 팀이 이미 방문한 적이 있습니다!
 과거 방문 결과를 바탕으로 **전략을 조정**하세요:
 - 거래 성공 → 어떤 제품이 효과적이었는지 파악
-- 미거래/DROP → 실패 이유를 추론하고 다른 접근법 제안
-- 특이사항 확인 → 매장 특성, 거절 사유 등 반영
+- 미거래 → 방문 내용에서 거절 사유를 파악하고 다른 접근법 제안
+- 방문 내용에서 매장 특성이나 오너 성향 파악
 `;
         }
 
@@ -143,18 +141,21 @@ ${productList}
 ## 분석 요청
 1. 리뷰와 매장 정보를 바탕으로 이 매장의 **핵심 키워드 태그** 3~5개를 추출하세요 (예: 가성비, 학생층, 프리미엄, 건강, 디저트카페 등)
 2. 매장 특성에 대한 **영업 공략 포인트** 설명을 2~3문장으로 작성하세요.${hasVisitHistory ? ' **방문 기록이 있다면 반드시 언급**하고, 과거 결과를 반영한 전략을 제시하세요.' : ''} 중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
-3. 위 제품 목록에서 이 매장에 가장 적합한 **제품 2~3개**를 인덱스 번호로 추천하세요.${hasVisitHistory ? ' 과거 제안 제품과 다른 제품을 추천할 경우 이유를 설명에 포함하세요.' : ''}
+3. 위 제품 목록에서 이 매장에 가장 적합한 **제품 2~3개**를 인덱스 번호로 추천하세요.${hasVisitHistory ? ' 과거 방문 내용을 참고하여 전략을 조정하세요.' : ''}
+4. 블로그 리뷰에서 언급되는 이 매장의 **시그니처 메뉴** 1~3개를 파악하세요. 각 메뉴에 대해:
+   - 해당 메뉴 제조에 사용될 것으로 추정되는 유제품/식재료 원료
+   - 매일유업 자사 제품(위 목록 또는 일반적인 매일유업 원료)으로 대응하는 구체적인 방안
 
 ## 응답 형식
 아래 JSON 형식으로만 응답하세요. 다른 설명이나 텍스트 없이 순수 JSON만 출력하세요.
 
-예시:
-{"tags": ["키워드1", "키워드2", "키워드3"], "description": "HTML이 포함된 영업 공략 포인트 설명", "recommendedIndices": [0, 2]}
+{"tags": ["키워드1", "키워드2"], "description": "HTML이 포함된 영업 공략 포인트", "recommendedIndices": [0, 2], "signatureMenus": [{"menu": "시그니처 라떼", "ingredients": "우유, 에스프레소", "maeilSolution": "매일 바리스타 우유 또는 저지방 우유로 풍미 차별화 제안"}]}
 
 중요 사항:
 - 반드시 유효한 JSON 객체만 출력
 - 코드 블록 마커 사용 금지
-- 검색 결과가 부족하면 매장명 기반으로 추론하여 응답`;
+- 검색 결과가 부족하면 매장명/업종 기반으로 추론하여 응답
+- signatureMenus는 블로그 리뷰에서 파악이 어려울 경우 업종 특성으로 추론`;
 
         // ── 4. Gemini API 호출 ──
         const geminiRes = await fetch(
@@ -226,6 +227,7 @@ ${productList}
             tags: analysis.tags || [],
             description: analysis.description || '',
             items: recommendedItems,
+            signatureMenus: analysis.signatureMenus || [],
             reviewLinks: currentReviewLinks,
             isUpdate: isIncrementalUpdate,
             naverInfo: {

@@ -477,6 +477,13 @@
                 <h4 style="margin: 0 0 10px 0;">🎯 AI 공략 포인트</h4>
                 <div id="keywordTags" style="margin-bottom: 12px;"></div>
                 <p id="analysisText" style="font-size: 13px; color: #555; line-height: 1.5; margin: 0;"></p>
+
+                <!-- 시그니처 메뉴 섹션 -->
+                <div id="signatureResult" style="display:none; margin-top: 14px; padding: 12px 14px; background: #fff8f0; border-radius: 10px; border: 1px solid #ffe0b2;">
+                    <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #e65100;">🍽️ 시그니처 메뉴 &amp; 자사 원료 대응</h4>
+                    <div id="signatureMenuList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                </div>
+
                 <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 15px 0;">
                 <h4 style="margin: 0 0 10px 0;">✨ 추천 상품 (클릭하여 추가)</h4>
                 <div id="recommendList" style="display: flex; flex-direction: column; gap: 8px;">
@@ -850,6 +857,48 @@
         const RATE_LIMIT_MS = 3000; // 3초 쿨다운
         const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
 
+        // 방문일지 Google Sheets 직접 로드 (localStorage 미저장 문제 해결)
+        const VISIT_LOG_URL = 'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=707066983';
+
+        function parseCSV(text) {
+            const lines = [];
+            let current = [], field = '', inQ = false;
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i], n = text[i + 1];
+                if (c === '"') { inQ ? (n === '"' ? (field += '"', i++) : (inQ = false)) : (inQ = true); }
+                else if (c === ',' && !inQ) { current.push(field.trim()); field = ''; }
+                else if ((c === '\n' || c === '\r') && !inQ) {
+                    if (field || current.length) { current.push(field.trim()); lines.push(current); current = []; field = ''; }
+                    if (c === '\r' && n === '\n') i++;
+                } else { field += c; }
+            }
+            if (field || current.length) { current.push(field.trim()); lines.push(current); }
+            if (lines.length < 2) return [];
+            const headers = lines[0];
+            return lines.slice(1).filter(r => r.some(v => v)).map(r => {
+                const obj = {};
+                headers.forEach((h, i) => { obj[h] = r[i] || ''; });
+                return obj;
+            });
+        }
+
+        async function loadVisitLogsForStore(keyword) {
+            try {
+                const res = await fetch(VISIT_LOG_URL);
+                if (!res.ok) return [];
+                const csv = await res.text();
+                const all = parseCSV(csv).filter(r => r['작성자'] && r['작성자'].trim());
+                const kw = keyword.toLowerCase().replace(/\s/g, '');
+                return all.filter(log => {
+                    const name = (log['방문처(거래처)'] || '').toLowerCase().replace(/\s/g, '');
+                    return name.includes(kw) || kw.includes(name.substring(0, 4));
+                });
+            } catch (e) {
+                console.warn('방문일지 로드 실패:', e.message);
+                return [];
+            }
+        }
+
         async function analyzeStore() {
             const keyword = document.getElementById('storeInput').value.trim();
             const card = document.getElementById('analysisResult');
@@ -895,35 +944,22 @@
                 }
             }
 
-            // 🆕 방문일지 데이터 로드 (LocalStorage)
-            let storeHistory = [];
-            try {
-                const visitLogsJSON = localStorage.getItem('maeil_visitLogs');
-                if (visitLogsJSON) {
-                    const allVisitLogs = JSON.parse(visitLogsJSON);
-                    // 현재 매장과 관련된 방문일지만 필터링
-                    storeHistory = allVisitLogs.filter(log => {
-                        const storeName = (log['사업장명'] || '').toLowerCase();
-                        const searchKeyword = keyword.toLowerCase();
-                        return storeName.includes(searchKeyword) || searchKeyword.includes(storeName);
-                    });
+            // 방문일지 데이터 로드 (Google Sheets 직접 fetch)
+            card.style.display = 'block';
+            card.classList.add('active');
+            text.innerHTML = '📋 방문일지 확인 중...';
+            list.innerHTML = '';
+            tags.innerHTML = '';
 
-                    if (storeHistory.length > 0) {
-                        console.log(`✅ 방문일지 발견: ${storeHistory.length}건`, storeHistory);
-                    }
-                }
-            } catch (e) {
-                console.warn('방문일지 로드 실패:', e.message);
+            const storeHistory = await loadVisitLogsForStore(keyword);
+            if (storeHistory.length > 0) {
+                console.log(`✅ 방문일지 발견: ${storeHistory.length}건`, storeHistory);
             }
 
             // 새로운 분석 수행
-            card.style.display = 'block';
-            card.classList.add('active');
             text.innerHTML = storeHistory.length > 0
                 ? `🔍 네이버 리뷰 + 방문일지(${storeHistory.length}건) 분석 중... (약 5~10초 소요)`
                 : '🔍 네이버 리뷰 분석 중... (약 5~10초 소요)';
-            list.innerHTML = '';
-            tags.innerHTML = '';
 
             try {
                 const response = await fetch('/api/naver-reviews', {
@@ -973,20 +1009,8 @@
         // 증분 업데이트 (백그라운드)
         async function updateAnalysis(keyword, cachedData) {
             try {
-                // 🆕 방문일지 데이터 로드
-                let storeHistory = [];
-                try {
-                    const visitLogsJSON = localStorage.getItem('maeil_visitLogs');
-                    if (visitLogsJSON) {
-                        const allVisitLogs = JSON.parse(visitLogsJSON);
-                        storeHistory = allVisitLogs.filter(log => {
-                            const storeName = (log['사업장명'] || '').toLowerCase();
-                            return storeName.includes(keyword.toLowerCase());
-                        });
-                    }
-                } catch (e) {
-                    console.warn('방문일지 로드 실패:', e.message);
-                }
+                // 방문일지 데이터 로드 (Google Sheets 직접 fetch)
+                const storeHistory = await loadVisitLogsForStore(keyword);
 
                 const response = await fetch('/api/naver-reviews', {
                     method: 'POST',
@@ -1030,12 +1054,28 @@
             const tags = document.getElementById('keywordTags');
             const text = document.getElementById('analysisText');
             const list = document.getElementById('recommendList');
+            const sigResult = document.getElementById('signatureResult');
+            const sigList = document.getElementById('signatureMenuList');
 
             const cacheIndicator = isCached ? ' <small style="color:#888;">(캐시됨)</small>' : '';
             const updateIndicator = isUpdate ? '<br><small style="color:#0071e3;">✨ 최신 리뷰 반영됨</small>' : '';
 
             tags.innerHTML = data.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
             text.innerHTML = data.description + cacheIndicator + updateIndicator;
+
+            // 시그니처 메뉴 렌더링
+            if (data.signatureMenus && data.signatureMenus.length > 0) {
+                sigList.innerHTML = data.signatureMenus.map(m => `
+                    <div style="padding: 10px 12px; background: white; border-radius: 8px; border-left: 3px solid #ff9500;">
+                        <div style="font-weight: 700; font-size: 13px; color: #1d1d1f; margin-bottom: 4px;">🍵 ${m.menu}</div>
+                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">원료 추정: ${m.ingredients}</div>
+                        <div style="font-size: 12px; color: #0071e3; font-weight: 600;">💡 ${m.maeilSolution}</div>
+                    </div>
+                `).join('');
+                sigResult.style.display = 'block';
+            } else {
+                sigResult.style.display = 'none';
+            }
 
             list.innerHTML = '';
             data.items.forEach(item => {
