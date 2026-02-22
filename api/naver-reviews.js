@@ -152,8 +152,10 @@ ${productList}
 {"tags": ["키워드1", "키워드2"], "description": "HTML이 포함된 영업 공략 포인트", "recommendedIndices": [0, 2], "signatureMenus": [{"menu": "시그니처 라떼", "ingredients": "우유, 에스프레소", "maeilSolution": "매일 바리스타 우유 또는 저지방 우유로 풍미 차별화 제안"}]}
 
 중요 사항:
-- 반드시 유효한 JSON 객체만 출력
+- 반드시 유효한 JSON 객체만 출력 (JSON 이외 텍스트 절대 금지)
 - 코드 블록 마커 사용 금지
+- description은 2문장 이내로 간결하게 작성 (HTML 태그 최소화)
+- signatureMenus의 ingredients와 maeilSolution은 각 30자 이내로 간결하게
 - 검색 결과가 부족하면 매장명/업종 기반으로 추론하여 응답
 - signatureMenus는 블로그 리뷰에서 파악이 어려울 경우 업종 특성으로 추론`;
 
@@ -167,7 +169,7 @@ ${productList}
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 3000,
+                        maxOutputTokens: 4096,
                         topP: 0.95,
                         topK: 40
                     }
@@ -182,7 +184,14 @@ ${productList}
         }
 
         const geminiData = await geminiRes.json();
-        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+        const candidate = geminiData.candidates?.[0];
+
+        // 토큰 한도 초과로 응답이 잘린 경우 조기 감지
+        if (candidate?.finishReason === 'MAX_TOKENS') {
+            throw new Error('응답이 너무 길어 잘렸습니다. 매장명을 더 구체적으로 입력하거나 다시 시도해주세요.');
+        }
+
+        const rawText = candidate?.content?.parts?.[0]?.text;
 
         if (!rawText) {
             throw new Error('Gemini 응답이 비어있습니다.');
