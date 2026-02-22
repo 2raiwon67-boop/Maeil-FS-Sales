@@ -1146,7 +1146,7 @@
         // ============================================================
 
         function classifyRejectionReason(content, status) {
-            if (['거래', '정상'].includes(status)) return null;
+            if (status !== '미거래') return null; // 미거래 상태만 거절사유 분류 대상
             if (!content || content.trim() === '') return null;
 
             const text = content.toLowerCase();
