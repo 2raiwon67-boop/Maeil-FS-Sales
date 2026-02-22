@@ -853,6 +853,68 @@
         .rejection-quality  { background: #f3e8ff; color: #9333ea; }
         .rejection-other    { background: #f3f4f6; color: #6b7280; }
 
+        /* =============== 분류기준 팝업 =============== */
+        .criteria-btn {
+            font-size: 12px;
+            font-weight: 500;
+            color: #0071e3;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 10px;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+        .criteria-btn:hover { color: #005bb5; }
+
+        .criteria-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+        .criteria-modal.active { display: flex; }
+
+        .criteria-content {
+            background: white;
+            border-radius: 16px;
+            padding: 28px 32px;
+            max-width: 480px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .criteria-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .criteria-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        .criteria-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f7;
+        }
+        .criteria-row:last-child { border-bottom: none; }
+        .criteria-keywords {
+            font-size: 12px;
+            color: #86868b;
+            line-height: 1.6;
+            flex: 1;
+        }
+
         /* =============== 거절사유 통계 섹션 =============== */
         .rejection-stats {
             background: #f5f5f7;
@@ -957,8 +1019,45 @@
 
         <!-- 3개월 거절사유 통계 -->
         <div class="rejection-stats" id="rejectionStats" style="display:none;">
-            <div class="rejection-stats-title">3개월 거절사유 분석 <span style="font-weight:400; color:#aaa;">(미거래 방문 기준)</span></div>
+            <div class="rejection-stats-title">
+                3개월 거절사유 분석 <span style="font-weight:400; color:#aaa;">(미거래 방문 기준)</span>
+                <button class="criteria-btn" onclick="openCriteriaModal()">분류기준</button>
+            </div>
             <div class="rejection-items" id="rejectionItems"></div>
+        </div>
+
+        <!-- 분류기준 팝업 모달 -->
+        <div class="criteria-modal" id="criteriaModal" onclick="closeCriteriaModal(event)">
+            <div class="criteria-content">
+                <div class="criteria-header">
+                    <h3>거절사유 분류기준</h3>
+                    <button class="close-btn" onclick="closeCriteriaModal()">&times;</button>
+                </div>
+                <div class="criteria-row">
+                    <span class="rejection-badge rejection-price">가격</span>
+                    <span class="criteria-keywords">비싸다, 단가, 원가, 할인, 마진, 저렴 등<br>가격 관련 언급이 포함된 경우</span>
+                </div>
+                <div class="criteria-row">
+                    <span class="rejection-badge rejection-relation">기존관계</span>
+                    <span class="criteria-keywords">대리점, 기존 거래처, 오래 거래, 납품처, 바꾸기 어렵다, 변경 등<br>현재 거래 관계 유지 의사를 밝힌 경우</span>
+                </div>
+                <div class="criteria-row">
+                    <span class="rejection-badge rejection-timing">시기부적절</span>
+                    <span class="criteria-keywords">아직, 나중에, 보류, 검토 중, 추후, 지켜보겠다 등<br>즉각 거절보다 시기 문제로 미루는 경우</span>
+                </div>
+                <div class="criteria-row">
+                    <span class="rejection-badge rejection-clear">거절명확</span>
+                    <span class="criteria-keywords">관심없다, 필요없다, 안된다, 불필요 등<br>명확하게 거절 의사를 표한 경우</span>
+                </div>
+                <div class="criteria-row">
+                    <span class="rejection-badge rejection-quality">품질/제품</span>
+                    <span class="criteria-keywords">맛, 품질, 제품 불만, 남양·서울우유 등 경쟁사 언급<br>제품 자체에 대한 불만이나 타사 선호인 경우</span>
+                </div>
+                <div class="criteria-row">
+                    <span class="rejection-badge rejection-other">기타</span>
+                    <span class="criteria-keywords">위 항목에 해당하지 않는 미거래 방문 기록</span>
+                </div>
+            </div>
         </div>
 
         <!-- 검색/필터 바 -->
@@ -1675,6 +1774,16 @@
 
         function closeTimelineModal() {
             document.getElementById('timelineModal').classList.remove('active');
+        }
+
+        function openCriteriaModal() {
+            document.getElementById('criteriaModal').classList.add('active');
+        }
+
+        function closeCriteriaModal(e) {
+            if (!e || e.target === document.getElementById('criteriaModal') || e.currentTarget.classList.contains('close-btn')) {
+                document.getElementById('criteriaModal').classList.remove('active');
+            }
         }
 
         function formatPeriod(periodStr) {
