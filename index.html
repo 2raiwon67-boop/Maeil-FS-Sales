@@ -208,7 +208,7 @@
         }
 
         .status-card.no-deal {
-            border-left: 3px solid #1d1d1f;
+            border-left: 3px solid #ff3b30;
         }
 
         .status-card.licensed {
@@ -2768,14 +2768,17 @@
                     const pos = new naver.maps.LatLng(lat, lng);
 
                     // 거래 상태에 따른 색상 지정
-                    // 거래: 파랑 (#007AFF), 미거래: 연빨강 (#FF9595), 인허가: 초록 (#34C759), DROP: 회색 (#8E8E93), 공사중: 주황 (#FF9500)
+                    // 거래: 파랑 (#007AFF), 미거래: 빨강 (#ff3b30), 인허가: 초록 (#34C759), 공사중: 주황 (#FF9500)
+                    // DROP: 지도에 마커 미표시
                     const status = (item['거래여부(기입예정)'] || '').toString().trim();
+
+                    if (status === 'DROP') continue; // DROP은 지도에 표시하지 않음
+
                     let color = '#34C759'; // 기본: 초록 (인허가)
 
                     if (status === '거래') color = '#007AFF';       // 파랑
-                    else if (status === '미거래') color = '#FF9595';  // 연빨강
-                    else if (status === 'DROP') color = '#8E8E93';   // 회색
-                    else if (status === '공사중') color = '#FF9500';  // 주황
+                    else if (status === '미거래') color = '#ff3b30'; // 빨강
+                    else if (status === '공사중') color = '#FF9500'; // 주황
                     else if (status === '인허가') color = '#34C759'; // 초록
 
                     // 14일 경과 여부 확인 (인허가 상태일 때만)
