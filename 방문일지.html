@@ -838,6 +838,54 @@
             display: block;
         }
 
+        /* =============== 거절사유 배지 =============== */
+        .rejection-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .rejection-price    { background: #fef3c7; color: #d97706; }
+        .rejection-relation { background: #ede9fe; color: #7c3aed; }
+        .rejection-timing   { background: #e0f2fe; color: #0369a1; }
+        .rejection-clear    { background: #fee2e2; color: #dc2626; }
+        .rejection-quality  { background: #f3e8ff; color: #9333ea; }
+        .rejection-other    { background: #f3f4f6; color: #6b7280; }
+
+        /* =============== 거절사유 통계 섹션 =============== */
+        .rejection-stats {
+            background: #f5f5f7;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+        .rejection-stats-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+        .rejection-items {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .rejection-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+        }
+        .rejection-count {
+            font-weight: 700;
+            font-size: 15px;
+            color: #1d1d1f;
+        }
+
         /* =============== 반응형 =============== */
         @media (max-width: 768px) {
             .chatbot-container {
@@ -907,6 +955,12 @@
             </div>
         </div>
 
+        <!-- 3개월 거절사유 통계 -->
+        <div class="rejection-stats" id="rejectionStats" style="display:none;">
+            <div class="rejection-stats-title">3개월 거절사유 분석 <span style="font-weight:400; color:#aaa;">(미거래 방문 기준)</span></div>
+            <div class="rejection-items" id="rejectionItems"></div>
+        </div>
+
         <!-- 검색/필터 바 -->
         <div class="filter-bar">
             <div class="filter-row">
@@ -940,6 +994,15 @@
                     <option value="today">오늘</option>
                     <option value="week">이번 주</option>
                     <option value="month">이번 달</option>
+                </select>
+                <select class="filter-select" id="rejectionFilter" onchange="filterData()">
+                    <option value="">전체 거절사유</option>
+                    <option value="가격">가격</option>
+                    <option value="기존관계">기존관계</option>
+                    <option value="시기부적절">시기부적절</option>
+                    <option value="거절명확">거절명확</option>
+                    <option value="품질/제품">품질/제품</option>
+                    <option value="기타">기타</option>
                 </select>
             </div>
         </div>
@@ -985,6 +1048,64 @@
     </div>
 
     <script>
+        // ============================================================
+        // 거절사유 분류
+        // ============================================================
+
+        function classifyRejectionReason(content, status) {
+            if (['거래', '정상'].includes(status)) return null;
+            if (!content || content.trim() === '') return null;
+
+            const text = content.toLowerCase();
+
+            if (/가격|비싸|단가|원가|저렴|할인|싸게|마진/.test(text)) return '가격';
+            if (/대리점|기존|관계|오래|납품처|바꾸기|바꿀|변경|이미 거래|현재 거래|이미/.test(text)) return '기존관계';
+            if (/시기|아직|나중|기다|검토|추후|지켜|당분간|보류|잠시/.test(text)) return '시기부적절';
+            if (/관심없|필요없|됐습|안됨|불필요|거절|싫/.test(text)) return '거절명확';
+            if (/품질|맛|제품|불만|타사|경쟁|남양|서울우유|연세/.test(text)) return '품질/제품';
+            return '기타';
+        }
+
+        function getRejectionClass(reason) {
+            const map = {
+                '가격': 'price', '기존관계': 'relation',
+                '시기부적절': 'timing', '거절명확': 'clear',
+                '품질/제품': 'quality', '기타': 'other'
+            };
+            return map[reason] || 'other';
+        }
+
+        function updateRejectionStats() {
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+            const counts = {};
+            allVisitLogs.forEach(log => {
+                const visitDate = parseVisitDate(log['작성일'] || log['일정기간']);
+                if (!visitDate || visitDate < threeMonthsAgo) return;
+                const reason = classifyRejectionReason(log['내용'], log['거래상태'] || '');
+                if (!reason) return;
+                counts[reason] = (counts[reason] || 0) + 1;
+            });
+
+            const total = Object.values(counts).reduce((a, b) => a + b, 0);
+            const statsEl = document.getElementById('rejectionStats');
+            const itemsEl = document.getElementById('rejectionItems');
+
+            if (total === 0) { statsEl.style.display = 'none'; return; }
+
+            statsEl.style.display = 'block';
+            itemsEl.innerHTML = Object.entries(counts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([reason, count]) => `
+                    <div class="rejection-item">
+                        <span class="rejection-badge rejection-${getRejectionClass(reason)}">${reason}</span>
+                        <span class="rejection-count">${count}건</span>
+                        <span style="color:#aaa; font-size:12px;">${Math.round(count / total * 100)}%</span>
+                    </div>
+                `).join('');
+        }
+
         // ============================================================
         // 전역 변수
         // ============================================================
@@ -1074,6 +1195,9 @@
             // 통계 업데이트
             updateStatistics();
 
+            // 거절사유 통계 업데이트 (3개월 기준)
+            updateRejectionStats();
+
             // 카드 렌더링
             filteredAccounts = [...groupedAccounts];
             displayedCount = 0;
@@ -1148,6 +1272,7 @@
                     manager: log['작성자'],
                     issue: log['주요이슈'],
                     status: status,
+                    rejectionReason: classifyRejectionReason(log['내용'], status),
                     // dealer: log['방문처(대리점)'],
                     fullData: log
                 });
@@ -1340,10 +1465,11 @@
 
         function filterData() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const typeFilter = document.getElementById('typeFilter').value; // 구분 필터 추가
+            const typeFilter = document.getElementById('typeFilter').value;
             const managerFilter = document.getElementById('managerFilter').value;
             const statusFilter = document.getElementById('statusFilter').value;
             const periodFilter = document.getElementById('periodFilter').value;
+            const rejectionFilter = document.getElementById('rejectionFilter').value;
 
             filteredAccounts = groupedAccounts.filter(account => {
                 // 구분 필터
@@ -1392,6 +1518,12 @@
                     });
 
                     if (!hasVisitInPeriod) return false;
+                }
+
+                // 거절사유 필터
+                if (rejectionFilter) {
+                    const hasRejection = account.visits.some(v => v.rejectionReason === rejectionFilter);
+                    if (!hasRejection) return false;
                 }
 
                 return true;
@@ -1513,6 +1645,7 @@
                                             <span class="timeline-label">거래상태:</span>
                                             <span class="status-badge ${statusClass}">${visit.status || '-'}</span>
                                         </div>
+                                        ${visit.rejectionReason ? `<div class="timeline-detail-row"><span class="timeline-label">거절사유:</span><span class="rejection-badge rejection-${getRejectionClass(visit.rejectionReason)}">${visit.rejectionReason}</span></div>` : ''}
                                         ${visit.issue === 'Y' ? '<div class="timeline-detail-row"><span class="timeline-label">주요이슈:</span><span style="color: #ff3b30; font-weight: 600;">⚠️ 있음</span></div>' : ''}
                                         ${visit.fullData['다음방문일'] ? `<div class="timeline-detail-row"><span class="timeline-label">다음방문:</span><span>${visit.fullData['다음방문일']}</span></div>` : ''}
                                         ${visit.fullData['사용품목'] ? `<div class="timeline-detail-row"><span class="timeline-label">사용품목:</span><span>${visit.fullData['사용품목']}</span></div>` : ''}
