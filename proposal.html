@@ -129,6 +129,21 @@
             background: #f5f5f7;
             display: flex;
             justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* 복수 페이지 컨테이너 */
+        #papers-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            transform-origin: top center;
+        }
+
+        /* 인쇄 전용 컨테이너 */
+        #print-container {
+            display: none;
         }
 
         /* 리사이저 핸들 */
@@ -260,7 +275,6 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             position: relative;
             box-sizing: border-box;
-            transform-origin: top center;
         }
 
         .paper-header {
@@ -468,35 +482,37 @@
             #userNameDisplay { display: none !important; }
         }
 
+        /* ===== 인쇄 전용 스타일 ===== */
         @media print {
-
-            .nav-bar,
-            .analysis-panel,
-            .add-row-btn,
-            .floating-actions,
-            .no-print {
+            /* 인쇄 시 print-container만 표시 */
+            body > *:not(#print-container) {
                 display: none !important;
             }
 
-            .container {
-                height: auto;
+            #print-container {
+                display: block !important;
             }
 
-            .workspace {
-                padding: 0;
-                overflow: visible;
-                background: white;
-            }
-
-            .paper {
+            #print-container .paper {
+                transform: none !important;
+                zoom: 1 !important;
                 box-shadow: none;
-                margin: 0;
-                width: 100%;
-                min-height: auto;
+                margin: 0 auto;
+                width: 210mm;
+                min-height: 297mm;
+                padding: 20mm 8mm;
+                box-sizing: border-box;
+                page-break-after: always;
+                position: relative;
+            }
+
+            #print-container .paper:last-child {
+                page-break-after: auto;
             }
 
             body {
                 background: white;
+                overflow: visible;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
@@ -572,61 +588,8 @@
         <div class="workspace">
             <!-- 2-1. 좌측 프리뷰 영역 -->
             <div class="preview-side">
-                <div class="paper" id="proposalPaper">
-                    <div class="paper-header">
-                        <div class="paper-title">매일유업 견적서</div>
-                        <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
-                    </div>
-
-                    <table class="info-table">
-                        <tr id="preview-recipientRow">
-                            <td class="info-label">수신</td>
-                            <td colspan="3" id="preview-customerName" style="font-size: 14px; font-weight: 600;"></td>
-                        </tr>
-                        <tr>
-                            <td class="info-label">담당자</td>
-                            <td id="preview-managerName"></td>
-                            <td class="info-label">연락처</td>
-                            <td id="preview-managerPhone"></td>
-                        </tr>
-                    </table>
-
-                    <table class="quote-table">
-                        <colgroup>
-                            <col style="width: 4%">
-                            <col style="width: 28%">
-                            <col style="width: 9%">
-                            <col style="width: 25%">
-                            <col style="width: 16%">
-                            <col style="width: 18%">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>품명</th>
-                                <th>규격</th>
-                                <th>내용</th>
-                                <th>판매가</th>
-                                <th>사진</th>
-                            </tr>
-                        </thead>
-                        <tbody id="preview-quoteBody">
-                            <!-- 프리뷰 행들이 동적으로 추가됨 -->
-                        </tbody>
-                        <tfoot>
-                            <tr style="background: #fbfbfd; font-weight: 700;">
-                                <td colspan="4" style="text-align: center; padding: 10px;">합 계</td>
-                                <td colspan="2" style="text-align: right; padding: 0 15px;">
-                                    <span id="preview-totalAmount">0</span>원
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                    <div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">
-                        * 부가세(VAT) 포함가 기준입니다.
-                    </div>
-                </div>
+                <!-- 페이지들이 동적으로 생성됨 -->
+                <div id="papers-container"></div>
             </div>
 
             <!-- 리사이저 핸들 -->
@@ -703,6 +666,9 @@
         </datalist>
     </div>
 
+    <!-- 인쇄 전용 컨테이너 (화면에는 숨김, 인쇄 시에만 표시) -->
+    <div id="print-container"></div>
+
 
     <script>
         window.addEventListener('load', async () => {
@@ -710,8 +676,8 @@
             await loadProductDBFromSheets();
         });
 
-        // 초기화
-        // document.getElementById('todayDate').innerText = new Date().toLocaleDateString(); // 날짜 표시 제거됨
+        // 페이지당 최대 품목 수 (A4 1장 기준)
+        const ITEMS_PER_PAGE = 16;
 
         // 제품 DB (Google Sheets에서 자동 로드됨)
         let productDB = [];
@@ -746,21 +712,183 @@
             list.innerHTML = productDB.map(p => `<option value="${p.name}">${p.spec}</option>`).join('');
         }
 
+        // ===== HTML 이스케이프 헬퍼 =====
+        function esc(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ===== 페이퍼 스케일 조정 (zoom 사용 — 레이아웃에도 반영됨) =====
+        function scalePapers() {
+            const container = document.getElementById('papers-container');
+            const previewSide = document.querySelector('.preview-side');
+            if (!container || !previewSide) return;
+            const availableWidth = previewSide.clientWidth - 60; // 좌우 padding 30px * 2
+            const PAPER_NATURAL_PX = 794; // 210mm at 96dpi
+            const scale = Math.min(Math.max(availableWidth / PAPER_NATURAL_PX, 0.4), 1.0);
+            container.style.zoom = scale;
+        }
+
+        // ===== 프리뷰 전체 재구성 =====
+        function rebuildPreview() {
+            const container = document.getElementById('papers-container');
+            if (!container) return;
+
+            const editorRows = Array.from(document.querySelectorAll('#editor-items-container > div'));
+            const numPages = Math.max(1, Math.ceil(editorRows.length / ITEMS_PER_PAGE));
+
+            // 필요한 페이지 수에 맞게 paper div 조정
+            while (container.children.length > numPages) container.lastChild.remove();
+            while (container.children.length < numPages) {
+                const p = document.createElement('div');
+                p.className = 'paper';
+                container.appendChild(p);
+            }
+
+            const customerName = document.getElementById('edit-customerName').value;
+            const managerName = document.getElementById('edit-managerName').value;
+            const managerPhone = document.getElementById('edit-managerPhone').value;
+            const quoteMode = document.querySelector('input[name="quoteMode"]:checked').value;
+
+            for (let i = 0; i < numPages; i++) {
+                renderPaper(
+                    container.children[i],
+                    i,
+                    numPages,
+                    editorRows.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE),
+                    customerName, managerName, managerPhone, quoteMode
+                );
+            }
+
+            scalePapers();
+            updateTotal();
+        }
+
+        // ===== 개별 페이퍼 렌더링 =====
+        function renderPaper(paper, pageIndex, totalPages, editorRows, customerName, managerName, managerPhone, quoteMode) {
+            const isFirst = pageIndex === 0;
+            const isLast = pageIndex === totalPages - 1;
+
+            let html = `
+                <div class="paper-header">
+                    <div class="paper-title">매일유업 견적서</div>
+                    <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
+                </div>
+            `;
+
+            if (isFirst) {
+                html += `
+                <table class="info-table">
+                    <tr id="preview-recipientRow"${quoteMode === 'general' ? ' style="display:none"' : ''}>
+                        <td class="info-label">수신</td>
+                        <td colspan="3" id="preview-customerName" style="font-size: 14px; font-weight: 600;">${esc(customerName)}</td>
+                    </tr>
+                    <tr>
+                        <td class="info-label">담당자</td>
+                        <td id="preview-managerName">${esc(managerName)}</td>
+                        <td class="info-label">연락처</td>
+                        <td id="preview-managerPhone">${esc(managerPhone)}</td>
+                    </tr>
+                </table>
+                `;
+            } else {
+                html += `<div style="text-align:right;font-size:11px;color:#bbb;margin-bottom:8px;">(${pageIndex + 1} / ${totalPages} 페이지)</div>`;
+            }
+
+            html += `
+            <table class="quote-table">
+                <colgroup>
+                    <col style="width: 4%">
+                    <col style="width: 28%">
+                    <col style="width: 9%">
+                    <col style="width: 25%">
+                    <col style="width: 16%">
+                    <col style="width: 18%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>품명</th>
+                        <th>규격</th>
+                        <th>내용</th>
+                        <th>판매가</th>
+                        <th>사진</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            editorRows.forEach((editorRow, idx) => {
+                const globalRowNum = pageIndex * ITEMS_PER_PAGE + idx + 1;
+                const rowId = editorRow.querySelector('.row-id').value;
+                const name = editorRow.querySelector('.project-name').value;
+                const spec = editorRow.querySelector('.p-spec-input').value;
+                const desc = editorRow.querySelector('.p-description').value;
+                const sales = parseFloat(editorRow.querySelector('.sales-price').value) || 0;
+
+                const cleanName = name.replace(/\s+/g, '').replace(/[🥛☕🌿🍫🥤📦]/g, '');
+                const imgHTML = cleanName
+                    ? `<img src="assets/images/${cleanName}.jpg" onerror="this.src='assets/images/${cleanName}.png';this.onerror=function(){this.parentElement.innerHTML='<div style=\\'width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;\\'>NO IMG</div>';}" style="width:80px;height:auto;max-height:50px;object-fit:contain;border-radius:4px;">`
+                    : `<div style="width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;">IMG</div>`;
+
+                html += `
+                <tr id="preview-${rowId}">
+                    <td style="text-align:center;color:#888;">${globalRowNum}</td>
+                    <td class="p-name" style="text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(name)}</td>
+                    <td class="p-spec" style="text-align:center;">${esc(spec)}</td>
+                    <td class="p-desc" style="text-align:center;padding:4px 8px;font-size:11px;color:#666;word-break:keep-all;overflow-wrap:break-word;line-height:1.6;">${esc(desc)}</td>
+                    <td class="p-sales" style="text-align:right;padding:0 6px;font-weight:600;">${Math.floor(sales).toLocaleString()}</td>
+                    <td class="p-img" style="text-align:center;padding:4px;">${imgHTML}</td>
+                </tr>`;
+            });
+
+            html += '</tbody>';
+
+            if (isLast) {
+                html += `
+                <tfoot>
+                    <tr style="background: #fbfbfd; font-weight: 700;">
+                        <td colspan="4" style="text-align: center; padding: 10px;">합 계</td>
+                        <td colspan="2" style="text-align: right; padding: 0 15px;">
+                            <span id="preview-totalAmount">0</span>원
+                        </td>
+                    </tr>
+                </tfoot>`;
+            }
+
+            html += '</table>';
+
+            if (isLast) {
+                html += `<div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">* 부가세(VAT) 포함가 기준입니다.</div>`;
+            }
+
+            if (totalPages > 1) {
+                html += `<div style="text-align:center;font-size:11px;color:#ccc;position:absolute;bottom:10mm;left:0;width:100%;">${pageIndex + 1} / ${totalPages}</div>`;
+            }
+
+            paper.innerHTML = html;
+        }
+
         // 1. 정보 동기화 (상단 기본 정보)
         function syncInfo() {
             const customerName = document.getElementById('edit-customerName').value;
             const managerName = document.getElementById('edit-managerName').value;
             const managerPhone = document.getElementById('edit-managerPhone').value;
 
-            document.getElementById('preview-customerName').innerText = customerName;
-            document.getElementById('preview-managerName').innerText = managerName;
-            document.getElementById('preview-managerPhone').innerText = managerPhone;
+            const el1 = document.getElementById('preview-customerName');
+            const el2 = document.getElementById('preview-managerName');
+            const el3 = document.getElementById('preview-managerPhone');
+            if (el1) el1.innerText = customerName;
+            if (el2) el2.innerText = managerName;
+            if (el3) el3.innerText = managerPhone;
         }
 
-        // 2. 행 추가 로직 (컨트롤 패널 & 프리뷰 동시 추가)
+        // 2. 행 추가 로직
         function addRow(data = null) {
             const editorContainer = document.getElementById('editor-items-container');
-            const previewTbody = document.getElementById('preview-quoteBody');
 
             const rowId = 'row-' + Date.now();
             const rowCount = editorContainer.children.length + 1;
@@ -771,7 +899,7 @@
             const isTaxFree = data ? data.taxFree : false;
             const maxDc = data ? data.maxDc : 0;
 
-            // 2-1. 에디터 행 생성
+            // 에디터 행 생성
             const editorRow = document.createElement('div');
             editorRow.className = 'result-card active';
             editorRow.id = `editor-${rowId}`;
@@ -783,8 +911,8 @@
             editorRow.innerHTML = `
                 <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
                     <span style="font-weight: 700; color: #888; width: 20px;">${rowCount}</span>
-                    <input type="text" class="input-field project-name" value="${name}" list="productOptions" placeholder="품명" oninput="calculateRow(this)">
-                    <input type="text" class="input-field p-spec-input" value="${spec}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
+                    <input type="text" class="input-field project-name" value="${esc(name)}" list="productOptions" placeholder="품명" oninput="calculateRow(this)">
+                    <input type="text" class="input-field p-spec-input" value="${esc(spec)}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
                     <button onclick="removeRow('${rowId}')" style="background: none; border: none; color: #ff3b30; cursor: pointer;">✕</button>
                 </div>
                 <div style="display: none;">
@@ -816,45 +944,31 @@
             `;
             editorContainer.appendChild(editorRow);
 
-            // 2-2. 프리뷰 행 생성
-            const previewRow = document.createElement('tr');
-            previewRow.id = `preview-${rowId}`;
-            previewRow.innerHTML = `
-                <td style="text-align: center; color: #888;">${rowCount}</td>
-                <td class="p-name" style="text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</td>
-                <td class="p-spec" style="text-align: center;">${spec}</td>
-                <td class="p-desc" style="text-align: center; padding: 4px 8px; font-size: 11px; color: #666; word-break: keep-all; overflow-wrap: break-word; line-height: 1.6;"></td>
-                <td class="p-sales" style="text-align: right; padding: 0 6px; font-weight: 600;">${price.toLocaleString()}</td>
-                <td class="p-img" style="text-align: center; padding: 4px;">
-                    <div class="img-placeholder" style="width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">IMG</div>
-                </td>
-            `;
-            previewTbody.appendChild(previewRow);
+            // 프리뷰 재구성 (자동 페이지 분할 포함)
+            rebuildPreview();
 
+            // 에디터 계산값 업데이트
             calculateRow(editorRow.querySelector('.factory-price'));
         }
 
         // 3. 행 삭제 로직
         function removeRow(rowId) {
             document.getElementById(`editor-${rowId}`).remove();
-            document.getElementById(`preview-${rowId}`).remove();
 
             // 번호 다시 매기기
             const editorRows = document.querySelectorAll('#editor-items-container > div');
             editorRows.forEach((row, idx) => {
                 row.querySelector('span').innerText = idx + 1;
             });
-            const previewRows = document.querySelectorAll('#preview-quoteBody > tr');
-            previewRows.forEach((row, idx) => {
-                row.querySelector('td').innerText = idx + 1;
-            });
 
-            updateTotal();
+            // 프리뷰 재구성 (빈 페이지 자동 제거 포함)
+            rebuildPreview();
         }
 
         // 4. 계산 및 동기화 로직
         function calculateRow(element) {
             const row = element.closest('.active');
+            if (!row) return;
             const rowId = row.querySelector('.row-id').value;
             const previewRow = document.getElementById(`preview-${rowId}`);
 
@@ -904,17 +1018,19 @@
             else if (marginRate >= 10) marginDisplay.classList.add('margin-med');
             else marginDisplay.classList.add('margin-low');
 
-            // 4-3. 프리뷰 UI 업데이트
-            previewRow.querySelector('.p-name').innerText = name;
-            previewRow.querySelector('.p-spec').innerText = spec;
-            previewRow.querySelector('.p-desc').innerText = desc;
-            previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString();
+            // 4-3. 프리뷰 UI 직접 업데이트 (rebuildPreview 없이 빠르게)
+            if (previewRow) {
+                previewRow.querySelector('.p-name').innerText = name;
+                previewRow.querySelector('.p-spec').innerText = spec;
+                previewRow.querySelector('.p-desc').innerText = desc;
+                previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString();
 
-            // 사진 자동 로드 로직 (assets/images/파일명.jpg 혹은 png 기대)
-            const imgCell = previewRow.querySelector('.p-img');
-            const cleanName = name.replace(/\s+/g, '').replace(/[🥛☕🌿🍫🥤📦]/g, ''); // 공백 제거 및 아이콘 제거
-            if (cleanName) {
-                imgCell.innerHTML = `<img src="assets/images/${cleanName}.jpg" onerror="this.src='assets/images/${cleanName}.png'; this.onerror=function(){ this.parentElement.innerHTML='<div class=\\'img-placeholder\\' style=\\'width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;\\'>NO IMG</div>'; }" style="width: 80px; height: auto; max-height: 50px; object-fit: contain; border-radius: 4px;">`;
+                // 사진 자동 로드
+                const imgCell = previewRow.querySelector('.p-img');
+                const cleanName = name.replace(/\s+/g, '').replace(/[🥛☕🌿🍫🥤📦]/g, '');
+                if (cleanName) {
+                    imgCell.innerHTML = `<img src="assets/images/${cleanName}.jpg" onerror="this.src='assets/images/${cleanName}.png'; this.onerror=function(){ this.parentElement.innerHTML='<div style=\\'width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;\\'>NO IMG</div>'; }" style="width: 80px; height: auto; max-height: 50px; object-fit: contain; border-radius: 4px;">`;
+                }
             }
 
             updateTotal();
@@ -933,7 +1049,9 @@
             });
 
             document.getElementById('edit-totalAmount').innerText = Math.floor(totalSales).toLocaleString();
-            document.getElementById('preview-totalAmount').innerText = Math.floor(totalSales).toLocaleString();
+
+            const previewTotal = document.getElementById('preview-totalAmount');
+            if (previewTotal) previewTotal.innerText = Math.floor(totalSales).toLocaleString();
 
             let totalMarginRate = 0;
             if (totalSales > 0) {
@@ -1207,23 +1325,40 @@
             if (e.key === 'Enter') analyzeStore();
         });
 
-        // 4. PDF 생성
+        // 4. PDF 생성 — 견적서 영역만 인쇄
         function generatePDF() {
+            const printContainer = document.getElementById('print-container');
+            const papersContainer = document.getElementById('papers-container');
+
+            // 현재 papers-container 내용을 print-container에 복제 (zoom 제거)
+            printContainer.innerHTML = papersContainer.innerHTML;
+            printContainer.querySelectorAll('.paper').forEach(p => {
+                p.style.transform = '';
+            });
+
             window.print();
-            // 참고: 실제 파일 저장은 window.print()를 PDF로 저장하거나, 
-            // html2canvas + jspdf 조합을 사용할 수 있습니다. 여기선 브라우저 기본 인쇄 기능 활용.
         }
+
+        // Ctrl+P 직접 인쇄 시에도 print-container 동기화
+        window.addEventListener('beforeprint', () => {
+            const printContainer = document.getElementById('print-container');
+            const papersContainer = document.getElementById('papers-container');
+            if (printContainer && papersContainer) {
+                printContainer.innerHTML = papersContainer.innerHTML;
+                printContainer.querySelectorAll('.paper').forEach(p => {
+                    p.style.transform = '';
+                });
+            }
+        });
 
         // 6. 견적서 모드 설정
         function setQuoteMode(mode) {
-            const previewRecipient = document.getElementById('preview-recipientRow');
-            const editCustomerGroup = document.getElementById('edit-customerGroup');
+            rebuildPreview();
 
+            const editCustomerGroup = document.getElementById('edit-customerGroup');
             if (mode === 'general') {
-                previewRecipient.style.display = 'none';
                 editCustomerGroup.style.display = 'none';
             } else {
-                previewRecipient.style.display = 'table-row';
                 editCustomerGroup.style.display = 'block';
             }
         }
@@ -1257,20 +1392,13 @@
             const previewSide = resizer.previousElementSibling;
             const editorSide = resizer.nextElementSibling;
             const workspace = resizer.parentElement;
-            const paper = document.getElementById('proposalPaper');
 
             // 210mm = 약 794px (96dpi 기준)
             const PAPER_NATURAL_PX = 794;
             const PREVIEW_PADDING = 60; // 좌우 padding 30px * 2
 
-            function scalePaper() {
-                const availableWidth = previewSide.clientWidth - PREVIEW_PADDING;
-                const scale = Math.min(Math.max(availableWidth / PAPER_NATURAL_PX, 0.4), 1.0);
-                paper.style.transform = `scale(${scale})`;
-            }
-
             // 초기 스케일 적용 (레이아웃 완료 후)
-            requestAnimationFrame(scalePaper);
+            requestAnimationFrame(scalePapers);
 
             let startX, startWidth;
 
@@ -1289,7 +1417,7 @@
                         workspaceWidth - 260 - 6
                     );
                     previewSide.style.width = newWidth + 'px';
-                    scalePaper();
+                    scalePapers();
                 }
 
                 function onMouseUp() {
@@ -1305,7 +1433,7 @@
             });
 
             // 창 크기 변경 시에도 재조정
-            window.addEventListener('resize', scalePaper);
+            window.addEventListener('resize', scalePapers);
         })();
     </script>
 </body>
