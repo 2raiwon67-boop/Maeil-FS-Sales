@@ -1823,7 +1823,7 @@
                         <div class="dashboard-title">📍 지역별 분포 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '주소2' 기준)</span>
                         </div>
-                        <div id="regionFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="if(_activeRegionFilter){_activeRegionFilter=null;renderStatusChart(null);renderRegionChart(null);}else if(_activeStatusFilter){_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);}">막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다</div>
+                        <div id="regionFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="_activeRegionFilter=null;_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);">막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다</div>
                         <div style="position: relative; height: 270px; width: 100%;">
                             <canvas id="dashRegionChart"></canvas>
                         </div>
@@ -1832,7 +1832,7 @@
                         <div class="dashboard-title">📊 현재 거래 상태 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '거래여부' 기준)</span>
                         </div>
-                        <div id="statusFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="if(_activeStatusFilter){_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);}else if(_activeRegionFilter){_activeRegionFilter=null;renderStatusChart(null);renderRegionChart(null);}">막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다</div>
+                        <div id="statusFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="_activeStatusFilter=null;_activeRegionFilter=null;renderRegionChart(null);renderStatusChart(null);">막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다</div>
                         <div style="position: relative; height: 270px; width: 100%;">
                             <canvas id="dashStatusChart"></canvas>
                         </div>
@@ -2185,10 +2185,12 @@
                         tension: 0.3
                     }]
                 },
-                options: Object.assign({}, commonOptions, {
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
-                })
+                }
             });
         }
 
@@ -2262,8 +2264,9 @@
                         const clickedRegion = labels[idx];
                         if (_activeRegionFilter === clickedRegion) {
                             _activeRegionFilter = null;
+                            _activeStatusFilter = null;
+                            renderRegionChart(null);
                             renderStatusChart(null);
-                            renderRegionChart(_activeStatusFilter);
                         } else {
                             _activeRegionFilter = clickedRegion;
                             _activeStatusFilter = null;
@@ -2320,8 +2323,9 @@
                         const clickedStatus = labels[idx];
                         if (_activeStatusFilter === clickedStatus) {
                             _activeStatusFilter = null;
+                            _activeRegionFilter = null;
                             renderRegionChart(null);
-                            renderStatusChart(_activeRegionFilter);
+                            renderStatusChart(null);
                         } else {
                             _activeStatusFilter = clickedStatus;
                             _activeRegionFilter = null;
