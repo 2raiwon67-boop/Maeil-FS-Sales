@@ -1069,7 +1069,11 @@ ${majorAccounts.map(a => `${a.name}(${a.status || '-'}) ${a.visits.length}회`).
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt,
-                        generationConfig: { temperature: 0.3, maxOutputTokens: 5000 }
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 8192,
+                            thinkingConfig: { thinkingBudget: 0 }
+                        }
                     })
                 });
 
