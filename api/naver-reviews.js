@@ -183,11 +183,11 @@ ${productList}
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 1500,
+                        maxOutputTokens: 2500,
                         topP: 0.95,
                         topK: 40,
                         thinkingConfig: {
-                            thinkingBudget: 1024  // thinking 모델 토큰 상한 (0=비활성, 최대 24576)
+                            thinkingBudget: 0  // JSON 구조 출력이라 thinking 비활성화 → 출력 토큰 낭비 방지
                         }
                     }
                 })
