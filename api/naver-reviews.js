@@ -185,10 +185,10 @@ ${productList}
                         temperature: 0.7,
                         maxOutputTokens: 1500,
                         topP: 0.95,
-                        topK: 40
-                    },
-                    thinkingConfig: {
-                        thinkingBudget: 1024  // thinking 모델 토큰 상한 (0=비활성, 최대 24576)
+                        topK: 40,
+                        thinkingConfig: {
+                            thinkingBudget: 1024  // thinking 모델 토큰 상한 (0=비활성, 최대 24576)
+                        }
                     }
                 })
             }
