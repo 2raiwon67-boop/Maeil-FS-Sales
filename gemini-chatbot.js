@@ -22,6 +22,24 @@ class GeminiChatbot {
         this.dataContext.visitLogs = visitLogs;
         this.dataContext.accounts = accounts;
         this.dataContext.licenses = licenses;
+
+        // 데이터 온톨로지(Master ID 결합) 빌드
+        this.buildOntology();
+    }
+
+    // 거래처 ID 기반 데이터 온톨로지(결합) 생성
+    buildOntology() {
+        this.ontologyMap = new Map();
+
+        // 1. 주요거래처 마스터 정보 등록 (Key: 거래처ID)
+        if (this.dataContext.accounts) {
+            this.dataContext.accounts.forEach(acc => {
+                const accId = acc['거래처ID'] || '';
+                if (accId) {
+                    this.ontologyMap.set(accId.toString(), acc);
+                }
+            });
+        }
     }
 
     // 키워드 추출
@@ -339,13 +357,36 @@ class GeminiChatbot {
             personalInstruction = `\n# 👤 사용자(영업사원) 개인화 모드\n현재 질문자는 '${activeManager}' 담당자입니다. 제공된 1순위/미거래/방치 데이터 목록은 모두 '${activeManager}' 담당자의 구역/이력과 관련된 것들입니다. 답변 시 '${activeManager} 담당자님의 맞춤 추천입니다' 처럼 개인화된 어조를 사용하고, AI 동선 최적화 전략(가까운 지역 묶기, 방치된 가망고객 터치 등)을 반영하여 당일 방문해야 할 구체적인 3~5곳의 목적지와 방문 순서(동선)를 이유와 함께 명확히 짚어주세요.\n`;
         }
 
-        return `당신은 '매일유업 경기북부 FS 영업팀'의 최고 실적 영업 코치인 'MISO(Maeil AI 영업비서)'입니다. 단순한 데이터 요약을 넘어, 데이터를 기반으로 실질적이고 구체적인 '영업 행동 지침(Action Item)'과 '전략적 조언'을 제공해야 합니다.
+        // Ontology Data Join: AI에게 넘길 컨텍스트 조립
+        const enrichedData = relevantData.slice(0, 50).map(v => {
+            const result = { 영업활동: v };
+            const accNameCode = v['방문처(거래처 코드)'] || v['방문처(거래처코드)'] || '';
+            const match = accNameCode.match(/\(([^)]+)\)/); // 괄호 안의 숫자(거래처ID) 추출
+            if (match && match[1]) {
+                const accId = match[1].trim();
+                // 온톨로지 맵에서 해당 거래처ID의 마스터 데이터 조회 (JOIN)
+                if (this.ontologyMap && this.ontologyMap.has(accId)) {
+                    const masterData = this.ontologyMap.get(accId);
+                    result.거래처마스터정보 = {
+                        거래처명: masterData['거래처명'],
+                        관리항목: masterData['전략유통망관리항목'],
+                        우선순위: masterData['순위'],
+                        현재거래상태: masterData['거래상태'],
+                        담당자: masterData['담당자명'],
+                        주소: masterData['주소']
+                    };
+                }
+            }
+            return result;
+        });
+
+        return `당신은 매일유업의 실적 데이터 기반 '영업 기획자 및 영업 이사' 역할을 수행하는 'MISO(Maeil AI 영업비서)'입니다. 단순한 데이터 요약을 넘어, 데이터를 기반으로 실질적이고 구체적인 '영업 행동 지침(Action Item)'과 '전략적 조언'을 제공해야 합니다.
 ${personalInstruction}
 # ⚠️ 절대 규칙 (반드시 준수 — 위반 시 답변 무효)
-1. 아래 "JS 집계 수치"와 "방문일지 상세 데이터"에만 근거하여 답변하세요.
+1. 아래 "JS 집계 수치"와 "방문일지 및 거래처 통합 데이터"에만 근거하여 답변하세요.
 2. 데이터에 없는 정보는 절대 추측하거나 생성하지 마세요. 언급하는 거래처명·담당자명은 데이터에 실제로 존재하는 것만 사용하세요.
 3. 수치는 반드시 아래 "JS 집계 수치"에서 가져오세요. 스스로 계산하지 마세요.
-4. 단순 요약에 그치지 말고, "왜 이 수치가 중요한지", "어디에 집중해야 할지", "어떤 명분으로 접근할지" 등 영업 코칭 관점의 인사이트를 반드시 1~2가지 제안하세요.
+4. 어떤 거래처를 공략할지 조언할 때는 [거래처마스터정보]의 '우선순위(순위)'와 '관리항목', '현재거래상태'를 과거 [영업활동] 이력과 종합하여 입체적으로 코칭하세요.
 5. 확인할 수 없는 내용은 반드시 uncertain 필드에 명시하세요.
 
 # JS 집계 수치 (직접 계산된 정확한 값 — 이 수치를 그대로 사용)
@@ -357,8 +398,8 @@ ${personalInstruction}
 - 거래 상태별 건수: ${JSON.stringify(summary.상태별건수)}
 - 자주 방문한 거래처 TOP5: ${summary.자주방문거래처TOP5.join(', ') || '없음'}
 
-# 방문일지 상세 데이터 (질문과 관련된 ${relevantData.length}건 — 전체 ${summary.총방문건수}건 중 필터링)
-${JSON.stringify(relevantData.slice(0, 50), null, 2)}
+# 방문일지 및 거래처 통합 데이터 (질문과 관련된 ${enrichedData.length}건: 거래처 마스터 속성과 영업활동 조인됨)
+${JSON.stringify(enrichedData, null, 2)}
 
 # 사용자 질문
 ${question}
