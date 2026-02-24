@@ -712,26 +712,46 @@
     </div>
 
     <script>
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             document.body.classList.add('loaded');
+            await loadProductDBFromSheets();
         });
 
         // 초기화
         // document.getElementById('todayDate').innerText = new Date().toLocaleDateString(); // 날짜 표시 제거됨
 
-        let productDB = [
-            { name: "매일우유 오리지널", spec: "1000ml", price: 2850, taxFree: true, image: "🥛", maxDc: 10, desc: "신선한 국산 원유 100%" },
-            { name: "마이카페라떼 마일드", spec: "220ml", price: 1200, taxFree: false, image: "☕", maxDc: 15, desc: "부드러운 우유와 깊은 커피의 조화" },
-            { name: "상하목장 유기농우유", spec: "125ml", price: 1100, taxFree: true, image: "🌿", maxDc: 5, desc: "자연 그대로 유기농 환경에서 자란 우유" },
-            { name: "허쉬 초콜릿 드링크", spec: "235ml", price: 1000, taxFree: false, image: "🍫", maxDc: 20, desc: "진한 초컬릿 풍미의 정통 허쉬 드링크" },
-            { name: "바리스타룰스", spec: "325ml", price: 2500, taxFree: false, image: "🥤", maxDc: 12, desc: "바리스타가 엄선한 원두로 만든 프리미엄 커피" }
-        ];
+        // 제품 DB (Google Sheets에서 자동 로드됨)
+        let productDB = [];
+
+        // 제품 DB Google Sheets URL (출고가/마진 제외 공개 컬럼만)
+        const PRODUCT_DB_SHEETS_URL = 'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=1802773439';
+
+        async function loadProductDBFromSheets() {
+            try {
+                const res = await fetch(PRODUCT_DB_SHEETS_URL);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const csv = await res.text();
+                const rows = parseCSV(csv).filter(r => r['품명'] && r['품명'].trim());
+                productDB = rows.map(r => ({
+                    name: r['품명'].trim(),
+                    spec: r['내입량'] ? r['내입량'].trim() + '개입' : '',
+                    price: 0,       // 출고가는 보안상 미포함 — 직접 입력
+                    taxFree: false,
+                    image: r['이미지'] || '📦',
+                    maxDc: 0,
+                    desc: (r['제품 상세 내용'] || '').trim()
+                }));
+                updateDatalist();
+                console.log(`✅ 제품 DB ${productDB.length}개 로드 완료 (Google Sheets)`);
+            } catch (e) {
+                console.warn('제품 DB 로드 실패, 기본값 사용:', e.message);
+            }
+        }
 
         function updateDatalist() {
             const list = document.getElementById('productOptions');
             list.innerHTML = productDB.map(p => `<option value="${p.name}">${p.spec}</option>`).join('');
         }
-        updateDatalist();
 
         // 1. 정보 동기화 (상단 기본 정보)
         function syncInfo() {
