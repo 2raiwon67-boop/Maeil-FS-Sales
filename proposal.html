@@ -170,7 +170,7 @@
             transform: translate(-50%, -50%);
             width: 2px;
             height: 40px;
-            background: rgba(255,255,255,0.6);
+            background: rgba(255, 255, 255, 0.6);
             border-radius: 2px;
         }
 
@@ -185,7 +185,7 @@
 
         /* 좌측 분석 패널 (기존 유지하되 크기 조정) */
         .analysis-panel {
-            width: 280px;
+            width: 320px;
             background: white;
             border-right: 1px solid #d2d2d7;
             display: flex;
@@ -193,6 +193,7 @@
             padding: 15px;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
             z-index: 10;
+            overflow: hidden;
         }
 
         .panel-header {
@@ -447,10 +448,13 @@
         }
 
         @media (max-width: 768px) {
-            /* 네비게이션 모바일 대응 */
-            .nav-bar { padding: 0 12px; }
 
-            .nav-bar > div:first-child {
+            /* 네비게이션 모바일 대응 */
+            .nav-bar {
+                padding: 0 12px;
+            }
+
+            .nav-bar>div:first-child {
                 flex: 1;
                 min-width: 0;
                 display: flex;
@@ -458,9 +462,15 @@
                 overflow: hidden;
             }
 
-            .nav-actions { flex-shrink: 0; }
+            .nav-actions {
+                flex-shrink: 0;
+            }
 
-            .nav-logo { font-size: 13px; margin-right: 8px; flex-shrink: 0; }
+            .nav-logo {
+                font-size: 13px;
+                margin-right: 8px;
+                flex-shrink: 0;
+            }
 
             .nav-menu {
                 flex: 1;
@@ -471,7 +481,9 @@
                 scrollbar-width: none;
             }
 
-            .nav-menu::-webkit-scrollbar { display: none; }
+            .nav-menu::-webkit-scrollbar {
+                display: none;
+            }
 
             .nav-link {
                 font-size: 12px;
@@ -479,13 +491,16 @@
                 padding: 14px 4px;
             }
 
-            #userNameDisplay { display: none !important; }
+            #userNameDisplay {
+                display: none !important;
+            }
         }
 
         /* ===== 인쇄 전용 스타일 ===== */
         @media print {
+
             /* 인쇄 시 print-container만 표시 */
-            body > *:not(#print-container) {
+            body>*:not(#print-container) {
                 display: none !important;
             }
 
@@ -555,25 +570,27 @@
 
             <button class="analyze-btn" onclick="analyzeStore()">분석 및 추천상품 검색</button>
 
-            <div id="analysisResult" class="result-card">
+            <div id="analysisResult" class="result-card" style="flex:1; overflow-y:auto; overflow-x:hidden;">
                 <h4 style="margin: 0 0 10px 0;">🎯 AI 공략 포인트</h4>
                 <div id="keywordTags" style="margin-bottom: 12px;"></div>
                 <p id="analysisText" style="font-size: 13px; color: #555; line-height: 1.5; margin: 0;"></p>
 
                 <!-- 시그니처 메뉴 섹션 -->
-                <div id="signatureResult" style="display:none; margin-top: 14px; padding: 12px 14px; background: #fff8f0; border-radius: 10px; border: 1px solid #ffe0b2;">
+                <div id="signatureResult"
+                    style="display:none; margin-top: 14px; padding: 12px 14px; background: #fff8f0; border-radius: 10px; border: 1px solid #ffe0b2;">
                     <h4 style="margin: 0 0 10px 0; font-size: 13px; color: #e65100;">🍽️ 시그니처 메뉴 &amp; 자사 원료 대응</h4>
                     <div id="signatureMenuList" style="display: flex; flex-direction: column; gap: 8px;"></div>
                 </div>
 
                 <!-- 영업 메모 -->
-                <div style="margin-top: 14px; padding: 12px 14px; background: #f8f9ff; border-radius: 10px; border: 1px solid #dce3f5;">
-                    <label style="font-size: 12px; color: #5c6bc0; font-weight: 700; display: block; margin-bottom: 7px;">📝 영업 메모</label>
-                    <textarea id="salesMemo"
-                        placeholder="방문 전략, 핵심 포인트, 오너 특성 등을 자유롭게 입력하세요..."
+                <div
+                    style="margin-top: 14px; padding: 12px 14px; background: #f8f9ff; border-radius: 10px; border: 1px solid #dce3f5;">
+                    <label
+                        style="font-size: 12px; color: #5c6bc0; font-weight: 700; display: block; margin-bottom: 7px;">📝
+                        영업 메모</label>
+                    <textarea id="salesMemo" placeholder="방문 전략, 핵심 포인트, 오너 특성 등을 자유롭게 입력하세요..."
                         style="width: 100%; box-sizing: border-box; min-height: 72px; padding: 9px 11px; font-size: 13px; border: 1px solid #dce3f5; border-radius: 8px; resize: vertical; line-height: 1.6; color: #333; font-family: inherit; background: #fff; outline: none; transition: border-color 0.15s;"
-                        onfocus="this.style.borderColor='#5c6bc0'"
-                        onblur="this.style.borderColor='#dce3f5'"></textarea>
+                        onfocus="this.style.borderColor='#5c6bc0'" onblur="this.style.borderColor='#dce3f5'"></textarea>
                 </div>
 
                 <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 15px 0;">
@@ -599,7 +616,9 @@
             <div class="editor-side">
                 <div class="panel-header" style="justify-content: space-between;">
                     <span>📝 견적 설정</span>
-                    <button onclick="generatePDF()" style="padding: 7px 16px; background: #0071e3; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📥 PDF 저장</button>
+                    <button onclick="generatePDF()"
+                        style="padding: 7px 16px; background: #0071e3; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📥
+                        PDF 저장</button>
                 </div>
 
                 <div class="settings-panel"
@@ -738,11 +757,11 @@
             const mmPx = 96 / 25.4;
             const contentH = (297 - 40) * mmPx; // A4 높이 - 상하 패딩(20mm*2)
 
-            const paperRect   = paper.getBoundingClientRect();
-            const theadRect   = document.getElementById('_mThead').getBoundingClientRect();
-            const tfootRect   = document.getElementById('_mTfoot').getBoundingClientRect();
-            const noteRect    = document.getElementById('_mNote').getBoundingClientRect();
-            const infoRect    = document.getElementById('_mInfo').getBoundingClientRect();
+            const paperRect = paper.getBoundingClientRect();
+            const theadRect = document.getElementById('_mThead').getBoundingClientRect();
+            const tfootRect = document.getElementById('_mTfoot').getBoundingClientRect();
+            const noteRect = document.getElementById('_mNote').getBoundingClientRect();
+            const infoRect = document.getElementById('_mInfo').getBoundingClientRect();
 
             const trs = Array.from(tbody.querySelectorAll('tr'));
             const firstRowTop = trs.length > 0 ? trs[0].getBoundingClientRect().top : theadRect.bottom;
