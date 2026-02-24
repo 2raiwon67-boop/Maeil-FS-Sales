@@ -256,7 +256,7 @@
             background: white;
             width: 210mm;
             min-height: 297mm;
-            padding: 20mm;
+            padding: 20mm 8mm;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             position: relative;
             box-sizing: border-box;
@@ -593,12 +593,12 @@
 
                     <table class="quote-table">
                         <colgroup>
-                            <col style="width: 5%">
-                            <col style="width: 20%">
-                            <col style="width: 12%">
+                            <col style="width: 4%">
+                            <col style="width: 28%">
+                            <col style="width: 9%">
                             <col style="width: 25%">
-                            <col style="width: 15%">
-                            <col style="width: 23%">
+                            <col style="width: 16%">
+                            <col style="width: 18%">
                         </colgroup>
                         <thead>
                             <tr>
@@ -794,8 +794,8 @@
                     <input type="text" class="input-field p-spec-input" value="${spec}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
                     <button onclick="removeRow('${rowId}')" style="background: none; border: none; color: #ff3b30; cursor: pointer;">✕</button>
                 </div>
-                <div style="margin-bottom: 8px;">
-                    <input type="text" class="input-field p-description" placeholder="제품 상세 내용 입력" oninput="calculateRow(this)">
+                <div style="display: none;">
+                    <input type="text" class="input-field p-description" oninput="calculateRow(this)">
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
                     <div>
@@ -828,9 +828,9 @@
             previewRow.id = `preview-${rowId}`;
             previewRow.innerHTML = `
                 <td style="text-align: center; color: #888;">${rowCount}</td>
-                <td class="p-name">${name}</td>
+                <td class="p-name" style="text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</td>
                 <td class="p-spec" style="text-align: center;">${spec}</td>
-                <td class="p-desc" style="text-align: left; padding: 0 8px; font-size: 11px; color: #666;"></td>
+                <td class="p-desc" style="text-align: left; padding: 4px 8px; font-size: 11px; color: #666; word-break: keep-all; overflow-wrap: break-word; line-height: 1.6;"></td>
                 <td class="p-sales" style="text-align: right; padding: 0 6px; font-weight: 600;">${price.toLocaleString()}</td>
                 <td class="p-img" style="text-align: center; padding: 4px;">
                     <div class="img-placeholder" style="width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">IMG</div>
