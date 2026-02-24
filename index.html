@@ -1539,9 +1539,9 @@
 
         .dashboard-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -1651,7 +1651,6 @@
             <div class="view-toggle">
                 <button class="view-btn active" id="btn-map-view" onclick="switchMainView('map')">🗺️ 지도</button>
                 <button class="view-btn" id="btn-dashboard-view" onclick="switchMainView('dashboard')">📈 통계</button>
-                <button class="view-btn" id="btn-milk-view" onclick="switchMainView('milk')">🥛 사용우유</button>
             </div>
             <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
             <a href="admin.html" id="adminPanelLink" class="nav-link"
@@ -1856,28 +1855,6 @@
                 </div>
             </div>
 
-            <!-- 사용우유 전용 뷰 -->
-            <div class="dashboard-container" id="milkView">
-                <div style="max-width:900px;margin:0 auto;">
-                    <div style="display:flex;gap:16px;margin-bottom:24px;">
-                        <div class="summary-value-card" style="flex:1;">
-                            <div class="sv-label">집계 업장 수</div>
-                            <div class="sv-value" id="milkTotalCount">-</div>
-                        </div>
-                        <div class="summary-value-card" style="flex:1;">
-                            <div class="sv-label">우유 브랜드 수</div>
-                            <div class="sv-value" id="milkBrandCount">-</div>
-                        </div>
-                    </div>
-                    <div class="dashboard-card" style="height:480px;">
-                        <div class="dashboard-title">🥛 사용 우유 현황 <span style="font-size:11px;color:#86868b;font-weight:normal;">(인허가 데이터 '사용우유' P컬럼 기준)</span></div>
-                        <div style="position:relative;height:400px;width:100%;">
-                            <canvas id="milkFullChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
                 <div class="route-panel-header">
@@ -2020,28 +1997,20 @@
         function switchMainView(view) {
             const mapArea = document.getElementById('map');
             const dashboardView = document.getElementById('dashboardView');
-            const milkView = document.getElementById('milkView');
             const routePanel = document.getElementById('routePanel');
             const btnMap = document.getElementById('btn-map-view');
             const btnDash = document.getElementById('btn-dashboard-view');
-            const btnMilk = document.getElementById('btn-milk-view');
 
-            // 전부 숨김
             mapArea.style.opacity = '0';
             mapArea.style.pointerEvents = 'none';
             dashboardView.classList.remove('active');
-            milkView.classList.remove('active');
             if (routePanel) routePanel.classList.remove('active');
-            [btnMap, btnDash, btnMilk].forEach(b => b && b.classList.remove('active'));
+            [btnMap, btnDash].forEach(b => b && b.classList.remove('active'));
 
             if (view === 'dashboard') {
                 dashboardView.classList.add('active');
                 btnDash.classList.add('active');
                 updateDashboardCharts();
-            } else if (view === 'milk') {
-                milkView.classList.add('active');
-                btnMilk.classList.add('active');
-                renderMilkFullView();
             } else {
                 mapArea.style.opacity = '1';
                 mapArea.style.pointerEvents = 'auto';
@@ -2362,50 +2331,6 @@
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, padding: 8, boxWidth: 12 } } },
                     cutout: '55%'
-                },
-                plugins: [donutSegmentLabelPlugin]
-            });
-        }
-
-        // ── 사용우유 전용 뷰 렌더 ──
-        let _milkFullChartInstance = null;
-        function renderMilkFullView() {
-            if (!_chartCrossData) {
-                // 데이터 아직 없으면 잠깐 기다림
-                setTimeout(renderMilkFullView, 600);
-                return;
-            }
-            const { milkCount } = _chartCrossData;
-            const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
-            const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
-            const milkData = milkLabels.map(k => milkCount[k]);
-            const total = milkData.reduce((a, b) => a + b, 0);
-
-            // 요약 숫자
-            document.getElementById('milkTotalCount').textContent = total + '개소';
-            document.getElementById('milkBrandCount').textContent = milkLabels.length + '종';
-
-            // 차트
-            if (_milkFullChartInstance) _milkFullChartInstance.destroy();
-            const ctx = document.getElementById('milkFullChart');
-            if (!ctx) return;
-            _milkFullChartInstance = new Chart(ctx.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: milkLabels.length ? milkLabels : ['데이터 없음'],
-                    datasets: [{ data: milkData.length ? milkData : [1], backgroundColor: milkLabels.length ? milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]) : ['#e5e5ea'], borderWidth: 3, borderColor: '#fff' }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 13 }, padding: 14, boxWidth: 16, generateLabels(chart) {
-                        const data = chart.data;
-                        return data.labels.map((label, i) => {
-                            const val = data.datasets[0].data[i];
-                            const pct = total ? Math.round(val / total * 100) : 0;
-                            return { text: `${label}  ${val}개소 (${pct}%)`, fillStyle: data.datasets[0].backgroundColor[i], hidden: false, index: i };
-                        });
-                    } } } },
-                    cutout: '52%'
                 },
                 plugins: [donutSegmentLabelPlugin]
             });
