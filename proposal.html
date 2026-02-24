@@ -634,7 +634,10 @@
 
             <!-- 2-2. 우측 컨트롤 패널 영역 -->
             <div class="editor-side">
-                <div class="panel-header">📝 견적 설정</div>
+                <div class="panel-header" style="justify-content: space-between;">
+                    <span>📝 견적 설정</span>
+                    <button onclick="generatePDF()" style="padding: 7px 16px; background: #0071e3; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📥 PDF 저장</button>
+                </div>
 
                 <div class="settings-panel"
                     style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;">
@@ -700,16 +703,6 @@
         </datalist>
     </div>
 
-    <!-- 플로팅 액션 버튼 -->
-    <div class="floating-actions no-print">
-        <button class="action-btn btn-secondary" onclick="loadProductDB()">
-            📂 제품 DB 업로드
-        </button>
-        <button class="action-btn btn-primary" onclick="generatePDF()">
-            📥 PDF 저장
-        </button>
-        <input type="file" id="dbInput" accept=".xlsx, .xls" style="display: none;">
-    </div>
 
     <script>
         window.addEventListener('load', async () => {
@@ -830,7 +823,7 @@
                 <td style="text-align: center; color: #888;">${rowCount}</td>
                 <td class="p-name" style="text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</td>
                 <td class="p-spec" style="text-align: center;">${spec}</td>
-                <td class="p-desc" style="text-align: left; padding: 4px 8px; font-size: 11px; color: #666; word-break: keep-all; overflow-wrap: break-word; line-height: 1.6;"></td>
+                <td class="p-desc" style="text-align: center; padding: 4px 8px; font-size: 11px; color: #666; word-break: keep-all; overflow-wrap: break-word; line-height: 1.6;"></td>
                 <td class="p-sales" style="text-align: right; padding: 0 6px; font-weight: 600;">${price.toLocaleString()}</td>
                 <td class="p-img" style="text-align: center; padding: 4px;">
                     <div class="img-placeholder" style="width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">IMG</div>
@@ -1214,36 +1207,7 @@
             if (e.key === 'Enter') analyzeStore();
         });
 
-        // 4. 제품 DB 업로드 (Excel)
-        function loadProductDB() {
-            document.getElementById('dbInput').click();
-        }
-
-        document.getElementById('dbInput').addEventListener('change', function (e) {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
-
-                // DB 매핑 (엑셀 컬럼명에 따라 수정 필요)
-                productDB = jsonData.map(row => ({
-                    name: row['제품명'] || row['품명'],
-                    spec: row['규격'],
-                    price: row['출고가'] || row['단가'],
-                    taxFree: (row['면세여부'] || '').includes('면세'),
-                    image: '📦'
-                }));
-
-                alert(`✅ 제품 ${productDB.length}개가 로드되었습니다.`);
-                updateDatalist();
-            };
-            reader.readAsArrayBuffer(file);
-        });
-
-        // 5. PDF 생성
+        // 4. PDF 생성
         function generatePDF() {
             window.print();
             // 참고: 실제 파일 저장은 window.print()를 PDF로 저장하거나, 
