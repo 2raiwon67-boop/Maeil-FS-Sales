@@ -1414,8 +1414,8 @@
 
             } catch (error) {
                 console.error('데이터 로드 실패:', error);
-                document.getElementById('dataTableBody').innerHTML =
-                    '<tr><td colspan="6" style="text-align: center; padding: 40px; color: #ff3b30;">데이터 로드 실패. 페이지를 새로고침해주세요.</td></tr>';
+                document.getElementById('accountsGrid').innerHTML =
+                    '<div style="text-align:center; padding:60px 20px; color:#ff3b30; grid-column:1/-1;">데이터 로드 실패. 페이지를 새로고침해주세요.</div>';
             }
         }
 
