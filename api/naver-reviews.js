@@ -175,7 +175,7 @@ ${productList}
 
         // ── 4. Gemini API 호출 ──
         const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -185,10 +185,7 @@ ${productList}
                         temperature: 0.7,
                         maxOutputTokens: 2500,
                         topP: 0.95,
-                        topK: 40,
-                        thinkingConfig: {
-                            thinkingBudget: 0  // JSON 구조 출력이라 thinking 비활성화 → 출력 토큰 낭비 방지
-                        }
+                        topK: 40
                     }
                 })
             }
