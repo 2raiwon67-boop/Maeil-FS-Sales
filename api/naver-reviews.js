@@ -97,7 +97,7 @@ export default async function handler(req, res) {
 
         const blogSummary = filteredBlogItems.map(item => ({
             title: stripHtml(item.title),
-            description: stripHtml(item.description),
+            description: stripHtml(item.description).substring(0, 100), // 토큰 절감
             link: item.link
         }));
 
@@ -106,8 +106,9 @@ export default async function handler(req, res) {
 
         // ── 3. Gemini 프롬프트 구성 ──
         const products = productDB || [];
+        // 제품 목록은 인덱스·품명·규격만 (가격 등은 매핑 시 활용) — 토큰 절감
         const productList = products.map((p, i) =>
-            `[${i}] ${p.name} (${p.spec}, ${p.price}원, ${p.taxFree ? '면세' : '과세'}, 이미지:${p.image || '📦'}, 최대DC:${p.maxDc || 0}%)`
+            `[${i}] ${p.name} / ${p.spec}`
         ).join('\n');
 
         const updateNote = isIncrementalUpdate ? '\n⚠️ 이번 분석은 **증분 업데이트**입니다. 아래는 최근 추가된 리뷰만 포함되어 있습니다.\n' : '';
@@ -139,35 +140,38 @@ ${JSON.stringify(historyItems, null, 2)}
 ${updateNote}
 ## 검색 매장: "${storeName}"
 
-## 네이버 지역 검색 결과 (매장 정보)
+## 네이버 지역 검색 결과
 ${JSON.stringify(localSummary, null, 2)}
 
 ## 네이버 블로그 리뷰 요약
 ${JSON.stringify(blogSummary, null, 2)}${visitHistorySection}
 
-## 매일유업 제품 목록 (추천 대상)
+## 매일유업 제품 목록
 ${productList}
 
 ## 분석 요청
-1. 리뷰와 매장 정보를 바탕으로 이 매장의 **핵심 키워드 태그** 3~5개를 추출하세요 (예: 가성비, 학생층, 프리미엄, 건강, 디저트카페 등)
-2. 매장 특성에 대한 **영업 공략 포인트** 설명을 2~3문장으로 작성하세요.${hasVisitHistory ? ' **방문 기록이 있다면 반드시 언급**하고, 과거 결과를 반영한 전략을 제시하세요.' : ''} 중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
-3. 위 제품 목록에서 이 매장에 가장 적합한 **제품 2~3개**를 인덱스 번호로 추천하세요.${hasVisitHistory ? ' 과거 방문 내용을 참고하여 전략을 조정하세요.' : ''}
-4. 블로그 리뷰에서 언급되는 이 매장의 **시그니처 메뉴** 1~3개를 파악하세요. 각 메뉴에 대해:
-   - 해당 메뉴 제조에 사용될 것으로 추정되는 유제품/식재료 원료
-   - 매일유업 자사 제품(위 목록 또는 일반적인 매일유업 원료)으로 대응하는 구체적인 방안
+1. 매장의 **핵심 키워드 태그** 3~5개 추출 (예: 가성비, 학생층, 프리미엄, 건강, 디저트카페)
+2. **영업 공략 포인트** 3~4문장으로 작성. 아래 두 가지를 반드시 포함하세요:
+   - 블로그 리뷰에서 파악한 **시그니처 메뉴의 원료 분석** → 매일유업 제품으로 대응 가능한 구체적 방안
+   - ${hasVisitHistory ? '**과거 방문 실패/거절 사유를 극복**할 수 있는 접근법 (방문 기록 기반)' : '이 매장 업종/규모에서 자주 발생하는 거절 사유와 극복 전략'}
+   중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
+3. 위 두 가지 관점(시그니처 메뉴 대응 + ${hasVisitHistory ? '과거 실패 극복' : '거절 극복'})에서 **가장 효과적인 제품 정확히 3개**를 인덱스 번호로 추천하세요.
+4. 블로그 리뷰 또는 업종 특성 기반으로 **시그니처 메뉴 1~2개** 파악:
+   - 추정 원료
+   - 매일유업 제품으로 대응하는 구체적 방안
 
 ## 응답 형식
 아래 JSON 형식으로만 응답하세요. 다른 설명이나 텍스트 없이 순수 JSON만 출력하세요.
 
-{"tags": ["키워드1", "키워드2"], "description": "HTML이 포함된 영업 공략 포인트", "recommendedIndices": [0, 2], "signatureMenus": [{"menu": "시그니처 라떼", "ingredients": "우유, 에스프레소", "maeilSolution": "매일 바리스타 우유 또는 저지방 우유로 풍미 차별화 제안"}]}
+{"tags": ["키워드1", "키워드2"], "description": "HTML이 포함된 영업 공략 포인트", "recommendedIndices": [0, 2, 5], "signatureMenus": [{"menu": "시그니처 라떼", "ingredients": "우유, 에스프레소", "maeilSolution": "매일 바리스타 우유로 풍미 차별화 제안"}]}
 
 중요 사항:
 - 반드시 유효한 JSON 객체만 출력 (JSON 이외 텍스트 절대 금지)
 - 코드 블록 마커 사용 금지
-- description은 2문장 이내로 간결하게 작성 (HTML 태그 최소화)
-- signatureMenus의 ingredients와 maeilSolution은 각 30자 이내로 간결하게
-- 검색 결과가 부족하면 매장명/업종 기반으로 추론하여 응답
-- signatureMenus는 블로그 리뷰에서 파악이 어려울 경우 업종 특성으로 추론`;
+- description은 3~4문장, HTML 태그는 핵심 강조에만 사용
+- recommendedIndices는 정확히 3개
+- signatureMenus는 최대 2개, ingredients·maeilSolution은 각 40자 이내
+- 검색 결과가 부족하면 매장명/업종 기반으로 추론하여 응답`;
 
         // ── 4. Gemini API 호출 ──
         const geminiRes = await fetch(
@@ -179,9 +183,12 @@ ${productList}
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 4096,
+                        maxOutputTokens: 1500,
                         topP: 0.95,
                         topK: 40
+                    },
+                    thinkingConfig: {
+                        thinkingBudget: 1024  // thinking 모델 토큰 상한 (0=비활성, 최대 24576)
                     }
                 })
             }
