@@ -282,7 +282,9 @@ class GeminiChatbot {
                 throw new Error('Invalid response format');
             }
 
-            return data.candidates[0].content.parts[0].text;
+            const parts = data.candidates[0].content.parts;
+            const textPart = parts.find(p => !p.thought) ?? parts[0];
+            return textPart.text;
         } catch (error) {
             console.error('Gemini Generate Error:', error);
             throw error;
