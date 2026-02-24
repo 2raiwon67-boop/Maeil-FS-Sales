@@ -887,20 +887,14 @@
                         <div class="label">방문 거래처 수</div>
                         <div class="value">${totalAccounts}<span> 곳</span></div>
                     </div>
-                    <div class="summary-card warning">
-                        <div class="label">공사중 거래처 방문</div>
-                        <div class="value">${constructionAccounts.length}<span> 곳</span></div>
-                    </div>
                     <div class="summary-card">
                         <div class="label">주요거래처 방문</div>
                         <div class="value">${majorAccounts.length}<span> 곳</span></div>
                     </div>
-                </div>
-
-                <!-- 공사중 거래처 섹션 -->
-                <div class="section">
-                    <div class="section-title">🚧 공사중 거래처 방문 현황 <span style="font-size:13px; font-weight:400; color:#86868b;">(${periodLabel} 방문)</span></div>
-                    ${renderConstructionTable(constructionAccounts)}
+                    <div class="summary-card warning">
+                        <div class="label">인허가 거래처 방문</div>
+                        <div class="value">${licenseAccounts.length}<span> 곳</span></div>
+                    </div>
                 </div>
 
                 ${noVisitConstruction.length > 0 ? `
@@ -917,12 +911,11 @@
                     ${renderMajorTable(majorAccounts)}
                 </div>
 
-                ${licenseAccounts.length > 0 ? `
-                <!-- 인허가 활동 섹션 -->
+                <!-- 인허가 1순위 거래처 방문 섹션 -->
                 <div class="section">
-                    <div class="section-title">📋 인허가 거래처 방문 <span style="font-size:13px; font-weight:400; color:#86868b;">(${licenseAccounts.length}곳)</span></div>
+                    <div class="section-title">🔑 인허가 1순위 거래처 방문 <span style="font-size:13px; font-weight:400; color:#86868b;">(${licenseAccounts.length}곳)</span></div>
                     ${renderMajorTable(licenseAccounts)}
-                </div>` : ''}
+                </div>
 
                 <!-- AI 종합 분석 섹션 -->
                 <div class="section ai-section" id="aiSection">
