@@ -1834,6 +1834,14 @@
                             <canvas id="dashStatusChart"></canvas>
                         </div>
                     </div>
+                    <div class="dashboard-card" style="height: 340px;">
+                        <div class="dashboard-title">🥛 사용 우유 현황 <span
+                                style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '사용우유' 기준)</span>
+                        </div>
+                        <div style="position: relative; height: 260px; width: 100%;">
+                            <canvas id="dashMilkChart"></canvas>
+                        </div>
+                    </div>
                     <div class="dashboard-card full-width" style="height: 340px;">
                         <div class="dashboard-title">📈 월별 누적 방문 추이 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(해당 월에 맵핑된 방문일지 총 건수)</span>
@@ -1977,6 +1985,7 @@
         let dashRegionChartInstance = null;
         let dashStatusChartInstance = null;
         let dashTrendChartInstance = null;
+        let dashMilkChartInstance = null;
 
         // 메인 뷰 전환 함수 (지도 <-> 통계)
         function switchMainView(view) {
@@ -2046,6 +2055,7 @@
             // 3. 차트용 데이터 집계
             const statusCount = { '거래': 0, '미거래': 0, '인허가': 0, '공사중': 0, 'DROP': 0, '기타': 0 };
             const regionCount = {};
+            const milkCount = {};
 
             combinedData.forEach(d => {
                 // 상태 카운트 ('거래여부(기입예정)' 직접 활용)
@@ -2057,6 +2067,14 @@
                 if (!region || region === '') region = '기타';
 
                 regionCount[region] = (regionCount[region] || 0) + 1;
+            });
+
+            // 사용우유 집계 (P 컬럼, 값 있는 행만)
+            allData.forEach(item => {
+                const milk = (item['사용우유'] || '').trim();
+                if (milk) {
+                    milkCount[milk] = (milkCount[milk] || 0) + 1;
+                }
             });
 
             // 최빈 방문 거래처 계산
@@ -2137,7 +2155,37 @@
                 })
             });
 
-            // [차트 3] 월별 추이 (Line)
+            // [차트 3] 사용우유 현황 (Doughnut)
+            if (dashMilkChartInstance) dashMilkChartInstance.destroy();
+            const ctxMilk = document.getElementById('dashMilkChart').getContext('2d');
+            const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
+            const milkData = milkLabels.map(k => milkCount[k]);
+            const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
+            const milkBgColors = milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]);
+
+            dashMilkChartInstance = new Chart(ctxMilk, {
+                type: 'doughnut',
+                data: {
+                    labels: milkLabels.length ? milkLabels : ['데이터 없음'],
+                    datasets: [{
+                        data: milkData.length ? milkData : [1],
+                        backgroundColor: milkLabels.length ? milkBgColors : ['#e5e5ea'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: Object.assign({}, commonOptions, {
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 14 }
+                        }
+                    },
+                    cutout: '55%'
+                })
+            });
+
+            // [차트 4] 월별 추이 (Line)
             const monthCount = {};
             visits.forEach(v => {
                 const dateStr = v['일정기간'] || v['작성일'] || '';
