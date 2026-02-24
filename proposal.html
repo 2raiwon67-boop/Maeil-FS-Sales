@@ -1272,6 +1272,8 @@
 
                     // 캐시가 유효하면 즉시 표시
                     if (cacheAge < CACHE_EXPIRY_MS) {
+                        card.style.display = 'block';
+                        card.classList.add('active');
                         renderAnalysis(cachedData.result, true);
 
                         // 백그라운드에서 증분 업데이트 시도
