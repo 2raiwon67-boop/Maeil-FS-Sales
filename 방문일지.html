@@ -1524,7 +1524,7 @@
                 if (!grouped[accountName].lastVisitDate ||
                     (visitDate && visitDate > grouped[accountName].lastVisitDate)) {
                     grouped[accountName].lastVisitDate = visitDate;
-                    grouped[accountName].lastVisit = log['일정기간'];
+                    grouped[accountName].lastVisit = log['작성일'] || log['일정기간'];
                     grouped[accountName].status = status || '-';
                     grouped[accountName].manager = log['작성자'] || '-';
                 }
