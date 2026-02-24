@@ -395,13 +395,13 @@
             color: #6c757d;
         }
 
-        /* ── 방문 기록 (인라인) ── */
+        /* ── 방문 기록 ── */
         .visit-row {
-            font-size: 12px;
-            color: #86868b;
-            padding: 4px 0;
+            font-size: 13px;
+            color: #3a3a3c;
+            padding: 10px 0;
             border-bottom: 1px dashed #f0f0f0;
-            line-height: 1.5;
+            line-height: 1.7;
         }
 
         .visit-row:last-child {
@@ -409,10 +409,18 @@
         }
 
         .visit-date {
-            font-weight: 600;
+            font-weight: 700;
+            color: #0071e3;
+            font-size: 12px;
+            display: block;
+            margin-bottom: 4px;
+            letter-spacing: 0.2px;
+        }
+
+        .visit-content {
             color: #3a3a3c;
-            min-width: 80px;
-            display: inline-block;
+            white-space: pre-line;
+            line-height: 1.8;
         }
 
         /* ── 미방문 섹션 ── */
@@ -953,10 +961,10 @@
                                 <td style="font-weight:600; color:var(--primary);">${acc.visits.length}회</td>
                                 <td style="color:#86868b; font-size:13px;">${formatDate(acc.visits[0]?.date)}</td>
                                 <td>
-                                    ${acc.visits.map(v => `
+                                     ${acc.visits.map(v => `
                                         <div class="visit-row">
                                             <span class="visit-date">${formatDate(v.date)}</span>
-                                            ${cleanContent(v.issue || v.content?.slice(0, 100) || '-')}
+                                            <div class="visit-content">${cleanContent(v.issue || v.content?.slice(0, 300) || '-')}</div>
                                         </div>
                                     `).join('')}
                                 </td>
@@ -993,7 +1001,7 @@
                                         ${acc.visits.map(v => `
                                             <div class="visit-row">
                                                 <span class="visit-date">${formatDate(v.date)}</span>
-                                                ${cleanContent(v.issue || v.content?.slice(0, 100) || '-')}
+                                                <div class="visit-content">${cleanContent(v.issue || v.content?.slice(0, 300) || '-')}</div>
                                             </div>
                                         `).join('')}
                                     </td>
@@ -1021,16 +1029,23 @@
             return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
         }
 
-        // 반복적인 점검 문구 제거 후 핵심 내용만 반환
+        // 반복 문구 제거, '-' 구분자를 지능적으로 줄바꿈으로 변환
         function cleanContent(text) {
             if (!text) return '-';
-            return text
+            let s = text
                 .replace(/\[인허가 [\d]+순위 점검활동\]/g, '')
                 .replace(/\[주요거래처 점검활동\]/g, '')
                 .replace(/\[방문일지\]/g, '')
-                .replace(/\[.*?점검.*?\]/g, '')
-                .replace(/^[,\s|•\-]+/, '')
-                .trim() || '-';
+                .replace(/\[.*?점검.*?\]/g, '');
+
+            // '단어- 다음문장' → 줄바꿈 (한국어 문장 구분 하이픈)
+            s = s.replace(/([가-힣\w\)])-\s+(?=[가-힣\w(])/g, '$1\n');
+            // ' - ' 느슨한 구분자 → 줄바꿈
+            s = s.replace(/\s+-\s+/g, '\n');
+            // 행 시작 하이픈/공백 제거
+            s = s.replace(/^[-\s|,]+/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+
+            return s || '-';
         }
 
         // ── Gemini AI 분석 ────────────────────────────────────
