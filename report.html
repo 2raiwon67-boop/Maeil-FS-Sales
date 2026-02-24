@@ -936,42 +936,7 @@
             output.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // ── 공사중 테이블 렌더링 ──────────────────────────────
-        function renderConstructionTable(accounts) {
-            if (accounts.length === 0) {
-                return '<div class="empty-state">이달 방문한 공사중 거래처가 없습니다.</div>';
-            }
 
-            return `
-                <table class="account-table">
-                    <thead>
-                        <tr>
-                            <th>거래처명</th>
-                            <th>방문 횟수</th>
-                            <th>최근 방문일</th>
-                            <th>주요 이슈</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${accounts.map(acc => `
-                            <tr>
-                                <td><div class="account-name">${acc.name}</div></td>
-                                <td style="font-weight:600; color:var(--primary);">${acc.visits.length}회</td>
-                                <td style="color:#86868b; font-size:13px;">${formatDate(acc.visits[0]?.date)}</td>
-                                <td>
-                                     ${acc.visits.map(v => `
-                                        <div class="visit-row">
-                                            <span class="visit-date">${formatDate(v.date)}</span>
-                                            <div class="visit-content">${cleanContent(v.issue || v.content?.slice(0, 300) || '-')}</div>
-                                        </div>
-                                    `).join('')}
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-        }
 
         // ── 주요거래처 테이블 렌더링 ─────────────────────────
         function renderMajorTable(accounts) {
