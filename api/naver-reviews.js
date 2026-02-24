@@ -208,7 +208,9 @@ ${productList}
             throw new Error('응답이 너무 길어 잘렸습니다. 매장명을 더 구체적으로 입력하거나 다시 시도해주세요.');
         }
 
-        const rawText = candidate?.content?.parts?.[0]?.text;
+        // thinking 모델은 parts 배열에 thought:true 파트가 먼저 올 수 있으므로 실제 응답 파트를 찾음
+        const rawText = candidate?.content?.parts?.find(p => !p.thought)?.text
+            ?? candidate?.content?.parts?.[0]?.text;
 
         if (!rawText) {
             throw new Error('Gemini 응답이 비어있습니다.');
