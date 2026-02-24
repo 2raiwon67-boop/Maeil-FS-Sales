@@ -676,8 +676,109 @@
             await loadProductDBFromSheets();
         });
 
-        // 페이지당 최대 품목 수 (A4 1장 기준)
-        const ITEMS_PER_PAGE = 16;
+        // ===== 실제 렌더링 높이 기반 동적 페이지 분할 =====
+        // 숨겨진 측정용 페이퍼를 만들어 각 행의 실제 높이를 측정한 뒤 페이지 넘침을 감지합니다.
+        function calculatePageBreaks(editorRows) {
+            if (editorRows.length === 0) return [0];
+
+            // 측정용 컨테이너 (화면 밖에 렌더링)
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed;top:-30000px;left:0;visibility:hidden;pointer-events:none;z-index:-9999;';
+
+            wrap.innerHTML = `
+                <div class="paper" style="transform:none!important;zoom:1!important;" id="_mPaper">
+                    <div class="paper-header" id="_mHdr">
+                        <div class="paper-title">매일유업 견적서</div>
+                        <div style="font-size:14px;margin-top:8px;color:#666;">Maeil Food Service</div>
+                    </div>
+                    <table class="info-table" id="_mInfo">
+                        <tr><td class="info-label">수신</td><td colspan="3" style="font-size:14px;font-weight:600;">고객명</td></tr>
+                        <tr><td class="info-label">담당자</td><td>담당자</td><td class="info-label">연락처</td><td>연락처</td></tr>
+                    </table>
+                    <table class="quote-table" id="_mTable">
+                        <colgroup>
+                            <col style="width:4%"><col style="width:28%"><col style="width:9%">
+                            <col style="width:25%"><col style="width:16%"><col style="width:18%">
+                        </colgroup>
+                        <thead id="_mThead">
+                            <tr><th>No</th><th>품명</th><th>규격</th><th>내용</th><th>판매가</th><th>사진</th></tr>
+                        </thead>
+                        <tbody id="_mTbody"></tbody>
+                        <tfoot id="_mTfoot">
+                            <tr style="background:#fbfbfd;font-weight:700;">
+                                <td colspan="4" style="text-align:center;padding:10px;">합 계</td>
+                                <td colspan="2" style="text-align:right;padding:0 15px;">0원</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    <div id="_mNote" style="margin-top:40px;text-align:right;font-size:13px;color:#666;line-height:1.6;">* 부가세(VAT) 포함가 기준입니다.</div>
+                </div>
+            `;
+            document.body.appendChild(wrap);
+
+            const tbody = document.getElementById('_mTbody');
+            editorRows.forEach((editorRow, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="text-align:center;color:#888;">${i + 1}</td>
+                    <td style="text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${editorRow.querySelector('.project-name').value}</td>
+                    <td style="text-align:center;">${editorRow.querySelector('.p-spec-input').value}</td>
+                    <td style="text-align:center;padding:4px 8px;font-size:11px;color:#666;word-break:keep-all;overflow-wrap:break-word;line-height:1.6;">${editorRow.querySelector('.p-description').value}</td>
+                    <td style="text-align:right;padding:0 6px;font-weight:600;">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value) || 0).toLocaleString()}</td>
+                    <td style="text-align:center;padding:4px;"><div style="width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;"></div></td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // 레이아웃 강제 계산
+            const paper = document.getElementById('_mPaper');
+            paper.getBoundingClientRect();
+
+            // CSS 1mm = 96/25.4 px
+            const mmPx = 96 / 25.4;
+            const contentH = (297 - 40) * mmPx; // A4 높이 - 상하 패딩(20mm*2)
+
+            const paperRect   = paper.getBoundingClientRect();
+            const theadRect   = document.getElementById('_mThead').getBoundingClientRect();
+            const tfootRect   = document.getElementById('_mTfoot').getBoundingClientRect();
+            const noteRect    = document.getElementById('_mNote').getBoundingClientRect();
+            const infoRect    = document.getElementById('_mInfo').getBoundingClientRect();
+
+            const trs = Array.from(tbody.querySelectorAll('tr'));
+            const firstRowTop = trs.length > 0 ? trs[0].getBoundingClientRect().top : theadRect.bottom;
+
+            // 페이지1 고정 영역: 헤더 + 정보테이블 + 테이블헤더 (contentH 기준 상단 오버헤드)
+            const topOverhead = firstRowTop - paperRect.top - (20 * mmPx);
+            // 하단 고정 영역: tfoot + 주석
+            const footerH = noteRect.bottom - tfootRect.top;
+            // 페이지1 행 수용 가능 높이
+            const p1Available = contentH - topOverhead - footerH;
+            // 이후 페이지: 정보테이블 없는 대신 페이지표시 라인(약 28px)
+            const infoH = infoRect.height + 20;
+            const pNAvailable = p1Available + infoH - 28;
+
+            // 각 행의 실제 렌더링 높이 측정
+            const rowHeights = trs.map(tr => tr.getBoundingClientRect().height);
+
+            document.body.removeChild(wrap);
+
+            // 페이지 분할 계산
+            const breaks = [0];
+            let acc = 0;
+            let avail = p1Available;
+
+            for (let i = 0; i < rowHeights.length; i++) {
+                if (acc + rowHeights[i] > avail && i > 0) {
+                    breaks.push(i);
+                    acc = rowHeights[i];
+                    avail = pNAvailable;
+                } else {
+                    acc += rowHeights[i];
+                }
+            }
+
+            return breaks; // 각 페이지의 시작 행 인덱스 배열
+        }
 
         // 제품 DB (Google Sheets에서 자동 로드됨)
         let productDB = [];
@@ -738,7 +839,10 @@
             if (!container) return;
 
             const editorRows = Array.from(document.querySelectorAll('#editor-items-container > div'));
-            const numPages = Math.max(1, Math.ceil(editorRows.length / ITEMS_PER_PAGE));
+
+            // 실제 행 높이 기반으로 페이지 분할 계산
+            const pageBreaks = calculatePageBreaks(editorRows);
+            const numPages = pageBreaks.length;
 
             // 필요한 페이지 수에 맞게 paper div 조정
             while (container.children.length > numPages) container.lastChild.remove();
@@ -754,11 +858,14 @@
             const quoteMode = document.querySelector('input[name="quoteMode"]:checked').value;
 
             for (let i = 0; i < numPages; i++) {
+                const startIdx = pageBreaks[i];
+                const endIdx = i < numPages - 1 ? pageBreaks[i + 1] : editorRows.length;
                 renderPaper(
                     container.children[i],
                     i,
                     numPages,
-                    editorRows.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE),
+                    editorRows.slice(startIdx, endIdx),
+                    startIdx, // 전역 행 번호 시작점
                     customerName, managerName, managerPhone, quoteMode
                 );
             }
@@ -768,7 +875,7 @@
         }
 
         // ===== 개별 페이퍼 렌더링 =====
-        function renderPaper(paper, pageIndex, totalPages, editorRows, customerName, managerName, managerPhone, quoteMode) {
+        function renderPaper(paper, pageIndex, totalPages, editorRows, startGlobalIndex, customerName, managerName, managerPhone, quoteMode) {
             const isFirst = pageIndex === 0;
             const isLast = pageIndex === totalPages - 1;
 
@@ -822,7 +929,7 @@
             `;
 
             editorRows.forEach((editorRow, idx) => {
-                const globalRowNum = pageIndex * ITEMS_PER_PAGE + idx + 1;
+                const globalRowNum = startGlobalIndex + idx + 1;
                 const rowId = editorRow.querySelector('.row-id').value;
                 const name = editorRow.querySelector('.project-name').value;
                 const spec = editorRow.querySelector('.p-spec-input').value;
