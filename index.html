@@ -1651,6 +1651,7 @@
             <div class="view-toggle">
                 <button class="view-btn active" id="btn-map-view" onclick="switchMainView('map')">🗺️ 지도</button>
                 <button class="view-btn" id="btn-dashboard-view" onclick="switchMainView('dashboard')">📈 통계</button>
+                <button class="view-btn" id="btn-milk-view" onclick="switchMainView('milk')">🥛 사용우유</button>
             </div>
             <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
             <a href="admin.html" id="adminPanelLink" class="nav-link"
@@ -1818,19 +1819,21 @@
                 </div>
 
                 <div class="dashboard-grid">
-                    <div class="dashboard-card" style="height: 340px;">
+                    <div class="dashboard-card" style="height: 360px;">
                         <div class="dashboard-title">📍 지역별 분포 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '주소2' 기준)</span>
                         </div>
-                        <div style="position: relative; height: 260px; width: 100%;">
+                        <div id="regionFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="if(_activeRegionFilter){_activeRegionFilter=null;renderStatusChart(null);renderRegionChart(null);}else if(_activeStatusFilter){_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);}">막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다</div>
+                        <div style="position: relative; height: 270px; width: 100%;">
                             <canvas id="dashRegionChart"></canvas>
                         </div>
                     </div>
-                    <div class="dashboard-card" style="height: 340px;">
+                    <div class="dashboard-card" style="height: 360px;">
                         <div class="dashboard-title">📊 현재 거래 상태 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '거래여부' 기준)</span>
                         </div>
-                        <div style="position: relative; height: 260px; width: 100%;">
+                        <div id="statusFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="if(_activeStatusFilter){_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);}else if(_activeRegionFilter){_activeRegionFilter=null;renderStatusChart(null);renderRegionChart(null);}">막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다</div>
+                        <div style="position: relative; height: 270px; width: 100%;">
                             <canvas id="dashStatusChart"></canvas>
                         </div>
                     </div>
@@ -1853,6 +1856,27 @@
                 </div>
             </div>
 
+            <!-- 사용우유 전용 뷰 -->
+            <div class="dashboard-container" id="milkView">
+                <div style="max-width:900px;margin:0 auto;">
+                    <div style="display:flex;gap:16px;margin-bottom:24px;">
+                        <div class="summary-value-card" style="flex:1;">
+                            <div class="sv-label">집계 업장 수</div>
+                            <div class="sv-value" id="milkTotalCount">-</div>
+                        </div>
+                        <div class="summary-value-card" style="flex:1;">
+                            <div class="sv-label">우유 브랜드 수</div>
+                            <div class="sv-value" id="milkBrandCount">-</div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card" style="height:480px;">
+                        <div class="dashboard-title">🥛 사용 우유 현황 <span style="font-size:11px;color:#86868b;font-weight:normal;">(인허가 데이터 '사용우유' P컬럼 기준)</span></div>
+                        <div style="position:relative;height:400px;width:100%;">
+                            <canvas id="milkFullChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
@@ -1987,32 +2011,41 @@
         let dashTrendChartInstance = null;
         let dashMilkChartInstance = null;
 
-        // 메인 뷰 전환 함수 (지도 <-> 통계)
+        // ── 크로스 필터 상태 ──
+        let _chartCrossData = null;   // { matrix, regionLabels, statusLabels, statusColors, milkCount }
+        let _activeStatusFilter = null;
+        let _activeRegionFilter = null;
+
+        // 메인 뷰 전환 함수 (지도 / 통계 / 사용우유)
         function switchMainView(view) {
             const mapArea = document.getElementById('map');
             const dashboardView = document.getElementById('dashboardView');
+            const milkView = document.getElementById('milkView');
             const routePanel = document.getElementById('routePanel');
             const btnMap = document.getElementById('btn-map-view');
             const btnDash = document.getElementById('btn-dashboard-view');
+            const btnMilk = document.getElementById('btn-milk-view');
+
+            // 전부 숨김
+            mapArea.style.opacity = '0';
+            mapArea.style.pointerEvents = 'none';
+            dashboardView.classList.remove('active');
+            milkView.classList.remove('active');
+            if (routePanel) routePanel.classList.remove('active');
+            [btnMap, btnDash, btnMilk].forEach(b => b && b.classList.remove('active'));
 
             if (view === 'dashboard') {
-                mapArea.style.opacity = '0';
-                mapArea.style.pointerEvents = 'none';
-                if (routePanel) routePanel.classList.remove('active');
-
                 dashboardView.classList.add('active');
                 btnDash.classList.add('active');
-                btnMap.classList.remove('active');
-
-                // 차트 업데이트 실행
                 updateDashboardCharts();
+            } else if (view === 'milk') {
+                milkView.classList.add('active');
+                btnMilk.classList.add('active');
+                renderMilkFullView();
             } else {
                 mapArea.style.opacity = '1';
                 mapArea.style.pointerEvents = 'auto';
-
-                dashboardView.classList.remove('active');
                 btnMap.classList.add('active');
-                btnDash.classList.remove('active');
             }
         }
 
@@ -2056,17 +2089,19 @@
             const statusCount = { '거래': 0, '미거래': 0, '인허가': 0, '공사중': 0, 'DROP': 0, '기타': 0 };
             const regionCount = {};
             const milkCount = {};
+            const crossMatrix = {}; // crossMatrix[region][status] = count
 
             combinedData.forEach(d => {
-                // 상태 카운트 ('거래여부(기입예정)' 직접 활용)
                 const s = d.status;
                 statusCount[s] = (statusCount[s] || 0) + 1;
 
-                // 지역 카운트 ('주소2' 직접 활용)
                 let region = d.address || '기타';
                 if (!region || region === '') region = '기타';
-
                 regionCount[region] = (regionCount[region] || 0) + 1;
+
+                // 크로스 집계
+                if (!crossMatrix[region]) crossMatrix[region] = {};
+                crossMatrix[region][s] = (crossMatrix[region][s] || 0) + 1;
             });
 
             // 사용우유 집계 (P 컬럼, 값 있는 행만)
@@ -2076,6 +2111,25 @@
                     milkCount[milk] = (milkCount[milk] || 0) + 1;
                 }
             });
+
+            // 크로스 필터 전역 데이터 저장
+            const colorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93'];
+            const allStatusLabels = Object.keys(statusCount).filter(k => statusCount[k] > 0).sort((a, b) => statusCount[b] - statusCount[a]);
+            const statusColorMap = {};
+            allStatusLabels.forEach((s, i) => { statusColorMap[s] = colorPalette[i % colorPalette.length]; });
+            const allRegionLabels = Object.keys(regionCount).filter(k => k !== '기타' && regionCount[k] > 0).sort((a, b) => regionCount[b] - regionCount[a]);
+
+            _chartCrossData = {
+                matrix: crossMatrix,
+                regionCount,
+                statusCount,
+                regionLabels: allRegionLabels,
+                statusLabels: allStatusLabels,
+                statusColorMap,
+                milkCount
+            };
+            _activeStatusFilter = null;
+            _activeRegionFilter = null;
 
             // 최빈 방문 거래처 계산
             const visitFreq = {};
@@ -2093,97 +2147,9 @@
             }
 
             // 4. Chart.js 렌더링
-
-            // 공통 옵션
-            const commonOptions = {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 11 } } } }
-            };
-
-            // [차트 1] 지역별 분포 (Bar Chart로 변경하여 가독성 개선)
-            if (dashRegionChartInstance) dashRegionChartInstance.destroy();
-            const ctxRegion = document.getElementById('dashRegionChart').getContext('2d');
-
-            // 데이터 수치가 큰 순서대로 정렬 (Bar 차트 가독성 향상)
-            const regionLabels = Object.keys(regionCount).filter(k => k !== '기타' && regionCount[k] > 0).sort((a, b) => regionCount[b] - regionCount[a]);
-            const regionData = regionLabels.map(k => regionCount[k]);
-
-            dashRegionChartInstance = new Chart(ctxRegion, {
-                type: 'bar',
-                data: {
-                    labels: regionLabels.length ? regionLabels : ['데이터 없음'],
-                    datasets: [{
-                        label: '업장 수',
-                        data: regionData.length ? regionData : [0],
-                        backgroundColor: '#0071e3',
-                        borderRadius: 6
-                    }]
-                },
-                options: Object.assign({}, commonOptions, {
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
-                })
-            });
-
-            // [차트 2] 상태별 분포 (Bar)
-            if (dashStatusChartInstance) dashStatusChartInstance.destroy();
-            const ctxStatus = document.getElementById('dashStatusChart').getContext('2d');
-
-            // 거래여부(상태명) 유효한 것들만 추출 (미기입은 맨 뒤로 배치 혹은 제외 가능. 여기선 포함)
-            const statusLabels = Object.keys(statusCount).sort((a, b) => statusCount[b] - statusCount[a]);
-            const statusData = statusLabels.map(k => statusCount[k]);
-
-            // 색상 동적 배치
-            const colorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93'];
-            const bgColors = statusLabels.map((_, i) => colorPalette[i % colorPalette.length]);
-
-            dashStatusChartInstance = new Chart(ctxStatus, {
-                type: 'bar',
-                data: {
-                    labels: statusLabels.length ? statusLabels : ['데이터 없음'],
-                    datasets: [{
-                        label: '업장 수',
-                        data: statusData.length ? statusData : [0],
-                        backgroundColor: bgColors,
-                        borderRadius: 6
-                    }]
-                },
-                options: Object.assign({}, commonOptions, {
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
-                })
-            });
-
-            // [차트 3] 사용우유 현황 (Doughnut)
-            if (dashMilkChartInstance) dashMilkChartInstance.destroy();
-            const ctxMilk = document.getElementById('dashMilkChart').getContext('2d');
-            const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
-            const milkData = milkLabels.map(k => milkCount[k]);
-            const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
-            const milkBgColors = milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]);
-
-            dashMilkChartInstance = new Chart(ctxMilk, {
-                type: 'doughnut',
-                data: {
-                    labels: milkLabels.length ? milkLabels : ['데이터 없음'],
-                    datasets: [{
-                        data: milkData.length ? milkData : [1],
-                        backgroundColor: milkLabels.length ? milkBgColors : ['#e5e5ea'],
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
-                },
-                options: Object.assign({}, commonOptions, {
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { font: { family: 'Inter', size: 11 }, padding: 10, boxWidth: 14 }
-                        }
-                    },
-                    cutout: '55%'
-                })
-            });
+            renderRegionChart(null);
+            renderStatusChart(null);
+            renderMiniMilkChart();
 
             // [차트 4] 월별 추이 (Line)
             const monthCount = {};
@@ -2226,6 +2192,220 @@
             });
         }
 
+        // ── 도넛 데이터레이블 커스텀 플러그인 ──
+        const donutSegmentLabelPlugin = {
+            id: 'donutSegmentLabels',
+            afterDatasetsDraw(chart) {
+                const { ctx, data } = chart;
+                const meta = chart.getDatasetMeta(0);
+                if (!meta || !meta.data) return;
+                const total = (data.datasets[0].data || []).reduce((a, b) => a + (b || 0), 0);
+                if (!total) return;
+                meta.data.forEach((arc, i) => {
+                    const value = data.datasets[0].data[i] || 0;
+                    const pct = Math.round(value / total * 100);
+                    if (pct < 4) return;
+                    const midAngle = arc.startAngle + (arc.endAngle - arc.startAngle) / 2;
+                    const r = (arc.innerRadius + arc.outerRadius) / 2;
+                    const x = arc.x + Math.cos(midAngle) * r;
+                    const y = arc.y + Math.sin(midAngle) * r;
+                    ctx.save();
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.shadowColor = 'rgba(0,0,0,0.3)';
+                    ctx.shadowBlur = 3;
+                    ctx.fillText(pct + '%', x, y);
+                    ctx.restore();
+                });
+            }
+        };
+
+        // ── [차트 1] 지역별 분포 렌더 함수 ──
+        function renderRegionChart(filterStatus) {
+            if (!_chartCrossData) return;
+            const { matrix, regionCount, regionLabels, statusColorMap } = _chartCrossData;
+
+            if (dashRegionChartInstance) dashRegionChartInstance.destroy();
+            const ctxRegion = document.getElementById('dashRegionChart');
+            if (!ctxRegion) return;
+
+            let labels, data, bgColor;
+            const filterLabelEl = document.getElementById('regionFilterLabel');
+
+            if (filterStatus) {
+                // 해당 상태를 가진 지역만 표시 (해당 상태 기준 카운트)
+                labels = regionLabels.filter(r => matrix[r] && matrix[r][filterStatus] > 0);
+                labels.sort((a, b) => (matrix[b][filterStatus] || 0) - (matrix[a][filterStatus] || 0));
+                data = labels.map(r => matrix[r][filterStatus] || 0);
+                bgColor = statusColorMap[filterStatus] || '#0071e3';
+                if (filterLabelEl) filterLabelEl.textContent = `「${filterStatus}」 기준 필터 적용 중 · 클릭으로 해제`;
+            } else {
+                labels = regionLabels;
+                data = labels.map(k => regionCount[k]);
+                bgColor = '#0071e3';
+                if (filterLabelEl) filterLabelEl.textContent = '막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다';
+            }
+
+            dashRegionChartInstance = new Chart(ctxRegion.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels.length ? labels : ['데이터 없음'],
+                    datasets: [{ label: filterStatus ? filterStatus + ' 업장 수' : '업장 수', data: data.length ? data : [0], backgroundColor: bgColor, borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    onClick(evt, elements) {
+                        if (!elements.length) return;
+                        const idx = elements[0].index;
+                        const clickedRegion = labels[idx];
+                        if (_activeRegionFilter === clickedRegion) {
+                            _activeRegionFilter = null;
+                            renderStatusChart(null);
+                            renderRegionChart(_activeStatusFilter);
+                        } else {
+                            _activeRegionFilter = clickedRegion;
+                            _activeStatusFilter = null;
+                            renderStatusChart(clickedRegion);
+                            renderRegionChart(null);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}개소` } }
+                    },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // ── [차트 2] 현재 거래 상태 렌더 함수 ──
+        function renderStatusChart(filterRegion) {
+            if (!_chartCrossData) return;
+            const { matrix, statusCount, statusLabels, statusColorMap } = _chartCrossData;
+
+            if (dashStatusChartInstance) dashStatusChartInstance.destroy();
+            const ctxStatus = document.getElementById('dashStatusChart');
+            if (!ctxStatus) return;
+
+            let labels, data, bgColors;
+            const filterLabelEl = document.getElementById('statusFilterLabel');
+
+            if (filterRegion) {
+                const regionData = matrix[filterRegion] || {};
+                labels = statusLabels.filter(s => (regionData[s] || 0) > 0);
+                labels.sort((a, b) => (regionData[b] || 0) - (regionData[a] || 0));
+                data = labels.map(s => regionData[s] || 0);
+                bgColors = labels.map(s => statusColorMap[s] || '#8e8e93');
+                if (filterLabelEl) filterLabelEl.textContent = `「${filterRegion}」 기준 필터 적용 중 · 클릭으로 해제`;
+            } else {
+                labels = statusLabels;
+                data = labels.map(k => statusCount[k]);
+                bgColors = labels.map(s => statusColorMap[s] || '#8e8e93');
+                if (filterLabelEl) filterLabelEl.textContent = '막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다';
+            }
+
+            dashStatusChartInstance = new Chart(ctxStatus.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: labels.length ? labels : ['데이터 없음'],
+                    datasets: [{ label: filterRegion ? filterRegion + ' 업장 수' : '업장 수', data: data.length ? data : [0], backgroundColor: bgColors, borderRadius: 6 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    onClick(evt, elements) {
+                        if (!elements.length) return;
+                        const idx = elements[0].index;
+                        const clickedStatus = labels[idx];
+                        if (_activeStatusFilter === clickedStatus) {
+                            _activeStatusFilter = null;
+                            renderRegionChart(null);
+                            renderStatusChart(_activeRegionFilter);
+                        } else {
+                            _activeStatusFilter = clickedStatus;
+                            _activeRegionFilter = null;
+                            renderRegionChart(clickedStatus);
+                            renderStatusChart(null);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: ctx => ` ${ctx.raw}개소` } }
+                    },
+                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        // ── [차트 3] 대시보드 내 소형 사용우유 도넛 ──
+        function renderMiniMilkChart() {
+            if (!_chartCrossData) return;
+            const { milkCount } = _chartCrossData;
+            if (dashMilkChartInstance) dashMilkChartInstance.destroy();
+            const ctxMilk = document.getElementById('dashMilkChart');
+            if (!ctxMilk) return;
+            const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
+            const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
+            const milkData = milkLabels.map(k => milkCount[k]);
+            dashMilkChartInstance = new Chart(ctxMilk.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: milkLabels.length ? milkLabels : ['데이터 없음'],
+                    datasets: [{ data: milkData.length ? milkData : [1], backgroundColor: milkLabels.length ? milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]) : ['#e5e5ea'], borderWidth: 2, borderColor: '#fff' }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, padding: 8, boxWidth: 12 } } },
+                    cutout: '55%'
+                },
+                plugins: [donutSegmentLabelPlugin]
+            });
+        }
+
+        // ── 사용우유 전용 뷰 렌더 ──
+        let _milkFullChartInstance = null;
+        function renderMilkFullView() {
+            if (!_chartCrossData) {
+                // 데이터 아직 없으면 잠깐 기다림
+                setTimeout(renderMilkFullView, 600);
+                return;
+            }
+            const { milkCount } = _chartCrossData;
+            const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
+            const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
+            const milkData = milkLabels.map(k => milkCount[k]);
+            const total = milkData.reduce((a, b) => a + b, 0);
+
+            // 요약 숫자
+            document.getElementById('milkTotalCount').textContent = total + '개소';
+            document.getElementById('milkBrandCount').textContent = milkLabels.length + '종';
+
+            // 차트
+            if (_milkFullChartInstance) _milkFullChartInstance.destroy();
+            const ctx = document.getElementById('milkFullChart');
+            if (!ctx) return;
+            _milkFullChartInstance = new Chart(ctx.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: milkLabels.length ? milkLabels : ['데이터 없음'],
+                    datasets: [{ data: milkData.length ? milkData : [1], backgroundColor: milkLabels.length ? milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]) : ['#e5e5ea'], borderWidth: 3, borderColor: '#fff' }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 13 }, padding: 14, boxWidth: 16, generateLabels(chart) {
+                        const data = chart.data;
+                        return data.labels.map((label, i) => {
+                            const val = data.datasets[0].data[i];
+                            const pct = total ? Math.round(val / total * 100) : 0;
+                            return { text: `${label}  ${val}개소 (${pct}%)`, fillStyle: data.datasets[0].backgroundColor[i], hidden: false, index: i };
+                        });
+                    } } } },
+                    cutout: '52%'
+                },
+                plugins: [donutSegmentLabelPlugin]
+            });
+        }
 
         function closeCurrentInfoWindow() {
             if (currentInfoWindow) {
