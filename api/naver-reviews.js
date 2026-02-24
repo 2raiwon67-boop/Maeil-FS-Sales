@@ -175,7 +175,7 @@ ${productList}
 
         // ── 4. Gemini API 호출 ──
         const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -183,9 +183,12 @@ ${productList}
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.7,
-                        maxOutputTokens: 2500,
+                        maxOutputTokens: 1500,
                         topP: 0.95,
-                        topK: 40
+                        topK: 40,
+                        thinkingConfig: {
+                            thinkingBudget: 1024  // thinking 모델 토큰 상한 (0=비활성, 최대 24576)
+                        }
                     }
                 })
             }
@@ -194,7 +197,7 @@ ${productList}
         if (!geminiRes.ok) {
             const errBody = await geminiRes.text();
             console.error('Gemini API error:', geminiRes.status, errBody);
-            throw new Error(`Gemini API 오류 (${geminiRes.status}): ${errBody.slice(0, 200)}`);
+            throw new Error('Gemini API 호출 실패');
         }
 
         const geminiData = await geminiRes.json();
