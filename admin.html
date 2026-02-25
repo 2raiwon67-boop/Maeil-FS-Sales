@@ -261,6 +261,14 @@
         let allUsers = [];
         let currentTab = 'pending';
 
+        // ── 소속 목록 (지점/사업부 추가 시 여기만 수정) ──────
+        const BUSINESS_UNITS = [
+            '수도권FS지역사업부장',
+            '경기북부FS지점',
+            '서울FS지점',
+            '경기남부FS지점',
+        ];
+
         // ── 관리자 권한 확인 ──────────────────────────────────
         window.addEventListener('load', () => document.body.classList.add('loaded'));
 
@@ -355,24 +363,46 @@
                     <div class="avatar">${initial}</div>
                     <div class="user-info">
                         <div class="user-name">${u.full_name || '(이름 없음)'} ${badge}</div>
-                        <div class="user-meta">${u.email} · ${u.phone ? u.phone + ' · ' : ''}가입 ${createdAt}</div>
+                        <div class="user-meta">${u.email} · ${u.phone ? u.phone + ' · ' : ''}${u.business_unit ? u.business_unit + ' · ' : ''}가입 ${createdAt}</div>
                     </div>
                     ${actions}
                 </div>`;
         }
 
-        // ── 승인 ─────────────────────────────────────────────
-        async function approveUser(userId, btn) {
-            const meta = JSON.parse(btn.dataset.meta || '{}');
-            btn.disabled = true;
-            btn.nextElementSibling && (btn.nextElementSibling.disabled = true);
-            btn.textContent = '처리 중...';
+        // ── 승인 (1단계: business_unit 입력 UI 표시) ──────────
+        function approveUser(userId, btn) {
+            const options = BUSINESS_UNITS.map(u =>
+                `<option value="${u}">${u}</option>`
+            ).join('');
+            const wrapper = btn.closest('.actions');
+            wrapper.innerHTML = `
+                <select id="bu-${userId}" style="width:170px;padding:6px 8px;font-size:13px;border:1px solid #d2d2d7;border-radius:8px;outline:none;">
+                    <option value="">소속 선택</option>
+                    ${options}
+                </select>
+                <button onclick="confirmApprove('${userId}')" class="btn-approve">확인</button>
+            `;
+            document.getElementById(`bu-${userId}`).focus();
+        }
+
+        // ── 승인 (2단계: API 호출) ────────────────────────────
+        async function confirmApprove(userId) {
+            const buInput = document.getElementById(`bu-${userId}`);
+            const businessUnit = buInput.value.trim();
+            if (!businessUnit) { alert('소속을 선택해주세요.'); return; }
+
+            const confirmBtn = buInput.nextElementSibling;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = '처리 중...';
+
+            const user = allUsers.find(u => u.id === userId);
+            const meta = { full_name: user?.full_name || '', phone: user?.phone || '' };
 
             try {
                 const res = await fetch('/api/admin-users', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Admin-Code': getAdminCode() },
-                    body: JSON.stringify({ action: 'approve', userId, existingMetadata: meta, adminCode: getAdminCode() })
+                    body: JSON.stringify({ action: 'approve', userId, existingMetadata: meta, businessUnit, adminCode: getAdminCode() })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);
@@ -381,8 +411,8 @@
                 await loadUsers();
             } catch (e) {
                 showToast('❌ ' + e.message, true);
-                btn.disabled = false;
-                btn.textContent = '승인';
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = '확인';
             }
         }
 

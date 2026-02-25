@@ -598,6 +598,12 @@
                 <div id="recommendList" style="display: flex; flex-direction: column; gap: 8px;">
                     <!-- 추천 아이템들이 여기에 동적으로 추가됨 -->
                 </div>
+
+                <div id="savedQuotesSection" style="margin-top:16px; display:none;">
+                    <hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 12px;">
+                    <div style="font-size:13px;font-weight:700;margin-bottom:8px;">📁 저장된 견적</div>
+                    <div id="savedQuotesList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
+                </div>
             </div>
         </div>
 
@@ -616,9 +622,14 @@
             <div class="editor-side">
                 <div class="panel-header" style="justify-content: space-between;">
                     <span>📝 견적 설정</span>
-                    <button onclick="generatePDF()"
-                        style="padding: 7px 16px; background: #0071e3; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📥
-                        PDF 저장</button>
+                    <div style="display:flex;gap:8px;">
+                        <button onclick="saveQuote()"
+                            style="padding: 7px 16px; background: #34c759; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">💾
+                            저장</button>
+                        <button onclick="generatePDF()"
+                            style="padding: 7px 16px; background: #0071e3; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📥
+                            PDF 저장</button>
+                    </div>
                 </div>
 
                 <div class="settings-panel"
@@ -1493,6 +1504,102 @@
 
         // 초기 행 1개 추가
         addRow();
+
+        // ===== 견적서 저장/불러오기 =====
+
+        async function saveQuote() {
+            const user = await getUser();
+            if (!user) { alert('로그인이 필요합니다.'); return; }
+
+            const businessUnit = user.user_metadata?.business_unit;
+            if (!businessUnit) { alert('사업부 정보가 없습니다. 관리자에게 문의하세요.'); return; }
+
+            const editorRows = Array.from(document.querySelectorAll('#editor-items-container > div'));
+            const items = editorRows.map(row => ({
+                name: row.querySelector('.project-name').value,
+                spec: row.querySelector('.p-spec-input').value,
+                factoryPrice: parseFloat(row.querySelector('.factory-price').value) || 0,
+                dcRate: parseFloat(row.querySelector('.dc-rate').value) || 0,
+                salesPrice: parseFloat(row.querySelector('.sales-price').value) || 0,
+                desc: row.querySelector('.p-description').value
+            }));
+
+            const { error } = await client.from('quotes').insert({
+                business_unit: businessUnit,
+                created_by: user.user_metadata?.full_name || user.email,
+                customer_name: document.getElementById('edit-customerName').value,
+                manager_name: document.getElementById('edit-managerName').value,
+                manager_phone: document.getElementById('edit-managerPhone').value,
+                quote_mode: document.querySelector('input[name="quoteMode"]:checked').value,
+                items,
+                total_amount: parseInt(document.getElementById('edit-totalAmount').innerText.replace(/,/g, '')) || 0
+            });
+
+            if (error) { alert('저장 실패: ' + error.message); return; }
+            alert('견적서가 저장되었습니다.');
+            loadSavedQuotes();
+        }
+
+        async function loadSavedQuotes() {
+            const user = await getUser();
+            if (!user?.user_metadata?.business_unit) return;
+
+            const { data, error } = await client.from('quotes')
+                .select('id, customer_name, created_by, total_amount, created_at')
+                .order('created_at', { ascending: false })
+                .limit(20);
+
+            if (error || !data?.length) {
+                document.getElementById('savedQuotesSection').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('savedQuotesSection').style.display = 'block';
+            document.getElementById('savedQuotesList').innerHTML = data.map(q => `
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f9f9fb;border-radius:8px;border:1px solid #e5e5e5;">
+                    <div style="flex:1;min-width:0;">
+                        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.customer_name || '(고객명 없음)'}</div>
+                        <div style="font-size:11px;color:#888;">${q.created_by} · ${new Date(q.created_at).toLocaleDateString('ko-KR')} · ${Number(q.total_amount).toLocaleString()}원</div>
+                    </div>
+                    <button onclick="loadQuote('${q.id}')" style="padding:4px 10px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0;">불러오기</button>
+                    <button onclick="deleteQuote('${q.id}', this)" style="padding:4px 8px;background:none;border:1px solid #ff3b30;color:#ff3b30;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0;">삭제</button>
+                </div>
+            `).join('');
+        }
+
+        async function loadQuote(id) {
+            const { data, error } = await client.from('quotes').select('*').eq('id', id).single();
+            if (error || !data) { alert('불러오기 실패'); return; }
+
+            document.getElementById('edit-customerName').value = data.customer_name || '';
+            document.getElementById('edit-managerName').value = data.manager_name || '';
+            document.getElementById('edit-managerPhone').value = data.manager_phone || '';
+            const modeInput = document.querySelector(`input[name="quoteMode"][value="${data.quote_mode}"]`);
+            if (modeInput) { modeInput.checked = true; setQuoteMode(data.quote_mode); }
+
+            const container = document.getElementById('editor-items-container');
+            container.innerHTML = '';
+            (data.items || []).forEach(item => {
+                addRow({ name: item.name, spec: item.spec, price: item.factoryPrice || 0 });
+                const row = container.lastElementChild;
+                if (row) {
+                    row.querySelector('.dc-rate').value = item.dcRate || 0;
+                    row.querySelector('.sales-price').value = item.salesPrice || 0;
+                    if (item.desc) row.querySelector('.p-description').value = item.desc;
+                    calculateRow(row.querySelector('.factory-price'));
+                }
+            });
+            syncInfo();
+            alert(`"${data.customer_name}" 견적서를 불러왔습니다.`);
+        }
+
+        async function deleteQuote(id, btn) {
+            if (!confirm('이 견적서를 삭제할까요?')) return;
+            btn.disabled = true;
+            const { error } = await client.from('quotes').delete().eq('id', id);
+            if (error) { alert('삭제 실패: ' + error.message); btn.disabled = false; return; }
+            loadSavedQuotes();
+        }
     </script>
     <script src="auth.js"></script>
     <script>
@@ -1510,6 +1617,9 @@
                     if (name || phone) syncInfo();
                 }
             }
+
+            // 저장된 견적 목록 로드
+            if (typeof loadSavedQuotes === 'function') loadSavedQuotes();
         });
     </script>
 

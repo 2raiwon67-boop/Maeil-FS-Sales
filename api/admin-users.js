@@ -52,6 +52,7 @@ export default async function handler(req, res) {
                 email: u.email,
                 full_name: u.user_metadata?.full_name || '',
                 phone: u.user_metadata?.phone || '',
+                business_unit: u.user_metadata?.business_unit || '',
                 approved: u.user_metadata?.approved,  // false=대기, true=승인, undefined=기존
                 created_at: u.created_at,
                 last_sign_in_at: u.last_sign_in_at
@@ -72,15 +73,19 @@ export default async function handler(req, res) {
 
     // ── POST: 승인 / 거절 ────────────────────────────────────
     if (req.method === 'POST') {
-        const { action, userId, existingMetadata } = req.body || {};
+        const { action, userId, existingMetadata, businessUnit } = req.body || {};
 
         if (!userId || !action) {
             return res.status(400).json({ error: 'userId와 action이 필요합니다.' });
         }
 
         if (action === 'approve') {
-            // 기존 메타데이터는 유지하고 approved만 true로 변경
-            const updatedMeta = { ...(existingMetadata || {}), approved: true };
+            // 기존 메타데이터는 유지하고 approved + business_unit 설정
+            const updatedMeta = {
+                ...(existingMetadata || {}),
+                approved: true,
+                ...(businessUnit ? { business_unit: businessUnit } : {})
+            };
             const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: supabaseHeaders,
