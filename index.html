@@ -29,10 +29,7 @@
     <!-- Proj4js (좌표계 변환) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="common.css">
 
     <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -44,79 +41,11 @@
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
             background: #ffffff;
             color: #1d1d1f;
             overflow: hidden;
             height: 100vh;
-            opacity: 0;
-            /* 초기 투명도 설정 */
-            transition: opacity 0.4s ease-in-out;
-            /* 부드러운 전환 효과 */
-        }
-
-        body.loaded {
-            opacity: 1;
-        }
-
-        /* =============== 상단 네비게이션 =============== */
-        .nav-bar {
-            background: #1d1d1f;
-            padding: 0 24px;
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .nav-logo {
-            font-size: 15px;
-            font-weight: 600;
-            color: #ffffff;
-            margin-right: 20px;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 24px;
-        }
-
-        .nav-link {
-            color: #a1a1a6;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 400;
-            padding: 4px 0;
-            margin: 0 14px;
-            transition: color 0.2s;
-            position: relative;
-        }
-
-        .nav-link:hover {
-            color: #f5f5f7;
-            background: transparent;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            bottom: 0;
-            left: 0;
-            background-color: #f5f5f7;
-            transform: scaleX(0);
-            transition: transform 0.2s ease-in-out;
-        }
-
-        .nav-link:hover::after {
-            transform: scaleX(1);
-        }
-
-        .nav-link.active {
-            color: #f5f5f7;
-            background: transparent;
-            font-weight: 600;
         }
 
         .nav-actions {
@@ -577,46 +506,6 @@
                 z-index: 10;
             }
 
-            /* 2. 내비게이션 최적화 */
-            .nav-bar {
-                padding: 0 16px;
-                justify-content: space-between;
-                height: 52px;
-            }
-
-            .nav-logo {
-                font-size: 14px;
-                flex-shrink: 0;
-            }
-
-            .nav-menu {
-                display: flex;
-                gap: 12px;
-                overflow-x: auto;
-                margin: 0 10px;
-                -webkit-overflow-scrolling: touch;
-                /* 스크롤 부드럽게 */
-            }
-
-            .nav-menu::-webkit-scrollbar {
-                display: none;
-                /* 스크롤바 숨김 */
-            }
-
-            .nav-link {
-                margin: 0;
-                font-size: 13px;
-                white-space: nowrap;
-                padding: 16px 4px;
-            }
-
-            .nav-actions {
-                display: none;
-                /* 모바일에서 로그인 버튼은 일단 숨김 (공간 부족) */
-            }
-
-            /* 버튼이 필요하다면 햄버거 메뉴를 고려해야 함 */
-
             /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
             .bottom-sheet .status-btn {
                 padding: 16px 0;
@@ -733,45 +622,6 @@
             /* ── 메인 레이아웃: 그리드 해제 (지도 전체 너비) ── */
             .main-layout {
                 display: block;
-            }
-
-            /* ── 네비게이션: 우측 액션 영역 압축 ── */
-            .nav-actions {
-                display: flex !important;
-                flex-shrink: 0;
-                gap: 4px;
-            }
-
-            .nav-bar>div:first-child {
-                flex: 1;
-                min-width: 0;
-                display: flex;
-                align-items: center;
-                overflow: hidden;
-            }
-
-            /* nav-menu는 가로 스크롤 허용 */
-            .nav-menu {
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-                flex: 1;
-                min-width: 0;
-            }
-
-            .nav-menu::-webkit-scrollbar {
-                display: none;
-            }
-
-            #userNameDisplay {
-                display: none;
-            }
-
-            #logoutBtn {
-                font-size: 11px !important;
-                padding: 4px 6px !important;
-                margin: 0 !important;
-                white-space: nowrap;
             }
 
             .view-toggle {
@@ -928,7 +778,7 @@
             padding: 0;
             min-width: 280px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
             overflow: hidden;
         }
 
@@ -1637,27 +1487,14 @@
 
 <body>
     <!-- 상단 네비게이션 -->
-    <nav class="nav-bar">
-        <div style="display: flex; align-items: center;">
-            <div class="nav-logo">FS MISO</div>
-            <div class="nav-menu">
-                <a href="index.html" class="nav-link active">인허가</a>
-                <a href="방문일지.html" class="nav-link">방문일지</a>
-                <a href="proposal.html" class="nav-link">견적서</a>
-                <a href="report.html" class="nav-link">월별 보고서</a>
-            </div>
-        </div>
-        <div class="nav-actions" style="display: flex; align-items: center;">
-            <div class="view-toggle">
-                <button class="view-btn active" id="btn-map-view" onclick="switchMainView('map')">🗺️ 지도</button>
-                <button class="view-btn" id="btn-dashboard-view" onclick="switchMainView('dashboard')">📈 통계</button>
-            </div>
-            <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
-            <a href="admin.html" id="adminPanelLink" class="nav-link"
-                style="display:none; margin-right:8px; color:#f5c542;">관리자</a>
-            <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>
-        </div>
-    </nav>
+    <div id="nav-placeholder"></div>
+    <script>
+        window._NAV_OPTIONS = {
+            showAdmin: true,
+            extraActions: '<div class="view-toggle"><button class="view-btn active" id="btn-map-view" onclick="switchMainView(\'map\')">🗺️ 지도</button><button class="view-btn" id="btn-dashboard-view" onclick="switchMainView(\'dashboard\')">📈 통계</button></div>'
+        };
+    </script>
+    <script src="nav-component.js"></script>
 
     <!-- 메인 레이아웃 -->
     <div class="main-layout">
@@ -2184,7 +2021,7 @@
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 11px Inter, sans-serif';
+                    ctx.font = 'bold 11px Pretendard, sans-serif';
                     ctx.shadowColor = 'rgba(0,0,0,0.3)';
                     ctx.shadowBlur = 3;
                     ctx.fillText(pct + '%', x, y);
@@ -2329,7 +2166,7 @@
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right', labels: { font: { family: 'Inter', size: 11 }, padding: 8, boxWidth: 12 } } },
+                    plugins: { legend: { position: 'right', labels: { font: { family: 'Pretendard', size: 11 }, padding: 8, boxWidth: 12 } } },
                     cutout: '55%'
                 },
                 plugins: [donutSegmentLabelPlugin]
@@ -4806,11 +4643,6 @@ ${question}
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
-            // 관리자 로그인 시 관리자 패널 링크 표시
-            if (localStorage.getItem('fs_admin_access') === 'true') {
-                const link = document.getElementById('adminPanelLink');
-                if (link) link.style.display = 'inline';
-            }
         });
     </script>
 </body>

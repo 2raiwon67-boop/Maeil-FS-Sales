@@ -239,7 +239,7 @@
                 const code = document.getElementById('adminCode').value.trim();
                 if (code === '532753') {
                     try {
-                        localStorage.setItem('fs_admin_access', 'true');
+                        sessionStorage.setItem('fs_admin_access', 'true');
                         window.location.href = 'index.html';
                     } catch {
                         showError('브라우저 설정 오류로 로그인이 차단되었습니다. 쿠키/사이트 데이터 설정을 확인해주세요.');

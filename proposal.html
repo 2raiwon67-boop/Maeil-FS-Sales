@@ -7,8 +7,7 @@
     <title>FS MISO - 견적서 시스템</title>
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
-    <link rel="stylesheet" as="style" crossorigin
-        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="common.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -28,81 +27,6 @@
             background-color: var(--background-color);
             color: #1d1d1f;
             overflow: hidden;
-            opacity: 0;
-            transition: opacity 0.4s ease-in-out;
-        }
-
-        body.loaded {
-            opacity: 1;
-        }
-
-        /* 네비게이션 (index.html과 동일) */
-        .nav-bar {
-            background: #1d1d1f;
-            padding: 0 24px;
-            height: var(--header-height);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .nav-logo {
-            font-size: 15px;
-            font-weight: 600;
-            color: #ffffff;
-            margin-right: 20px;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 24px;
-        }
-
-        /* 로그아웃 버튼 스타일 추가 */
-
-        /* 로그아웃 버튼 스타일 추가 */
-        #logoutBtn:hover {
-            color: #ff4b4b !important;
-            background: rgba(255, 59, 48, 0.1) !important;
-            border-radius: 6px;
-        }
-
-        .nav-link {
-            color: #a1a1a6;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 400;
-            padding: 4px 0;
-            margin: 0 14px;
-            transition: color 0.2s;
-            position: relative;
-        }
-
-        .nav-link:hover {
-            color: #f5f5f7;
-            background: transparent;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 1px;
-            bottom: 0;
-            left: 0;
-            background-color: #f5f5f7;
-            transform: scaleX(0);
-            transition: transform 0.2s ease-in-out;
-        }
-
-        .nav-link:hover::after {
-            transform: scaleX(1);
-        }
-
-        .nav-link.active {
-            color: #f5f5f7;
-            background: transparent;
-            font-weight: 600;
         }
 
         /* 메인 레이아웃 */
@@ -447,55 +371,6 @@
             background-color: #ff3b30;
         }
 
-        @media (max-width: 768px) {
-
-            /* 네비게이션 모바일 대응 */
-            .nav-bar {
-                padding: 0 12px;
-            }
-
-            .nav-bar>div:first-child {
-                flex: 1;
-                min-width: 0;
-                display: flex;
-                align-items: center;
-                overflow: hidden;
-            }
-
-            .nav-actions {
-                flex-shrink: 0;
-            }
-
-            .nav-logo {
-                font-size: 13px;
-                margin-right: 8px;
-                flex-shrink: 0;
-            }
-
-            .nav-menu {
-                flex: 1;
-                min-width: 0;
-                gap: 8px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-            }
-
-            .nav-menu::-webkit-scrollbar {
-                display: none;
-            }
-
-            .nav-link {
-                font-size: 12px;
-                white-space: nowrap;
-                padding: 14px 4px;
-            }
-
-            #userNameDisplay {
-                display: none !important;
-            }
-        }
-
         /* ===== 인쇄 전용 스타일 ===== */
         @media print {
 
@@ -542,21 +417,9 @@
 
 <body>
     <!-- 네비게이션 -->
-    <nav class="nav-bar no-print">
-        <div style="display: flex; align-items: center;">
-            <div class="nav-logo">FS MISO</div>
-            <div class="nav-menu">
-                <a href="index.html" class="nav-link">인허가</a>
-                <a href="방문일지.html" class="nav-link">방문일지</a>
-                <a href="proposal.html" class="nav-link active">견적서</a>
-                <a href="report.html" class="nav-link">월별 보고서</a>
-            </div>
-        </div>
-        <div class="nav-actions" style="display: flex; align-items: center;">
-            <span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>
-            <a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>
-        </div>
-    </nav>
+    <div id="nav-placeholder"></div>
+    <script>window._NAV_OPTIONS = { noPrint: true };</script>
+    <script src="nav-component.js"></script>
 
     <div class="container">
         <!-- 1. 분석 패널 -->

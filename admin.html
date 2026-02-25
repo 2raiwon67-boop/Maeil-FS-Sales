@@ -7,8 +7,7 @@
     <title>관리자 패널 - FS MISO</title>
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔐</text></svg>">
-    <link rel="stylesheet" as="style" crossorigin
-        href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+    <link rel="stylesheet" href="common.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root { --primary: #0071e3; }
@@ -20,22 +19,8 @@
             font-family: 'Pretendard', -apple-system, sans-serif;
             background: #f5f5f7;
             color: #1d1d1f;
-            opacity: 0;
-            transition: opacity 0.3s;
         }
 
-        body.loaded { opacity: 1; }
-
-        .nav-bar {
-            background: #1d1d1f;
-            padding: 0 24px;
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .nav-logo { font-size: 15px; font-weight: 600; color: #fff; }
         .nav-sub  { font-size: 13px; color: #a1a1a6; margin-left: 12px; }
 
         .back-link {
@@ -267,7 +252,7 @@
         window.addEventListener('load', () => document.body.classList.add('loaded'));
 
         window.onload = async function () {
-            if (localStorage.getItem('fs_admin_access') !== 'true') {
+            if (sessionStorage.getItem('fs_admin_access') !== 'true') {
                 alert('관리자만 접근 가능한 페이지입니다.');
                 window.location.href = 'index.html';
                 return;

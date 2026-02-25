@@ -39,7 +39,7 @@ async function checkAuth() {
     const isAdminPage   = path.includes('admin.html');
 
     // 관리자 우회 체크
-    if (localStorage.getItem('fs_admin_access') === 'true') {
+    if (sessionStorage.getItem('fs_admin_access') === 'true') {
         if (isLoginPage) window.location.href = 'index.html';
         return { user: { email: 'admin@maeil.com', user_metadata: { full_name: '관리자', approved: true } } };
     }
@@ -91,9 +91,9 @@ async function signIn(email, password) {
 // 3. 로그아웃
 async function signOut() {
     // 관리자 로그아웃
-    if (localStorage.getItem('fs_admin_access') === 'true') {
+    if (sessionStorage.getItem('fs_admin_access') === 'true') {
         if (confirm('관리자 로그아웃 하시겠습니까?')) {
-            localStorage.removeItem('fs_admin_access');
+            sessionStorage.removeItem('fs_admin_access');
             window.location.href = 'login.html';
         }
         return;
@@ -124,7 +124,7 @@ async function signUp(email, password, metadata = {}) {
 // 5. 현재 사용자 정보 가져오기 (UI 표시용)
 async function getUser() {
     // 관리자 우회
-    if (localStorage.getItem('fs_admin_access') === 'true') {
+    if (sessionStorage.getItem('fs_admin_access') === 'true') {
         return {
             email: 'admin@maeil.com',
             user_metadata: { full_name: '관리자' }
@@ -309,5 +309,11 @@ async function setupLogoutButton(buttonId = 'logoutBtn', nameDisplayId = 'userNa
             e.preventDefault();
             signOut(); // confirm은 signOut 내부에서 처리
         });
+    }
+
+    // 관리자 링크 표시 (nav-component.js가 주입한 #adminPanelLink)
+    if (sessionStorage.getItem('fs_admin_access') === 'true') {
+        const adminLink = document.getElementById('adminPanelLink');
+        if (adminLink) adminLink.style.display = 'inline';
     }
 }

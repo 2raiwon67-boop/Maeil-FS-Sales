@@ -28,7 +28,7 @@ const server = http.createServer((req, res) => {
 
     let filePath = '.' + req.url;
     if (filePath === './') {
-        filePath = './대시보드_최종.html';
+        filePath = './index.html';
     }
 
     const extname = path.extname(filePath);
