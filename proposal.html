@@ -885,6 +885,7 @@
 
         function findProductImage(productName) {
             const trimmed = productName.trim();
+            if (!trimmed) return null;
             // 1. 수동 매핑 우선 확인
             const manual = PRODUCT_IMAGE_MANUAL_MAP[trimmed];
             if (manual) return PRODUCT_IMAGE_BASE + encodeURIComponent(manual);
