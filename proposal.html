@@ -816,21 +816,80 @@
         // 제품 DB Google Sheets URL (출고가/마진 제외 공개 컬럼만)
         const PRODUCT_DB_SHEETS_URL = 'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=1802773439';
 
+        // ===== 제품 이미지 자동 매칭 =====
+        const PRODUCT_IMAGE_BASE = 'https://2raiwon67-boop.github.io/Maeil-FS-Sales/assets/images/';
+        const PRODUCT_IMAGE_FILES = [
+            'DMK)매일 휘핑크림 유지방 35% 1L×12.jpg',
+            '매일 연유 500g×12.jpg',
+            '매일 멸균 우유 오리지널 1L×10.jpg',
+            '매일 연유 소프트 500g×12.jpg',
+            '매일 연유 스위트 파우치 1KG×6.jpg',
+            '매일 우유 바리스타 1L.jpg',
+            '매일 우유 오리지널 1L×12.jpg',
+            '매일 생크림 500ml×20.jpg',
+            '테너 베이스 배&엘더플라워 1.2KG.jpg',
+            '테너 베이스 딸기 1.2KG.jpg',
+            '테너 베이스 라임 1.2KG.jpg',
+            '테너 베이스 레몬 1.2KG.jpg',
+            '테너 베이스 멜론 1.2KG.jpg',
+            '테너 베이스 자두 1.2KG.jpg',
+            '테너 베이스 자몽 1.2KG.jpg',
+            '테너 베이스 홍차 1.2KG.jpg',
+            '테너 베이스 체리.jpg',
+            '테너 베이스 복숭아 1.2KG.jpg',
+            '테너 베이스 오렌지 1.2KG.jpg',
+            '테너 베이스 청포도 1.2KG.jpg',
+            '매일 고소한 롤치즈 1kg×6.jpg',
+            '테너 베이스 블루베리 1.2KG.jpg',
+            '테너 베이스 애플망고 1.2KG.jpg',
+            '테너 베이스 과육플러스 딸기 1KG.jpg',
+            '테너 베이스 과육플러스 복숭아 1KG.jpg',
+            '테너 베이스 과육플러스 블루베리 1KG.jpg',
+            '테너 베이스 과육플러스 애플망고 1KG.jpg',
+            '테너 베이스 클레멘타인.jpg',
+            '알라 크림치즈 1.8kg×6.jpg',
+            '알라 휘핑크림 1L×10.jpg',
+            '매일 휘핑크림 38% 1L×10.jpg',
+            '알라 무염버터 400g×20.jpg',
+            '매일 쿠킹크림 조지방 30% 1L×10.jpg',
+            '매일 휘핑크림 식물성지방 22% 1L×10.jpg',
+            '매일 쿠킹크림 식물성지방 25% 1L×10.jpg',
+            '매일 휘핑크림골드 1L.jpg',
+            '버거치즈 80매 1.04kg×12.jpg',
+            '상하목장 유기농 우유 900ml×12.jpg',
+            '매일연유 오리지널 파우치 1KG.png',
+            '쉬레드치즈 지(G) 2.5kg×4.jpg',
+            '베이커리치즈1.8kg(100매)×5.jpg',
+            '체다슬라이스III 100매 .jpg',
+            '콰트로퐁듀크림치즈1KG.jpg',
+        ];
+
+        function findProductImage(productName) {
+            const name = productName.trim().toLowerCase();
+            const match = PRODUCT_IMAGE_FILES.find(f => f.toLowerCase().startsWith(name));
+            if (!match) return null;
+            return PRODUCT_IMAGE_BASE + encodeURIComponent(match);
+        }
+
         async function loadProductDBFromSheets() {
             try {
                 const res = await fetch(PRODUCT_DB_SHEETS_URL);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const csv = await res.text();
                 const rows = parseCSV(csv).filter(r => r['품명'] && r['품명'].trim());
-                productDB = rows.map(r => ({
-                    name: r['품명'].trim(),
-                    spec: r['내입량'] ? r['내입량'].trim() + '개입' : '',
-                    price: 0,       // 출고가는 보안상 미포함 — 직접 입력
-                    taxFree: false,
-                    image: r['이미지'] || '📦',
-                    maxDc: 0,
-                    desc: (r['제품 상세 내용'] || '').trim()
-                }));
+                productDB = rows.map(r => {
+                    const name = r['품명'].trim();
+                    return {
+                        name,
+                        spec: r['내입량'] ? r['내입량'].trim() + '개입' : '',
+                        price: 0,       // 출고가는 보안상 미포함 — 직접 입력
+                        taxFree: false,
+                        image: r['이미지'] || '📦',
+                        imageUrl: findProductImage(name),
+                        maxDc: 0,
+                        desc: (r['제품 상세 내용'] || '').trim()
+                    };
+                });
                 updateDatalist();
                 console.log(`✅ 제품 DB ${productDB.length}개 로드 완료 (Google Sheets)`);
             } catch (e) {
@@ -1442,8 +1501,11 @@
                 div.style.alignItems = 'center';
                 div.style.gap = '10px';
 
+                const imgHtml = item.imageUrl
+                    ? `<img src="${item.imageUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML='📦'">`
+                    : `<span style="font-size:20px;">${item.image || '📦'}</span>`;
                 div.innerHTML = `
-                    <div style="font-size: 20px;">${item.image || '📦'}</div>
+                    <div style="width:48px;height:48px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#f5f5f7;display:flex;align-items:center;justify-content:center;">${imgHtml}</div>
                     <div>
                         <div style="font-weight: 600; font-size: 13px;">${item.name}</div>
                         <div style="font-size: 11px; color: #888;">${item.spec} / ${Number(item.price).toLocaleString()}원</div>
