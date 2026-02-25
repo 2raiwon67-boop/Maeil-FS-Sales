@@ -1049,10 +1049,10 @@
                 const desc = editorRow.querySelector('.p-description').value;
                 const sales = parseFloat(editorRow.querySelector('.sales-price').value) || 0;
 
-                const cleanName = name.replace(/\s+/g, '').replace(/[🥛☕🌿🍫🥤📦]/g, '');
-                const imgHTML = cleanName
-                    ? `<img src="assets/images/${cleanName}.jpg" onerror="this.src='assets/images/${cleanName}.png';this.onerror=function(){this.parentElement.innerHTML='<div style=\\'width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;\\'>NO IMG</div>';}" style="width:80px;height:auto;max-height:50px;object-fit:contain;border-radius:4px;">`
-                    : `<div style="width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;">IMG</div>`;
+                const _imgUrl = findProductImage(name);
+                const imgHTML = _imgUrl
+                    ? `<img src="${_imgUrl}" onerror="this.parentElement.innerHTML='<div style=\\'width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;\\'>NO IMG</div>';" style="width:80px;height:auto;max-height:50px;object-fit:contain;border-radius:4px;">`
+                    : `<div style="width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;">NO IMG</div>`;
 
                 html += `
                 <tr id="preview-${rowId}">
@@ -1247,9 +1247,11 @@
 
                 // 사진 자동 로드
                 const imgCell = previewRow.querySelector('.p-img');
-                const cleanName = name.replace(/\s+/g, '').replace(/[🥛☕🌿🍫🥤📦]/g, '');
-                if (cleanName) {
-                    imgCell.innerHTML = `<img src="assets/images/${cleanName}.jpg" onerror="this.src='assets/images/${cleanName}.png'; this.onerror=function(){ this.parentElement.innerHTML='<div style=\\'width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;\\'>NO IMG</div>'; }" style="width: 80px; height: auto; max-height: 50px; object-fit: contain; border-radius: 4px;">`;
+                const _liveImgUrl = findProductImage(name);
+                if (_liveImgUrl) {
+                    imgCell.innerHTML = `<img src="${_liveImgUrl}" onerror="this.parentElement.innerHTML='<div style=\\'width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;\\'>NO IMG</div>';" style="width: 80px; height: auto; max-height: 50px; object-fit: contain; border-radius: 4px;">`;
+                } else {
+                    imgCell.innerHTML = '<div style="width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">NO IMG</div>';
                 }
             }
 
