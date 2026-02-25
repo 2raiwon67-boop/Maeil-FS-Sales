@@ -1,5 +1,15 @@
 
 // ============================================================
+// 소속 목록 (지점/사업부 추가 시 여기만 수정)
+// ============================================================
+const BUSINESS_UNITS = [
+    '수도권FS지역사업부장',
+    '경기북부FS지점',
+    '서울FS지점',
+    '경기남부FS지점',
+];
+
+// ============================================================
 // Supabase Auth Configuration
 // ============================================================
 const SUPABASE_URL = 'https://hcqbmilmldeeuydtrayx.supabase.co';
@@ -275,12 +285,15 @@ async function unregisterDevice() {
 async function setupLogoutButton(buttonId = 'logoutBtn', nameDisplayId = 'userNameDisplay') {
     const btn = document.getElementById(buttonId);
 
-    // 사용자 이름 표시
+    // 사용자 이름 + 소속 표시
     const user = await getUser();
     if (user && user.user_metadata && user.user_metadata.full_name) {
         const nameSpan = document.getElementById(nameDisplayId);
         if (nameSpan) {
-            nameSpan.innerText = `${user.user_metadata.full_name}님`;
+            const bu = user.user_metadata.business_unit;
+            nameSpan.innerText = bu
+                ? `${user.user_metadata.full_name}님 (${bu})`
+                : `${user.user_metadata.full_name}님`;
             nameSpan.style.color = '#ffffff';
             nameSpan.style.marginRight = '10px';
             nameSpan.style.fontSize = '13px';

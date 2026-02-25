@@ -62,6 +62,14 @@
                         class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                         placeholder="010-1234-5678">
                 </div>
+                <div>
+                    <label for="businessUnit" class="block text-sm font-medium text-gray-700">소속</label>
+                    <select id="businessUnit"
+                        class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 bg-white">
+                        <option value="">소속 선택</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-400">관리자 승인 시 최종 확정됩니다.</p>
+                </div>
             </div>
 
             <!-- 개인정보 수집 동의 (회원가입 시에만 표시) -->
@@ -135,6 +143,17 @@
         if (savedEmail) {
             document.getElementById('email').value = savedEmail;
             document.getElementById('rememberMe').checked = true;
+        }
+
+        // 소속 드롭다운 옵션 동적 생성 (BUSINESS_UNITS는 auth.js에서 로드)
+        if (typeof BUSINESS_UNITS !== 'undefined') {
+            const buSelect = document.getElementById('businessUnit');
+            BUSINESS_UNITS.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u;
+                opt.textContent = u;
+                buSelect.appendChild(opt);
+            });
         }
 
         let mode = 'login'; // 'login' | 'signup' | 'admin'
@@ -242,12 +261,14 @@
 
             try {
                 if (mode === 'signup') {
-                    const fullName = document.getElementById('fullName').value.trim();
-                    const phone    = document.getElementById('phone').value.trim();
+                    const fullName     = document.getElementById('fullName').value.trim();
+                    const phone        = document.getElementById('phone').value.trim();
+                    const businessUnit = document.getElementById('businessUnit').value;
                     if (!fullName || !phone) throw new Error('이름과 연락처를 모두 입력해주세요.');
+                    if (!businessUnit) throw new Error('소속을 선택해주세요.');
                     if (!document.getElementById('privacyConsent').checked) throw new Error('개인정보 수집 및 이용에 동의해주세요.');
 
-                    const result = await signUp(email, password, { full_name: fullName, phone });
+                    const result = await signUp(email, password, { full_name: fullName, phone, business_unit: businessUnit });
                     if (result.error) throw result.error;
 
                     if (result.data && !result.data.session && result.data.user) {

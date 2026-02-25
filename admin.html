@@ -261,13 +261,7 @@
         let allUsers = [];
         let currentTab = 'pending';
 
-        // ── 소속 목록 (지점/사업부 추가 시 여기만 수정) ──────
-        const BUSINESS_UNITS = [
-            '수도권FS지역사업부장',
-            '경기북부FS지점',
-            '서울FS지점',
-            '경기남부FS지점',
-        ];
+        // BUSINESS_UNITS 상수는 auth.js에 정의되어 있습니다.
 
         // ── 관리자 권한 확인 ──────────────────────────────────
         window.addEventListener('load', () => document.body.classList.add('loaded'));
