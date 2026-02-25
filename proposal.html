@@ -1542,7 +1542,7 @@
                 div.onclick = () => {
                     addRow(item);
                     div.style.background = '#e3f2fd';
-                    setTimeout(() => div.style.background = 'white', 200);
+                    setTimeout(() => div.remove(), 300);
                 };
                 list.appendChild(div);
             });
