@@ -1494,10 +1494,12 @@
 
         async function loadSavedQuotes() {
             const user = await getUser();
-            if (!user?.user_metadata?.business_unit) return;
+            const businessUnit = user?.user_metadata?.business_unit;
+            if (!businessUnit) return;
 
             const { data, error } = await client.from('quotes')
                 .select('id, customer_name, created_by, total_amount, created_at')
+                .eq('business_unit', businessUnit)   // ← 내 지점 견적서만 조회
                 .order('created_at', { ascending: false })
                 .limit(20);
 
@@ -1520,7 +1522,15 @@
         }
 
         async function loadQuote(id) {
-            const { data, error } = await client.from('quotes').select('*').eq('id', id).single();
+            const user = await getUser();
+            const businessUnit = user?.user_metadata?.business_unit;
+            if (!businessUnit) { alert('사업부 정보가 없습니다.'); return; }
+
+            const { data, error } = await client.from('quotes')
+                .select('*')
+                .eq('id', id)
+                .eq('business_unit', businessUnit)   // ← ID를 알아도 다른 지점 견적서 접근 불가
+                .single();
             if (error || !data) { alert('불러오기 실패'); return; }
 
             document.getElementById('edit-customerName').value = data.customer_name || '';
@@ -1548,7 +1558,14 @@
         async function deleteQuote(id, btn) {
             if (!confirm('이 견적서를 삭제할까요?')) return;
             btn.disabled = true;
-            const { error } = await client.from('quotes').delete().eq('id', id);
+            const user = await getUser();
+            const businessUnit = user?.user_metadata?.business_unit;
+            if (!businessUnit) { alert('사업부 정보가 없습니다.'); btn.disabled = false; return; }
+
+            const { error } = await client.from('quotes')
+                .delete()
+                .eq('id', id)
+                .eq('business_unit', businessUnit);  // ← 내 지점 견적서만 삭제 가능
             if (error) { alert('삭제 실패: ' + error.message); btn.disabled = false; return; }
             loadSavedQuotes();
         }
