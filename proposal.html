@@ -864,8 +864,32 @@
             '콰트로퐁듀크림치즈1KG.jpg',
         ];
 
+        // 자동 매칭이 안 되는 제품 수동 매핑
+        const PRODUCT_IMAGE_MANUAL_MAP = {
+            '매일 휘핑크림 유지방 35% 1L':       'DMK)매일 휘핑크림 유지방 35% 1L×12.jpg',
+            '매일 멸균 오리지널 1L':              '매일 멸균 우유 오리지널 1L×10.jpg',
+            '상하목장 유기농우유 900ML':           '상하목장 유기농 우유 900ml×12.jpg',
+            '베이커리치즈 1.8KG(100매)':          '베이커리치즈1.8kg(100매)×5.jpg',
+            '베이커리치즈II 1.8KG(100매)':        '베이커리치즈1.8kg(100매)×5.jpg',
+            '쉬레드치즈 (G) 2.5KG':              '쉬레드치즈 지(G) 2.5kg×4.jpg',
+            '매일 휘핑크림 골드 1L':              '매일 휘핑크림골드 1L.jpg',
+            '콰트로퐁듀 크림치즈 1KG':            '콰트로퐁듀크림치즈1KG.jpg',
+            '체다슬라이스III 100매 1.8KG':        '체다슬라이스III 100매 .jpg',
+            '테너 베이스 체리 1.2KG':             '테너 베이스 체리.jpg',
+            '테너 베이스 클레멘타인 1.2KG':        '테너 베이스 클레멘타인.jpg',
+            '테너 과육플러스 딸기 1KG':            '테너 베이스 과육플러스 딸기 1KG.jpg',
+            '테너 과육플러스 애플망고 1KG':        '테너 베이스 과육플러스 애플망고 1KG.jpg',
+            '테너 과육플러스 블루베리 1KG':        '테너 베이스 과육플러스 블루베리 1KG.jpg',
+            '테너 과육플러스 복숭아 1KG':          '테너 베이스 과육플러스 복숭아 1KG.jpg',
+        };
+
         function findProductImage(productName) {
-            const name = productName.trim().toLowerCase();
+            const trimmed = productName.trim();
+            // 1. 수동 매핑 우선 확인
+            const manual = PRODUCT_IMAGE_MANUAL_MAP[trimmed];
+            if (manual) return PRODUCT_IMAGE_BASE + encodeURIComponent(manual);
+            // 2. 파일명 prefix 자동 매칭
+            const name = trimmed.toLowerCase();
             const match = PRODUCT_IMAGE_FILES.find(f => f.toLowerCase().startsWith(name));
             if (!match) return null;
             return PRODUCT_IMAGE_BASE + encodeURIComponent(match);
