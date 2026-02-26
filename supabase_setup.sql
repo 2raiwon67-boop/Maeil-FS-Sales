@@ -36,22 +36,22 @@ CREATE TABLE IF NOT EXISTS licenses (
 
 ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "licenses_select_same_unit" ON licenses
+CREATE POLICY IF NOT EXISTS "licenses_select_same_unit" ON licenses
     FOR SELECT USING (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "licenses_insert_own_unit" ON licenses
+CREATE POLICY IF NOT EXISTS "licenses_insert_own_unit" ON licenses
     FOR INSERT WITH CHECK (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "licenses_update_same_unit" ON licenses
+CREATE POLICY IF NOT EXISTS "licenses_update_same_unit" ON licenses
     FOR UPDATE USING (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "licenses_delete_own" ON licenses
+CREATE POLICY IF NOT EXISTS "licenses_delete_own" ON licenses
     FOR DELETE USING (
         uploaded_by = auth.uid()
         AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
@@ -82,22 +82,22 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "accounts_select_same_unit" ON accounts
+CREATE POLICY IF NOT EXISTS "accounts_select_same_unit" ON accounts
     FOR SELECT USING (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "accounts_insert_own_unit" ON accounts
+CREATE POLICY IF NOT EXISTS "accounts_insert_own_unit" ON accounts
     FOR INSERT WITH CHECK (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "accounts_update_same_unit" ON accounts
+CREATE POLICY IF NOT EXISTS "accounts_update_same_unit" ON accounts
     FOR UPDATE USING (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "accounts_delete_own" ON accounts
+CREATE POLICY IF NOT EXISTS "accounts_delete_own" ON accounts
     FOR DELETE USING (
         uploaded_by = auth.uid()
         AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
@@ -131,23 +131,23 @@ CREATE TABLE IF NOT EXISTS visit_logs (
 
 ALTER TABLE visit_logs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "visit_logs_select_same_unit" ON visit_logs
+CREATE POLICY IF NOT EXISTS "visit_logs_select_same_unit" ON visit_logs
     FOR SELECT USING (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "visit_logs_insert_own_unit" ON visit_logs
+CREATE POLICY IF NOT EXISTS "visit_logs_insert_own_unit" ON visit_logs
     FOR INSERT WITH CHECK (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "visit_logs_update_own" ON visit_logs
+CREATE POLICY IF NOT EXISTS "visit_logs_update_own" ON visit_logs
     FOR UPDATE USING (
         created_by = auth.uid()
         AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "visit_logs_delete_own" ON visit_logs
+CREATE POLICY IF NOT EXISTS "visit_logs_delete_own" ON visit_logs
     FOR DELETE USING (
         created_by = auth.uid()
         AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
@@ -173,17 +173,17 @@ CREATE TABLE IF NOT EXISTS managers (
 
 ALTER TABLE managers ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "managers_select_same_unit" ON managers
+CREATE POLICY IF NOT EXISTS "managers_select_same_unit" ON managers
     FOR SELECT USING (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "managers_insert_own_unit" ON managers
+CREATE POLICY IF NOT EXISTS "managers_insert_own_unit" ON managers
     FOR INSERT WITH CHECK (
         business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
     );
 
-CREATE POLICY "managers_delete_own" ON managers
+CREATE POLICY IF NOT EXISTS "managers_delete_own" ON managers
     FOR DELETE USING (
         uploaded_by = auth.uid()
         AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
