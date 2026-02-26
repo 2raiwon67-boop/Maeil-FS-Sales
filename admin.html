@@ -9,6 +9,7 @@
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔐</text></svg>">
     <link rel="stylesheet" href="common.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #0071e3; }
 
@@ -211,6 +212,137 @@
         }
 
         .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* ── 업로드 탭 ───────────────────────────────────────── */
+        .upload-section { display: flex; flex-direction: column; gap: 14px; }
+
+        .upload-card-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid #f5f5f7;
+            font-size: 13px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .upload-card-body { padding: 20px; }
+
+        .type-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .type-btn {
+            padding: 12px 8px;
+            border: 2px solid #e5e5ea;
+            background: white;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: #1d1d1f;
+        }
+
+        .type-btn.active {
+            border-color: var(--primary);
+            background: #e8f2fd;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .type-btn:hover:not(.active) { border-color: #c7c7cc; }
+
+        .btn-template {
+            padding: 8px 18px;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            border: 1px solid #e5e5ea;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-template:hover { background: #e5e5ea; }
+
+        .dropzone {
+            border: 2px dashed #c7c7cc;
+            border-radius: 10px;
+            padding: 36px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #86868b;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+
+        .dropzone:hover, .dropzone.drag { border-color: var(--primary); color: var(--primary); background: #f5f8ff; }
+        .dropzone.has-file { border-color: #34c759; color: #1d1d1f; background: #f5fff8; border-style: solid; }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            display: block;
+            overflow-x: auto;
+        }
+
+        .preview-table th {
+            background: #f5f5f7;
+            padding: 8px 10px;
+            text-align: left;
+            font-weight: 600;
+            white-space: nowrap;
+            border-bottom: 1px solid #e5e5ea;
+        }
+
+        .preview-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f5f5f7;
+            white-space: nowrap;
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .upload-warn {
+            background: #fff8e1;
+            border: 1px solid #ffd54f;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #5d4037;
+        }
+
+        .upload-success {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: #1b5e20;
+        }
+
+        .btn-upload {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-upload:hover { background: #0077ed; }
+        .btn-upload:disabled { background: #c7c7cc; cursor: default; }
     </style>
 </head>
 
@@ -228,10 +360,11 @@
         <p class="page-sub">가입 신청 승인 및 전체 사용자 현황을 관리합니다.</p>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('pending')">
+            <button class="tab active" data-tab="pending" onclick="switchTab('pending')">
                 승인 대기 <span id="pendingCount"></span>
             </button>
-            <button class="tab" onclick="switchTab('all')">전체 사용자</button>
+            <button class="tab" data-tab="all" onclick="switchTab('all')">전체 사용자</button>
+            <button class="tab" data-tab="upload" onclick="switchTab('upload')">데이터 업로드</button>
         </div>
 
         <div id="listArea">
@@ -285,10 +418,14 @@
         // ── 탭 전환 ──────────────────────────────────────────
         function switchTab(tab) {
             currentTab = tab;
-            document.querySelectorAll('.tab').forEach((el, i) => {
-                el.classList.toggle('active', (i === 0 && tab === 'pending') || (i === 1 && tab === 'all'));
+            document.querySelectorAll('.tab').forEach(el => {
+                el.classList.toggle('active', el.dataset.tab === tab);
             });
-            renderList();
+            if (tab === 'upload') {
+                renderUpload();
+            } else {
+                renderList();
+            }
         }
 
         // ── 목록 렌더링 ───────────────────────────────────────
@@ -460,6 +597,274 @@
             el.classList.add('show');
             clearTimeout(toastTimer);
             toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        // ══════════════════════════════════════════════════════
+        // 데이터 업로드 탭
+        // ══════════════════════════════════════════════════════
+
+        const UPLOAD_TYPES = {
+            licenses: {
+                label: '인허가 데이터', table: 'licenses',
+                templateHeaders: ['영업허가일','사업장명','거래여부','업태구분명','평형','도로명전체주소','주소1','주소2','주소3','순위','담당자','앱시트등록일','위도','경도','사용우유','AI핵심태그'],
+                sampleRow:       ['2024-01-15','테스트카페','인허가','커피','30','경기도 포천시 테스트로 1','경기','포천시','신북면','1','홍길동','2024-01-20','37.89','127.20','서울우유',''],
+                columnMap: { '영업허가일':'permit_date','사업장명':'business_name','거래여부':'trade_status','업태구분명':'business_type','평형':'area','도로명전체주소':'road_address','주소1':'address1','주소2':'address2','주소3':'address3','순위':'priority','담당자':'manager','앱시트등록일':'appsheet_date','위도':'lat','경도':'lng','사용우유':'milk_type','AI핵심태그':'ai_tags' },
+                requiredCol: 'business_name', dateFields: ['permit_date','appsheet_date'], numericFields: ['lat','lng']
+            },
+            accounts: {
+                label: '주요거래처', table: 'accounts',
+                templateHeaders: ['거래처명','거래상태','주소'],
+                sampleRow:       ['홍길동마트','거래','경기도 포천시 테스트로 2'],
+                columnMap: { '거래처명':'business_name','거래상태':'trade_status','주소':'address' },
+                requiredCol: 'business_name', dateFields: [], numericFields: []
+            },
+            visit_logs: {
+                label: '방문일지', table: 'visit_logs',
+                templateHeaders: ['작성일','방문처(거래처)','작성자','주요이슈','내용','거래상태'],
+                sampleRow:       ['2024-03-01','테스트카페','홍길동','가격 문제','방문 후 가격 협의','미거래'],
+                columnMap: { '작성일':'visit_date','방문처(거래처)':'business_name','작성자':'manager','주요이슈':'key_issue','내용':'content','거래상태':'trade_status' },
+                requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: []
+            },
+            managers: {
+                label: '담당자관리', table: 'managers',
+                templateHeaders: ['지역','담당자명','이메일','지점장여부(Y/N)'],
+                sampleRow:       ['포천','홍길동','hong@example.com','N'],
+                columnMap: { '지역':'region','담당자명':'manager_name','이메일':'email','지점장여부(Y/N)':'is_branch_manager' },
+                requiredCol: 'manager_name', dateFields: [], numericFields: []
+            }
+        };
+
+        let selectedUploadType = 'licenses';
+        let parsedUploadData   = null;
+
+        function renderUpload() {
+            const cfg = UPLOAD_TYPES[selectedUploadType];
+            document.getElementById('listArea').innerHTML = `
+                <div class="upload-section">
+                    <div class="card">
+                        <div class="upload-card-header">1 — 업로드할 데이터 유형</div>
+                        <div class="upload-card-body">
+                            <div class="type-grid">
+                                ${Object.entries(UPLOAD_TYPES).map(([key, c]) => `
+                                    <button class="type-btn ${key === selectedUploadType ? 'active' : ''}"
+                                            onclick="selectUploadType('${key}')">${c.label}</button>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="upload-card-header">2 — 템플릿 다운로드 후 파일 업로드</div>
+                        <div class="upload-card-body">
+                            <button class="btn-template" onclick="downloadTemplate()">
+                                템플릿 다운로드 (.xlsx)
+                            </button>
+                            <div class="dropzone" id="dropzone"
+                                 onclick="document.getElementById('fileInput').click()"
+                                 ondragover="event.preventDefault(); this.classList.add('drag')"
+                                 ondragleave="this.classList.remove('drag')"
+                                 ondrop="handleDrop(event)">
+                                <div id="dropzoneText">파일을 여기에 드롭하거나 클릭 (.xlsx, .xls)</div>
+                            </div>
+                            <input type="file" id="fileInput" accept=".xlsx,.xls"
+                                   style="display:none" onchange="handleFile(event)">
+                        </div>
+                    </div>
+
+                    <div id="previewCard" style="display:none;">
+                        <div class="card" style="margin-bottom:10px;">
+                            <div class="upload-card-header">3 — 데이터 미리보기 (상위 5행)</div>
+                            <div class="upload-card-body" style="overflow-x:auto;">
+                                <div id="previewContent"></div>
+                            </div>
+                        </div>
+                        <div id="uploadWarn" class="upload-warn" style="margin-bottom:10px;"></div>
+                        <button class="btn-upload" id="btnUpload" onclick="confirmUpload()">
+                            업로드 확인 (기존 데이터 교체)
+                        </button>
+                    </div>
+                </div>`;
+        }
+
+        function selectUploadType(type) {
+            selectedUploadType = type;
+            parsedUploadData   = null;
+            document.querySelectorAll('.type-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.trim() === UPLOAD_TYPES[type].label);
+            });
+            const fi = document.getElementById('fileInput');
+            if (fi) fi.value = '';
+            const dz = document.getElementById('dropzone');
+            if (dz) {
+                dz.classList.remove('has-file');
+                document.getElementById('dropzoneText').textContent = '파일을 여기에 드롭하거나 클릭 (.xlsx, .xls)';
+            }
+            const pc = document.getElementById('previewCard');
+            if (pc) pc.style.display = 'none';
+        }
+
+        function downloadTemplate() {
+            const cfg = UPLOAD_TYPES[selectedUploadType];
+            const wb  = XLSX.utils.book_new();
+            const ws  = XLSX.utils.aoa_to_sheet([cfg.templateHeaders, cfg.sampleRow]);
+            // 헤더 열 너비 자동 설정
+            ws['!cols'] = cfg.templateHeaders.map(h => ({ wch: Math.max(h.length + 2, 12) }));
+            XLSX.utils.book_append_sheet(wb, ws, cfg.label);
+            XLSX.writeFile(wb, `FS_MISO_템플릿_${cfg.label}.xlsx`);
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            document.getElementById('dropzone').classList.remove('drag');
+            if (e.dataTransfer.files.length > 0) processUploadFile(e.dataTransfer.files[0]);
+        }
+
+        function handleFile(e) {
+            if (e.target.files.length > 0) processUploadFile(e.target.files[0]);
+        }
+
+        function processUploadFile(file) {
+            const cfg    = UPLOAD_TYPES[selectedUploadType];
+            const reader = new FileReader();
+
+            reader.onload = function(ev) {
+                try {
+                    const wb  = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+                    const ws  = wb.Sheets[wb.SheetNames[0]];
+                    const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'YYYY-MM-DD' });
+
+                    if (raw.length < 2) {
+                        showToast('데이터가 없습니다. 헤더 외 1행 이상 필요합니다.');
+                        return;
+                    }
+
+                    const fileHeaders = raw[0].map(h => String(h || '').trim());
+                    const rows = raw.slice(1).filter(row => row.some(c => c !== '' && c != null));
+
+                    // 헤더 → DB 컬럼 매핑
+                    parsedUploadData = rows.map(row => {
+                        const obj = {};
+                        fileHeaders.forEach((header, i) => {
+                            const dbCol = cfg.columnMap[header];
+                            if (!dbCol) return;
+                            let val = row[i] != null ? String(row[i]).trim() : '';
+
+                            if (dbCol === 'is_branch_manager') {
+                                val = ['Y','y','TRUE','true','1','예','지점장'].includes(val);
+                            } else if (cfg.numericFields.includes(dbCol)) {
+                                val = val ? parseFloat(val) : null;
+                            } else if (val === '') {
+                                val = null;
+                            }
+                            obj[dbCol] = val;
+                        });
+                        return obj;
+                    }).filter(row => row[cfg.requiredCol]);
+
+                    if (parsedUploadData.length === 0) {
+                        showToast('유효한 데이터가 없습니다. 필수 컬럼을 확인해주세요.');
+                        return;
+                    }
+
+                    // 드롭존 업데이트
+                    const dz = document.getElementById('dropzone');
+                    dz.classList.add('has-file');
+                    document.getElementById('dropzoneText').innerHTML =
+                        `<strong>${file.name}</strong> — ${parsedUploadData.length}건 인식`;
+
+                    // 미리보기 렌더링
+                    const previewRows = parsedUploadData.slice(0, 5);
+                    const dbCols      = Object.keys(previewRows[0]);
+
+                    document.getElementById('previewContent').innerHTML = `
+                        <div style="margin-bottom:8px;font-size:13px;color:#86868b;">
+                            총 <strong style="color:#1d1d1f">${parsedUploadData.length}건</strong> 인식. 상위 5행 미리보기:
+                        </div>
+                        <table class="preview-table">
+                            <thead><tr>${dbCols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                            <tbody>
+                                ${previewRows.map(row =>
+                                    `<tr>${dbCols.map(c =>
+                                        `<td title="${row[c] ?? ''}">${row[c] ?? ''}</td>`
+                                    ).join('')}</tr>`
+                                ).join('')}
+                            </tbody>
+                        </table>`;
+
+                    document.getElementById('uploadWarn').innerHTML =
+                        `기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedUploadData.length}건</strong>으로 교체됩니다.`;
+                    document.getElementById('btnUpload').textContent =
+                        `업로드 확인 (${parsedUploadData.length}건 교체)`;
+                    document.getElementById('previewCard').style.display = 'block';
+
+                } catch(err) {
+                    showToast('파일 파싱 오류: ' + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        async function confirmUpload() {
+            if (!parsedUploadData || parsedUploadData.length === 0) return;
+            const cfg = UPLOAD_TYPES[selectedUploadType];
+
+            if (!confirm(`${cfg.label} 기존 데이터를 삭제하고 ${parsedUploadData.length}건을 새로 업로드합니다.\n계속하시겠습니까?`)) return;
+
+            const btn = document.getElementById('btnUpload');
+            btn.disabled = true;
+            btn.textContent = '업로드 중...';
+
+            try {
+                const { data: userData, error: authError } = await client.auth.getUser();
+                if (authError || !userData?.user) throw new Error('로그인 정보를 가져올 수 없습니다.');
+
+                const user         = userData.user;
+                const businessUnit = user.user_metadata?.business_unit;
+                if (!businessUnit) throw new Error('사용자의 소속(business_unit)이 설정되지 않았습니다.');
+
+                // 1. 기존 데이터 삭제 (RLS: 자신이 업로드한 + 같은 지점)
+                const { error: delErr } = await client.from(cfg.table)
+                    .delete()
+                    .eq('business_unit', businessUnit);
+                if (delErr) throw new Error('기존 데이터 삭제 실패: ' + delErr.message);
+
+                // 2. 500건씩 분할 INSERT
+                const BATCH = 500;
+                const now   = new Date().toISOString();
+                let inserted = 0;
+
+                for (let i = 0; i < parsedUploadData.length; i += BATCH) {
+                    const batch = parsedUploadData.slice(i, i + BATCH).map(row => {
+                        const base = { ...row, business_unit: businessUnit };
+                        if (cfg.table === 'visit_logs') {
+                            base.created_by = user.id;
+                            base.created_at = now;
+                        } else {
+                            base.uploaded_by = user.id;
+                            base.uploaded_at = now;
+                        }
+                        return base;
+                    });
+
+                    const { error: insErr } = await client.from(cfg.table).insert(batch);
+                    if (insErr) throw new Error(`INSERT 실패 (${i + 1}~${i + batch.length}번째): ` + insErr.message);
+
+                    inserted += batch.length;
+                    btn.textContent = `업로드 중... ${inserted}/${parsedUploadData.length}건`;
+                }
+
+                // 성공 처리
+                document.getElementById('uploadWarn').outerHTML =
+                    `<div class="upload-success" style="margin-bottom:10px;">✅ ${cfg.label} ${inserted}건 업로드 완료!</div>`;
+                btn.textContent   = '업로드 완료';
+                parsedUploadData  = null;
+                showToast(`✅ ${cfg.label} ${inserted}건 업로드 완료!`);
+
+            } catch(e) {
+                btn.disabled    = false;
+                btn.textContent = `업로드 확인 (${parsedUploadData?.length ?? 0}건 교체)`;
+                showToast('❌ ' + e.message);
+            }
         }
 
         // ── 관리자 코드 요청 (첫 진입 시) ────────────────────
