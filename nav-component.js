@@ -20,6 +20,7 @@
         { href: '방문일지.html', label: '방문일지' },
         { href: 'proposal.html', label: '견적서' },
         { href: 'report.html',   label: '월별 보고서' },
+        { href: 'upload.html',   label: '데이터 관리' },
     ];
 
     function getCurrentPage() {
