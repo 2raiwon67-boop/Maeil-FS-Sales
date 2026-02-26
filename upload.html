@@ -321,29 +321,40 @@
             },
             accounts: {
                 label: '주요거래처', table: 'accounts',
-                // Google Sheets '주요거래처' 시트 헤더와 동일
+                // Google Sheets '주요거래처' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
                 templateHeaders: ['NO','사업부','사업장','지점','사업장코드명','고객레벨2','거래처ID','거래처명','거래상태','주요거래처 여부','담당자명','주소','도/광역시','시/군/구','면/동'],
                 sampleRow:       ['1','경기북부','포천','포천지점','S001','A','C001','홍길동마트','거래','Y','홍길동','경기도 포천시 테스트로 2','경기도','포천시','신북면'],
                 columnMap: {
-                    // NO, 사업부, 사업장, 지점, 사업장코드명, 고객레벨2, 거래처ID, 주요거래처 여부, 담당자명, 도/광역시, 시/군/구, 면/동 은 무시
-                    '거래처명':'business_name',
-                    '거래상태':'trade_status',
-                    '주소':'address'
+                    // 저장: NO, 사업장코드명, 고객레벨2, 거래처ID, 거래처명, 거래상태, 담당자명, 주소
+                    // 무시: 사업부, 사업장, 지점, 주요거래처 여부, 도/광역시, 시/군/구, 면/동
+                    'NO':          'seq_no',
+                    '사업장코드명':'store_code',
+                    '고객레벨2':   'customer_level',
+                    '거래처ID':    'account_id',
+                    '거래처명':    'business_name',
+                    '거래상태':    'trade_status',
+                    '담당자명':    'manager_name',
+                    '주소':        'address'
                 },
                 requiredCol: 'business_name', dateFields: [], numericFields: []
             },
             visit_logs: {
                 label: '방문일지', table: 'visit_logs',
-                // Google Sheets '방문일지' 시트 헤더와 동일
+                // Google Sheets '방문일지' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
                 templateHeaders: ['NO','사업부','사업장','지점','사업장코드','작성일','작성자','방문처(대리점 코드)','방문처(대리점)','방문처(거래처 코드)','방문처(거래처)','내용','AI_핵심태그'],
                 sampleRow:       ['1','경기북부','포천','포천지점','S001','2024-03-01','홍길동','D001','포천대리점','C001','테스트카페','방문 후 가격 협의 진행','가격'],
                 columnMap: {
-                    // NO, 사업부, 사업장, 지점, 사업장코드, 방문처(대리점 코드), 방문처(대리점), 방문처(거래처 코드) 는 무시
-                    '작성일':'visit_date',
-                    '작성자':'manager',
-                    '방문처(거래처)':'business_name',
-                    '내용':'content',
-                    'AI_핵심태그':'key_issue'   // 핵심태그를 key_issue에 저장
+                    // 저장: NO, 사업장코드, 작성일, 작성자, 방문처(대리점 코드), 방문처(대리점), 방문처(거래처 코드), 방문처(거래처), 내용
+                    // 무시: 사업부, 사업장, 지점, AI_핵심태그
+                    'NO':               'seq_no',
+                    '사업장코드':        'store_code',
+                    '작성일':            'visit_date',
+                    '작성자':            'manager',
+                    '방문처(대리점 코드)':'dealer_code',
+                    '방문처(대리점)':     'dealer_name',
+                    '방문처(거래처 코드)':'account_code',
+                    '방문처(거래처)':     'business_name',
+                    '내용':              'content'
                 },
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: []
             },
