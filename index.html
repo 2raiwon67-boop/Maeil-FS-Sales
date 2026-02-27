@@ -2101,7 +2101,8 @@
         const mobileVisibleLayers = new Set(['인허가', '공사중']);
         const mobileStarLayers = new Set(['star-미거래']); // star-거래, star-미거래
         const isMobile = () => window.innerWidth <= 768;
-        let markers = [];
+        let markers = [];           // filterMarkers()가 현재 보이는 마커 목록 (하위 호환)
+        let allMarkers = [];         // 마커 재사용: 최초 1회 생성 후 setMap으로 ON/OFF만 처리
         let currentFilter = 'all';
         let currentRegion = null;
         let currentManager = null;
@@ -2598,58 +2599,7 @@
             updateMapByStatus();
         }
 
-        function updateMapByStatus() {
-            if (!naverMap) return;
-            markers.forEach(m => m.setMap(null));
-            markers = [];
-
-            let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
-            if (currentRegion) filtered = filtered.filter(d => (d['주소2'] || '기타') === currentRegion);
-            if (currentManager) filtered = filtered.filter(d => (d['담당자'] || '미지정') === currentManager);
-            if (currentAITag) filtered = filtered.filter(d => (d['AI_핵심태그'] || '').includes(currentAITag));
-            if (window.currentDealStatusFilter) {
-                filtered = filtered.filter(d => (d['거래여부(기입예정)'] || '').trim() === window.currentDealStatusFilter);
-            }
-
-            filtered.forEach(item => {
-                if (!item['위도'] || !item['경도']) return;
-                try {
-                    const lat = parseFloat(item['위도']);
-                    const lng = parseFloat(item['경도']);
-                    const pos = new naver.maps.LatLng(lat, lng);
-                    const status = (item['거래여부(기입예정)'] || '').toString().trim();
-                    let color = '#34C759';
-                    if (status === '거래') color = '#007AFF';
-                    else if (status === '미거래') color = '#FF9595';
-                    else if (status === 'DROP') color = '#8E8E93';
-                    else if (status === '공사중') color = '#FF9500';
-
-                    let isOldPermit = false;
-                    if (status === '인허가' || status === '') {
-                        const dateStr = (item['영업 허가일'] || '').replace(/-/g, '');
-                        if (dateStr.length === 8) {
-                            const permitDate = new Date(parseInt(dateStr.substring(0, 4)), parseInt(dateStr.substring(4, 6)) - 1, parseInt(dateStr.substring(6, 8)));
-                            if (Math.ceil(Math.abs(new Date() - permitDate) / (1000 * 60 * 60 * 24)) >= 14) isOldPermit = true;
-                        }
-                    }
-                    const glowClass = isOldPermit ? 'marker-glow' : '';
-                    const marker = new naver.maps.Marker({
-                        position: pos, map: naverMap,
-                        icon: { content: `<div class="${glowClass}" style="width:12px;height:12px;background:${color};border:1px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`, anchor: new naver.maps.Point(6, 6) }
-                    });
-                    naver.maps.Event.addListener(marker, 'click', function (e) {
-                        if (window.innerWidth <= 768) {
-                            if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
-                        } else {
-                            if (currentInfoWindow) currentInfoWindow.close();
-                            const iw = new naver.maps.InfoWindow({ content: createInfoWindowContent(item), backgroundColor: 'transparent', borderColor: 'transparent', anchorSkew: true, pixelOffset: new naver.maps.Point(0, -10) });
-                            iw.open(naverMap, marker); currentInfoWindow = iw;
-                        }
-                    });
-                    markers.push(marker);
-                } catch (e) { }
-            });
-        }
+        // updateMapByStatus() 는 하단 initAllMarkers/filterMarkers 블록에 정의됨
 
         // 순위별 현황 클릭 필터 (인허가 1순위)
         function filterByRank(rank) {
@@ -2948,7 +2898,7 @@
                     }
 
                     updateDashboard();
-                    updateMap();
+                    initAllMarkers(); // allData 새로 로드 → 마커 전체 재생성
                 }
             } catch (error) {
                 console.warn('Google Sheets 로드 실패:', error.message);
@@ -3198,135 +3148,159 @@
         }
 
         // ============================================================
-        // 지도 업데이트
+        // 지도 업데이트 — 마커 재사용
         // ============================================================
 
-        function updateMap() {
+        /**
+         * initAllMarkers() — 전체 allData 마커를 최초 1회 생성합니다.
+         * 데이터가 변경될 때만 (업로드 / 재로드) 다시 호출합니다.
+         */
+        function initAllMarkers() {
             if (!naverMap) return;
 
-            markers.forEach(m => m.setMap(null));
+            // 기존 마커 전수 제거
+            allMarkers.forEach(m => m.setMap(null));
+            allMarkers = [];
             markers = [];
 
+            const colorMap = {
+                '거래': '#007AFF',
+                '미거래': '#FF9595',
+                '인허가': '#34C759',
+                '공사중': '#FF9500',
+                'DROP': null // DROP은 수집만, 무조건 표시 안 함
+            };
 
-            let filtered = currentFilter === 'all' ? allData : allData.filter(d => d['순위'] === currentFilter);
-
-            // 추가 필터링: 지역
-            if (currentRegion) {
-                filtered = filtered.filter(d => (d['주소2'] || '기타') === currentRegion);
-            }
-            // 추가 필터링: 담당자
-            if (currentManager) {
-                filtered = filtered.filter(d => (d['담당자'] || '미지정') === currentManager);
-            }
-            if (currentAITag) {
-                filtered = filtered.filter(d => (d['AI_핵심태그'] || '').includes(currentAITag));
-            }
-
-            // 모바일: 선택 라어만 표시 (PC는 적용 안 함)
-            if (isMobile()) {
-                filtered = filtered.filter(d => {
-                    const s = (d['거래여부(기입예정)'] || '').trim();
-                    return mobileVisibleLayers.has(s);
-                });
-            }
-
-            console.log(`지도 표시 데이터: ${filtered.length}건 (필터: 순위=${currentFilter}, 지역=${currentRegion || '전체'}, 담당자=${currentManager || '전체'}, AI태그=${currentAITag || '전체'})`);
-
-            filtered.forEach(item => {
+            allData.forEach(item => {
                 if (!item['위도'] || !item['경도']) return;
-
                 try {
                     const lat = parseFloat(item['위도']);
                     const lng = parseFloat(item['경도']);
-                    const pos = new naver.maps.LatLng(lat, lng);
+                    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
 
-                    // 거래 상태에 따른 색상 지정 (원색 계열, 가시성 최우선)
-                    // 거래: 파랑 / 미거래: 빨강 / 인허가: 초록 / 공사중: 주황
-                    // DROP: 지도에 마커 미표시
                     const status = (item['거래여부(기입예정)'] || '').toString().trim();
+                    const color = colorMap[status];
+                    if (!color) return; // DROP 등 컴러가 없으면 스킵
 
-                    if (status === 'DROP') return; // DROP은 지도에 표시하지 않음
-
-                    let color = '#00B33C'; // 기본: 초록 (인허가)
-
-                    if (status === '거래') color = '#0050FF';       // 원색 파랑
-                    else if (status === '미거래') color = '#FF1A1A'; // 원색 빨강
-                    else if (status === '공사중') color = '#FF7700'; // 원색 주황
-                    else if (status === '인허가') color = '#00B33C'; // 원색 초록
-
-                    // 14일 경과 여부 확인 (인허가 상태일 때만)
+                    // 14일 경과 인허가 글로우
                     let isOldPermit = false;
                     if (status === '인허가' || status === '') {
                         const dateStr = (item['영업 허가일'] || '').replace(/-/g, '');
                         if (dateStr.length === 8) {
-                            const year = parseInt(dateStr.substring(0, 4));
-                            const month = parseInt(dateStr.substring(4, 6)) - 1;
-                            const day = parseInt(dateStr.substring(6, 8));
-                            const permitDate = new Date(year, month, day);
-
-                            const now = new Date();
-                            const diffTime = Math.abs(now - permitDate);
-                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                            if (diffDays >= 14) isOldPermit = true;
+                            const permitDate = new Date(
+                                parseInt(dateStr.substring(0, 4)),
+                                parseInt(dateStr.substring(4, 6)) - 1,
+                                parseInt(dateStr.substring(6, 8))
+                            );
+                            if (Math.ceil(Math.abs(new Date() - permitDate) / 86400000) >= 14) isOldPermit = true;
                         }
                     }
 
-                    // 글로우 효과 클래스
+                    const pos = new naver.maps.LatLng(lat, lng);
                     const glowClass = isOldPermit ? 'marker-glow' : '';
-
                     const marker = new naver.maps.Marker({
                         position: pos,
-                        map: naverMap,
+                        map: null, // 초기에는 숨김; filterMarkers가 표시 결정
                         icon: {
-                            content: `
-                                <div class="${glowClass}" style="
-                                    width: 16px; height: 16px;
-                                    background: ${color};
-                                    border: 1.5px solid white;
-                                    border-radius: 50%;
-                                    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
-                                "></div>
-                            `,
-                            anchor: new naver.maps.Point(8, 8)
+                            content: `<div class="${glowClass}" style="width:12px;height:12px;background:${color};border:1px solid white;border-radius:50%;box-shadow:0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                            anchor: new naver.maps.Point(6, 6)
                         }
                     });
 
-                    // 마커 클릭 시 동작 (모바일/데스크탑 분기)
+                    // 클릭 이벤트 (item 클로저 유지)
                     naver.maps.Event.addListener(marker, 'click', function (e) {
-                        // 모바일 (768px 이하) -> 바텀 시트 열기
                         if (window.innerWidth <= 768) {
-                            if (typeof openBottomSheet === 'function') {
-                                openBottomSheet(item);
-                                navCenter = e.coord; // 필요 시 중심 이동
-                                naverMap.panTo(e.coord);
-                            }
+                            if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
                         } else {
-                            // 데스크탑 -> InfoWindow
-                            if (currentInfoWindow) {
-                                currentInfoWindow.close();
-                            }
-
-                            const infoWindow = new naver.maps.InfoWindow({
+                            if (currentInfoWindow) currentInfoWindow.close();
+                            const iw = new naver.maps.InfoWindow({
                                 content: createInfoWindowContent(item),
-                                backgroundColor: 'transparent',
-                                borderColor: 'transparent',
-                                anchorSkew: true,
-                                pixelOffset: new naver.maps.Point(0, -10)
+                                backgroundColor: 'transparent', borderColor: 'transparent',
+                                anchorSkew: true, pixelOffset: new naver.maps.Point(0, -10)
                             });
-
-                            infoWindow.open(naverMap, marker);
-                            currentInfoWindow = infoWindow;
+                            iw.open(naverMap, marker);
+                            currentInfoWindow = iw;
                         }
                     });
 
-                    markers.push(marker);
+                    // 필터용 메타 데이터 저장
+                    marker._status = status;
+                    marker._rank = item['순위'] || '';
+                    marker._region = (item['주소2'] || '기타').trim();
+                    marker._manager = (item['담당자'] || '미지정').trim();
+                    marker._aiTags = item['AI_핵심태그'] || '';
+
+                    allMarkers.push(marker);
                 } catch (e) { }
             });
+
+            console.log(`[Marker] 전체 마커 생성 완료: ${allMarkers.length}개`);
+            filterMarkers();
         }
 
-        // ============================================================
-        // 주요거래처 별 마커
+        /**
+         * filterMarkers() — allMarkers를 현재 필터 조건에 따라 setMap으로만 ON/OFF.
+         * 마커를 사제조하지 않어 성능이 현저히 복상됩니다.
+         */
+        function filterMarkers() {
+            if (!naverMap || allMarkers.length === 0) return;
+
+            markers = []; // 실제 보이는 마커만 담는 배열 (하위 호환)
+
+            allMarkers.forEach(marker => {
+                const s = marker._status;
+
+                // 순위 필터
+                if (currentFilter !== 'all' && marker._rank !== currentFilter) {
+                    marker.setMap(null); return;
+                }
+                // 거래상태 필터 (filterByStatus)
+                if (window.currentDealStatusFilter && s !== window.currentDealStatusFilter) {
+                    marker.setMap(null); return;
+                }
+                // 지역 필터
+                if (currentRegion && marker._region !== currentRegion) {
+                    marker.setMap(null); return;
+                }
+                // 담당자 필터
+                if (currentManager && marker._manager !== currentManager) {
+                    marker.setMap(null); return;
+                }
+                // AI 태그 필터
+                if (currentAITag && !marker._aiTags.includes(currentAITag)) {
+                    marker.setMap(null); return;
+                }
+                // 모바일 레이어 필터
+                if (isMobile() && !mobileVisibleLayers.has(s)) {
+                    marker.setMap(null); return;
+                }
+
+                marker.setMap(naverMap);
+                markers.push(marker);
+            });
+
+            console.log(`[Marker] 필터 후 표시: ${markers.length} / ${allMarkers.length}`);
+        }
+
+        /**
+         * updateMap() — 필터 상태를 마커에 반영합니다.
+         * allMarkers가 없으면 initAllMarkers() 를 호출하여 최초 생성 후 필터합니다.
+         */
+        function updateMap() {
+            if (!naverMap) return;
+            if (allMarkers.length === 0) {
+                initAllMarkers();
+            } else {
+                filterMarkers();
+            }
+        }
+
+        /**
+         * updateMapByStatus() — filterByStatus 호출용 (updateMap과 동일습니다).
+         */
+        function updateMapByStatus() {
+            updateMap();
+        }
         // ============================================================
 
         async function loadAccountsData() {
@@ -4224,9 +4198,9 @@
                     item['거래여부(기입예정)'] = newStatus;
                 }
 
-                // UI 및 대시보드 새로고침
+                // UI 및 대시보드 새로고침 (status 변경 → 아이콘 색상 재생성)
                 updateDashboard();
-                updateMap();
+                initAllMarkers();
 
                 console.log(`✅ 구글 시트 동기화 완료: ${name} → ${newStatus}`);
 
