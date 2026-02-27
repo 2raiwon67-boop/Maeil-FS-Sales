@@ -1248,7 +1248,7 @@
                 gap: 5px;
                 position: fixed;
                 top: 60px;
-                right: 12px;
+                left: 12px;
                 padding: 7px 12px;
                 background: rgba(28, 28, 30, 0.82);
                 color: white;
@@ -1279,7 +1279,7 @@
                 display: none;
                 position: fixed;
                 top: 100px;
-                right: 12px;
+                left: 12px;
                 background: rgba(30, 30, 32, 0.95);
                 backdrop-filter: blur(16px);
                 -webkit-backdrop-filter: blur(16px);
@@ -3602,6 +3602,29 @@
         function openFinalUploadModal() { document.getElementById('finalUploadModal').classList.add('active'); }
         function closeFinalUploadModal() { document.getElementById('finalUploadModal').classList.remove('active'); }
 
+        /** 네이버 지도 앱 열기 — iOS PWA에서도 작동하는 딥링크 방식 */
+        function openNaverMapApp(lat, lng, name) {
+            const enc = encodeURIComponent;
+            // 네이버 지도 앱 딥링크 (nmap://): 앱 설치 시 바로 열림
+            const appUrl = `nmap://place?lat=${lat}&lng=${lng}&name=${enc(name)}&appname=fsmiso`;
+            // 앱 미설치 시 웹 폴백
+            const webUrl = `https://map.naver.com/v5/search/${enc(name)}`;
+
+            if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+                // iOS: 딥링크 시도 후 300ms 뒤에도 페이지가 그대로면 앱스토어로
+                const now = Date.now();
+                window.location.href = appUrl;
+                setTimeout(() => {
+                    if (Date.now() - now < 600) window.open(webUrl, '_blank');
+                }, 300);
+            } else if (/Android/i.test(navigator.userAgent)) {
+                window.location.href = `intent://place?lat=${lat}&lng=${lng}&name=${enc(name)}&appname=fsmiso#Intent;scheme=nmap;package=com.nhn.android.nmap;S.browser_fallback_url=${enc(webUrl)};end`;
+            } else {
+                // PC: 웹 새 탭
+                window.open(webUrl, '_blank');
+            }
+        }
+
 
         // ============================================================
         // 지도 업데이트 및 검색
@@ -4118,7 +4141,7 @@
 
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
             const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const mapBtn = `<button class="naver-map-btn" onclick="window.open('${naverMapUrl}', '_blank')">네이버 지도에서 보기</button>`;
+            const mapBtn = `<button class="naver-map-btn" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">🗺️ 네이버 지도 앱 열기</button>`;
 
             return `
                 <div class="custom-info-window">
@@ -4309,7 +4332,7 @@
                 const itemLng = parseFloat(item['경도']) || 0;
                 const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item['사업장명'] || '')}`;
                 sheetActionBtns.innerHTML = `
-                    <button class="naver-map-btn" style="margin-top:16px;" onclick="window.open('${naverUrl}', '_blank')">네이버 지도에서 보기</button>
+                    <button class="naver-map-btn" style="margin-top:16px;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">🗺️ 네이버 지도 앱 열기</button>
                     ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
                 `;
             }
