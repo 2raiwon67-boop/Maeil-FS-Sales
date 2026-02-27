@@ -1235,49 +1235,133 @@
                 bottom: 16px !important;
             }
 
-            /* ── 모바일 퀵필터 칩 바 ── */
-            .mobile-chip-bar {
+            /* ── 모바일 레이어 필터 드롭다운 ── */
+            .layer-filter-btn {
                 display: flex;
+                align-items: center;
+                gap: 5px;
                 position: fixed;
-                bottom: 140px;
-                left: 0;
-                right: 0;
-                gap: 6px;
-                padding: 8px 12px;
-                overflow-x: auto;
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-                z-index: 160;
-                background: linear-gradient(to top, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%);
-                pointer-events: none;
-            }
-
-            .mobile-chip-bar::-webkit-scrollbar {
-                display: none;
-            }
-
-            .mchip {
-                flex-shrink: 0;
-                padding: 5px 11px;
+                top: 60px;
+                right: 12px;
+                padding: 7px 12px;
+                background: rgba(28, 28, 30, 0.82);
+                color: white;
+                border: none;
                 border-radius: 20px;
-                border: 1.5px solid rgba(255, 255, 255, 0.45);
                 font-size: 12px;
                 font-weight: 600;
-                background: rgba(28, 28, 30, 0.58);
-                color: rgba(255, 255, 255, 0.68);
-                backdrop-filter: blur(10px);
-                -webkit-backdrop-filter: blur(10px);
                 cursor: pointer;
-                transition: all 0.18s;
-                pointer-events: auto;
-                white-space: nowrap;
+                z-index: 200;
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                transition: background 0.18s;
             }
 
-            .mchip.active {
-                background: rgba(255, 255, 255, 0.93);
-                color: #1d1d1f;
-                border-color: transparent;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            .layer-filter-btn .badge {
+                background: #0071e3;
+                color: white;
+                border-radius: 10px;
+                font-size: 10px;
+                font-weight: 700;
+                padding: 1px 6px;
+                min-width: 16px;
+                text-align: center;
+            }
+
+            .layer-dropdown {
+                display: none;
+                position: fixed;
+                top: 100px;
+                right: 12px;
+                background: rgba(30, 30, 32, 0.95);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border-radius: 14px;
+                padding: 8px 0;
+                z-index: 199;
+                min-width: 160px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                overflow: hidden;
+            }
+
+            .layer-dropdown.open {
+                display: block;
+                animation: dropdownFade 0.18s ease;
+            }
+
+            @keyframes dropdownFade {
+                from {
+                    opacity: 0;
+                    transform: translateY(-6px) scale(0.97);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                }
+            }
+
+            .layer-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                padding: 10px 16px;
+                cursor: pointer;
+                font-size: 13px;
+                color: rgba(255, 255, 255, 0.85);
+                transition: background 0.15s;
+                user-select: none;
+            }
+
+            .layer-item:active {
+                background: rgba(255, 255, 255, 0.08);
+            }
+
+            .layer-item .layer-label {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex: 1;
+            }
+
+            .layer-toggle {
+                width: 36px;
+                height: 20px;
+                background: #3a3a3c;
+                border-radius: 10px;
+                position: relative;
+                flex-shrink: 0;
+                transition: background 0.2s;
+            }
+
+            .layer-toggle::after {
+                content: '';
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: 16px;
+                height: 16px;
+                background: white;
+                border-radius: 50%;
+                transition: transform 0.2s;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            }
+
+            .layer-item.active .layer-toggle {
+                background: #0071e3;
+            }
+
+            .layer-item.active .layer-toggle::after {
+                transform: translateX(16px);
+            }
+
+            .layer-divider {
+                height: 1px;
+                background: rgba(255, 255, 255, 0.1);
+                margin: 4px 0;
             }
         }
 
@@ -1857,15 +1941,38 @@
                 </div>
             </div>
 
-            <!-- 모바일 퀵필터 칩 바 (지도 위 표시) -->
-            <div class="mobile-chip-bar" id="mobileChipBar">
-                <button class="mchip active" data-layer="인허가" onclick="toggleMobileLayer('인허가')">🟢 인허가</button>
-                <button class="mchip active" data-layer="공사중" onclick="toggleMobileLayer('공사중')">🟠 공사중</button>
-                <button class="mchip" data-layer="거래" onclick="toggleMobileLayer('거래')">🔵 거래</button>
-                <button class="mchip" data-layer="미거래" onclick="toggleMobileLayer('미거래')">🔴 미거래</button>
-                <button class="mchip active" data-layer="star-미거래" onclick="toggleMobileLayer('star-미거래')">⭐
-                    주요미거래</button>
-                <button class="mchip" data-layer="star-거래" onclick="toggleMobileLayer('star-거래')">⭐ 주요거래처</button>
+            <!-- 모바일 레이어 드롭다운 필터 버튼 -->
+            <button class="layer-filter-btn" id="layerFilterBtn" onclick="toggleLayerDropdown()">
+                ☰ 레이어 <span class="badge" id="layerBadge">3</span>
+            </button>
+
+            <!-- 레이어 드롭다운 패널 -->
+            <div class="layer-dropdown" id="layerDropdown">
+                <div class="layer-item active" data-layer="인허가" onclick="toggleMobileLayer('인허가')">
+                    <span class="layer-label">🟢 인허가</span>
+                    <span class="layer-toggle"></span>
+                </div>
+                <div class="layer-item active" data-layer="공사중" onclick="toggleMobileLayer('공사중')">
+                    <span class="layer-label">🟠 공사중</span>
+                    <span class="layer-toggle"></span>
+                </div>
+                <div class="layer-item" data-layer="거래" onclick="toggleMobileLayer('거래')">
+                    <span class="layer-label">🔵 거래</span>
+                    <span class="layer-toggle"></span>
+                </div>
+                <div class="layer-item" data-layer="미거래" onclick="toggleMobileLayer('미거래')">
+                    <span class="layer-label">🔴 미거래</span>
+                    <span class="layer-toggle"></span>
+                </div>
+                <div class="layer-divider"></div>
+                <div class="layer-item active" data-layer="star-미거래" onclick="toggleMobileLayer('star-미거래')">
+                    <span class="layer-label">⭐ 주요미거래</span>
+                    <span class="layer-toggle"></span>
+                </div>
+                <div class="layer-item" data-layer="star-거래" onclick="toggleMobileLayer('star-거래')">
+                    <span class="layer-label">⭐ 주요거래처</span>
+                    <span class="layer-toggle"></span>
+                </div>
             </div>
 
             <!-- 모바일 루트 FAB 버튼 -->
@@ -3437,16 +3544,16 @@
          * @param {string} layer - '인허가'|'공사중'|'거래'|'미거래'|'star-거래'|'star-미거래'
          */
         function toggleMobileLayer(layer) {
-            const btn = document.querySelector(`.mchip[data-layer="${layer}"]`);
+            // 드롭다운 UI 요소 (.layer-item[data-layer=...])
+            const item = document.querySelector(`.layer-item[data-layer="${layer}"]`);
 
             if (layer.startsWith('star-')) {
-                // 별 마커 레이어 토글
                 if (mobileStarLayers.has(layer)) {
                     mobileStarLayers.delete(layer);
-                    if (btn) btn.classList.remove('active');
+                    if (item) item.classList.remove('active');
                 } else {
                     mobileStarLayers.add(layer);
-                    if (btn) btn.classList.add('active');
+                    if (item) item.classList.add('active');
                 }
                 const targetStatus = layer === 'star-거래' ? '거래' : '미거래';
                 accountMarkers.forEach(m => {
@@ -3455,17 +3562,40 @@
                     }
                 });
             } else {
-                // 일반 마커 레이어 토글
                 if (mobileVisibleLayers.has(layer)) {
                     mobileVisibleLayers.delete(layer);
-                    if (btn) btn.classList.remove('active');
+                    if (item) item.classList.remove('active');
                 } else {
                     mobileVisibleLayers.add(layer);
-                    if (btn) btn.classList.add('active');
+                    if (item) item.classList.add('active');
                 }
                 updateMap();
             }
+            updateLayerBadge();
         }
+
+        /** 레이어 드롭다운 열기/닫기 */
+        function toggleLayerDropdown() {
+            const dd = document.getElementById('layerDropdown');
+            if (dd) dd.classList.toggle('open');
+        }
+
+        /** 뱃지: 현재 활성 레이어 구 총 표시 */
+        function updateLayerBadge() {
+            const badge = document.getElementById('layerBadge');
+            if (!badge) return;
+            const count = mobileVisibleLayers.size + mobileStarLayers.size;
+            badge.textContent = count;
+        }
+
+        // 드롭다운 외부 클릭 시 닫기
+        document.addEventListener('click', function (e) {
+            const dd = document.getElementById('layerDropdown');
+            const btn = document.getElementById('layerFilterBtn');
+            if (dd && dd.classList.contains('open') && !dd.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                dd.classList.remove('open');
+            }
+        });
 
 
         // ============================================================
