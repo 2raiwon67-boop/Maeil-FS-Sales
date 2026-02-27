@@ -1183,7 +1183,7 @@
             .route-mobile-fab {
                 display: flex;
                 position: fixed;
-                bottom: 88px;
+                bottom: 76px;
                 left: 16px;
                 width: 48px;
                 height: 48px;
@@ -1221,6 +1221,56 @@
 
             .route-panel-backdrop.active {
                 display: block;
+            }
+
+            /* ── 모바일 뷰토글 위치 조정 ── */
+            .view-toggle-btn {
+                bottom: 16px !important;
+            }
+
+            /* ── 모바일 퀵필터 칩 바 ── */
+            .mobile-chip-bar {
+                display: flex;
+                position: fixed;
+                top: 54px;
+                left: 0;
+                right: 0;
+                gap: 6px;
+                padding: 8px 12px;
+                overflow-x: auto;
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+                z-index: 160;
+                background: linear-gradient(to bottom, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0) 100%);
+                pointer-events: none;
+            }
+
+            .mobile-chip-bar::-webkit-scrollbar {
+                display: none;
+            }
+
+            .mchip {
+                flex-shrink: 0;
+                padding: 5px 11px;
+                border-radius: 20px;
+                border: 1.5px solid rgba(255, 255, 255, 0.45);
+                font-size: 12px;
+                font-weight: 600;
+                background: rgba(28, 28, 30, 0.58);
+                color: rgba(255, 255, 255, 0.68);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                cursor: pointer;
+                transition: all 0.18s;
+                pointer-events: auto;
+                white-space: nowrap;
+            }
+
+            .mchip.active {
+                background: rgba(255, 255, 255, 0.93);
+                color: #1d1d1f;
+                border-color: transparent;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
             }
         }
 
@@ -1443,10 +1493,12 @@
                 width: calc(100% - 32px);
                 right: 16px;
                 height: 480px;
+                bottom: 132px;
             }
 
             .chatbot-fab {
-                bottom: 80px;
+                bottom: 76px;
+                right: 16px;
             }
 
             /* 대시보드 차트 래퍼 인라인 height 무력화 */
@@ -1787,6 +1839,17 @@
                 </div>
             </div>
 
+            <!-- 모바일 퀵필터 칩 바 (지도 위 표시) -->
+            <div class="mobile-chip-bar" id="mobileChipBar">
+                <button class="mchip active" data-layer="인허가" onclick="toggleMobileLayer('인허가')">🟢 인허가</button>
+                <button class="mchip active" data-layer="공사중" onclick="toggleMobileLayer('공사중')">🟠 공사중</button>
+                <button class="mchip" data-layer="거래" onclick="toggleMobileLayer('거래')">🔵 거래</button>
+                <button class="mchip" data-layer="미거래" onclick="toggleMobileLayer('미거래')">🔴 미거래</button>
+                <button class="mchip active" data-layer="star-미거래" onclick="toggleMobileLayer('star-미거래')">⭐
+                    주요미거래</button>
+                <button class="mchip" data-layer="star-거래" onclick="toggleMobileLayer('star-거래')">⭐ 주요거래처</button>
+            </div>
+
             <!-- 모바일 루트 FAB 버튼 -->
             <button class="route-mobile-fab" id="routeMobileFab" onclick="openRoutePanel()"
                 title="영업 루트 최적화">🗺️</button>
@@ -1907,6 +1970,12 @@
         let processedData = [];
         let allData = [];
         let naverMap;
+
+        // ── 모바일 레이어 필터 ──
+        // 기본 표시: 인허가, 공사중 (allData) + 미거래 주요거래처 별 마커
+        const mobileVisibleLayers = new Set(['인허가', '공사중']);
+        const mobileStarLayers = new Set(['star-미거래']); // star-거래, star-미거래
+        const isMobile = () => window.innerWidth <= 768;
         let markers = [];
         let currentFilter = 'all';
         let currentRegion = null;
@@ -3028,6 +3097,14 @@
                 filtered = filtered.filter(d => (d['AI_핵심태그'] || '').includes(currentAITag));
             }
 
+            // 모바일: 선택 라어만 표시 (PC는 적용 안 함)
+            if (isMobile()) {
+                filtered = filtered.filter(d => {
+                    const s = (d['거래여부(기입예정)'] || '').trim();
+                    return mobileVisibleLayers.has(s);
+                });
+            }
+
             console.log(`지도 표시 데이터: ${filtered.length}건 (필터: 순위=${currentFilter}, 지역=${currentRegion || '전체'}, 담당자=${currentManager || '전체'}, AI태그=${currentAITag || '전체'})`);
 
             filtered.forEach(item => {
@@ -3321,12 +3398,55 @@
                     marker._lat = coords.lat; // 루트 최적화용
                     marker._lng = coords.lng; // 루트 최적화용
                     accountMarkers.push(marker);
+
+                    // 모바일 기본: 미거래 별 마커만 표시, 거래 별 마커 숨김
+                    if (isMobile()) {
+                        const starKey = dealStatus === '거래' ? 'star-거래' : 'star-미거래';
+                        if (!mobileStarLayers.has(starKey)) {
+                            marker.setMap(null);
+                        }
+                    }
                     await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
                 } catch (e) {
                     console.warn('주요거래처 마커 생성 실패:', name, e);
                 }
             }
             console.log(`주요거래처 별 마커 표시 완료: ${accountMarkers.length}개`);
+        }
+
+        /**
+         * 모바일 퀵필터 칩 토글
+         * @param {string} layer - '인허가'|'공사중'|'거래'|'미거래'|'star-거래'|'star-미거래'
+         */
+        function toggleMobileLayer(layer) {
+            const btn = document.querySelector(`.mchip[data-layer="${layer}"]`);
+
+            if (layer.startsWith('star-')) {
+                // 별 마커 레이어 토글
+                if (mobileStarLayers.has(layer)) {
+                    mobileStarLayers.delete(layer);
+                    if (btn) btn.classList.remove('active');
+                } else {
+                    mobileStarLayers.add(layer);
+                    if (btn) btn.classList.add('active');
+                }
+                const targetStatus = layer === 'star-거래' ? '거래' : '미거래';
+                accountMarkers.forEach(m => {
+                    if ((m._dealStatus || '').trim() === targetStatus) {
+                        m.setMap(mobileStarLayers.has(layer) ? naverMap : null);
+                    }
+                });
+            } else {
+                // 일반 마커 레이어 토글
+                if (mobileVisibleLayers.has(layer)) {
+                    mobileVisibleLayers.delete(layer);
+                    if (btn) btn.classList.remove('active');
+                } else {
+                    mobileVisibleLayers.add(layer);
+                    if (btn) btn.classList.add('active');
+                }
+                updateMap();
+            }
         }
 
 
