@@ -2280,33 +2280,40 @@
             });
             const sortedMonths = Object.keys(monthCount).sort();
 
-            if (dashTrendChartInstance) dashTrendChartInstance.destroy();
-            const ctxTrend = document.getElementById('dashTrendChart').getContext('2d');
-            dashTrendChartInstance = new Chart(ctxTrend, {
-                type: 'line',
-                data: {
-                    labels: sortedMonths.length > 0 ? sortedMonths : ['데이터 없음'],
-                    datasets: [{
-                        label: '월별 방문 횟수',
-                        data: sortedMonths.length > 0 ? sortedMonths.map(m => monthCount[m]) : [0],
-                        borderColor: '#0071e3',
-                        backgroundColor: 'rgba(0, 113, 227, 0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#ffffff',
-                        pointBorderColor: '#0071e3',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
-                }
-            });
+            const trendLabels = sortedMonths.length > 0 ? sortedMonths : ['데이터 없음'];
+            const trendData   = sortedMonths.length > 0 ? sortedMonths.map(m => monthCount[m]) : [0];
+            if (dashTrendChartInstance) {
+                dashTrendChartInstance.data.labels = trendLabels;
+                dashTrendChartInstance.data.datasets[0].data = trendData;
+                dashTrendChartInstance.update();
+            } else {
+                const ctxTrend = document.getElementById('dashTrendChart').getContext('2d');
+                dashTrendChartInstance = new Chart(ctxTrend, {
+                    type: 'line',
+                    data: {
+                        labels: trendLabels,
+                        datasets: [{
+                            label: '월별 방문 횟수',
+                            data: trendData,
+                            borderColor: '#0071e3',
+                            backgroundColor: 'rgba(0, 113, 227, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#0071e3',
+                            pointBorderWidth: 2,
+                            pointRadius: 4,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
+                    }
+                });
+            }
         }
 
         // ── 도넛 데이터레이블 커스텀 플러그인 ──
@@ -2344,7 +2351,6 @@
             if (!_chartCrossData) return;
             const { matrix, regionCount, regionLabels, statusColorMap } = _chartCrossData;
 
-            if (dashRegionChartInstance) dashRegionChartInstance.destroy();
             const ctxRegion = document.getElementById('dashRegionChart');
             if (!ctxRegion) return;
 
@@ -2352,7 +2358,6 @@
             const filterLabelEl = document.getElementById('regionFilterLabel');
 
             if (filterStatus) {
-                // 해당 상태를 가진 지역만 표시 (해당 상태 기준 카운트)
                 labels = regionLabels.filter(r => matrix[r] && matrix[r][filterStatus] > 0);
                 labels.sort((a, b) => (matrix[b][filterStatus] || 0) - (matrix[a][filterStatus] || 0));
                 data = labels.map(r => matrix[r][filterStatus] || 0);
@@ -2363,6 +2368,15 @@
                 data = labels.map(k => regionCount[k]);
                 bgColor = '#0071e3';
                 if (filterLabelEl) filterLabelEl.textContent = '막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다';
+            }
+
+            if (dashRegionChartInstance) {
+                dashRegionChartInstance.data.labels = labels.length ? labels : ['데이터 없음'];
+                dashRegionChartInstance.data.datasets[0].label = filterStatus ? filterStatus + ' 업장 수' : '업장 수';
+                dashRegionChartInstance.data.datasets[0].data = data.length ? data : [0];
+                dashRegionChartInstance.data.datasets[0].backgroundColor = bgColor;
+                dashRegionChartInstance.update();
+                return;
             }
 
             dashRegionChartInstance = new Chart(ctxRegion.getContext('2d'), {
@@ -2376,7 +2390,7 @@
                     onClick(evt, elements) {
                         if (!elements.length) return;
                         const idx = elements[0].index;
-                        const clickedRegion = labels[idx];
+                        const clickedRegion = dashRegionChartInstance.data.labels[idx];
                         if (_activeRegionFilter === clickedRegion) {
                             _activeRegionFilter = null;
                             _activeStatusFilter = null;
@@ -2403,7 +2417,6 @@
             if (!_chartCrossData) return;
             const { matrix, statusCount, statusLabels, statusColorMap } = _chartCrossData;
 
-            if (dashStatusChartInstance) dashStatusChartInstance.destroy();
             const ctxStatus = document.getElementById('dashStatusChart');
             if (!ctxStatus) return;
 
@@ -2424,6 +2437,15 @@
                 if (filterLabelEl) filterLabelEl.textContent = '막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다';
             }
 
+            if (dashStatusChartInstance) {
+                dashStatusChartInstance.data.labels = labels.length ? labels : ['데이터 없음'];
+                dashStatusChartInstance.data.datasets[0].label = filterRegion ? filterRegion + ' 업장 수' : '업장 수';
+                dashStatusChartInstance.data.datasets[0].data = data.length ? data : [0];
+                dashStatusChartInstance.data.datasets[0].backgroundColor = bgColors;
+                dashStatusChartInstance.update();
+                return;
+            }
+
             dashStatusChartInstance = new Chart(ctxStatus.getContext('2d'), {
                 type: 'bar',
                 data: {
@@ -2435,7 +2457,7 @@
                     onClick(evt, elements) {
                         if (!elements.length) return;
                         const idx = elements[0].index;
-                        const clickedStatus = labels[idx];
+                        const clickedStatus = dashStatusChartInstance.data.labels[idx];
                         if (_activeStatusFilter === clickedStatus) {
                             _activeStatusFilter = null;
                             _activeRegionFilter = null;
@@ -2461,17 +2483,26 @@
         function renderMiniMilkChart() {
             if (!_chartCrossData) return;
             const { milkCount } = _chartCrossData;
-            if (dashMilkChartInstance) dashMilkChartInstance.destroy();
             const ctxMilk = document.getElementById('dashMilkChart');
             if (!ctxMilk) return;
             const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
             const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
-            const milkData = milkLabels.map(k => milkCount[k]);
+            const milkData   = milkLabels.map(k => milkCount[k]);
+            const milkColors = milkLabels.length ? milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]) : ['#e5e5ea'];
+
+            if (dashMilkChartInstance) {
+                dashMilkChartInstance.data.labels = milkLabels.length ? milkLabels : ['데이터 없음'];
+                dashMilkChartInstance.data.datasets[0].data = milkData.length ? milkData : [1];
+                dashMilkChartInstance.data.datasets[0].backgroundColor = milkColors;
+                dashMilkChartInstance.update();
+                return;
+            }
+
             dashMilkChartInstance = new Chart(ctxMilk.getContext('2d'), {
                 type: 'doughnut',
                 data: {
                     labels: milkLabels.length ? milkLabels : ['데이터 없음'],
-                    datasets: [{ data: milkData.length ? milkData : [1], backgroundColor: milkLabels.length ? milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]) : ['#e5e5ea'], borderWidth: 2, borderColor: '#fff' }]
+                    datasets: [{ data: milkData.length ? milkData : [1], backgroundColor: milkColors, borderWidth: 2, borderColor: '#fff' }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
