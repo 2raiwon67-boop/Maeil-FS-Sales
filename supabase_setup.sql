@@ -46,10 +46,7 @@ CREATE POLICY "licenses_update_same_unit" ON licenses
 
 DROP POLICY IF EXISTS "licenses_delete_own" ON licenses;
 CREATE POLICY "licenses_delete_own" ON licenses
-    FOR DELETE USING (
-        uploaded_by = auth.uid()
-        AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
-    );
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
 
 -- ─────────────────────────────────────────────────────────────
@@ -86,10 +83,7 @@ CREATE POLICY "accounts_update_same_unit" ON accounts
 
 DROP POLICY IF EXISTS "accounts_delete_own" ON accounts;
 CREATE POLICY "accounts_delete_own" ON accounts
-    FOR DELETE USING (
-        uploaded_by = auth.uid()
-        AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
-    );
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
 
 -- ─────────────────────────────────────────────────────────────
@@ -132,10 +126,7 @@ CREATE POLICY "visit_logs_update_own" ON visit_logs
 
 DROP POLICY IF EXISTS "visit_logs_delete_own" ON visit_logs;
 CREATE POLICY "visit_logs_delete_own" ON visit_logs
-    FOR DELETE USING (
-        created_by = auth.uid()
-        AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
-    );
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
 
 -- ─────────────────────────────────────────────────────────────
@@ -164,7 +155,4 @@ CREATE POLICY "managers_insert_own_unit" ON managers
 
 DROP POLICY IF EXISTS "managers_delete_own" ON managers;
 CREATE POLICY "managers_delete_own" ON managers
-    FOR DELETE USING (
-        uploaded_by = auth.uid()
-        AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
-    );
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));

@@ -22,7 +22,7 @@ const VISIT_LOGS_SHEET_GID = 707066983;
 
 const EMAIL_CONFIG = {
   senderName:      '경기북부FS (인허가 알림)',
-  fromEmail:       'your-email@gmail.com',  // ← 발신 주소로 변경 (Gmail 별칭으로 등록된 주소)
+  fromEmail:       '2raiwon67@gmail.com',  // ← 발신 주소로 변경 (Gmail 별칭으로 등록된 주소)
   subjectTemplate: '[인허가 알림] 금일 방문 대상: 신규 {newCount}건 / 재확인 {revisitCount}건'
 };
 
@@ -61,8 +61,30 @@ function runDailyEmailJob() {
     });
   }
 
+  // 주요거래처 시트 로드 및 지오코딩
+  var allAccounts = [];
+  var geoCache    = {};
+  try {
+    var accSheet = ss.getSheetByName('주요거래처');
+    if (accSheet) {
+      var accRows    = accSheet.getDataRange().getValues();
+      var accHeaders = accRows[0];
+      for (var j = 1; j < accRows.length; j++) {
+        var accObj = {};
+        accHeaders.forEach(function(h, idx) { accObj[h] = accRows[j][idx] || ''; });
+        if ((accObj['거래처명'] || '').trim()) allAccounts.push(accObj);
+      }
+      Logger.log('주요거래처 로드: ' + allAccounts.length + '건');
+      geoCache = geocodeAccountsWithCache(allAccounts);
+    } else {
+      Logger.log('주요거래처 시트 없음 (동선에서 제외)');
+    }
+  } catch (e) {
+    Logger.log('주요거래처 로드 실패 (동선에서 제외): ' + e.toString());
+  }
+
   var managerConfig = loadManagerConfig(ss);
-  var result        = sendEmailsByManager(allDataObjects, managerConfig);
+  var result        = sendEmailsByManager(allDataObjects, managerConfig, allAccounts, geoCache);
   Logger.log('발송 완료: ' + result.count + '건');
   Logger.log('로그: ' + JSON.stringify(result.logs));
 }
@@ -98,8 +120,28 @@ function sendTestEmail() {
     });
   }
 
+  // 주요거래처 로드 및 지오코딩 (테스트도 동일하게 적용)
+  var allAccounts = [];
+  var geoCache    = {};
+  try {
+    var accSheet = ss.getSheetByName('주요거래처');
+    if (accSheet) {
+      var accRows    = accSheet.getDataRange().getValues();
+      var accHeaders = accRows[0];
+      for (var j = 1; j < accRows.length; j++) {
+        var accObj = {};
+        accHeaders.forEach(function(h, idx) { accObj[h] = accRows[j][idx] || ''; });
+        if ((accObj['거래처명'] || '').trim()) allAccounts.push(accObj);
+      }
+      geoCache = geocodeAccountsWithCache(allAccounts);
+    }
+  } catch (e) {
+    Logger.log('주요거래처 로드 실패: ' + e.toString());
+  }
+
   var targets = filterEmailTargets(allDataObjects);
-  var html    = generateSummaryEmailHTML(targets, null);
+  // 테스트는 전체 대상으로 발송 (담당자 미분리)
+  var html    = generateSummaryEmailHTML(targets, null, allAccounts, geoCache);
 
   GmailApp.sendEmail(TEST_EMAIL, '[테스트] 인허가 방문 대상 알림', 'HTML 클라이언트에서 확인해주세요.', {
     htmlBody: html,
@@ -341,7 +383,7 @@ function loadManagerConfig(ss) {
 // ============================================================
 // 담당자별 분리 이메일 발송
 // ============================================================
-function sendEmailsByManager(allData, config) {
+function sendEmailsByManager(allData, config, allAccounts, geoCache) {
   const allTargets = filterEmailTargets(allData);
   if (allTargets.newObj.length === 0 && allTargets.revisitObj.length === 0) {
     Logger.log('이메일 발송 대상 없음 (D+14, D+28 조건 만족 건수 0)');
@@ -377,6 +419,10 @@ function sendEmailsByManager(allData, config) {
 
     if (myNew.length > 0 || myRevisit.length > 0) {
       const myTargets = { newObj: myNew, revisitObj: myRevisit };
+
+      // 해당 담당자의 미거래/공사중 주요거래처 + 좌표 주입
+      const myAccounts = buildManagerAccounts(managerName, allAccounts, geoCache || {});
+
       let aiStrategy  = null;
       try {
         aiStrategy = generateAIStrategyForManager(managerName, myTargets, visitLogs);
@@ -384,7 +430,7 @@ function sendEmailsByManager(allData, config) {
       } catch (e) {
         Logger.log(managerName + ' AI 전략 생성 실패: ' + e.toString());
       }
-      sendSummaryEmail(email, myTargets, managerName, aiStrategy);
+      sendSummaryEmail(email, myTargets, managerName, aiStrategy, myAccounts);
       totalSent++;
     }
   });
@@ -396,17 +442,45 @@ function sendEmailsByManager(allData, config) {
     } catch (e) {
       Logger.log('지점장 AI 전략 생성 실패: ' + e.toString());
     }
-    sendSummaryEmail(email, allTargets, '전체', branchAiStrategy);
+    // 지점장은 전체 계정 포함
+    const branchAccounts = buildManagerAccounts(null, allAccounts, geoCache || {});
+    sendSummaryEmail(email, allTargets, '전체', branchAiStrategy, branchAccounts);
     totalSent++;
   });
 
   return { count: totalSent, logs: allTargets.logs };
 }
 
+// 담당자별 주요거래처 필터링 + 좌표 주입
+// managerName === null 이면 전체 (지점장용)
+function buildManagerAccounts(managerName, allAccounts, geoCache) {
+  return (allAccounts || [])
+    .filter(function(acc) {
+      var status = (acc['거래상태'] || '').trim();
+      if (status !== '미거래' && status !== '공사중') return false;
+      if (managerName !== null && normalize(acc['담당자명'] || '') !== normalize(managerName)) return false;
+      return true;
+    })
+    .map(function(acc) {
+      var name   = (acc['거래처명'] || '').trim();
+      var coords = geoCache[name];
+      if (!coords) return null;
+      return {
+        name:       name,
+        address:    acc['주소'] || '',
+        status:     acc['거래상태'],
+        lat:        coords.lat,
+        lon:        coords.lng,
+        _isAccount: true
+      };
+    })
+    .filter(Boolean); // 좌표 없는 항목 제거
+}
+
 // ============================================================
 // 이메일 발송 (단일 수신자)
 // ============================================================
-function sendSummaryEmail(recipientEmail, targets, managerName, aiStrategy) {
+function sendSummaryEmail(recipientEmail, targets, managerName, aiStrategy, managerAccounts) {
   const newCount     = targets.newObj.length;
   const revisitCount = targets.revisitObj.length;
 
@@ -414,7 +488,7 @@ function sendSummaryEmail(recipientEmail, targets, managerName, aiStrategy) {
     .replace('{newCount}', newCount)
     .replace('{revisitCount}', revisitCount);
 
-  const htmlBody = generateSummaryEmailHTML(targets, aiStrategy);
+  const htmlBody = generateSummaryEmailHTML(targets, aiStrategy, managerAccounts);
 
   try {
     GmailApp.sendEmail(recipientEmail, subject, 'HTML 지원 클라이언트에서 확인해주세요.', {
@@ -663,6 +737,172 @@ function findNearbyStores(target, allData) {
 }
 
 // ============================================================
+// 동선 최적화 — 1건의 추천 동선 (index.html과 동일 로직)
+// ① 앵커: D+14(인허가) 우선, 없으면 D+28(공사중) 첫 번째 대상
+// ② 앵커 반경 3km 이내 나머지 D+14/D+28 대상을 Nearest Neighbor로 추가
+// ③ 총 최대 5건 (앵커 1 + 주변 최대 4)
+// ============================================================
+function optimizeRoute(targets, managerAccounts) {
+  var allTargets = targets.newObj.concat(targets.revisitObj);
+
+  // ① 앵커 결정: D+14(인허가) 우선, 없으면 D+28(공사중) 첫 번째 (유효 좌표 필수)
+  var anchor = null;
+  for (var i = 0; i < allTargets.length; i++) {
+    var t = allTargets[i];
+    var lat = parseFloat(t.lat), lon = parseFloat(t.lon);
+    if (!isNaN(lat) && !isNaN(lon) && lat !== 0 && lon !== 0) {
+      anchor = t;
+      break;
+    }
+  }
+  if (!anchor) return [];
+  anchor._routeDist = 0;
+
+  var aLat = parseFloat(anchor.lat);
+  var aLon = parseFloat(anchor.lon);
+
+  // ② 후보 A: 나머지 D+14/D+28 인허가 대상 (앵커 반경 3km)
+  var candidatesA = allTargets.filter(function(t) {
+    if (t === anchor) return false;
+    var lat = parseFloat(t.lat), lon = parseFloat(t.lon);
+    if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) return false;
+    return calculateDistance(aLat, aLon, lat, lon) <= 3.0;
+  });
+
+  // ③ 후보 B: 미거래/공사중 주요거래처 (앵커 반경 3km, 지오코딩 좌표 보유분)
+  var candidatesB = (managerAccounts || []).filter(function(acc) {
+    var lat = parseFloat(acc.lat), lon = parseFloat(acc.lon);
+    if (isNaN(lat) || isNaN(lon) || lat === 0 || lon === 0) return false;
+    return calculateDistance(aLat, aLon, lat, lon) <= 3.0;
+  });
+
+  // A + B 합치기 (중복 제거: 이름 기준)
+  var seenNames = new Set([anchor.name]);
+  var allCandidates = [];
+  candidatesA.concat(candidatesB).forEach(function(c) {
+    if (!seenNames.has(c.name)) {
+      seenNames.add(c.name);
+      allCandidates.push(c);
+    }
+  });
+
+  if (allCandidates.length === 0) return [anchor];
+
+  // ④ Nearest Neighbor TSP (앵커 기준, 최대 4개 추가 = 총 5건)
+  var ordered = [anchor];
+  var unvisited = allCandidates.slice(0, 4);
+  var cur = anchor;
+
+  while (unvisited.length > 0) {
+    var minDist = 9999, nearestIdx = -1;
+    for (var j = 0; j < unvisited.length; j++) {
+      var d = calculateDistance(
+        parseFloat(cur.lat), parseFloat(cur.lon),
+        parseFloat(unvisited[j].lat), parseFloat(unvisited[j].lon)
+      );
+      if (d < minDist) { minDist = d; nearestIdx = j; }
+    }
+    var nearest = unvisited.splice(nearestIdx, 1)[0];
+    nearest._routeDist = minDist;
+    ordered.push(nearest);
+    cur = nearest;
+  }
+
+  return ordered;
+}
+
+// 네이버 지도 웹 경로 URL 생성 (index.html buildNaverWebRouteUrl 과 동일 포맷)
+function buildNaverRouteUrl(routeStops) {
+  if (!routeStops || routeStops.length === 0) return '';
+  var enc  = encodeURIComponent;
+  var dest = routeStops[routeStops.length - 1];
+
+  // 1개짜리는 웹 URL로도 충분
+  if (routeStops.length === 1) {
+    return 'https://map.naver.com/p/directions/-/' +
+           parseFloat(dest.lon).toFixed(6) + ',' +
+           parseFloat(dest.lat).toFixed(6) + ',' +
+           enc(dest.name || '목적지') + '/-/car';
+  }
+
+  // 경유지 포함 → nmap:// 앱 스킴 (index.html iOS 방식과 동일)
+  var waypoints = routeStops.slice(0, -1);
+  var params = 'dlat=' + parseFloat(dest.lat).toFixed(6) +
+               '&dlng=' + parseFloat(dest.lon).toFixed(6) +
+               '&dname=' + enc(dest.name || '목적지');
+  waypoints.forEach(function(wp, i) {
+    params += '&v' + (i + 1) + 'lat=' + parseFloat(wp.lat).toFixed(6) +
+              '&v' + (i + 1) + 'lng=' + parseFloat(wp.lon).toFixed(6) +
+              '&v' + (i + 1) + 'name=' + enc(wp.name || ('경유지' + (i + 1)));
+  });
+  return 'nmap://route/car?' + params;
+}
+
+// ============================================================
+// 주요거래처 지오코딩 캐시 (PropertiesService 기반)
+// - 첫 실행 시 지오코딩 후 캐시 저장 → 이후 즉시 읽기
+// - PropertiesService 9KB/키 제한 → 50건씩 청크 분할 저장
+// ============================================================
+function loadGeoCache() {
+  var props = PropertiesService.getScriptProperties();
+  var cache = {};
+  var i = 0;
+  while (true) {
+    var chunk = props.getProperty('geocache_' + i);
+    if (!chunk) break;
+    var obj = JSON.parse(chunk);
+    Object.keys(obj).forEach(function(k) { cache[k] = obj[k]; });
+    i++;
+  }
+  return cache;
+}
+
+function saveGeoCache(cache) {
+  var props = PropertiesService.getScriptProperties();
+  // 기존 청크 전체 삭제
+  var i = 0;
+  while (props.getProperty('geocache_' + i)) {
+    props.deleteProperty('geocache_' + i);
+    i++;
+  }
+  // 50건씩 청크 저장
+  var keys = Object.keys(cache);
+  var CHUNK = 50;
+  for (var c = 0; c < Math.ceil(keys.length / CHUNK); c++) {
+    var chunkObj = {};
+    keys.slice(c * CHUNK, (c + 1) * CHUNK).forEach(function(k) { chunkObj[k] = cache[k]; });
+    props.setProperty('geocache_' + c, JSON.stringify(chunkObj));
+  }
+}
+
+function geocodeAccountsWithCache(accounts) {
+  var cache = loadGeoCache();
+  var updated = false;
+
+  accounts.forEach(function(acc) {
+    var name    = (acc['거래처명'] || '').trim();
+    var address = (acc['주소'] || '').trim();
+    if (!name || !address || cache[name]) return; // 이미 캐시됨
+
+    try {
+      var result = Maps.newGeocoder().geocode(address);
+      if (result.results && result.results.length > 0) {
+        var loc = result.results[0].geometry.location;
+        cache[name] = { lat: loc.lat, lng: loc.lng };
+        updated = true;
+      }
+      Utilities.sleep(200); // rate limit 방지
+    } catch (e) {
+      Logger.log('지오코딩 실패: ' + name + ' / ' + e.toString());
+    }
+  });
+
+  if (updated) saveGeoCache(cache);
+  Logger.log('지오코딩 캐시: ' + Object.keys(cache).length + '건 (신규: ' + (updated ? '있음' : '없음') + ')');
+  return cache;
+}
+
+// ============================================================
 // 이메일 HTML 생성 (Outlook 완전 호환 / 테이블 기반 레이아웃)
 // ── Outlook 호환 핵심 원칙 ──
 //   1) <div> 레이아웃 금지 → <table> 기반으로 전환
@@ -672,7 +912,7 @@ function findNearbyStores(target, allData) {
 //   5) bgcolor 속성을 background-color CSS와 병행 사용
 //   6) 카카오지도 제거, 네이버지도만 유지
 // ============================================================
-function generateSummaryEmailHTML(targets, aiStrategy) {
+function generateSummaryEmailHTML(targets, aiStrategy, managerAccounts) {
 
   // ── 테이블 헤더 셀 스타일 ──
   var TH_CENTER = 'background-color:#f1f3f5; color:#495057; font-weight:bold; padding:10px 12px; ' +
@@ -695,9 +935,8 @@ function generateSummaryEmailHTML(targets, aiStrategy) {
         '<td style="' + TD + ' font-weight:bold; color:#2c3e50;">' + (t.name || '-') + '</td>' +
         '<td style="' + TD + ' text-align:center; white-space:nowrap;">' + (t.pyeong || '-') + '&#xD3C9;</td>' +
         '<td style="' + TD + ' text-align:center; color:#868e96; white-space:nowrap;">' + (t.permitDate || '-') + '</td>' +
-        '<td style="' + TD + ' text-align:center;" align="center">' +
-          // display:inline-block 대신 <span style="display:inline"> + bgcolor 셀 배경으로 처리
-          '<span style="background-color:' + bdgBg + '; color:' + bdgColor + '; padding:3px 10px; font-size:11px; font-weight:bold;">' +
+        '<td style="' + TD + ' text-align:center; white-space:nowrap;" align="center">' +
+          '<span style="background-color:' + bdgBg + '; color:' + bdgColor + '; padding:3px 10px; font-size:11px; font-weight:bold; white-space:nowrap;">' +
           (t.status || '-') + '</span>' +
         '</td>' +
         '<td style="' + TD + '">' + (t.address || '-') + '</td>' +
@@ -730,6 +969,61 @@ function generateSummaryEmailHTML(targets, aiStrategy) {
       '<tr><td style="padding-bottom:6px; font-size:15px; font-weight:bold; color:' + color + ';">' + text + '</td></tr>' +
       '</table>';
   };
+
+  // ── 동선 최적화 섹션 ──
+  var routeSection = '';
+  var routeStops = optimizeRoute(targets, managerAccounts);
+  if (routeStops.length > 0) {
+    var totalDist = 0;
+    routeStops.forEach(function(s) { totalDist += (s._routeDist || 0); });
+    var naverUrl = buildNaverRouteUrl(routeStops);
+
+    var routeRows = routeStops.map(function(s, idx) {
+      var isConst   = s.status === '공사중';
+      var isAccount = s._isAccount === true;
+      var bdgBg     = isConst ? '#fff3bf' : (isAccount ? '#f3e8ff' : '#dbeafe');
+      var bdgColor  = isConst ? '#b45309' : (isAccount ? '#6b21a8' : '#1a56db');
+      var statusLabel = s.status + (isAccount ? ' (주요거래처)' : '');
+      var distTxt  = idx === 0
+        ? '<span style="color:#03C75A; font-weight:bold;">출발</span>'
+        : '+ ' + (s._routeDist || 0).toFixed(1) + 'km';
+      return '<tr>' +
+        '<td style="' + TD + ' text-align:center; font-weight:bold; color:#1a56db; width:36px;">' + (idx + 1) + '</td>' +
+        '<td style="' + TD + ' font-weight:600;">' + (s.name || '-') + '</td>' +
+        '<td style="' + TD + ' text-align:center; white-space:nowrap;">' +
+          '<span style="background-color:' + bdgBg + '; color:' + bdgColor + '; padding:3px 10px; font-size:11px; font-weight:bold; white-space:nowrap;">' + (statusLabel || '-') + '</span>' +
+        '</td>' +
+        '<td style="' + TD + ' color:#555; font-size:12px;">' + (s.address || '-') + '</td>' +
+        '<td style="' + TD + ' text-align:center; color:#868e96; font-size:12px; white-space:nowrap;">' + distTxt + '</td>' +
+        '</tr>';
+    }).join('');
+
+    var routeTable =
+      '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:8px 0 12px 0; font-size:13px;">' +
+      '<thead><tr>' +
+      '<th style="' + TH_CENTER + ' width:36px;">순서</th>' +
+      '<th style="' + TH_LEFT   + '">사업장명</th>' +
+      '<th style="' + TH_CENTER + '">상태</th>' +
+      '<th style="' + TH_LEFT   + '">주소</th>' +
+      '<th style="' + TH_CENTER + '">구간거리</th>' +
+      '</tr></thead>' +
+      '<tbody>' + routeRows + '</tbody>' +
+      '</table>';
+
+    var naverBtn = naverUrl
+      ? '<a href="' + naverUrl + '" style="background-color:#03C75A; color:#ffffff; padding:7px 16px; text-decoration:none; font-size:12px; font-weight:bold;">&#128205; 네이버 지도로 열기</a>'
+      : '';
+
+    routeSection =
+      sectionTitle('#2c3e50', '&#128506; 오늘의 추천 동선 (' + routeStops.length + '건)') +
+      '<p style="font-size:12px; color:#868e96; margin:0 0 8px 0;">첫 번째 대상 기준으로 이동거리를 최소화한 방문 순서입니다. (직선거리 기준, 최대 5건)</p>' +
+      routeTable +
+      '<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">' +
+      '<tr>' +
+      '<td style="padding:6px 0; font-size:12px; color:#555;">&#8251; 총 예상 이동거리 (직선): <strong>약 ' + totalDist.toFixed(1) + 'km</strong></td>' +
+      '<td align="right">' + naverBtn + '</td>' +
+      '</tr></table>';
+  }
 
   var newSection = '';
   if (targets.newObj.length > 0) {
@@ -797,6 +1091,7 @@ function generateSummaryEmailHTML(targets, aiStrategy) {
     '<tr>\n' +
     '  <td style="padding:30px; background-color:#ffffff;">\n' +
     '    <p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">안녕하십니까,<br>금일 기준 방문이 필요한 사업장 리스트를 송부드립니다.<br>방문 일정 조율에 참고하시기 바랍니다.</p>\n' +
+    '    ' + routeSection + '\n' +
     '    ' + newSection + '\n' +
     '    ' + revisitSection + '\n' +
     '    ' + aiSection + '\n' +
