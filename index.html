@@ -20,9 +20,8 @@
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
-    <!-- 네이버 지도 API (기존) -->
-    <script type="text/javascript"
-        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=j2y9x591s2&submodules=geocoder"></script>
+    <!-- 네이버 지도 API (geocoder는 동적 로드로 분리하여 document.write 경고 방지) -->
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl"></script>
 
     <!-- TMAP API 서비스 모듈 (신규) -->
     <script src="js/tmap-service.js"></script>
