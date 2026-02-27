@@ -17,6 +17,11 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Code');
 
+    // 🔥 중요: 관리자 페이지 데이터는 절대 캐시하지 않도록 강제 방지 (승인 상태 실시간 갱신용)
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     // 관리자 코드 인증
@@ -27,7 +32,7 @@ export default async function handler(req, res) {
     }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!SUPABASE_URL || !SERVICE_KEY) {
         return res.status(500).json({ error: '서버 환경변수가 설정되지 않았습니다.' });
     }
