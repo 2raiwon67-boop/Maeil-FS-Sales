@@ -20,8 +20,13 @@
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
-    <!-- 네이버 지도 API (geocoder는 동적 로드로 분리하여 document.write 경고 방지) -->
-    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl"></script>
+    <!-- 네이버 지도 API (기존) -->
+    <script type="text/javascript"
+        src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=j2y9x591s2&submodules=geocoder"></script>
+
+    <!-- TMAP API 서비스 모듈 (신규) -->
+    <script src="js/tmap-service.js"></script>
+
     <script>
         (function () {
             var s = document.createElement('script');
@@ -4645,7 +4650,7 @@
                 routeStops = nearestNeighborTSP(additionalStops, routeStartCoord);
             }
 
-            await drawRouteOnMap();
+            await drawRoute(); // Changed from drawRouteOnMap()
             renderRouteResult();
         }
 
@@ -4667,14 +4672,23 @@
             return ordered;
         }
 
-        async function drawRouteOnMap() {
+        // ============================================================
+        // [수정] 경로 그리기 (TMAP API 최우선 -> 실패 시 OSRM -> 실패 시 직선)
+        // ============================================================
+        async function drawRoute() {
             clearRouteMarkers();
-            if (!naverMap || routeStops.length === 0) return;
+            if (routeStops.length < 2) return;
 
+            const summaryBox = document.getElementById('routeSummaryBox');
+
+            // Clear previous summary
+            summaryBox.innerHTML = '';
+            summaryBox.style.display = 'none';
+
+            // Markers for the route stops
             const colorMap = { primary: '#ff3b30', construction: '#ff9500', account: '#FFD700' };
             const borderMap = { primary: '#c0392b', construction: '#e67e00', account: '#FFA500' };
 
-            // 마커 생성
             routeStops.forEach((stop, idx) => {
                 const pos = new naver.maps.LatLng(stop.lat, stop.lng);
                 const c = colorMap[stop.type];
@@ -4699,55 +4713,121 @@
                 routeMarkers.push(marker);
             });
 
-            // 전체 경유지 좌표 (출발지 + 모든 stops)
-            const allWaypoints = [
+            try {
+                // 1. TMAP 최적화 API 호출
+                const tmapResult = await window.TmapService.getOptimizedRouteFromTmap(routeStops);
+
+                if (tmapResult && tmapResult.polyline && tmapResult.polyline.length > 0) {
+                    // TMAP이 정해준 가장 효율적인 순서로 routeStops 배열 자체를 교체
+                    routeStops = tmapResult.optimizedStops;
+                    updateRoutePanel(); // 사이드바 리스트 UI 새로고침(바뀐 순서 반영)
+
+                    // 지도에 자동차 주행 도로 모양(Polyline) 그리기
+                    routePolyline = new naver.maps.Polyline({
+                        map: naverMap,
+                        path: tmapResult.polyline,
+                        strokeColor: '#007AFF', // iOS 블루
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8,
+                        strokeLineCap: 'round',
+                        strokeLineJoin: 'round'
+                    });
+
+                    // 총 거리 및 예상 소요시간 계산 (TMAP 결과)
+                    const distKm = (tmapResult.summary.distance / 1000).toFixed(1);
+                    const timeMin = Math.round(tmapResult.summary.time / 60);
+
+                    let timeStr = "";
+                    if (timeMin > 60) {
+                        timeStr = `${Math.floor(timeMin / 60)}시간 ${timeMin % 60}분`;
+                    } else {
+                        timeStr = `${timeMin}분`;
+                    }
+
+                    summaryBox.innerHTML = `
+                        <div style="font-size:12px; color:#666;">TMAP 실시간 최적 경로</div>
+                        <div style="font-size:16px; font-weight:700; color:#1d1d1f; margin-top:4px;">
+                            ${distKm}km • 약 ${timeStr}
+                        </div>
+                    `;
+                    summaryBox.style.display = 'block';
+
+                    // Fit bounds for TMAP route
+                    const bounds = new naver.maps.LatLngBounds();
+                    tmapResult.polyline.forEach(c => bounds.extend(c));
+                    naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+
+                    return; // TMAP 성공 시 여기서 종료
+                }
+            } catch (err) {
+                console.warn("TMAP API 호출 실패. OSRM 폴백으로 전환합니다.", err);
+            }
+
+            // 2. TMAP 실패 시 기존 OSRM 폴백 실행
+            // OSRM needs all waypoints, including start.
+            const allWaypointsForOsrm = [
                 { lat: routeStartCoord.lat, lng: routeStartCoord.lng },
                 ...routeStops.map(s => ({ lat: s.lat, lng: s.lng }))
             ];
-            const straightCoords = allWaypoints.map(p => new naver.maps.LatLng(p.lat, p.lng));
-            const bounds = new naver.maps.LatLngBounds();
-            straightCoords.forEach(c => bounds.extend(c));
+            const coordsUrl = allWaypointsForOsrm.map(s => `${s.lng},${s.lat}`).join(';');
+            const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsUrl}?overview=full&geometries=geojson`;
 
-            // 1순위: OSRM 도로 경로
             try {
-                const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';');
-                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?geometries=geojson&overview=full`;
                 const res = await fetch(osrmUrl);
-                if (routeStops.length === 0) return;
-                if (res.ok) {
-                    const data = await res.json();
-                    if (routeStops.length === 0) return;
-                    if (data.routes && data.routes[0]) {
-                        const geoCoords = data.routes[0].geometry.coordinates;
-                        const roadPath = geoCoords.map(([lng, lat]) => new naver.maps.LatLng(lat, lng));
-                        routePolyline = new naver.maps.Polyline({
-                            path: roadPath,
-                            strokeColor: '#0071e3',
-                            strokeWeight: 4,
-                            strokeOpacity: 0.85,
-                            strokeStyle: 'solid',
-                            map: naverMap
-                        });
-                        roadPath.forEach(c => bounds.extend(c));
-                        naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
-                        return;
-                    }
-                }
-            } catch (e) {
-                console.warn('OSRM 폴백도 실패, 직선으로 표시합니다:', e);
-                if (routeStops.length === 0) return;
-            }
+                const data = await res.json();
+                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                    const route = data.routes[0];
+                    const nwCoords = route.geometry.coordinates.map(c => new naver.maps.LatLng(c[1], c[0]));
 
-            // 폴백: 직선 연결 (점선으로 도로 경로와 구분)
-            routePolyline = new naver.maps.Polyline({
-                path: straightCoords,
-                strokeColor: '#0071e3',
-                strokeWeight: 3,
-                strokeOpacity: 0.55,
-                strokeStyle: 'shortDash',
-                map: naverMap
-            });
-            naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+                    routePolyline = new naver.maps.Polyline({
+                        map: naverMap,
+                        path: nwCoords,
+                        strokeColor: '#34C759', // 녹색(OSRM 식별용)
+                        strokeWeight: 5,
+                        strokeOpacity: 0.8,
+                        strokeLineCap: 'round',
+                        strokeLineJoin: 'round'
+                    });
+
+                    const distKm = (route.distance / 1000).toFixed(1);
+                    const timeMin = Math.round(route.duration / 60);
+                    summaryBox.innerHTML = `
+                        <div style="font-size:12px; color:#666;">OSRM 경로 (최적화 안됨)</div>
+                        <div style="font-size:16px; font-weight:700; color:#1d1d1f; margin-top:4px;">
+                            ${distKm}km • 약 ${timeMin}분
+                        </div>
+                    `;
+                    summaryBox.style.display = 'block';
+
+                    // Fit bounds for OSRM route
+                    const bounds = new naver.maps.LatLngBounds();
+                    nwCoords.forEach(c => bounds.extend(c));
+                    naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+
+                    return;
+                } else {
+                    throw new Error("OSRM 라우팅 실패");
+                }
+            } catch (err) {
+                console.error("OSRM 폴백도 실패. 직선으로 연결합니다.", err);
+                // 3. 최후의 보루: 직선 연결
+                const path = allWaypointsForOsrm.map(s => new naver.maps.LatLng(s.lat, s.lng));
+                routePolyline = new naver.maps.Polyline({
+                    map: naverMap,
+                    path: path,
+                    strokeColor: '#FF3B30', // 빨간색(직선 식별용)
+                    strokeWeight: 4,
+                    strokeOpacity: 0.6,
+                    strokeStyle: 'shortdash'
+                });
+                summaryBox.innerHTML = `<div style="font-size:12px; color:#ff3b30;">실도로 경로를 불러오지 못해 직선으로 표시합니다.</div>`;
+                summaryBox.style.display = 'block';
+
+                // Fit bounds for straight line
+                const bounds = new naver.maps.LatLngBounds();
+                path.forEach(c => bounds.extend(c));
+                naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+            }
         }
 
         function clearRouteMarkers() {
