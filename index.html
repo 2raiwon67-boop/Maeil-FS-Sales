@@ -1739,7 +1739,6 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
-                    .then(r => console.log('[PWA] 서비스워커 등록 성공:', r.scope))
                     .catch(e => console.warn('[PWA] 서비스워커 등록 실패:', e));
             });
         }
@@ -2514,7 +2513,6 @@
 
         window.onload = async function () {
             document.body.classList.add('loaded'); // 페이지 로드 시 페이드 인 효과 적용
-            console.log('페이지 로드 완료');
             setupUploadZones();
 
             // 날짜 기본값: 시작일 = 1년 전, 종료일 = 오늘
@@ -2680,7 +2678,6 @@
                         count++;
                     }
                 }
-                console.log(`담당자 설정 로드 완료: ${count}개 지역`);
 
             } catch (e) {
                 console.warn('담당자 설정 로드 실패 (기본값 사용):', e.message);
@@ -2788,13 +2785,11 @@
                         });
 
 
-                    console.log(`Google Sheets 로드 완료: ${allData.length}건`);
 
                     // 🆕 방문일지 데이터를 LocalStorage에 저장 (견적서 AI 활용)
                     try {
                         localStorage.setItem('maeil_visitLogs', JSON.stringify(allData));
                         localStorage.setItem('maeil_visitLogs_timestamp', Date.now().toString());
-                        console.log('✅ 방문일지 데이터 캐싱 완료 (견적서 AI 연동)');
                     } catch (e) {
                         console.warn('LocalStorage 저장 실패:', e.message);
                     }
@@ -2820,7 +2815,6 @@
                     const missingCoords = allData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
 
                     if (missingCoords.length > 0) {
-                        console.log(`지오코딩 필요: ${missingCoords.length}건`);
                         // 로딩 표시 (임시)
                         const statusDiv = document.createElement('div');
                         statusDiv.id = 'geocodingStatus';
@@ -2863,7 +2857,6 @@
                 }
             } catch (error) {
                 console.warn('Google Sheets 로드 실패:', error.message);
-                console.log('대시보드는 최종본 업로드 후 표시됩니다');
             }
         }
 
@@ -2880,7 +2873,6 @@
 
             function setStatus(msg) {
                 statusEl.textContent = msg;
-                console.log('[공공데이터 API]', msg);
             }
 
             try {
@@ -2958,7 +2950,6 @@
                     addToMap(first.items);
                     const actualPageSize = first.items.length || 100;
                     const totalPages = Math.min(Math.ceil(first.totalCount / actualPageSize), MAX_PAGES);
-                    console.log(`${svcNm}: 총 ${first.totalCount}건 → 최대 ${totalPages}페이지 수집`);
 
                     // 나머지 페이지 병렬 수집 (BATCH_SIZE씩)
                     for (let bStart = 2; bStart <= totalPages; bStart += BATCH_SIZE) {
@@ -2980,7 +2971,6 @@
                 }
 
                 setStatus(`총 ${allRawData.length}건 수신. 필터링 중...`);
-                console.log(`공공데이터 API: 총 ${allRawData.length}건 로드`);
 
                 // 사용자 선택 날짜를 processData 날짜 필터에 전달
                 await processData(allRawData, { startDate, endDate: endDate || '' });
@@ -3195,7 +3185,6 @@
                 } catch (e) { }
             });
 
-            console.log(`[Marker] 전체 마커 생성 완료: ${allMarkers.length}개`);
             filterMarkers();
         }
 
@@ -3246,7 +3235,6 @@
                 markers.push(marker);
             });
 
-            console.log(`[Marker] 필터 후 표시: ${markers.length} / ${allMarkers.length}`);
         }
 
         /**
@@ -3326,7 +3314,6 @@
                 if (!response.ok) throw new Error('주요거래처 시트 접근 실패');
                 const csv = await response.text();
                 accountsData = parseAccountsCSV(csv);
-                console.log(`주요거래처 로드 완료: ${accountsData.length}건`);
                 // 지도가 준비된 후 마커 표시
                 if (naverMap) {
                     await updateAccountMarkers();
@@ -3376,7 +3363,6 @@
                     return db.localeCompare(da);
                 });
                 window.visitLogCache = logs;
-                console.log(`방문일지 캐시 로드 완료: ${logs.length}건`);
             } catch (e) {
                 console.warn('방문일지 캐시 로드 실패:', e.message);
             }
@@ -3520,7 +3506,6 @@
                     console.warn('주요거래처 마커 생성 실패:', name, e);
                 }
             }
-            console.log(`주요거래처 별 마커 표시 완료: ${accountMarkers.length}개`);
             filterAccountMarkers();
         }
 
@@ -3633,7 +3618,6 @@
                     allRawData.push(...rawData);
                 }
 
-                console.log(`총 ${allRawData.length}건의 데이터 로드 완료`);
                 await processData(allRawData);
             } catch (err) {
                 document.getElementById('loading1').classList.remove('active');
@@ -3665,14 +3649,12 @@
 
         async function processData(rawData, options = {}) {
             try {
-                console.log(`전처리 시작: ${rawData.length}건`);
 
                 // 1. 영업/정상만 필터링
                 let data = rawData.filter(row => {
                     const status = (row['영업상태명'] || row['상세영업상태명'] || '').toString().trim();
                     return status === '영업/정상' || status === '영업' || status === '정상';
                 });
-                console.log(`영업/정상 필터링 후: ${data.length}건`);
 
                 // 2. 업종 필터링 & 명칭 변경
                 const targetCategories = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
@@ -3688,7 +3670,6 @@
                     const category = (row['업태구분명'] || '').toString().trim();
                     return targetCategories.includes(category);
                 });
-                console.log(`업종 필터링 후: ${data.length}건`);
 
                 // 3. 블랙리스트 필터링
                 const excludeKeywords = [
@@ -3702,7 +3683,6 @@
                     const name = (row['사업장명'] || '').toString();
                     return !excludeKeywords.some(keyword => name.includes(keyword));
                 });
-                console.log(`블랙리스트 필터링 후: ${data.length}건`);
 
                 // 4. 날짜 필터링
                 // options.startDate / options.endDate (YYYYMMDD)가 있으면 우선 사용, 없으면 기본 1년
@@ -3730,7 +3710,6 @@
                     const date = new Date(year, month, day);
                     return date >= filterFrom && date <= filterTo;
                 });
-                console.log(`날짜 필터링 후 (${filterFrom.toLocaleDateString()} ~ ${filterTo.toLocaleDateString()}): ${data.length}건`);
 
                 // 5. 데이터 가공
                 processedData = data.map(row => {
@@ -3843,16 +3822,13 @@
                     }
                     return true;
                 });
-                console.log(`한식 필터링 후: ${processedData.length}건`);
 
                 // 7. 담당자 미지정 제외
                 processedData = processedData.filter(row => row['담당자'] !== '미지정');
-                console.log(`담당자 미지정 제외 후: ${processedData.length}건`);
 
                 // 8. 지오코딩 (좌표 없는 데이터 주소로 변환)
                 const missingCoords = processedData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
                 if (missingCoords.length > 0) {
-                    console.log(`지오코딩 대상: ${missingCoords.length}건`);
                     const loadingMsg = document.querySelector('#loading1 p');
                     const originalMsg = loadingMsg ? loadingMsg.innerText : '데이터 가공 중...';
 
@@ -3933,8 +3909,6 @@
                     delete row['_sort_score'];
                 });
 
-                console.log(`최종 처리 완료: ${processedData.length}건`);
-                console.log('미리보기:', processedData.slice(0, 5));
 
                 document.getElementById('loading1').classList.remove('active');
                 document.getElementById('downloadBtn').disabled = false;
@@ -3975,7 +3949,6 @@
                     // 1순위만 필터링 (사용자 요청)
                     const originalCount = finalData.length;
                     finalData = finalData.filter(row => (row['순위'] || '').toString().trim() === '1');
-                    console.log(`순위 필터링: 전 ${originalCount}건 -> 후 ${finalData.length}건 (1순위만)`);
 
                     if (finalData.length === 0) {
                         throw new Error('업로드할 데이터 중 1순위 데이터가 없습니다.');
@@ -4207,7 +4180,6 @@
                 updateDashboard();
                 initAllMarkers();
 
-                console.log(`✅ 구글 시트 동기화 완료: ${name} → ${newStatus}`);
 
             } catch (err) {
                 console.error('업데이트 실패:', err);
@@ -4913,7 +4885,6 @@
                     geminiBot.setContext([], [], allData);
                     // 챗봇 프롬프트를 인허가 전용으로 재설정
                     geminiBot._indexMode = true;
-                    console.log('인허가 챗봇 컨텍스트 설정:', allData.length + '건');
                 }
             }
         }

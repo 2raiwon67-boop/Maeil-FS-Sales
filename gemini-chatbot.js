@@ -445,7 +445,6 @@ class DataCollector {
     loadFromSheets(visitLogs, accounts) {
         this.visitData = visitLogs;
         this.accountData = accounts;
-        console.log(`✅ 데이터 로드: 방문일지 ${visitLogs.length} 건, 거래처 ${accounts.length} 건`);
     }
 
     // 데이터 전처리
@@ -1098,7 +1097,6 @@ let aiSystem = {
 
 // AI 시스템 초기화
 function initializeAISystem(visitLogs, accounts) {
-    console.log('🚀 AI 시스템 초기화 시작...');
 
     aiSystem.collector = new DataCollector();
     aiSystem.collector.loadFromSheets(visitLogs, accounts);
@@ -1113,11 +1111,9 @@ function initializeAISystem(visitLogs, accounts) {
     );
 
     aiSystem.isInitialized = true;
-    console.log('✅ AI 시스템 초기화 완료');
 
     // 초기 학습
     aiSystem.patternAnalyzer.learnSuccessPatterns();
-    console.log('✅ 성공 패턴 학습 완료');
 
     return aiSystem;
 }

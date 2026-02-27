@@ -156,9 +156,7 @@ async function matchManagerEmail(fullName, email) {
         });
         const result = await response.json();
         if (result.matched) {
-            console.log(`담당자 이메일 자동 연동 완료: ${fullName} → ${email}`);
         } else {
-            console.log(`담당자 매칭 없음 (일반 사용자): ${fullName}`);
         }
     } catch (e) {
         // 매칭 실패해도 로그인/가입에는 영향 없음

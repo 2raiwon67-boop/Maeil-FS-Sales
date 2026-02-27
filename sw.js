@@ -23,7 +23,6 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('[SW] 정적 파일 캐시 시작');
             // 개별 실패를 허용 (외부 CDN 등 실패해도 설치 계속)
             return Promise.allSettled(
                 STATIC_ASSETS.map(url => cache.add(url).catch(() => {}))

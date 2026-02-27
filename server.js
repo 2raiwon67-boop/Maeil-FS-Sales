@@ -23,8 +23,6 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-    console.log(`${req.method} ${req.url}`);
-    console.log('Headers:', JSON.stringify(req.headers, null, 2));
 
     let filePath = '.' + req.url;
     if (filePath === './') {
@@ -60,6 +58,4 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-    console.log(`Server running at http://localhost:${PORT}/`);
-    console.log('Press Ctrl+C to stop');
 });

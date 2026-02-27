@@ -915,7 +915,6 @@
                     };
                 });
                 updateDatalist();
-                console.log(`✅ 제품 DB ${productDB.length}개 로드 완료 (Google Sheets)`);
             } catch (e) {
                 console.warn('제품 DB 로드 실패, 기본값 사용:', e.message);
             }
@@ -1402,7 +1401,6 @@
 
             const storeHistory = await loadVisitLogsForStore(keyword);
             if (storeHistory.length > 0) {
-                console.log(`✅ 방문일지 발견: ${storeHistory.length}건`, storeHistory);
             }
 
             // 새로운 분석 수행
