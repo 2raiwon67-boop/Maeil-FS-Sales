@@ -924,29 +924,6 @@
             transform: translateY(0);
         }
 
-        .tmap-map-btn {
-            width: 100%;
-            padding: 10px 16px;
-            background: #e8340a;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        .tmap-map-btn:hover {
-            background: #c82d08;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(232, 52, 10, 0.3);
-        }
-        .tmap-map-btn:active { transform: translateY(0); }
-
         /* =============== 현재 위치 마커 펄스 애니메이션 =============== */
         @keyframes myLocationPulse {
             0% {
@@ -1144,11 +1121,6 @@
 
         .route-btn-naver {
             background: #03c75a;
-            color: white;
-        }
-
-        .route-btn-tmap {
-            background: #e8340a;
             color: white;
         }
 
@@ -2053,7 +2025,8 @@
                         <div class="route-section-label" style="margin-top:16px;">최적화 결과</div>
                         <div id="routeStopList"></div>
                         <div class="route-summary-box" id="routeSummaryBox"></div>
-                        <button id="routeNavBtn" onclick="openPlatformMultiRoute(routeStops)" class="route-btn route-btn-naver">📱 네이버 지도 앱으로 열기</button>
+                        <button id="routeNavBtn" onclick="openPlatformMultiRoute(routeStops)"
+                            class="route-btn route-btn-naver">📱 네이버 지도 앱으로 열기</button>
                         <button onclick="clearRoute()" class="route-btn route-btn-clear">🔄 루트 초기화</button>
                     </div>
                 </div>
@@ -2308,7 +2281,7 @@
             const sortedMonths = Object.keys(monthCount).sort();
 
             const trendLabels = sortedMonths.length > 0 ? sortedMonths : ['데이터 없음'];
-            const trendData   = sortedMonths.length > 0 ? sortedMonths.map(m => monthCount[m]) : [0];
+            const trendData = sortedMonths.length > 0 ? sortedMonths.map(m => monthCount[m]) : [0];
             if (dashTrendChartInstance) {
                 dashTrendChartInstance.data.labels = trendLabels;
                 dashTrendChartInstance.data.datasets[0].data = trendData;
@@ -2514,7 +2487,7 @@
             if (!ctxMilk) return;
             const milkColorPalette = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#5856D6', '#8E8E93', '#AF52DE', '#30B0C7'];
             const milkLabels = Object.keys(milkCount).sort((a, b) => milkCount[b] - milkCount[a]);
-            const milkData   = milkLabels.map(k => milkCount[k]);
+            const milkData = milkLabels.map(k => milkCount[k]);
             const milkColors = milkLabels.length ? milkLabels.map((_, i) => milkColorPalette[i % milkColorPalette.length]) : ['#e5e5ea'];
 
             if (dashMilkChartInstance) {
@@ -4145,10 +4118,7 @@
 
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
             const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const isMob = typeof isMobile === 'function' && isMobile();
-            const mapBtn = isMob
-                ? `<button class="tmap-map-btn" onclick="openTmapSingle(${lat}, ${lng}, '${escapedName}')">🚗 T-map 길찾기</button>`
-                : `<button class="naver-map-btn" onclick="window.open('${naverMapUrl}', '_blank')">네이버 지도에서 보기</button>`;
+            const mapBtn = `<button class="naver-map-btn" onclick="window.open('${naverMapUrl}', '_blank')">네이버 지도에서 보기</button>`;
 
             return `
                 <div class="custom-info-window">
@@ -4338,12 +4308,8 @@
                 const itemLat = parseFloat(item['위도']) || 0;
                 const itemLng = parseFloat(item['경도']) || 0;
                 const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item['사업장명'] || '')}`;
-                const _isMob = typeof isMobile === 'function' && isMobile();
-                const _mapBtn = _isMob
-                    ? `<button class="tmap-map-btn" style="margin-top:16px;" onclick="openTmapSingle(${itemLat}, ${itemLng}, '${name}')">🚗 T-map 길찾기</button>`
-                    : `<button class="naver-map-btn" style="margin-top:16px;" onclick="window.open('${naverUrl}', '_blank')">네이버 지도에서 보기</button>`;
                 sheetActionBtns.innerHTML = `
-                    ${_mapBtn}
+                    <button class="naver-map-btn" style="margin-top:16px;" onclick="window.open('${naverUrl}', '_blank')">네이버 지도에서 보기</button>
                     ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
                 `;
             }
@@ -4723,30 +4689,7 @@
             const bounds = new naver.maps.LatLngBounds();
             straightCoords.forEach(c => bounds.extend(c));
 
-            // 1순위: T-map Route API
-            try {
-                const tmapCoords = await fetchTmapRoutePolyline(allWaypoints);
-                if (routeStops.length === 0) return;
-                if (tmapCoords) {
-                    const roadPath = tmapCoords.map(c => new naver.maps.LatLng(c.lat, c.lng));
-                    routePolyline = new naver.maps.Polyline({
-                        path: roadPath,
-                        strokeColor: '#e8340a',
-                        strokeWeight: 4,
-                        strokeOpacity: 0.85,
-                        strokeStyle: 'solid',
-                        map: naverMap
-                    });
-                    roadPath.forEach(c => bounds.extend(c));
-                    naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
-                    return;
-                }
-            } catch (e) {
-                console.warn('T-map Route API 실패, OSRM 폴백:', e.message);
-                if (routeStops.length === 0) return;
-            }
-
-            // 2순위: OSRM 폴백
+            // 1순위: OSRM 도로 경로
             try {
                 const coordStr = allWaypoints.map(p => `${p.lng},${p.lat}`).join(';');
                 const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordStr}?geometries=geojson&overview=full`;
@@ -4918,7 +4861,7 @@
         }
     </script>
 
-    <script src="js/tmap-service.js"></script>
+
     <script src="gemini-chatbot.js"></script>
 
     <!-- AI 챗봇 UI -->
