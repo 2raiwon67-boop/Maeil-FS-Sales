@@ -2553,39 +2553,21 @@
 
 
         function setRegionFilter(region) {
-            // 같은 지역 클릭 시 필터 해제
             if (currentRegion === region) {
                 currentRegion = null;
-                // 필터 해제 시 별 마커 전체 표시
-                accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
                 currentRegion = region;
-                // 해당 지역의 별 마커만 표시 (_region = 주소2 기준)
-                accountMarkers.forEach(m => {
-                    const r = (m._region || '').trim();
-                    m.setMap(r === region ? naverMap : null);
-                });
             }
-
             updateDashboard();
             updateMap();
         }
 
         function setManagerFilter(manager) {
-            // 같은 담당자 클릭 시 필터 해제
             if (currentManager === manager) {
                 currentManager = null;
-                // 필터 해제 시 별 마커 전체 표시
-                accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
                 currentManager = manager;
-                // 해당 담당자의 별 마커만 표시 (_managerName = 담당자명 기준)
-                accountMarkers.forEach(m => {
-                    const mn = (m._managerName || '').trim();
-                    m.setMap(mn === manager ? naverMap : null);
-                });
             }
-
             updateDashboard();
             updateMap();
         }
@@ -2593,15 +2575,11 @@
 
         // 방문 현황 카드 클릭 필터 (인허가 데이터)
         function filterByStatus(status) {
-            // 인허가 마커만 필터 (currentDealStatusFilter 사용)
             if (window.currentDealStatusFilter === status) {
                 window.currentDealStatusFilter = null;
             } else {
                 window.currentDealStatusFilter = status;
             }
-            // 주요거래처 별 마커 숨김 (인허가 데이터 필터 중에는 별 마커 숨김)
-            const showAccounts = window.currentDealStatusFilter === null;
-            accountMarkers.forEach(m => m.setMap(showAccounts ? naverMap : null));
             updateMapByStatus();
         }
 
@@ -2611,12 +2589,8 @@
         function filterByRank(rank) {
             if (currentFilter === rank) {
                 currentFilter = 'all';
-                // 순위 필터 해제 시 별 마커 다시 표시
-                accountMarkers.forEach(m => m.setMap(naverMap));
             } else {
                 currentFilter = rank;
-                // 순위 필터 활성화 시 별 마커 숨김 (순위필터는 인허가 데이터 전용)
-                accountMarkers.forEach(m => m.setMap(null));
             }
             window.currentDealStatusFilter = null;
             currentAccountFilter = null;
@@ -2628,30 +2602,11 @@
         let currentAccountFilter = null;
         function filterAccountsByStatus(status) {
             if (currentAccountFilter === status) {
-                // 필터 해제 - 현재 담당자/지역 필터 상태를 반영해 복원
                 currentAccountFilter = null;
-                accountMarkers.forEach(m => {
-                    let visible = true;
-                    if (currentManager) visible = visible && (m._managerName || '').trim() === currentManager;
-                    if (currentAITag) visible = visible && (m._aiTags || '').includes(currentAITag);
-                    if (currentRegion) visible = visible && (m._region || '').trim() === currentRegion;
-                    m.setMap(visible ? naverMap : null);
-                });
-                markers.forEach(m => m.setMap(naverMap));
             } else {
                 currentAccountFilter = status;
-                // 인허가 마커 숨김
-                markers.forEach(m => m.setMap(null));
-                // 해당 상태의 별 마커만 표시 (담당자/지역 필터도 함께 적용)
-                accountMarkers.forEach(m => {
-                    const ds = (m._dealStatus || '').trim();
-                    let visible = ds === status;
-                    if (currentManager) visible = visible && (m._managerName || '').trim() === currentManager;
-                    if (currentAITag) visible = visible && (m._aiTags || '').includes(currentAITag);
-                    if (currentRegion) visible = visible && (m._region || '').trim() === currentRegion;
-                    m.setMap(visible ? naverMap : null);
-                });
             }
+            updateMap();
         }
 
         // ============================================================
@@ -3150,7 +3105,7 @@
                 currentAITag = tag;
             }
             updateDashboard();
-            filterData(); // 마커 필터링 및 지도 업데이트
+            updateMap(); // 마커 필터링 및 지도 업데이트
         }
 
         // ============================================================
@@ -3253,6 +3208,12 @@
 
             markers = []; // 실제 보이는 마커만 담는 배열 (하위 호환)
 
+            // 주요거래처 탭(currentAccountFilter) 활성 시 인허가 마커는 모두 숨김
+            if (currentAccountFilter !== null) {
+                allMarkers.forEach(marker => marker.setMap(null));
+                return;
+            }
+
             allMarkers.forEach(marker => {
                 const s = marker._status;
 
@@ -3289,16 +3250,63 @@
         }
 
         /**
+         * filterAccountMarkers() — accountMarkers를 필터 조건에 따라 ON/OFF
+         */
+        function filterAccountMarkers() {
+            if (!naverMap || accountMarkers.length === 0) return;
+
+            accountMarkers.forEach(marker => {
+                const ds = (marker._dealStatus || '').trim();
+
+                // 인허가 순위 필터가 'all'이 아니면 별 마커 숨김
+                if (currentFilter !== 'all') {
+                    marker.setMap(null); return;
+                }
+                // 인허가 방문현황 필터 활성화 시 별 마커 숨김
+                if (window.currentDealStatusFilter) {
+                    marker.setMap(null); return;
+                }
+
+                // 주요거래처 필터 (currentAccountFilter)
+                if (currentAccountFilter && ds !== currentAccountFilter) {
+                    marker.setMap(null); return;
+                }
+                // 공통 지역 필터
+                if (currentRegion && (marker._region || '').trim() !== currentRegion) {
+                    marker.setMap(null); return;
+                }
+                // 공통 담당자 필터
+                if (currentManager && (marker._managerName || '').trim() !== currentManager) {
+                    marker.setMap(null); return;
+                }
+                // 공통 AI 태그 필터
+                if (currentAITag && !(marker._aiTags || '').includes(currentAITag)) {
+                    marker.setMap(null); return;
+                }
+                // 모바일 레이어 필터
+                if (isMobile()) {
+                    const starKey = ds === '거래' ? 'star-거래' : 'star-미거래';
+                    if (!mobileStarLayers.has(starKey)) {
+                        marker.setMap(null); return;
+                    }
+                }
+
+                marker.setMap(naverMap);
+            });
+        }
+
+        /**
          * updateMap() — 필터 상태를 마커에 반영합니다.
          * allMarkers가 없으면 initAllMarkers() 를 호출하여 최초 생성 후 필터합니다.
          */
         function updateMap() {
             if (!naverMap) return;
             if (allMarkers.length === 0) {
-                initAllMarkers();
+                initAllMarkers(); // initAllMarkers 내부에서 filterMarkers 호출함
             } else {
                 filterMarkers();
             }
+            filterAccountMarkers();
         }
 
         /**
@@ -3504,19 +3512,16 @@
                     marker._lng = coords.lng; // 루트 최적화용
                     accountMarkers.push(marker);
 
-                    // 모바일 기본: 미거래 별 마커만 표시, 거래 별 마커 숨김
-                    if (isMobile()) {
-                        const starKey = dealStatus === '거래' ? 'star-거래' : 'star-미거래';
-                        if (!mobileStarLayers.has(starKey)) {
-                            marker.setMap(null);
-                        }
-                    }
+                    // 모바일 초기 필터링 수동 처리를 제거하고, 
+                    // 로드 완료 후 filterAccountMarkers() 로 일괄 처리합니다.
+
                     await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
                 } catch (e) {
                     console.warn('주요거래처 마커 생성 실패:', name, e);
                 }
             }
             console.log(`주요거래처 별 마커 표시 완료: ${accountMarkers.length}개`);
+            filterAccountMarkers();
         }
 
         /**
@@ -3535,12 +3540,6 @@
                     mobileStarLayers.add(layer);
                     if (item) item.classList.add('active');
                 }
-                const targetStatus = layer === 'star-거래' ? '거래' : '미거래';
-                accountMarkers.forEach(m => {
-                    if ((m._dealStatus || '').trim() === targetStatus) {
-                        m.setMap(mobileStarLayers.has(layer) ? naverMap : null);
-                    }
-                });
             } else {
                 if (mobileVisibleLayers.has(layer)) {
                     mobileVisibleLayers.delete(layer);
@@ -3549,8 +3548,8 @@
                     mobileVisibleLayers.add(layer);
                     if (item) item.classList.add('active');
                 }
-                updateMap();
             }
+            updateMap(); // 하나로 통합된 updateMap 호출 (filterAccountMarkers 포함)
             updateLayerBadge();
         }
 
