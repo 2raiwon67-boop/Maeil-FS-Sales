@@ -9,3 +9,6 @@ config.local.js
 
 # Node
 node_modules/
+
+# 개발/테스트용 파일
+dev/
