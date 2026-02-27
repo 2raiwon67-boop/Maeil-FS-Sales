@@ -5,8 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>데이터 관리 - FS MISO</title>
-    <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📂</text></svg>">
+    <!-- 앱 파비콘 (커스텀 아이콘 적용) -->
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -16,7 +17,9 @@
     <link rel="stylesheet" href="common.css">
 
     <style>
-        * { box-sizing: border-box; }
+        * {
+            box-sizing: border-box;
+        }
 
         body {
             font-family: 'Pretendard', -apple-system, sans-serif;
@@ -30,15 +33,24 @@
             padding: 36px 24px 80px;
         }
 
-        .page-title { font-size: 24px; font-weight: 700; margin: 0 0 4px; }
-        .page-sub   { font-size: 14px; color: #86868b; margin: 0 0 28px; }
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 0 4px;
+        }
+
+        .page-sub {
+            font-size: 14px;
+            color: #86868b;
+            margin: 0 0 28px;
+        }
 
         /* 카드 */
         .card {
             background: white;
             border-radius: 14px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .card-header {
@@ -51,7 +63,9 @@
             letter-spacing: 0.4px;
         }
 
-        .card-body { padding: 20px; }
+        .card-body {
+            padding: 20px;
+        }
 
         /* 유형 선택 */
         .type-grid {
@@ -73,7 +87,11 @@
             line-height: 1.4;
         }
 
-        .type-btn .type-icon { display: block; font-size: 20px; margin-bottom: 6px; }
+        .type-btn .type-icon {
+            display: block;
+            font-size: 20px;
+            margin-bottom: 6px;
+        }
 
         .type-btn.active {
             border-color: #0071e3;
@@ -82,7 +100,10 @@
             font-weight: 600;
         }
 
-        .type-btn:hover:not(.active) { border-color: #c7c7cc; background: #fafafa; }
+        .type-btn:hover:not(.active) {
+            border-color: #c7c7cc;
+            background: #fafafa;
+        }
 
         /* 드롭존 */
         .btn-template {
@@ -101,7 +122,9 @@
             margin-bottom: 14px;
         }
 
-        .btn-template:hover { background: #e5e5ea; }
+        .btn-template:hover {
+            background: #e5e5ea;
+        }
 
         .dropzone {
             border: 2px dashed #c7c7cc;
@@ -114,10 +137,30 @@
             font-size: 14px;
         }
 
-        .dropzone .dz-icon { font-size: 32px; margin-bottom: 10px; }
-        .dropzone .dz-hint { font-size: 12px; margin-top: 6px; color: #c7c7cc; }
-        .dropzone:hover, .dropzone.drag { border-color: #0071e3; color: #0071e3; background: #f5f8ff; }
-        .dropzone.has-file { border-color: #34c759; color: #1d1d1f; background: #f5fff8; border-style: solid; }
+        .dropzone .dz-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .dropzone .dz-hint {
+            font-size: 12px;
+            margin-top: 6px;
+            color: #c7c7cc;
+        }
+
+        .dropzone:hover,
+        .dropzone.drag {
+            border-color: #0071e3;
+            color: #0071e3;
+            background: #f5f8ff;
+        }
+
+        .dropzone.has-file {
+            border-color: #34c759;
+            color: #1d1d1f;
+            background: #f5fff8;
+            border-style: solid;
+        }
 
         /* 미리보기 */
         .preview-table {
@@ -154,9 +197,23 @@
             margin-bottom: 12px;
         }
 
-        .banner-warn    { background: #fff8e1; border: 1px solid #ffd54f; color: #5d4037; }
-        .banner-success { background: #e8f5e9; border: 1px solid #a5d6a7; color: #1b5e20; }
-        .banner-error   { background: #ffeaea; border: 1px solid #ffb3b3; color: #7f0000; }
+        .banner-warn {
+            background: #fff8e1;
+            border: 1px solid #ffd54f;
+            color: #5d4037;
+        }
+
+        .banner-success {
+            background: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            color: #1b5e20;
+        }
+
+        .banner-error {
+            background: #ffeaea;
+            border: 1px solid #ffb3b3;
+            color: #7f0000;
+        }
 
         /* 업로드 버튼 */
         .btn-upload {
@@ -172,11 +229,21 @@
             transition: background 0.2s;
         }
 
-        .btn-upload:hover { background: #0077ed; }
-        .btn-upload:disabled { background: #c7c7cc; cursor: default; }
+        .btn-upload:hover {
+            background: #0077ed;
+        }
+
+        .btn-upload:disabled {
+            background: #c7c7cc;
+            cursor: default;
+        }
 
         /* 업로드 섹션 레이아웃 */
-        .upload-section { display: flex; flex-direction: column; gap: 14px; }
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
 
         /* 토스트 */
         .toast {
@@ -195,13 +262,16 @@
             white-space: nowrap;
         }
 
-        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
 
         /* 로딩 스피너 */
         .spinner-inline {
             display: inline-block;
-            width: 14px; height: 14px;
-            border: 2px solid rgba(255,255,255,0.4);
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
             border-top-color: white;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
@@ -209,10 +279,16 @@
             margin-right: 6px;
         }
 
-        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         @media (max-width: 600px) {
-            .type-grid { grid-template-columns: repeat(2, 1fr); }
+            .type-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
@@ -256,17 +332,15 @@
                     <button class="btn-template" onclick="downloadTemplate()">
                         ⬇️ 템플릿 다운로드 (.xlsx)
                     </button>
-                    <div class="dropzone" id="dropzone"
-                         onclick="document.getElementById('fileInput').click()"
-                         ondragover="event.preventDefault(); this.classList.add('drag')"
-                         ondragleave="this.classList.remove('drag')"
-                         ondrop="handleDrop(event)">
+                    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
+                        ondragover="event.preventDefault(); this.classList.add('drag')"
+                        ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
                         <div class="dz-icon">📁</div>
                         <div id="dropzoneText">파일을 여기에 드롭하거나 클릭하세요</div>
                         <div class="dz-hint">.xlsx, .xls 파일 지원</div>
                     </div>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls"
-                           style="display:none" onchange="handleFile(event)">
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none"
+                        onchange="handleFile(event)">
                 </div>
             </div>
 
@@ -295,85 +369,85 @@
             licenses: {
                 label: '인허가 데이터', table: 'licenses',
                 // Google Sheets '인허가데이터' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
-                templateHeaders: ['NO','영업 허가일','사업장명','거래여부(기입예정)','업태구분명','평형','도로명전체주소','주소1','주소2','주소3','순위','담당자','앱시트등록일','위도','경도','사용우유'],
-                sampleRow:       ['1','2024-01-15','테스트카페','인허가','커피','30','경기도 포천시 테스트로 1','경기','포천시','신북면','1','홍길동','2024-01-20','37.89','127.20','서울우유'],
+                templateHeaders: ['NO', '영업 허가일', '사업장명', '거래여부(기입예정)', '업태구분명', '평형', '도로명전체주소', '주소1', '주소2', '주소3', '순위', '담당자', '앱시트등록일', '위도', '경도', '사용우유'],
+                sampleRow: ['1', '2024-01-15', '테스트카페', '인허가', '커피', '30', '경기도 포천시 테스트로 1', '경기', '포천시', '신북면', '1', '홍길동', '2024-01-20', '37.89', '127.20', '서울우유'],
                 columnMap: {
                     // NO 는 무시 (자동 생성 값)
-                    '영업 허가일':'permit_date',
-                    '사업장명':'business_name',
-                    '거래여부(기입예정)':'trade_status',
-                    '업태구분명':'business_type',
-                    '평형':'area',
-                    '도로명전체주소':'road_address',
-                    '주소1':'address1',
-                    '주소2':'address2',
-                    '주소3':'address3',
-                    '순위':'priority',
-                    '담당자':'manager',
-                    '앱시트등록일':'appsheet_date',
-                    '위도':'lat',
-                    '경도':'lng',
-                    '사용우유':'milk_type'
+                    '영업 허가일': 'permit_date',
+                    '사업장명': 'business_name',
+                    '거래여부(기입예정)': 'trade_status',
+                    '업태구분명': 'business_type',
+                    '평형': 'area',
+                    '도로명전체주소': 'road_address',
+                    '주소1': 'address1',
+                    '주소2': 'address2',
+                    '주소3': 'address3',
+                    '순위': 'priority',
+                    '담당자': 'manager',
+                    '앱시트등록일': 'appsheet_date',
+                    '위도': 'lat',
+                    '경도': 'lng',
+                    '사용우유': 'milk_type'
                 },
                 requiredCol: 'business_name',
-                dateFields:    ['permit_date','appsheet_date'],
-                numericFields: ['lat','lng']
+                dateFields: ['permit_date', 'appsheet_date'],
+                numericFields: ['lat', 'lng']
             },
             accounts: {
                 label: '주요거래처', table: 'accounts',
                 // Google Sheets '주요거래처' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
-                templateHeaders: ['NO','사업부','사업장','지점','사업장코드명','고객레벨2','거래처ID','거래처명','거래상태','주요거래처 여부','담당자명','주소','도/광역시','시/군/구','면/동'],
-                sampleRow:       ['1','경기북부','포천','포천지점','S001','A','C001','홍길동마트','거래','Y','홍길동','경기도 포천시 테스트로 2','경기도','포천시','신북면'],
+                templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드명', '고객레벨2', '거래처ID', '거래처명', '거래상태', '주요거래처 여부', '담당자명', '주소', '도/광역시', '시/군/구', '면/동'],
+                sampleRow: ['1', '경기북부', '포천', '포천지점', 'S001', 'A', 'C001', '홍길동마트', '거래', 'Y', '홍길동', '경기도 포천시 테스트로 2', '경기도', '포천시', '신북면'],
                 columnMap: {
                     // 저장: NO, 사업장코드명, 고객레벨2, 거래처ID, 거래처명, 거래상태, 담당자명, 주소
                     // 무시: 사업부, 사업장, 지점, 주요거래처 여부, 도/광역시, 시/군/구, 면/동
-                    'NO':          'seq_no',
-                    '사업장코드명':'store_code',
-                    '고객레벨2':   'customer_level',
-                    '거래처ID':    'account_id',
-                    '거래처명':    'business_name',
-                    '거래상태':    'trade_status',
-                    '담당자명':    'manager_name',
-                    '주소':        'address'
+                    'NO': 'seq_no',
+                    '사업장코드명': 'store_code',
+                    '고객레벨2': 'customer_level',
+                    '거래처ID': 'account_id',
+                    '거래처명': 'business_name',
+                    '거래상태': 'trade_status',
+                    '담당자명': 'manager_name',
+                    '주소': 'address'
                 },
                 requiredCol: 'business_name', dateFields: [], numericFields: []
             },
             visit_logs: {
                 label: '방문일지', table: 'visit_logs',
                 // Google Sheets '방문일지' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
-                templateHeaders: ['NO','사업부','사업장','지점','사업장코드','작성일','작성자','방문처(대리점 코드)','방문처(대리점)','방문처(거래처 코드)','방문처(거래처)','내용','AI_핵심태그'],
-                sampleRow:       ['1','경기북부','포천','포천지점','S001','2024-03-01','홍길동','D001','포천대리점','C001','테스트카페','방문 후 가격 협의 진행','가격'],
+                templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드', '작성일', '작성자', '방문처(대리점 코드)', '방문처(대리점)', '방문처(거래처 코드)', '방문처(거래처)', '내용', 'AI_핵심태그'],
+                sampleRow: ['1', '경기북부', '포천', '포천지점', 'S001', '2024-03-01', '홍길동', 'D001', '포천대리점', 'C001', '테스트카페', '방문 후 가격 협의 진행', '가격'],
                 columnMap: {
                     // 저장: NO, 사업장코드, 작성일, 작성자, 방문처(대리점 코드), 방문처(대리점), 방문처(거래처 코드), 방문처(거래처), 내용
                     // 무시: 사업부, 사업장, 지점, AI_핵심태그
-                    'NO':               'seq_no',
-                    '사업장코드':        'store_code',
-                    '작성일':            'visit_date',
-                    '작성자':            'manager',
-                    '방문처(대리점 코드)':'dealer_code',
-                    '방문처(대리점)':     'dealer_name',
-                    '방문처(거래처 코드)':'account_code',
-                    '방문처(거래처)':     'business_name',
-                    '내용':              'content'
+                    'NO': 'seq_no',
+                    '사업장코드': 'store_code',
+                    '작성일': 'visit_date',
+                    '작성자': 'manager',
+                    '방문처(대리점 코드)': 'dealer_code',
+                    '방문처(대리점)': 'dealer_name',
+                    '방문처(거래처 코드)': 'account_code',
+                    '방문처(거래처)': 'business_name',
+                    '내용': 'content'
                 },
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: []
             },
             managers: {
                 label: '담당자관리', table: 'managers',
                 // Google Sheets '담당자관리' 시트 헤더와 동일
-                templateHeaders: ['지역','담당자','이메일'],
-                sampleRow:       ['포천','홍길동','hong@example.com'],
+                templateHeaders: ['지역', '담당자', '이메일'],
+                sampleRow: ['포천', '홍길동', 'hong@example.com'],
                 columnMap: {
-                    '지역':'region',
-                    '담당자':'manager_name',   // 실제 시트는 '담당자' (담당자명 아님)
-                    '이메일':'email'
+                    '지역': 'region',
+                    '담당자': 'manager_name',   // 실제 시트는 '담당자' (담당자명 아님)
+                    '이메일': 'email'
                 },
                 requiredCol: 'manager_name', dateFields: [], numericFields: []
             }
         };
 
-        let selectedType  = 'licenses';
-        let parsedData    = null;
+        let selectedType = 'licenses';
+        let parsedData = null;
 
         // ── 페이지 초기화 ────────────────────────────────────
         window.addEventListener('load', () => {
@@ -384,7 +458,7 @@
         // ── 유형 선택 ────────────────────────────────────────
         function selectType(type) {
             selectedType = type;
-            parsedData   = null;
+            parsedData = null;
 
             document.querySelectorAll('.type-btn').forEach((btn, i) => {
                 const keys = Object.keys(UPLOAD_TYPES);
@@ -407,8 +481,8 @@
         // ── 템플릿 다운로드 ──────────────────────────────────
         function downloadTemplate() {
             const cfg = UPLOAD_TYPES[selectedType];
-            const wb  = XLSX.utils.book_new();
-            const ws  = XLSX.utils.aoa_to_sheet([cfg.templateHeaders, cfg.sampleRow]);
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([cfg.templateHeaders, cfg.sampleRow]);
             ws['!cols'] = cfg.templateHeaders.map(h => ({ wch: Math.max(h.length + 2, 14) }));
             XLSX.utils.book_append_sheet(wb, ws, cfg.label);
             XLSX.writeFile(wb, `FS_MISO_템플릿_${cfg.label}.xlsx`);
@@ -426,13 +500,13 @@
         }
 
         function processFile(file) {
-            const cfg    = UPLOAD_TYPES[selectedType];
+            const cfg = UPLOAD_TYPES[selectedType];
             const reader = new FileReader();
 
-            reader.onload = function(ev) {
+            reader.onload = function (ev) {
                 try {
-                    const wb  = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
-                    const ws  = wb.Sheets[wb.SheetNames[0]];
+                    const wb = XLSX.read(ev.target.result, { type: 'array', cellDates: true });
+                    const ws = wb.Sheets[wb.SheetNames[0]];
                     const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'YYYY-MM-DD' });
 
                     if (raw.length < 2) {
@@ -452,7 +526,7 @@
                             let val = row[i] != null ? String(row[i]).trim() : '';
 
                             if (dbCol === 'is_branch_manager') {
-                                val = ['Y','y','TRUE','true','1','예','지점장'].includes(val);
+                                val = ['Y', 'y', 'TRUE', 'true', '1', '예', '지점장'].includes(val);
                             } else if (cfg.numericFields.includes(dbCol)) {
                                 val = val ? parseFloat(val) : null;
                             } else if (val === '') {
@@ -476,7 +550,7 @@
 
                     // 미리보기
                     const previewRows = parsedData.slice(0, 5);
-                    const dbCols      = Object.keys(previewRows[0]);
+                    const dbCols = Object.keys(previewRows[0]);
 
                     document.getElementById('previewContent').innerHTML = `
                         <p style="font-size:13px;color:#86868b;margin:0 0 12px;">
@@ -486,10 +560,10 @@
                             <thead><tr>${dbCols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
                             <tbody>
                                 ${previewRows.map(row =>
-                                    `<tr>${dbCols.map(c =>
-                                        `<td title="${row[c] ?? ''}">${row[c] ?? ''}</td>`
-                                    ).join('')}</tr>`
-                                ).join('')}
+                        `<tr>${dbCols.map(c =>
+                            `<td title="${row[c] ?? ''}">${row[c] ?? ''}</td>`
+                        ).join('')}</tr>`
+                    ).join('')}
                             </tbody>
                         </table>`;
 
@@ -500,7 +574,7 @@
                         `업로드 확인 (${parsedData.length}건 교체)`;
                     document.getElementById('previewSection').style.display = 'block';
 
-                } catch(err) {
+                } catch (err) {
                     showToast('파일 파싱 오류: ' + err.message);
                 }
             };
@@ -522,7 +596,7 @@
                 const { data: userData, error: authErr } = await client.auth.getUser();
                 if (authErr || !userData?.user) throw new Error('로그인 정보를 가져올 수 없습니다.');
 
-                const user         = userData.user;
+                const user = userData.user;
                 const businessUnit = user.user_metadata?.business_unit;
                 if (!businessUnit) throw new Error('소속(business_unit)이 설정되지 않은 계정입니다. 관리자에게 문의하세요.');
 
@@ -534,7 +608,7 @@
 
                 // 2. 500건씩 분할 INSERT
                 const BATCH = 500;
-                const now   = new Date().toISOString();
+                const now = new Date().toISOString();
                 let inserted = 0;
 
                 for (let i = 0; i < parsedData.length; i += BATCH) {
@@ -561,13 +635,13 @@
                 document.getElementById('uploadBanner').className = 'banner banner-success';
                 document.getElementById('uploadBanner').innerHTML =
                     `✅ <strong>${cfg.label}</strong> ${inserted}건 업로드 완료!`;
-                btn.disabled  = false;
+                btn.disabled = false;
                 btn.textContent = '업로드 완료 ✅';
                 parsedData = null;
                 showToast(`✅ ${cfg.label} ${inserted}건 업로드 완료!`);
 
-            } catch(e) {
-                btn.disabled    = false;
+            } catch (e) {
+                btn.disabled = false;
                 btn.textContent = `업로드 확인 (${parsedData?.length ?? 0}건 교체)`;
                 document.getElementById('uploadBanner').className = 'banner banner-error';
                 document.getElementById('uploadBanner').innerHTML = '❌ ' + e.message;

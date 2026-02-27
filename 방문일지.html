@@ -6,9 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="referrer" content="origin">
     <title>FS MISO</title>
-    <!-- 파비콘 추가 (지도 아이콘) -->
-    <link rel="icon"
-        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
+    <!-- 앱 파비콘 (커스텀 아이콘 적용) -->
+    <link rel="icon" href="favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -770,12 +770,36 @@
             font-size: 11px;
             font-weight: 600;
         }
-        .rejection-price    { background: #fef3c7; color: #d97706; }
-        .rejection-relation { background: #ede9fe; color: #7c3aed; }
-        .rejection-timing   { background: #e0f2fe; color: #0369a1; }
-        .rejection-clear    { background: #fee2e2; color: #dc2626; }
-        .rejection-quality  { background: #f3e8ff; color: #9333ea; }
-        .rejection-other    { background: #f3f4f6; color: #6b7280; }
+
+        .rejection-price {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .rejection-relation {
+            background: #ede9fe;
+            color: #7c3aed;
+        }
+
+        .rejection-timing {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .rejection-clear {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .rejection-quality {
+            background: #f3e8ff;
+            color: #9333ea;
+        }
+
+        .rejection-other {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
 
         /* =============== 분류기준 팝업 =============== */
         .criteria-btn {
@@ -790,20 +814,28 @@
             text-decoration: underline;
             text-underline-offset: 2px;
         }
-        .criteria-btn:hover { color: #005bb5; }
+
+        .criteria-btn:hover {
+            color: #005bb5;
+        }
 
         .criteria-modal {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.4);
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(4px);
             z-index: 3000;
             align-items: center;
             justify-content: center;
         }
-        .criteria-modal.active { display: flex; }
+
+        .criteria-modal.active {
+            display: flex;
+        }
 
         .criteria-content {
             background: white;
@@ -811,19 +843,22 @@
             padding: 28px 32px;
             max-width: 480px;
             width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
         }
+
         .criteria-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
         }
+
         .criteria-header h3 {
             font-size: 18px;
             font-weight: 600;
             color: #1d1d1f;
         }
+
         .criteria-row {
             display: flex;
             align-items: flex-start;
@@ -831,7 +866,11 @@
             padding: 10px 0;
             border-bottom: 1px solid #f5f5f7;
         }
-        .criteria-row:last-child { border-bottom: none; }
+
+        .criteria-row:last-child {
+            border-bottom: none;
+        }
+
         .criteria-keywords {
             font-size: 12px;
             color: #86868b;
@@ -846,6 +885,7 @@
             padding: 16px 20px;
             margin-bottom: 24px;
         }
+
         .rejection-stats-title {
             font-size: 13px;
             font-weight: 600;
@@ -854,18 +894,21 @@
             letter-spacing: 0.5px;
             margin-bottom: 12px;
         }
+
         .rejection-items {
             display: flex;
             gap: 16px;
             flex-wrap: wrap;
             align-items: center;
         }
+
         .rejection-item {
             display: flex;
             align-items: center;
             gap: 6px;
             font-size: 13px;
         }
+
         .rejection-count {
             font-weight: 700;
             font-size: 15px;
@@ -874,6 +917,7 @@
 
         /* =============== 반응형 =============== */
         @media (max-width: 768px) {
+
             /* ── 챗봇 ── */
             .chatbot-container {
                 width: calc(100% - 32px);
@@ -1037,7 +1081,8 @@
                 </div>
                 <div class="criteria-row">
                     <span class="rejection-badge rejection-relation">기존관계</span>
-                    <span class="criteria-keywords">대리점, 기존 거래처, 오래 거래, 납품처, 바꾸기 어렵다, 변경 등<br>현재 거래 관계 유지 의사를 밝힌 경우</span>
+                    <span class="criteria-keywords">대리점, 기존 거래처, 오래 거래, 납품처, 바꾸기 어렵다, 변경 등<br>현재 거래 관계 유지 의사를 밝힌
+                        경우</span>
                 </div>
                 <div class="criteria-row">
                     <span class="rejection-badge rejection-timing">시기부적절</span>

@@ -3,7 +3,7 @@
  * 정적 파일(CSS, JS) 캐시로 초기 로딩 속도 개선
  */
 
-const CACHE_NAME = 'fs-miso-v5';
+const CACHE_NAME = 'fs-miso-v7';
 
 // 캐시할 정적 리소스
 const STATIC_ASSETS = [
@@ -12,6 +12,7 @@ const STATIC_ASSETS = [
     '/styles.css',
     '/script.js',
     '/manifest.json',
+    '/favicon.png',
     '/icons/icon-192x192.png',
     '/icons/icon-512x512.png',
     '/sw.js',
