@@ -4712,7 +4712,15 @@
                 if (tmapResult && tmapResult.polyline && tmapResult.polyline.length > 0) {
                     // TMAP이 정해준 가장 효율적인 순서로 routeStops 배열 자체를 교체
                     routeStops = tmapResult.optimizedStops;
-                    updateRoutePanel(); // 사이드바 리스트 UI 새로고침(바뀐 순서 반영)
+
+                    // 새로 정렬된 순서에 맞춰서 이전 중계지점 대비 거리(_dist) 재계산 (직선거리 기준)
+                    for (let i = 1; i < routeStops.length; i++) {
+                        routeStops[i]._dist = haversineKm(
+                            routeStops[i - 1].lat, routeStops[i - 1].lng,
+                            routeStops[i].lat, routeStops[i].lng
+                        );
+                    }
+                    if (routeStops.length > 0) routeStops[0]._dist = 0;
 
                     // 지도에 자동차 주행 도로 모양(Polyline) 그리기
                     routePolyline = new naver.maps.Polyline({
