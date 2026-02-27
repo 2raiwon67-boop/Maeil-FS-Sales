@@ -1135,6 +1135,97 @@
             padding: 9px 6px;
         }
 
+        /* 모바일 루트 FAB 버튼 */
+        .route-mobile-fab {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+
+            /* 모바일: 패널을 하단 슬라이드 시트로 */
+            .route-panel {
+                position: fixed;
+                top: auto;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 55vh;
+                border-radius: 16px 16px 0 0;
+                box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+                transform: translateY(100%);
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex !important;
+                z-index: 400;
+            }
+
+            .route-panel.active {
+                transform: translateY(0);
+            }
+
+            /* 하단 시트 헤더에 드래그 핸들 */
+            .route-panel-header::before {
+                content: '';
+                position: absolute;
+                top: 6px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 36px;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.4);
+                border-radius: 2px;
+            }
+
+            .route-panel-header {
+                position: relative;
+                padding-top: 18px;
+            }
+
+            /* 모바일 FAB 버튼 표시 */
+            .route-mobile-fab {
+                display: flex;
+                position: fixed;
+                bottom: 88px;
+                left: 16px;
+                width: 48px;
+                height: 48px;
+                background: linear-gradient(135deg, #1d1d1f 0%, #424245 100%);
+                border-radius: 50%;
+                align-items: center;
+                justify-content: center;
+                font-size: 22px;
+                cursor: pointer;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+                z-index: 390;
+                border: none;
+                transition: transform 0.2s, box-shadow 0.2s;
+                color: white;
+            }
+
+            .route-mobile-fab:active {
+                transform: scale(0.93);
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+
+            /* 패널 열릴 때 FAB 숨기기 */
+            .route-mobile-fab.panel-open {
+                display: none;
+            }
+
+            /* 패널 열릴 때 배경 딤처리 */
+            .route-panel-backdrop {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.3);
+                z-index: 395;
+            }
+
+            .route-panel-backdrop.active {
+                display: block;
+            }
+        }
+
         /* =============== AI 챗봇 =============== */
         .chatbot-fab {
             position: fixed;
@@ -1659,7 +1750,10 @@
                         <div class="dashboard-title">📍 지역별 분포 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '주소2' 기준)</span>
                         </div>
-                        <div id="regionFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="_activeRegionFilter=null;_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);">막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다</div>
+                        <div id="regionFilterLabel"
+                            style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;"
+                            onclick="_activeRegionFilter=null;_activeStatusFilter=null;renderRegionChart(null);renderStatusChart(null);">
+                            막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다</div>
                         <div style="position: relative; height: 270px; width: 100%;">
                             <canvas id="dashRegionChart"></canvas>
                         </div>
@@ -1668,7 +1762,10 @@
                         <div class="dashboard-title">📊 현재 거래 상태 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '거래여부' 기준)</span>
                         </div>
-                        <div id="statusFilterLabel" style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;" onclick="_activeStatusFilter=null;_activeRegionFilter=null;renderRegionChart(null);renderStatusChart(null);">막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다</div>
+                        <div id="statusFilterLabel"
+                            style="font-size:11px;color:#007AFF;margin-bottom:6px;min-height:14px;cursor:pointer;"
+                            onclick="_activeStatusFilter=null;_activeRegionFilter=null;renderRegionChart(null);renderStatusChart(null);">
+                            막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다</div>
                         <div style="position: relative; height: 270px; width: 100%;">
                             <canvas id="dashStatusChart"></canvas>
                         </div>
@@ -1691,6 +1788,13 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 모바일 루트 FAB 버튼 -->
+            <button class="route-mobile-fab" id="routeMobileFab" onclick="openRoutePanel()"
+                title="영업 루트 최적화">🗺️</button>
+
+            <!-- 모바일 배경 딤처리 -->
+            <div class="route-panel-backdrop" id="routePanelBackdrop" onclick="closeRoutePanel()"></div>
 
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
@@ -3982,11 +4086,21 @@
         function openRoutePanel() {
             document.getElementById('routePanel').classList.add('active');
             updateRouteTargetSummary();
+            // 모바일: FAB 숨기고 딤처리 표시
+            const fab = document.getElementById('routeMobileFab');
+            const backdrop = document.getElementById('routePanelBackdrop');
+            if (fab) fab.classList.add('panel-open');
+            if (backdrop) backdrop.classList.add('active');
         }
 
         function closeRoutePanel() {
             document.getElementById('routePanel').classList.remove('active');
             clearRoute();
+            // 모바일: FAB 다시 표시, 딤처리 제거
+            const fab = document.getElementById('routeMobileFab');
+            const backdrop = document.getElementById('routePanelBackdrop');
+            if (fab) fab.classList.remove('panel-open');
+            if (backdrop) backdrop.classList.remove('active');
         }
 
         function openStartInput() {
