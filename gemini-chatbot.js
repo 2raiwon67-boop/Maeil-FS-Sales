@@ -133,7 +133,7 @@ class GeminiChatbot {
         const words = question.split(/\s+/).filter(w => w.length >= 2);
         // 2글자 이상 단어로 필터 (너무 흔한 단어는 제외하기 위함)
         // 조사 제거 등 얕은 처리 지원
-        const searchTerms = words.map(w => w.replace(/[은는이갸을를에에서에게뿐만도]+$/g, ''));
+        const searchTerms = words.map(w => w.replace(/[은는이가을를에서에게뿐만도]+$/g, ''));
 
         let scoreMap = new Map();
 
