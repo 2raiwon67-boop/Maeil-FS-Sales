@@ -435,14 +435,79 @@
 
         @media (max-width: 700px) {
 
-            /* 콘텐츠 */
-            .summary-grid {
-                grid-template-columns: repeat(2, 1fr);
+            /* 컨트롤 바: 세로 스택 */
+            .controls-bar {
+                flex-direction: column;
+                gap: 8px;
+                align-items: stretch;
+                padding: 12px;
             }
 
+            .month-select {
+                width: 100%;
+            }
+
+            .btn-generate {
+                width: 100%;
+            }
+
+            .btn-print {
+                margin-left: 0;
+                width: 100%;
+                text-align: center;
+            }
+
+            /* 요약 카드: 2열 */
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .summary-card .value {
+                font-size: 22px;
+            }
+
+            /* 보고서 헤더: 세로 */
             .report-header {
                 flex-direction: column;
                 gap: 12px;
+                padding: 20px;
+            }
+
+            .report-header-right {
+                text-align: left;
+            }
+
+            /* 섹션 여백 줄임 */
+            .section {
+                padding: 16px 12px;
+            }
+
+            /* 테이블 가로 스크롤 허용 */
+            .section>table,
+            .account-table {
+                display: block;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                font-size: 12px;
+                white-space: nowrap;
+            }
+
+            /* 방문 기록 셀은 줄바꿈 허용 */
+            .account-table td:last-child {
+                white-space: normal;
+                min-width: 160px;
+                max-width: 240px;
+            }
+
+            /* 페이지 제목 */
+            .page-title {
+                font-size: 22px;
+            }
+
+            /* 미방문 태그 */
+            .no-visit-tag {
+                font-size: 11px;
             }
         }
     </style>

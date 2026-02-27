@@ -29,6 +29,22 @@
             overflow: hidden;
         }
 
+        /* 모바일 전용 패널 토글 버튼 */
+        .panel-toggle-btn {
+            display: none;
+            width: 100%;
+            padding: 12px;
+            background: #f0f4ff;
+            border: 1px solid #c7d9ff;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #0071e3;
+            cursor: pointer;
+            text-align: center;
+            margin-bottom: 0;
+        }
+
         /* 메인 레이아웃 */
         .container {
             display: flex;
@@ -371,6 +387,124 @@
             background-color: #ff3b30;
         }
 
+        /* ===== 모바일 최적화 ===== */
+        @media (max-width: 768px) {
+            body {
+                overflow: auto;
+            }
+
+            /* 전체 컨테이너: 세로 스택 */
+            .container {
+                flex-direction: column;
+                height: auto;
+                min-height: calc(100vh - var(--header-height));
+                overflow: visible;
+            }
+
+            /* 분석 패널: 고정폭 → 전체폭, 접기 가능 */
+            .analysis-panel {
+                width: 100%;
+                max-height: none;
+                border-right: none;
+                border-bottom: 1px solid #e5e5ea;
+                padding: 12px 16px;
+                box-shadow: none;
+                overflow: hidden;
+            }
+
+            .analysis-panel.collapsed {
+                max-height: 56px;
+                overflow: hidden;
+            }
+
+            /* 분석 패널 토글 버튼: 모바일에서만 표시 */
+            .panel-toggle-btn {
+                display: block;
+                margin-top: 10px;
+            }
+
+            /* 패널 헤더 클릭 가능 힌트 */
+            .panel-header {
+                cursor: pointer;
+                user-select: none;
+                justify-content: space-between;
+            }
+
+            .panel-header::after {
+                content: '▲';
+                font-size: 12px;
+                color: #86868b;
+                transition: transform 0.2s;
+            }
+
+            .analysis-panel.collapsed .panel-header::after {
+                content: '▼';
+            }
+
+            /* 워크스페이스: 세로 */
+            .workspace {
+                flex-direction: column;
+                overflow: visible;
+                height: auto;
+            }
+
+            /* 좌측 프리뷰(A4) 영역 */
+            .preview-side {
+                width: 100%;
+                min-width: unset;
+                padding: 16px 8px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* 리사이저 숨김 */
+            .resizer {
+                display: none;
+            }
+
+            /* A4 용지: 폰 폭에 맞게 스케일 축소 */
+            .paper {
+                width: 90vw;
+                min-width: 300px;
+                min-height: auto;
+                padding: 14px 10px;
+                transform: none !important;
+            }
+
+            /* 에디터(우측 항목 입력) 영역 */
+            .editor-side {
+                min-width: unset;
+                padding: 16px;
+            }
+
+            /* 상단 액션 버튼 행 줄바꿈 허용 */
+            .action-row,
+            .toolbar {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            /* 버튼 터치 영역 확보 */
+            button,
+            .btn,
+            .analyze-btn {
+                min-height: 44px;
+            }
+
+            /* 견적서 테이블 가로 스크롤 */
+            .quote-table-wrapper,
+            .item-table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            /* 인쇄 미리보기 스케일 조정 */
+            #papers-container {
+                transform: none !important;
+                width: 100%;
+            }
+        }
+
         /* ===== 인쇄 전용 스타일 ===== */
         @media print {
 
@@ -424,7 +558,7 @@
     <div class="container">
         <!-- 1. 분석 패널 -->
         <div class="analysis-panel no-print">
-            <div class="panel-header">🛍️ 매장 맞춤 분석</div>
+            <div class="panel-header" onclick="togglePanelMobile()">🛍️ 매장 맞춤 분석</div>
 
             <div class="input-group">
                 <label class="input-label">매장명 / 키워드</label>
@@ -432,6 +566,7 @@
             </div>
 
             <button class="analyze-btn" onclick="analyzeStore()">분석 및 추천상품 검색</button>
+            <button class="panel-toggle-btn" onclick="togglePanelMobile()">▲ 분석 패널 접기</button>
 
             <div id="analysisResult" class="result-card" style="flex:1; overflow-y:auto; overflow-x:hidden;">
                 <h4 style="margin: 0 0 10px 0;">🎯 AI 공략 포인트</h4>
@@ -465,7 +600,8 @@
                 <div id="savedQuotesSection" style="margin-top:16px; display:none;">
                     <hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 12px;">
                     <div style="font-size:13px;font-weight:700;margin-bottom:8px;">📁 저장된 견적</div>
-                    <div id="savedQuotesList" style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
+                    <div id="savedQuotesList"
+                        style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
                 </div>
             </div>
         </div>
@@ -729,21 +865,21 @@
 
         // 자동 매칭이 안 되는 제품 수동 매핑
         const PRODUCT_IMAGE_MANUAL_MAP = {
-            '매일 휘핑크림 유지방 35% 1L':       'DMK)매일 휘핑크림 유지방 35% 1L×12.jpg',
-            '매일 멸균 오리지널 1L':              '매일 멸균 우유 오리지널 1L×10.jpg',
-            '상하목장 유기농우유 900ML':           '상하목장 유기농 우유 900ml×12.jpg',
-            '베이커리치즈 1.8KG(100매)':          '베이커리치즈1.8kg(100매)×5.jpg',
-            '베이커리치즈II 1.8KG(100매)':        '베이커리치즈1.8kg(100매)×5.jpg',
-            '쉬레드치즈 (G) 2.5KG':              '쉬레드치즈 지(G) 2.5kg×4.jpg',
-            '매일 휘핑크림 골드 1L':              '매일 휘핑크림골드 1L.jpg',
-            '콰트로퐁듀 크림치즈 1KG':            '콰트로퐁듀크림치즈1KG.jpg',
-            '체다슬라이스III 100매 1.8KG':        '체다슬라이스III 100매 .jpg',
-            '테너 베이스 체리 1.2KG':             '테너 베이스 체리.jpg',
-            '테너 베이스 클레멘타인 1.2KG':        '테너 베이스 클레멘타인.jpg',
-            '테너 과육플러스 딸기 1KG':            '테너 베이스 과육플러스 딸기 1KG.jpg',
-            '테너 과육플러스 애플망고 1KG':        '테너 베이스 과육플러스 애플망고 1KG.jpg',
-            '테너 과육플러스 블루베리 1KG':        '테너 베이스 과육플러스 블루베리 1KG.jpg',
-            '테너 과육플러스 복숭아 1KG':          '테너 베이스 과육플러스 복숭아 1KG.jpg',
+            '매일 휘핑크림 유지방 35% 1L': 'DMK)매일 휘핑크림 유지방 35% 1L×12.jpg',
+            '매일 멸균 오리지널 1L': '매일 멸균 우유 오리지널 1L×10.jpg',
+            '상하목장 유기농우유 900ML': '상하목장 유기농 우유 900ml×12.jpg',
+            '베이커리치즈 1.8KG(100매)': '베이커리치즈1.8kg(100매)×5.jpg',
+            '베이커리치즈II 1.8KG(100매)': '베이커리치즈1.8kg(100매)×5.jpg',
+            '쉬레드치즈 (G) 2.5KG': '쉬레드치즈 지(G) 2.5kg×4.jpg',
+            '매일 휘핑크림 골드 1L': '매일 휘핑크림골드 1L.jpg',
+            '콰트로퐁듀 크림치즈 1KG': '콰트로퐁듀크림치즈1KG.jpg',
+            '체다슬라이스III 100매 1.8KG': '체다슬라이스III 100매 .jpg',
+            '테너 베이스 체리 1.2KG': '테너 베이스 체리.jpg',
+            '테너 베이스 클레멘타인 1.2KG': '테너 베이스 클레멘타인.jpg',
+            '테너 과육플러스 딸기 1KG': '테너 베이스 과육플러스 딸기 1KG.jpg',
+            '테너 과육플러스 애플망고 1KG': '테너 베이스 과육플러스 애플망고 1KG.jpg',
+            '테너 과육플러스 블루베리 1KG': '테너 베이스 과육플러스 블루베리 1KG.jpg',
+            '테너 과육플러스 복숭아 1KG': '테너 베이스 과육플러스 복숭아 1KG.jpg',
         };
 
         function findProductImage(productName) {
@@ -1196,6 +1332,17 @@
             } catch (e) {
                 console.warn('방문일지 로드 실패:', e.message);
                 return [];
+            }
+        }
+
+        // ── 모바일 분석 패널 접기/펼치기 ─────────────────────────
+        function togglePanelMobile() {
+            const panel = document.querySelector('.analysis-panel');
+            const toggleBtn = document.querySelector('.panel-toggle-btn');
+            if (!panel) return;
+            const isCollapsed = panel.classList.toggle('collapsed');
+            if (toggleBtn) {
+                toggleBtn.textContent = isCollapsed ? '▼ 분석 패널 열기' : '▲ 분석 패널 접기';
             }
         }
 

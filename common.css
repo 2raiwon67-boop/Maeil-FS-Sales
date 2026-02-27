@@ -20,6 +20,9 @@ body.loaded {
 .nav-bar {
     background: #1d1d1f;
     padding: 0 24px;
+    /* 아이폰 노치/다이나믹 아일랜드 safe-area 지원 */
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
     height: 52px;
     display: flex;
     align-items: center;
@@ -50,6 +53,10 @@ body.loaded {
     margin: 0 14px;
     transition: color 0.2s;
     position: relative;
+    /* 터치 타깃 최소 44px 보장 (Apple HIG 기준) */
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .nav-link:hover {
@@ -98,7 +105,7 @@ body.loaded {
         padding: 0 12px;
     }
 
-    .nav-bar > div:first-child {
+    .nav-bar>div:first-child {
         flex: 1;
         min-width: 0;
         display: flex;
