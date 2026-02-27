@@ -1,7 +1,45 @@
 /* ============================================================
    common.css — FS MISO 공통 스타일
-   nav-bar, 페이드인, Pretendard 폰트
+   nav-bar, 페이드인, Pretendard 폰트, 디자인 토큰, 공통 컴포넌트
    ============================================================ */
+
+/* ── 디자인 토큰 (CSS 변수) ── */
+:root {
+    /* 색상 */
+    --color-primary:          #0071e3;
+    --color-primary-hover:    #0077ed;
+    --color-success:          #34c759;
+    --color-danger:           #ff3b30;
+    --color-warning:          #ff9500;
+    --color-nav-bg:           #1d1d1f;
+    --color-text:             #1d1d1f;
+    --color-text-secondary:   #6e6e73;
+    --color-text-tertiary:    #a1a1a6;
+    --color-bg:               #f5f5f7;
+    --color-surface:          #ffffff;
+    --color-border:           #e0e0e5;
+
+    /* 모서리 */
+    --radius-sm:  8px;
+    --radius-md:  12px;
+    --radius-lg:  16px;
+
+    /* 간격 */
+    --space-xs:  4px;
+    --space-sm:  8px;
+    --space-md:  16px;
+    --space-lg:  24px;
+
+    /* 전환 */
+    --transition-fast:  0.15s ease;
+    --transition-base:  0.2s ease;
+    --transition-slow:  0.3s ease;
+
+    /* 그림자 */
+    --shadow-sm:  0 1px 4px rgba(0,0,0,0.08);
+    --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+    --shadow-lg:  0 8px 32px rgba(0,0,0,0.18);
+}
 
 /* ── Pretendard 폰트 ── */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
@@ -156,5 +194,89 @@ body.loaded {
     /* 모바일에서 숨길 네비 요소 (index.html의 지도/통계 토글 등) */
     .nav-hide-mobile {
         display: none !important;
+    }
+}
+
+/* ============================================================
+   공통 컴포넌트
+   ============================================================ */
+
+/* ── 스피너 ── */
+@keyframes miso-spin {
+    to { transform: rotate(360deg); }
+}
+
+.miso-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(0,0,0,0.1);
+    border-top-color: var(--color-primary);
+    border-radius: 50%;
+    animation: miso-spin 0.7s linear infinite;
+    flex-shrink: 0;
+    display: inline-block;
+}
+.miso-spinner.sm  { width: 14px; height: 14px; }
+.miso-spinner.lg  { width: 32px; height: 32px; border-width: 3px; }
+.miso-spinner.white {
+    border-color: rgba(255,255,255,0.3);
+    border-top-color: #fff;
+}
+
+/* ── 스켈레톤 로더 ── */
+@keyframes miso-shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, #e8e8ed 25%, #f0f0f5 50%, #e8e8ed 75%);
+    background-size: 200% 100%;
+    animation: miso-shimmer 1.4s ease infinite;
+    border-radius: var(--radius-sm);
+    color: transparent !important;
+}
+
+/* ── 토스트 알림 ── */
+.miso-toast-container {
+    position: fixed;
+    bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 99999;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.miso-toast {
+    background: #1d1d1f;
+    color: #fff;
+    padding: 11px 20px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: auto;
+    max-width: calc(100vw - 48px);
+    text-align: center;
+    line-height: 1.4;
+    white-space: pre-line;
+}
+.miso-toast.show    { opacity: 1; transform: translateY(0) scale(1); }
+.miso-toast.success { background: #1a7f4a; }
+.miso-toast.error   { background: #c0392b; }
+.miso-toast.warning { background: #b7710a; }
+
+/* ── 모바일 탭 피드백 ── */
+@media (max-width: 768px) {
+    button, a, [role="button"], label {
+        -webkit-tap-highlight-color: transparent;
     }
 }

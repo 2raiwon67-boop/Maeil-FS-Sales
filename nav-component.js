@@ -65,3 +65,52 @@
         placeholder.outerHTML = buildNav();
     }
 })();
+
+/* ============================================================
+   window.showToast(message, type, duration)
+   모든 페이지에서 사용 가능한 공통 토스트 알림
+
+   type:     'default' | 'success' | 'error' | 'warning'
+   duration: ms (기본 3000)
+
+   예시:
+     showToast('저장되었습니다', 'success');
+     showToast('오류가 발생했습니다', 'error', 5000);
+   ============================================================ */
+window.showToast = (function () {
+    function getContainer() {
+        var el = document.getElementById('miso-toast-container');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'miso-toast-container';
+            el.className = 'miso-toast-container';
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    return function showToast(message, type, duration) {
+        type     = type     || 'default';
+        duration = duration || 3000;
+
+        var container = getContainer();
+        var toast = document.createElement('div');
+        toast.className = 'miso-toast' + (type !== 'default' ? ' ' + type : '');
+        toast.textContent = message;
+        container.appendChild(toast);
+
+        // 다음 프레임에서 show 클래스 추가 (CSS transition 트리거)
+        requestAnimationFrame(function () {
+            requestAnimationFrame(function () {
+                toast.classList.add('show');
+            });
+        });
+
+        setTimeout(function () {
+            toast.classList.remove('show');
+            setTimeout(function () {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 250);
+        }, duration);
+    };
+}());
