@@ -680,8 +680,6 @@
             }
         }
 
-        /* Add missing closing bracket for @media (max-width: 768px) */
-
         /* 데스크탑 전용 */
         @media (min-width: 769px) {
             .view-toggle-btn {
@@ -1945,7 +1943,14 @@
             mapArea.style.opacity = '0';
             mapArea.style.pointerEvents = 'none';
             dashboardView.classList.remove('active');
-            if (routePanel) routePanel.classList.remove('active');
+            if (routePanel) {
+                routePanel.classList.remove('active');
+                // 모바일 FAB/backdrop 정리
+                const fab = document.getElementById('routeMobileFab');
+                const backdrop = document.getElementById('routePanelBackdrop');
+                if (fab) fab.classList.remove('panel-open');
+                if (backdrop) backdrop.classList.remove('active');
+            }
             [btnMap, btnDash].forEach(b => b && b.classList.remove('active'));
 
             if (view === 'dashboard') {
@@ -4187,6 +4192,11 @@
             };
 
             document.getElementById('routePanel').classList.add('active');
+            // 모바일: FAB 숨기고 딤처리 표시
+            const fab2 = document.getElementById('routeMobileFab');
+            const backdrop2 = document.getElementById('routePanelBackdrop');
+            if (fab2) fab2.classList.add('panel-open');
+            if (backdrop2) backdrop2.classList.add('active');
             updateRouteTargetSummary();
             closeCurrentInfoWindow();
 
