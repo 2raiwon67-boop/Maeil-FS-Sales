@@ -10,6 +10,13 @@
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🗺️</text></svg>">
 
+    <!-- PWA 매니페스트 / 테마 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1d1d1f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="MISO">
+
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
@@ -1232,7 +1239,7 @@
             .mobile-chip-bar {
                 display: flex;
                 position: fixed;
-                top: 54px;
+                bottom: 140px;
                 left: 0;
                 right: 0;
                 gap: 6px;
@@ -1241,7 +1248,7 @@
                 -ms-overflow-style: none;
                 scrollbar-width: none;
                 z-index: 160;
-                background: linear-gradient(to bottom, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0) 100%);
+                background: linear-gradient(to top, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0) 100%);
                 pointer-events: none;
             }
 
@@ -1632,10 +1639,21 @@
     <script>
         window._NAV_OPTIONS = {
             showAdmin: true,
-            extraActions: '<div class="view-toggle"><button class="view-btn active" id="btn-map-view" onclick="switchMainView(\'map\')">🗺️ 지도</button><button class="view-btn" id="btn-dashboard-view" onclick="switchMainView(\'dashboard\')">📈 통계</button></div>'
+            extraActions: '<div class="view-toggle nav-hide-mobile"><button class="view-btn active" id="btn-map-view" onclick="switchMainView(\'map\')">🗺️ 지도</button><button class="view-btn" id="btn-dashboard-view" onclick="switchMainView(\'dashboard\')">📈 통계</button></div>'
         };
     </script>
     <script src="nav-component.js"></script>
+
+    <!-- PWA Service Worker 등록 -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(r => console.log('[PWA] 서비스워커 등록 성공:', r.scope))
+                    .catch(e => console.warn('[PWA] 서비스워커 등록 실패:', e));
+            });
+        }
+    </script>
 
     <!-- 메인 레이아웃 -->
     <div class="main-layout">

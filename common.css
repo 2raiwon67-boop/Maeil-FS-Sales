@@ -152,4 +152,9 @@ body.loaded {
         margin: 0 !important;
         white-space: nowrap;
     }
+
+    /* 모바일에서 숨길 네비 요소 (index.html의 지도/통계 토글 등) */
+    .nav-hide-mobile {
+        display: none !important;
+    }
 }
