@@ -4617,29 +4617,40 @@
 
             const additionalStops = [...selectedPrimaries, ...selectedAccounts];
 
-            // forcedFirstStop이 있으면: [강제1번목적지] + TSP(나머지, 강제1번에서 출발)
-            // 없으면: 기존 방식 – TSP(전체, 출발지에서 출발)
+            // "내 위치"를 항상 1번 출발지(routeStops[0])로 고정하기 위한 객체 생성
+            const myLocationStop = {
+                name: '내 위치',
+                address: '현재 출발지',
+                lat: routeStartCoord.lat,
+                lng: routeStartCoord.lng,
+                type: 'primary',
+                _dist: 0
+            };
+
+            // forcedFirstStop이 있으면: 내위치 -> [강제1번목적지] + TSP(나머지, 강제1번에서 출발)
+            // 없으면: 기존 방식 – 내위치 -> TSP(전체, 내위치에서 출발)
             if (forcedFirstStop) {
                 if (additionalStops.length === 0) {
                     // 강제 1번만 존재
                     const dist = haversineKm(routeStartCoord.lat, routeStartCoord.lng,
                         forcedFirstStop.lat, forcedFirstStop.lng);
                     forcedFirstStop._dist = dist;
-                    routeStops = [forcedFirstStop];
+                    routeStops = [myLocationStop, forcedFirstStop];
                 } else {
                     // 강제 1번에서 나머지 TSP
                     const orderedRest = nearestNeighborTSP(additionalStops, forcedFirstStop);
                     const distToFirst = haversineKm(routeStartCoord.lat, routeStartCoord.lng,
                         forcedFirstStop.lat, forcedFirstStop.lng);
                     forcedFirstStop._dist = distToFirst;
-                    routeStops = [forcedFirstStop, ...orderedRest];
+                    routeStops = [myLocationStop, forcedFirstStop, ...orderedRest];
                 }
             } else {
                 if (additionalStops.length === 0) {
                     alert('출발지 반경 3km 이내에 방문 대상이 없습니다.\n출발지를 변경하거나 데이터를 확인해주세요.');
                     return;
                 }
-                routeStops = nearestNeighborTSP(additionalStops, routeStartCoord);
+                const orderedStops = nearestNeighborTSP(additionalStops, routeStartCoord);
+                routeStops = [myLocationStop, ...orderedStops];
             }
 
             await drawRoute(); // Changed from drawRouteOnMap()
