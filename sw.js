@@ -3,7 +3,7 @@
  * 정적 파일(CSS, JS) 캐시로 초기 로딩 속도 개선
  */
 
-const CACHE_NAME = 'fs-miso-v1';
+const CACHE_NAME = 'fs-miso-v2';
 
 // 캐시할 정적 리소스
 const STATIC_ASSETS = [
@@ -25,7 +25,7 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME).then((cache) => {
             // 개별 실패를 허용 (외부 CDN 등 실패해도 설치 계속)
             return Promise.allSettled(
-                STATIC_ASSETS.map(url => cache.add(url).catch(() => {}))
+                STATIC_ASSETS.map(url => cache.add(url).catch(() => { }))
             );
         })
     );
