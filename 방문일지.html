@@ -1283,6 +1283,7 @@
         async function loadVisitLogs() {
             const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogs.id}/export?format=csv&gid=${SHEETS_CONFIG.visitLogs.gid}`;
             const response = await fetch(url);
+            if (!response.ok) throw new Error(`방문일지 로드 실패 (HTTP ${response.status})`);
             const csv = await response.text();
             allVisitLogs = parseCSV(csv).filter(row => row['작성자'] && row['작성자'].trim() !== '');
 
@@ -1414,10 +1415,16 @@
         }
 
         async function loadAccounts() {
-            const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.accounts.id}/export?format=csv&gid=${SHEETS_CONFIG.accounts.gid}`;
-            const response = await fetch(url);
-            const csv = await response.text();
-            allAccounts = parseCSV(csv);
+            try {
+                const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.accounts.id}/export?format=csv&gid=${SHEETS_CONFIG.accounts.gid}`;
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`주요거래처 로드 실패 (HTTP ${response.status})`);
+                const csv = await response.text();
+                allAccounts = parseCSV(csv);
+            } catch (e) {
+                console.error('주요거래처 로드 실패:', e.message);
+                allAccounts = [];
+            }
         }
 
         async function loadLicenses() {
