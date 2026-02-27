@@ -4144,7 +4144,7 @@
             const lng = parseFloat(item['경도']) || 0;
 
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
-            const escapedName = name.replace(/'/g, "\\'");
+            const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const isMob = typeof isMobile === 'function' && isMobile();
             const mapBtn = isMob
                 ? `<button class="tmap-map-btn" onclick="openTmapSingle(${lat}, ${lng}, '${escapedName}')">🚗 T-map 길찾기</button>`
@@ -4187,7 +4187,7 @@
                     </div>
                     <div class="info-footer">
                         ${mapBtn}
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'")}')">🗺️ 동선 최적화</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🗺️ 동선 최적화</button>` : ''}
                     </div>
                 </div>
             `;
@@ -4322,8 +4322,8 @@
             // 상태 버튼 생성
             const statusGroup = document.getElementById('sheetStatusGroup');
             const dealStatus = item['거래여부(기입예정)'] || '인허가';
-            const name = item['사업장명'].replace(/'/g, "\\'");
-            const address = item['도로명전체주소'].replace(/'/g, "\\'");
+            const name = item['사업장명'].replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const address = item['도로명전체주소'].replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
             statusGroup.innerHTML = ['인허가', '공사중', '거래', '미거래', 'DROP'].map(s => `
                 <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}" 

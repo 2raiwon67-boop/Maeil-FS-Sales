@@ -228,7 +228,90 @@ nav-component.js ~4KB (확장됨)
 
 ---
 
-## 8. 커밋 히스토리 요약
+---
+
+## 7-2. 버그 수정 (코드 점검 후)
+
+### gemini-chatbot.js:136 — 한국어 조사 정규식 오타
+```js
+// 수정 전 (오타)
+w.replace(/[은는이갸을를에에서에게뿐만도]+$/g, '')
+//              ↑ '갸' (잘못된 글자), '에' 중복
+
+// 수정 후
+w.replace(/[은는이가을를에서에게뿐만도]+$/g, '')
+```
+→ 커밋 `7413c74`
+
+---
+
+### 방문일지.html — fetch response.ok 누락
+`loadVisitLogs()`, `loadAccounts()` 함수에서 HTTP 오류 시 에러 HTML을 CSV로 파싱 시도하는 무음 실패 버그.
+
+```js
+// 수정 전
+const response = await fetch(url);
+const csv = await response.text(); // HTTP 오류여도 진행
+
+// 수정 후
+const response = await fetch(url);
+if (!response.ok) throw new Error(`로드 실패 (HTTP ${response.status})`);
+const csv = await response.text();
+```
+→ 커밋 `2dcfac5`
+
+---
+
+## 8. T-map 연동 (js/tmap-service.js 모듈화)
+
+### 배경
+- 네이버 지도 앱 연동이 현장에서 잘 안 쓰임
+- T-map이 실질적인 국내 내비 표준
+- index.html 5,000줄 과부하 우려 → 분리 필요
+
+### 플랫폼 분기 전략
+
+| 위치 | PC | 모바일 |
+|------|----|----|
+| 마커 인포윈도우 | 네이버 지도 (유지) | 🚗 T-map 길찾기 |
+| 모바일 바텀시트 | 네이버 지도 (유지) | 🚗 T-map 길찾기 |
+| 루트 패널 버튼 | 네이버 지도 앱 (유지) | T-map 다중 경유지 |
+
+### 경로 폴리라인 (PC/모바일 공통)
+```
+T-map Route API (한국 도로 정확도 높음, 빨간선)
+    ↓ 실패 (할당량 초과 등)
+OSRM (기존 외국 서버, 파란선)
+    ↓ 실패
+직선 연결 (점선)
+```
+
+### T-map API 요금
+- 딥링크: 완전 무료 (API 호출 없음)
+- Route API: 무료 1,000건/일 → 내부 팀 규모에서 초과 불가
+
+### 신규 파일: js/tmap-service.js
+```
+isMobile()                  — 모바일 감지
+openPlatformMap()           — 인포윈도우용 (PC/모바일 분기)
+openTmapSingle()            — T-map 단일 목적지 딥링크
+openPlatformMultiRoute()    — 루트 패널용 (PC/모바일 분기)
+openTmapMulti()             — T-map 다중 경유지 딥링크
+fetchTmapRoutePolyline()    — Route API 폴리라인 좌표 조회
+```
+
+### T-map 앱 미설치 폴백
+- Android: Play Store 이동
+- iOS: App Store 이동
+
+### 커밋
+- `7413c74` — 조사 정규식 오타 수정 + 대화파일 추가
+- `2dcfac5` — 방문일지 fetch 오류 수정
+- `fb42055` — T-map 연동 모듈화
+
+---
+
+## 9. 커밋 히스토리 요약
 
 | 커밋 | 내용 |
 |------|------|
@@ -238,3 +321,6 @@ nav-component.js ~4KB (확장됨)
 | `13dc23c` | 디자인 토큰 + 공통 컴포넌트 |
 | `902fca8` | console.log 제거 |
 | `c0a87af` | Chart.js 렌더링 최적화 |
+| `7413c74` | 조사 정규식 오타 수정 |
+| `2dcfac5` | 방문일지 fetch 오류 수정 |
+| `fb42055` | T-map 연동 (js/tmap-service.js) |
