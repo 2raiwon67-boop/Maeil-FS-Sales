@@ -71,7 +71,7 @@ async function fetchSimpleRoute(start, end) {
 
 // (내부) 다중 경유지 최적화 (3개 이상)
 async function fetchOptimizedRoute(stops) {
-    const url = 'https://apis.openapi.sk.com/tmap/routes/routeOptimization30?version=1&format=json';
+    const url = 'https://apis.openapi.sk.com/tmap/routes/routeOptimization10?version=1&format=json';
 
     const start = stops[0];
     const end = stops[stops.length - 1];
@@ -84,12 +84,21 @@ async function fetchOptimizedRoute(stops) {
         viaY: stop.lat.toString()
     }));
 
+    // TMAP API 400 필수 파라메터 누락 방지를 위한 시작 시간(startTime) 계산
+    const now = new Date();
+    const startTime = now.getFullYear().toString() +
+        (now.getMonth() + 1).toString().padStart(2, '0') +
+        now.getDate().toString().padStart(2, '0') +
+        now.getHours().toString().padStart(2, '0') +
+        now.getMinutes().toString().padStart(2, '0');
+
     const payload = {
         reqCoordType: "WGS84GEO",
         resCoordType: "WGS84GEO",
         startName: start.name || "출발지",
         startX: start.lng.toString(),
         startY: start.lat.toString(),
+        startTime: startTime, // 필수값
         endName: end.name || "도착지",
         endX: end.lng.toString(),
         endY: end.lat.toString(),
