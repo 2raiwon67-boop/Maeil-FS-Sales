@@ -1725,7 +1725,7 @@
             extraActions: '<div class="view-toggle nav-hide-mobile"><button class="view-btn active" id="btn-map-view" onclick="switchMainView(\'map\')">🗺️ 지도</button><button class="view-btn" id="btn-dashboard-view" onclick="switchMainView(\'dashboard\')">📈 통계</button></div>'
         };
     </script>
-    <script src="nav-component.js"></script>
+    <script src="js/nav-component.js"></script>
 
     <!-- PWA Service Worker 등록 -->
     <script>
@@ -4961,7 +4961,7 @@
     </script>
 
 
-    <script src="gemini-chatbot.js"></script>
+    <script src="js/gemini-chatbot.js"></script>
 
     <!-- AI 챗봇 UI -->
     <div class="chatbot-fab" onclick="toggleIndexChatbot()" title="AI 비서에게 물어보기">
@@ -5111,7 +5111,7 @@ ${question}
         }
     </script>
 
-    <script src="auth.js"></script>
+    <script src="js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
