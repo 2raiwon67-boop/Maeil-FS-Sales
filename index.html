@@ -24,9 +24,6 @@
     <script type="text/javascript"
         src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl&submodules=geocoder"></script>
 
-    <!-- TMAP API 서비스 모듈 (신규) -->
-    <script src="js/tmap-service.js"></script>
-
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -4676,7 +4673,7 @@
         }
 
         // ============================================================
-        // [수정] 경로 그리기 (TMAP API 최우선 -> 실패 시 OSRM -> 실패 시 직선)
+        // 경로 그리기 (OSRM -> 실패 시 직선)
         // ============================================================
         async function drawRoute() {
             clearRouteMarkers();
@@ -4716,65 +4713,7 @@
                 routeMarkers.push(marker);
             });
 
-            try {
-                // 1. TMAP 최적화 API 호출
-                const tmapResult = await window.TmapService.getOptimizedRouteFromTmap(routeStops);
-
-                if (tmapResult && tmapResult.polyline && tmapResult.polyline.length > 0) {
-                    // TMAP이 정해준 가장 효율적인 순서로 routeStops 배열 자체를 교체
-                    routeStops = tmapResult.optimizedStops;
-
-                    // 새로 정렬된 순서에 맞춰서 이전 중계지점 대비 거리(_dist) 재계산 (직선거리 기준)
-                    for (let i = 1; i < routeStops.length; i++) {
-                        routeStops[i]._dist = haversineKm(
-                            routeStops[i - 1].lat, routeStops[i - 1].lng,
-                            routeStops[i].lat, routeStops[i].lng
-                        );
-                    }
-                    if (routeStops.length > 0) routeStops[0]._dist = 0;
-
-                    // 지도에 자동차 주행 도로 모양(Polyline) 그리기
-                    routePolyline = new naver.maps.Polyline({
-                        map: naverMap,
-                        path: tmapResult.polyline,
-                        strokeColor: '#007AFF', // iOS 블루
-                        strokeWeight: 5,
-                        strokeOpacity: 0.8,
-                        strokeLineCap: 'round',
-                        strokeLineJoin: 'round'
-                    });
-
-                    // 총 거리 및 예상 소요시간 계산 (TMAP 결과)
-                    const distKm = (tmapResult.summary.distance / 1000).toFixed(1);
-                    const timeMin = Math.round(tmapResult.summary.time / 60);
-
-                    let timeStr = "";
-                    if (timeMin > 60) {
-                        timeStr = `${Math.floor(timeMin / 60)}시간 ${timeMin % 60}분`;
-                    } else {
-                        timeStr = `${timeMin}분`;
-                    }
-
-                    summaryBox.innerHTML = `
-                        <div style="font-size:12px; color:#666;">TMAP 실시간 최적 경로</div>
-                        <div style="font-size:16px; font-weight:700; color:#1d1d1f; margin-top:4px;">
-                            ${distKm}km • 약 ${timeStr}
-                        </div>
-                    `;
-                    summaryBox.style.display = 'block';
-
-                    // Fit bounds for TMAP route
-                    const bounds = new naver.maps.LatLngBounds();
-                    tmapResult.polyline.forEach(c => bounds.extend(c));
-                    naverMap.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
-
-                    return; // TMAP 성공 시 여기서 종료
-                }
-            } catch (err) {
-                console.warn("TMAP API 호출 실패. OSRM 폴백으로 전환합니다.", err);
-            }
-
-            // 2. TMAP 실패 시 기존 OSRM 폴백 실행
+            // OSRM을 통한 경로 라우팅 실행
             // OSRM needs all waypoints, including start.
             const allWaypointsForOsrm = [
                 { lat: routeStartCoord.lat, lng: routeStartCoord.lng },
