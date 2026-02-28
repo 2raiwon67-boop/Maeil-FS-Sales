@@ -2214,6 +2214,55 @@
         let _activeStatusFilter = null;
         let _activeRegionFilter = null;
 
+        // ── Supabase business_unit 캐시 ──
+        let _indexBusinessUnit = null;
+        async function getBusinessUnitForIndex() {
+            if (_indexBusinessUnit) return _indexBusinessUnit;
+            try {
+                const { data: userData } = await client.auth.getUser();
+                _indexBusinessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+            } catch (e) { _indexBusinessUnit = null; }
+            return _indexBusinessUnit;
+        }
+
+        // ── Supabase → 한국어 컬럼 역매핑 ──
+        const LICENSE_DB_TO_KR = {
+            'permit_date':  '영업 허가일',
+            'business_name': '사업장명',
+            'trade_status': '거래여부(기입예정)',
+            'business_type': '업태구분명',
+            'area':         '평형',
+            'road_address': '도로명전체주소',
+            'address1':     '주소1',
+            'address2':     '주소2',
+            'address3':     '주소3',
+            'priority':     '순위',
+            'manager':      '담당자',
+            'appsheet_date':'앱시트등록일',
+            'lat':          '위도',
+            'lng':          '경도',
+            'milk_type':    '사용우유'
+        };
+        const ACCOUNTS_DB_TO_KR = {
+            'business_name': '거래처명',
+            'trade_status':  '거래상태',
+            'manager_name':  '담당자명',
+            'address':       '주소',
+            'store_code':    '사업장코드명',
+            'seq_no':        'NO'
+        };
+        const VISITLOG_DB_TO_KR = {
+            'seq_no':       'NO',
+            'visit_date':   '일정기간',
+            'manager':      '작성자',
+            'dealer_code':  '방문처(대리점 코드)',
+            'dealer_name':  '방문처(대리점)',
+            'account_code': '방문처(거래처 코드)',
+            'business_name':'방문처(거래처)',
+            'content':      '내용',
+            'store_code':   '사업장코드'
+        };
+
         // 메인 뷰 전환 함수 (지도 / 통계 / 사용우유)
         function switchMainView(view) {
             const mapArea = document.getElementById('map');
@@ -2639,7 +2688,8 @@
 
 
 
-            // 담당자 설정 로드 (비동기) -> 완료 후 데이터 처리 시 사용됨
+            // business_unit 선취득 후 데이터 로드
+            await getBusinessUnitForIndex();
             await loadManagerConfig();
 
             loadDataFromSheets();
@@ -2768,39 +2818,23 @@
         // 담당자 설정 로드 (CSV)
         async function loadManagerConfig() {
             try {
-                // 🛑 FIXME: '담당자관리' 시트의 GID를 입력하세요 (0, 123456... 등)
-                // 기본값 0으로 시도하거나, 사용자가 제공한 값을 사용
-                const MANAGER_GID = '489316402';
-                const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=${MANAGER_GID}`;
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보 없음');
 
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`담당자관리 시트 로드 실패 (GID=${MANAGER_GID})`);
+                const { data, error } = await client
+                    .from('managers')
+                    .select('region, manager_name')
+                    .eq('business_unit', businessUnit);
+                if (error) throw error;
 
-                const csvText = await response.text();
-                const lines = csvText.split('\n');
-
-                // 1행부터 데이터라고 가정 (0행은 헤더)
-                let count = 0;
-                for (let i = 1; i < lines.length; i++) {
-                    const row = lines[i].trim();
-                    if (!row) continue;
-
-                    // 쉼표로 분리 (간단한 파싱)
-                    const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-                    if (cols.length < 2) continue;
-
-                    const region = cols[0];  // A열: 지역
-                    const manager = cols[1]; // B열: 담당자
-
-                    if (region && manager) {
-                        managerMap[region] = manager;
-                        count++;
+                managerMap = {};
+                (data || []).forEach(row => {
+                    if (row.region && row.manager_name) {
+                        managerMap[row.region] = row.manager_name;
                     }
-                }
-
+                });
             } catch (e) {
                 console.warn('담당자 설정 로드 실패 (기본값 사용):', e.message);
-                // 실패 시 비상용 기본 매핑 사용
                 managerMap = {
                     '남양주시': '이도현', '구리시': '이도현', '가평군': '이도현', '의정부시': '이도현', '포천시': '이도현',
                     '미추홀구': '김지훈', '동구': '김지훈', '서구': '김지훈', '남동구': '김지훈',
@@ -2815,167 +2849,85 @@
 
         async function loadDataFromSheets() {
             try {
-                // 공개 Google Sheets를 CSV로 가져오기 (API 키 불필요)
-                const csvUrl = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.spreadsheetId}/export?format=csv&gid=0`;
-
-                const response = await fetch(csvUrl);
-                if (!response.ok) {
-                    console.warn('Google Sheets 로드 실패 - 대시보드는 업로드 후 표시됩니다');
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) {
+                    console.warn('소속 정보가 없어 인허가 데이터를 로드할 수 없습니다.');
                     return;
                 }
 
-                const csvText = await response.text();
+                const { data, error } = await client
+                    .from('licenses')
+                    .select('*')
+                    .eq('business_unit', businessUnit);
+                if (error) throw error;
 
-                // CSV 파싱 (쉼표가 포함된 필드 처리)
-                function parseCSV(text) {
-                    const lines = [];
-                    let currentLine = [];
-                    let currentField = '';
-                    let inQuotes = false;
-
-                    for (let i = 0; i < text.length; i++) {
-                        const char = text[i];
-                        const nextChar = text[i + 1];
-
-                        if (char === '"') {
-                            if (inQuotes && nextChar === '"') {
-                                currentField += '"';
-                                i++; // Skip next quote
-                            } else {
-                                inQuotes = !inQuotes;
-                            }
-                        } else if (char === ',' && !inQuotes) {
-                            currentLine.push(currentField.trim());
-                            currentField = '';
-                        } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                            if (currentField || currentLine.length > 0) {
-                                currentLine.push(currentField.trim());
-                                if (currentLine.some(f => f)) { // Skip empty lines
-                                    lines.push(currentLine);
-                                }
-                                currentLine = [];
-                                currentField = '';
-                            }
-                            if (char === '\r' && nextChar === '\n') {
-                                i++; // Skip \n in \r\n
-                            }
-                        } else {
-                            currentField += char;
-                        }
-                    }
-
-                    // Add last field and line
-                    if (currentField || currentLine.length > 0) {
-                        currentLine.push(currentField.trim());
-                        if (currentLine.some(f => f)) {
-                            lines.push(currentLine);
-                        }
-                    }
-
-                    return lines;
-                }
-
-                const lines = parseCSV(csvText);
-
-                if (lines.length > 1) {
-                    const headers = lines[0];
-                    allData = lines.slice(1)
-                        .map(values => {
-                            const obj = {};
-                            headers.forEach((h, i) => {
-                                obj[h] = values[i] || '';
-                            });
-                            return obj;
-                        })
-                        .filter(row => {
-                            // 유효한 데이터만 필터링
-                            const manager = row['담당자'] || '';
-                            const name = row['사업장명'] || '';
-
-                            // 담당자가 날짜 형식이거나 헤더 텍스트인 경우 제외
-                            if (manager.match(/^\d{4}-\d{2}-\d{2}$/)) return false;
-                            if (manager.includes('업로드일')) return false;
-                            if (manager.includes('등록일')) return false;
-
-                            // 사업장명이 비어있으면 제외
-                            if (!name || name.trim() === '') return false;
-
-                            return true;
+                // Supabase 영문 필드 → 기존 한국어 키로 변환 (기존 코드 호환)
+                allData = (data || [])
+                    .map(row => {
+                        const obj = {};
+                        Object.entries(LICENSE_DB_TO_KR).forEach(([eng, kor]) => {
+                            obj[kor] = row[eng] ?? '';
                         });
+                        return obj;
+                    })
+                    .filter(row => row['사업장명'] && String(row['사업장명']).trim() !== '');
 
-
-
-                    // 🆕 방문일지 데이터를 LocalStorage에 저장 (견적서 AI 활용)
-                    try {
-                        localStorage.setItem('maeil_visitLogs', JSON.stringify(allData));
-                        localStorage.setItem('maeil_visitLogs_timestamp', Date.now().toString());
-                    } catch (e) {
-                        console.warn('LocalStorage 저장 실패:', e.message);
-                    }
-
-                    // 지오코딩 캐싱 함수
-                    async function getCachedGeocode(address) {
-                        const cacheKey = `maeil_geo_${address}`;
-                        const cached = localStorage.getItem(cacheKey);
-                        if (cached) {
-                            // console.log('캐시 사용:', address);
-                            return JSON.parse(cached);
-                        }
-
-                        // 캐시 없으면 API 호출
-                        const coords = await geocodeAddress(address);
-                        if (coords) {
-                            localStorage.setItem(cacheKey, JSON.stringify(coords));
-                        }
-                        return coords;
-                    }
-
-                    // 지오코딩 (좌표 없는 데이터 주소로 변환)
-                    const missingCoords = allData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
-
-                    if (missingCoords.length > 0) {
-                        // 로딩 표시 (임시)
-                        const statusDiv = document.createElement('div');
-                        statusDiv.id = 'geocodingStatus';
-                        statusDiv.style.position = 'fixed';
-                        statusDiv.style.bottom = '20px';
-                        statusDiv.style.left = '50%';
-                        statusDiv.style.transform = 'translateX(-50%)';
-                        statusDiv.style.background = 'rgba(0,0,0,0.7)';
-                        statusDiv.style.color = 'white';
-                        statusDiv.style.padding = '10px 20px';
-                        statusDiv.style.borderRadius = '20px';
-                        statusDiv.style.zIndex = '9999';
-                        statusDiv.innerHTML = '좌표 변환 중...';
-                        document.body.appendChild(statusDiv);
-
-                        let count = 0;
-                        for (const item of missingCoords) {
-                            try {
-                                // 캐시 적용된 함수 사용
-                                const coords = await getCachedGeocode(item['도로명전체주소']);
-                                if (coords) {
-                                    item['위도'] = coords.lat.toString(); // 문자열로 저장
-                                    item['경도'] = coords.lng.toString();
-                                }
-                            } catch (e) {
-                                console.warn('지오코딩 실패:', item['사업장명']);
-                            }
-                            count++;
-                            statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
-
-                            // 캐시 미적중(API호출) 시에만 딜레이를 주면 좋지만,
-                            // 간단히 구현하기 위해 빠른 속도로 진행 (캐시 있으면 매우 빠름)
-                            await new Promise(r => setTimeout(r, 10));
-                        }
-                        document.body.removeChild(statusDiv);
-                    }
-
-                    updateDashboard();
-                    initAllMarkers(); // allData 새로 로드 → 마커 전체 재생성
+                // 인허가 데이터를 LocalStorage에 저장 (견적서 AI 활용)
+                try {
+                    localStorage.setItem('maeil_visitLogs', JSON.stringify(allData));
+                    localStorage.setItem('maeil_visitLogs_timestamp', Date.now().toString());
+                } catch (e) {
+                    console.warn('LocalStorage 저장 실패:', e.message);
                 }
+
+                // 지오코딩 캐싱 함수
+                async function getCachedGeocode(address) {
+                    const cacheKey = `maeil_geo_${address}`;
+                    const cached = localStorage.getItem(cacheKey);
+                    if (cached) return JSON.parse(cached);
+                    const coords = await geocodeAddress(address);
+                    if (coords) localStorage.setItem(cacheKey, JSON.stringify(coords));
+                    return coords;
+                }
+
+                // 좌표 없는 항목만 지오코딩
+                const missingCoords = allData.filter(d =>
+                    (!d['위도'] || d['위도'] === 0 || d['위도'] === '') && d['도로명전체주소']
+                );
+
+                if (missingCoords.length > 0) {
+                    const statusDiv = document.createElement('div');
+                    statusDiv.id = 'geocodingStatus';
+                    Object.assign(statusDiv.style, {
+                        position: 'fixed', bottom: '20px', left: '50%',
+                        transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.7)',
+                        color: 'white', padding: '10px 20px', borderRadius: '20px', zIndex: '9999'
+                    });
+                    statusDiv.innerHTML = '좌표 변환 중...';
+                    document.body.appendChild(statusDiv);
+
+                    let count = 0;
+                    for (const item of missingCoords) {
+                        try {
+                            const coords = await getCachedGeocode(item['도로명전체주소']);
+                            if (coords) {
+                                item['위도'] = coords.lat.toString();
+                                item['경도'] = coords.lng.toString();
+                            }
+                        } catch (e) {
+                            console.warn('지오코딩 실패:', item['사업장명']);
+                        }
+                        count++;
+                        statusDiv.innerHTML = `좌표 변환 중... (${count}/${missingCoords.length})`;
+                        await new Promise(r => setTimeout(r, 10));
+                    }
+                    document.body.removeChild(statusDiv);
+                }
+
+                updateDashboard();
+                initAllMarkers();
             } catch (error) {
-                console.warn('Google Sheets 로드 실패:', error.message);
+                console.warn('인허가 데이터 로드 실패:', error.message);
             }
         }
 
@@ -3494,18 +3446,29 @@
 
         async function loadAccountsData() {
             try {
-                const ACCOUNTS_SHEET_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
-                const ACCOUNTS_GID = '43116531';
-                const url = `https://docs.google.com/spreadsheets/d/${ACCOUNTS_SHEET_ID}/export?format=csv&gid=${ACCOUNTS_GID}`;
-                const response = await fetch(url);
-                if (!response.ok) throw new Error('주요거래처 시트 접근 실패');
-                const csv = await response.text();
-                accountsData = parseAccountsCSV(csv);
-                // 지도가 준비된 후 마커 표시
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) return;
+
+                const { data, error } = await client
+                    .from('accounts')
+                    .select('*')
+                    .eq('business_unit', businessUnit);
+                if (error) throw error;
+
+                // Supabase 영문 필드 → 한국어 키 변환
+                accountsData = (data || [])
+                    .map(row => {
+                        const obj = {};
+                        Object.entries(ACCOUNTS_DB_TO_KR).forEach(([eng, kor]) => {
+                            obj[kor] = row[eng] ?? '';
+                        });
+                        return obj;
+                    })
+                    .filter(row => row['거래처명'] || row['주소']);
+
                 if (naverMap) {
                     await updateAccountMarkers();
                 } else {
-                    // 지도 초기화 대기
                     const waitForMap = setInterval(async () => {
                         if (naverMap) {
                             clearInterval(waitForMap);
@@ -3521,35 +3484,25 @@
         // 방문일지 캐시 로드 (InfoWindow에서 최신 방문 기록 표시용)
         async function loadVisitLogCache() {
             try {
-                const VISIT_SHEET_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
-                const VISIT_GID = '707066983';
-                const url = `https://docs.google.com/spreadsheets/d/${VISIT_SHEET_ID}/export?format=csv&gid=${VISIT_GID}`;
-                const response = await fetch(url);
-                if (!response.ok) return;
-                const csv = await response.text();
-                const lines = csv.split('\n').filter(l => l.trim());
-                if (lines.length < 2) return;
-                const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
-                const logs = lines.slice(1).map(line => {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) return;
+
+                const { data, error } = await client
+                    .from('visit_logs')
+                    .select('*')
+                    .eq('business_unit', businessUnit)
+                    .order('visit_date', { ascending: false });
+                if (error) throw error;
+
+                // Supabase 영문 필드 → 기존 한국어 키 변환 (이미 visit_date desc 정렬)
+                window.visitLogCache = (data || []).map(row => {
                     const obj = {};
-                    const vals = [];
-                    let cur = '', inQ = false;
-                    for (let i = 0; i < line.length; i++) {
-                        if (line[i] === '"') { inQ = !inQ; }
-                        else if (line[i] === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
-                        else { cur += line[i]; }
-                    }
-                    vals.push(cur.trim());
-                    headers.forEach((h, i) => { obj[h] = vals[i] || ''; });
+                    Object.entries(VISITLOG_DB_TO_KR).forEach(([eng, kor]) => {
+                        obj[kor] = row[eng] ?? '';
+                    });
+                    obj['작성일'] = row.visit_date ?? ''; // 날짜 필드 fallback
                     return obj;
                 });
-                // 날짜 기준 최신순 정렬 (InfoWindow에서 find()로 첫 번째 = 최신 기록)
-                logs.sort((a, b) => {
-                    const da = a['일정기간'] || '';
-                    const db = b['일정기간'] || '';
-                    return db.localeCompare(da);
-                });
-                window.visitLogCache = logs;
             } catch (e) {
                 console.warn('방문일지 캐시 로드 실패:', e.message);
             }
@@ -4353,47 +4306,31 @@
             btnElement.classList.add('active');
 
             try {
-                // Apps Script에 상태 업데이트 요청 (no-cors 제거 → 응답 확인 가능)
-                const response = await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'updateStatus',
-                        name: name,
-                        address: address,
-                        status: newStatus
-                    })
-                });
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
 
-                if (!response.ok) {
-                    throw new Error(`서버 오류 (HTTP ${response.status})`);
-                }
+                // Supabase에 상태 업데이트
+                const { error } = await client
+                    .from('licenses')
+                    .update({ trade_status: newStatus })
+                    .eq('business_name', name)
+                    .eq('road_address', address)
+                    .eq('business_unit', businessUnit);
 
-                const text = await response.text();
-                let result;
-                try {
-                    result = JSON.parse(text);
-                } catch (e) {
-                    throw new Error('서버 응답 파싱 실패: ' + text.substring(0, 100));
-                }
+                if (error) throw new Error('Supabase 업데이트 실패: ' + error.message);
 
-                if (!result.success) {
-                    throw new Error(result.error || '구글 시트 업데이트 실패');
-                }
-
-                // 로컬 데이터 업데이트
+                // 로컬 데이터도 즉시 반영
                 const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
                 if (item) {
                     item['거래여부(기입예정)'] = newStatus;
                 }
 
-                // UI 및 대시보드 새로고침 (status 변경 → 아이콘 색상 재생성)
+                // UI 및 대시보드 새로고침
                 updateDashboard();
                 initAllMarkers();
 
-
             } catch (err) {
                 console.error('업데이트 실패:', err);
-                // 버튼 상태 원복
                 buttons.forEach(btn => btn.classList.remove('active'));
                 if (originalActiveBtn) originalActiveBtn.classList.add('active');
                 alert(`❌ 상태 변경 실패\n\n${err.message}\n\n잠시 후 다시 시도해주세요.`);
