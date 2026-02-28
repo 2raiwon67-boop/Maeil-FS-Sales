@@ -434,6 +434,7 @@
         /* DB 테이블 스크롤 컨테이너 */
         .db-table-scroll {
             overflow-y: auto;
+            overflow-x: auto;
             max-height: 222px; /* 헤더 + 약 5행 */
             border-radius: 6px;
             border: 1px solid #e5e5ea;
@@ -442,6 +443,12 @@
         .db-table-scroll .preview-table {
             display: table; /* block 오버라이드 해제 */
             overflow-x: unset;
+            min-width: 100%;
+            width: max-content; /* 컬럼 내용만큼 테이블 확장 → 컨테이너가 가로 스크롤 */
+        }
+
+        .db-table-scroll .preview-table td {
+            max-width: none; /* 160px 제한 해제 */
         }
 
         .db-table-scroll .preview-table th {
@@ -661,6 +668,16 @@
             document.body.classList.add('loaded');
             setupLogoutButton();
             loadCurrentData();
+            // Supabase 세션이 늦게 복원될 때를 대비한 재시도
+            if (client) {
+                const { data: { subscription } } = client.auth.onAuthStateChange((event) => {
+                    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                        currentBusinessUnit = null; // 캐시 초기화 후 재시도
+                        loadCurrentData();
+                        subscription.unsubscribe();
+                    }
+                });
+            }
         });
 
         // ── 유형 선택 ────────────────────────────────────────
@@ -691,9 +708,13 @@
         // ── business_unit 취득 ───────────────────────────────
         async function getBusinessUnit() {
             if (currentBusinessUnit) return currentBusinessUnit;
-            const { data: userData } = await client.auth.getUser();
-            currentBusinessUnit = userData?.user?.user_metadata?.business_unit ?? null;
-            return currentBusinessUnit;
+            if (!client) return null;
+            try {
+                const { data: userData } = await client.auth.getUser();
+                const bu = userData?.user?.user_metadata?.business_unit ?? null;
+                if (bu) currentBusinessUnit = bu; // null은 캐시하지 않음 (재시도 가능하도록)
+                return bu;
+            } catch(e) { return null; }
         }
 
         // ── HTML 속성 이스케이프 ─────────────────────────────
@@ -712,7 +733,8 @@
 
             const businessUnit = await getBusinessUnit();
             if (!businessUnit) {
-                dbBody.innerHTML = '<div class="db-empty">소속(business_unit) 정보가 없습니다.<br>관리자에게 문의하세요.</div>';
+                dbBody.innerHTML = '<div class="db-empty">소속 정보를 불러오지 못했습니다.<br><button onclick="loadCurrentData()" style="margin-top:8px;padding:6px 14px;background:#0071e3;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🔄 다시 시도</button></div>';
+                dbCount.textContent = '—';
                 return;
             }
 
@@ -792,7 +814,7 @@
             dbBody.innerHTML = `
                 <div class="db-summary">${summaryHtml}</div>
                 ${total > 20 ? `<p style="font-size:12px;color:#86868b;margin:0 0 6px;">최신 20건 표시 (전체 ${total}건)</p>` : ''}
-                <div class="db-table-scroll" style="overflow-x:auto;">
+                <div class="db-table-scroll">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody>${rowsHtml}</tbody>
@@ -817,7 +839,7 @@
                     <span class="badge">${total ?? data.length}건</span>
                     <button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
                 </div>
-                <div class="db-table-scroll" style="overflow-x:auto;margin-top:10px;">
+                <div class="db-table-scroll" style="margin-top:10px;">
                     <table class="preview-table editable-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody id="editableTableBody">${rowsHtml}</tbody>
