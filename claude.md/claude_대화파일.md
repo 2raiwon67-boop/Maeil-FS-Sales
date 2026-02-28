@@ -799,3 +799,117 @@ GEMINI_API_KEY=your_key node scripts/process-recipes.js
 ```
 
 ---
+
+## 18. upload.html — 현재 DB 현황 섹션 추가 (2026-02-28)
+
+### 배경
+기존 upload.html은 엑셀 업로드만 가능했고 현재 DB 상태 확인 불가.
+
+### 변경 내용
+
+**페이지 구조 변경**
+```
+[1 — 데이터 유형 선택]   기존 유지
+[2 — 현재 DB 현황]       신규 (🔄 새로고침 버튼 포함)
+[3 — 엑셀 업로드]        기존, 하단 이동
+[4 — 데이터 미리보기]    기존 유지
+```
+
+**유형별 동작**
+| 유형 | 동작 | 표시 |
+|------|------|------|
+| managers / accounts | 편집 가능 테이블 | 전체 행 + 셀 편집 + 행추가/삭제 + 저장 |
+| licenses / visit_logs | 읽기 전용 | 최신 20건 + 요약 뱃지 |
+
+**licenses 요약 뱃지**: 총 N건 | 마지막 업로드: YYYY-MM-DD
+**visit_logs 요약 뱃지**: 총 N건 | 최신 seq_no: N | 최근 방문일: YYYY-MM-DD
+
+**편집 테이블 저장 로직**: delete(business_unit) + insert(전체 배열) — 기존 업로드 방식과 동일
+
+**UPLOAD_TYPES 확장**
+- `editable: true/false` 플래그
+- managers/accounts → `columns` (편집 컬럼 정의)
+- licenses/visit_logs → `previewColumns` (미리보기 컬럼 정의)
+
+**정렬**
+- licenses: `permit_date` desc (최신 허가일 순)
+- visit_logs: `visit_date` desc (최신 방문일 순)
+
+**스크롤**: max-height ~222px + overflow-y: auto, 헤더 sticky 고정
+
+### 신규 함수
+- `loadCurrentData()` — 유형 선택 시 자동 호출, count 선조회
+- `renderReadonlyTable()` — 읽기 전용 + 요약 뱃지
+- `renderEditableTable()` — 인라인 편집 테이블
+- `collectEditableValues()` — DOM → currentDbData 동기화
+- `deleteRow()` / `addRow()` — 행 편집
+- `saveEditableData()` — Supabase delete + insert
+- `getBusinessUnit()` — business_unit 캐시
+
+### 커밋
+- `121c0e1` — DB 현황 섹션 + 편집 가능 테이블 추가
+- `f5fc6fb` — 스크롤 적용 + limit 조정 + 날짜 정렬 개선
+- `8dd0726` — 읽기 전용 limit 5→20 (스크롤 표시 수정)
+
+---
+
+## 19. index.html — Google Sheets → Supabase 전환 (2026-02-28)
+
+### 전환 전략
+Supabase 영문 컬럼 → 기존 한국어 키 역매핑으로 나머지 코드 무수정
+
+**역매핑 상수 3개 추가**
+```javascript
+LICENSE_DB_TO_KR   // permit_date → '영업 허가일', business_name → '사업장명' 등
+ACCOUNTS_DB_TO_KR  // business_name → '거래처명', trade_status → '거래상태' 등
+VISITLOG_DB_TO_KR  // business_name → '방문처(거래처)', visit_date → '일정기간' 등
+```
+
+### 전환된 함수
+
+| 함수 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| `loadManagerConfig()` | Google Sheets CSV (gid=489316402) | `managers` 테이블 select |
+| `loadDataFromSheets()` | Google Sheets CSV (gid=0) | `licenses` 테이블 select |
+| `loadAccountsData()` | Google Sheets CSV (gid=43116531) | `accounts` 테이블 select |
+| `loadVisitLogCache()` | Google Sheets CSV (gid=707066983) | `visit_logs` 테이블 select (visit_date desc) |
+| `updateDealStatus()` | Apps Script POST | Supabase `.update({ trade_status })` |
+
+### 추가 헬퍼
+```javascript
+// business_unit 캐시 (페이지 전체 공유)
+let _indexBusinessUnit = null;
+async function getBusinessUnitForIndex() { ... }
+```
+
+### 호환성
+- `allData` 배열 구조 유지 (한국어 키) → InfoWindow, 차트, 마커 코드 무수정
+- `window.visitLogCache` 구조 유지 → 대시보드 방문 통계 무수정
+- `accountsData` 구조 유지 → `updateAccountMarkers()` 무수정
+- 지오코딩 로직 유지 (lat/lng 없는 항목만 처리)
+
+### 미전환 (남은 작업)
+- `uploadToSheets()` — Apps Script 업로드 함수 (index.html 내 엑셀 업로드 UI). 현재 Google Sheets에 저장. **Step 3**: 방문일지.html Supabase 전환 후 처리 예정
+
+### 커밋
+- `f0e087c` — index.html Supabase 전환 (4개 함수 + updateDealStatus)
+
+---
+
+## 20. 마이그레이션 진행 현황 (2026-02-28)
+
+| 파일 | 데이터 소스 | 상태 |
+|------|------------|------|
+| `auth.js` | Supabase | ✅ 완료 |
+| `upload.html` | Supabase | ✅ 완료 |
+| `index.html` | Supabase | ✅ 완료 (Step 2) |
+| `방문일지.html` | Google Sheets | ⏳ Step 3 (다음 작업) |
+
+### 다음 작업 (Step 3)
+`방문일지.html`에서 Google Sheets CSV 조회를 Supabase select로 전환
+- `loadVisitLogs()` → `visit_logs` 테이블
+- `loadAccounts()` → `accounts` 테이블
+- `loadLicenses()` (있다면) → `licenses` 테이블
+- 방문일지 신규 저장 → Supabase insert
+
+---
