@@ -2983,9 +2983,32 @@
                 const startDate = startDateVal.replace(/-/g, '');
                 const endDate = endDateVal ? endDateVal.replace(/-/g, '') : '';
 
+                // 📅 스마트 페이지 제한: 날짜 범위 기반 자동 계산
+                const dateRangeDays = endDateVal
+                    ? (new Date(endDateVal) - new Date(startDateVal)) / (1000 * 60 * 60 * 24)
+                    : 365; // 종료일 미입력 시 1년으로 간주
+
+                let MAX_PAGES;
+                let estimatedTime;
+                if (dateRangeDays <= 30) {
+                    MAX_PAGES = 5;    // 1개월 이하 → 5페이지 (약 1,500건)
+                    estimatedTime = '30초';
+                } else if (dateRangeDays <= 90) {
+                    MAX_PAGES = 10;   // 3개월 이하 → 10페이지 (약 3,000건)
+                    estimatedTime = '1분';
+                } else if (dateRangeDays <= 180) {
+                    MAX_PAGES = 15;   // 6개월 이하 → 15페이지 (약 4,500건)
+                    estimatedTime = '1분 30초';
+                } else {
+                    MAX_PAGES = 20;   // 그 이상 → 20페이지 (약 6,000건)
+                    estimatedTime = '2분';
+                }
+
+                setStatus(`📊 날짜 범위: ${Math.round(dateRangeDays)}일 → ${MAX_PAGES}페이지 수집 예정 (예상 소요: ${estimatedTime})`);
+                await new Promise(resolve => setTimeout(resolve, 1500)); // 사용자에게 정보 표시
+
                 // 업종 서비스명 (업태구분명 필터 대상의 상위 카테고리)
                 const serviceNames = ['일반음식점', '휴게음식점', '제과점영업'];
-                const MAX_PAGES = 50;   // 서비스당 최대 50페이지 (≒5,000건)
                 const BATCH_SIZE = 10;  // 동시 병렬 호출 수
 
                 const rawMap = new Map(); // MNG_NO 기준 중복 제거
@@ -3010,7 +3033,22 @@
                         let items = [];
                         if (Array.isArray(rawItems)) items = rawItems;
                         else if (rawItems?.item) items = Array.isArray(rawItems.item) ? rawItems.item : [rawItems.item];
-                        return { items, totalCount: parseInt(rb?.totalCount || 0) };
+
+                        // 🎯 날짜 범위 밖 데이터 비율 계산 (조기 종료 판단용)
+                        let outOfRangeCount = 0;
+                        if (endDate) {
+                            items.forEach(item => {
+                                const permitDate = item.LCPMT_YMD || '';
+                                if (permitDate < startDate || permitDate > endDate) {
+                                    outOfRangeCount++;
+                                }
+                            });
+                        }
+
+                        const outOfRangeRatio = items.length > 0 ? outOfRangeCount / items.length : 0;
+                        const shouldStop = outOfRangeRatio > 0.8; // 80% 이상 범위 밖이면 조기 종료
+
+                        return { items, totalCount: parseInt(rb?.totalCount || 0), shouldStop };
                     } catch { return null; }
                 }
 
@@ -3035,9 +3073,11 @@
                 }
 
                 let svcIdx = 0;
+                let earlyStopped = false;
+
                 for (const svcNm of serviceNames) {
                     svcIdx++;
-                    setStatus(`(${svcIdx}/3) ${svcNm} — 1페이지 조회 중...`);
+                    setStatus(`📥 (${svcIdx}/3) ${svcNm} — 1페이지 조회 중...`);
 
                     // 1페이지로 totalCount·실제 페이지 크기 확인
                     const first = await fetchPage(svcNm, 1);
@@ -3047,6 +3087,19 @@
                     const actualPageSize = first.items.length || 100;
                     const totalPages = Math.min(Math.ceil(first.totalCount / actualPageSize), MAX_PAGES);
 
+                    // 🎯 첫 페이지에서 조기 종료 신호 감지
+                    if (first.shouldStop && totalPages > 3) {
+                        setStatus(`⚡ (${svcIdx}/3) ${svcNm} — 날짜 범위 밖 데이터 감지, 3페이지만 수집합니다.`);
+                        earlyStopped = true;
+                        // 조기 종료 시 3페이지만 수집
+                        const limitedPages = Math.min(totalPages, 3);
+                        for (let pageNo = 2; pageNo <= limitedPages; pageNo++) {
+                            const result = await fetchPage(svcNm, pageNo);
+                            if (result) addToMap(result.items);
+                        }
+                        continue;
+                    }
+
                     // 나머지 페이지 병렬 수집 (BATCH_SIZE씩)
                     for (let bStart = 2; bStart <= totalPages; bStart += BATCH_SIZE) {
                         const bEnd = Math.min(bStart + BATCH_SIZE - 1, totalPages);
@@ -3054,7 +3107,18 @@
                             Array.from({ length: bEnd - bStart + 1 }, (_, i) => fetchPage(svcNm, bStart + i))
                         );
                         results.forEach(r => r && addToMap(r.items));
-                        setStatus(`(${svcIdx}/3) ${svcNm} — ${bEnd}/${totalPages}페이지 완료 (누적 ${rawMap.size}건)`);
+
+                        // 📊 진행률 퍼센트 표시
+                        const progress = Math.round((bEnd / totalPages) * 100);
+                        setStatus(`📥 (${svcIdx}/3) ${svcNm} — ${progress}% (${bEnd}/${totalPages}페이지) | 누적 ${rawMap.size}건`);
+
+                        // 🎯 배치 중간에 조기 종료 신호 감지
+                        const stopSignal = results.some(r => r?.shouldStop);
+                        if (stopSignal && bEnd < totalPages) {
+                            setStatus(`⚡ (${svcIdx}/3) ${svcNm} — 날짜 범위 밖 데이터 증가, 수집 조기 종료 (누적 ${rawMap.size}건)`);
+                            earlyStopped = true;
+                            break;
+                        }
                     }
                 }
 
@@ -3066,12 +3130,16 @@
                     return;
                 }
 
-                setStatus(`총 ${allRawData.length}건 수신. 필터링 중...`);
+                setStatus(`🔄 총 ${allRawData.length}건 수신 완료 — 필터링 및 가공 중...`);
 
                 // 사용자 선택 날짜를 processData 날짜 필터에 전달
                 await processData(allRawData, { startDate, endDate: endDate || '' });
 
-                setStatus(`✅ ${processedData.length}건 처리 완료 — 다운로드 버튼으로 저장 후 최종본 업로드 해주세요.`);
+                const successMsg = earlyStopped
+                    ? `✅ ${processedData.length}건 처리 완료 (스마트 조기 종료 적용됨) — 다운로드 후 최종본 업로드 해주세요.`
+                    : `✅ ${processedData.length}건 처리 완료 — 다운로드 버튼으로 저장 후 최종본 업로드 해주세요.`;
+
+                setStatus(successMsg);
 
             } catch (e) {
                 console.error('공공데이터 API 로드 오류:', e);
