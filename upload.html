@@ -431,6 +431,25 @@
             opacity: 1;
         }
 
+        /* DB 테이블 스크롤 컨테이너 */
+        .db-table-scroll {
+            overflow-y: auto;
+            max-height: 222px; /* 헤더 + 약 5행 */
+            border-radius: 6px;
+            border: 1px solid #e5e5ea;
+        }
+
+        .db-table-scroll .preview-table {
+            display: table; /* block 오버라이드 해제 */
+            overflow-x: unset;
+        }
+
+        .db-table-scroll .preview-table th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
         @media (max-width: 600px) {
             .type-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -717,14 +736,14 @@
                 let query = client.from(cfg.table).select('*').eq('business_unit', businessUnit);
 
                 if (cfg.table === 'visit_logs') {
-                    query = query.order('seq_no', { ascending: false });
+                    query = query.order('visit_date', { ascending: false, nullsFirst: false });
                 } else if (cfg.table === 'licenses') {
-                    query = query.order('uploaded_at', { ascending: false, nullsFirst: false });
+                    query = query.order('permit_date', { ascending: false, nullsFirst: false });
                 }
 
-                // 읽기 전용은 최근 10건만
+                // 읽기 전용은 최근 5건만
                 if (!cfg.editable) {
-                    query = query.limit(10);
+                    query = query.limit(5);
                 }
 
                 const { data, error } = await query;
@@ -772,8 +791,8 @@
 
             dbBody.innerHTML = `
                 <div class="db-summary">${summaryHtml}</div>
-                ${total > 10 ? `<p style="font-size:12px;color:#86868b;margin:0 0 8px;">최근 10건 표시 (전체 ${total}건)</p>` : ''}
-                <div style="overflow-x:auto;">
+                ${total > 5 ? `<p style="font-size:12px;color:#86868b;margin:0 0 6px;">최신 5건 표시 (전체 ${total}건)</p>` : ''}
+                <div class="db-table-scroll" style="overflow-x:auto;">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody>${rowsHtml}</tbody>
@@ -798,7 +817,7 @@
                     <span class="badge">${total ?? data.length}건</span>
                     <button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
                 </div>
-                <div style="overflow-x:auto;margin-top:10px;">
+                <div class="db-table-scroll" style="overflow-x:auto;margin-top:10px;">
                     <table class="preview-table editable-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody id="editableTableBody">${rowsHtml}</tbody>
