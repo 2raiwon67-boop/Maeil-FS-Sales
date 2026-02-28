@@ -340,6 +340,7 @@
             border: 1px solid #e8e8ed;
             overflow: hidden;
         }
+
         .filter-panel-header {
             display: flex;
             justify-content: space-between;
@@ -347,12 +348,14 @@
             padding: 10px 14px;
             border-bottom: 1px solid #e8e8ed;
         }
+
         .filter-panel-title {
             font-size: 13px;
             font-weight: 600;
             color: #86868b;
             letter-spacing: 0.02em;
         }
+
         .filter-reset-btn {
             font-size: 11px;
             color: #0071e3;
@@ -362,18 +365,25 @@
             padding: 2px 6px;
             border-radius: 4px;
         }
-        .filter-reset-btn:hover { background: #e3f2fd; }
+
+        .filter-reset-btn:hover {
+            background: #e3f2fd;
+        }
+
         .filter-panel-body {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 0;
         }
+
         .filter-col {
             padding: 10px 10px 12px;
         }
+
         .filter-col:first-child {
             border-right: 1px solid #e8e8ed;
         }
+
         .filter-col-header {
             font-size: 11px;
             font-weight: 600;
@@ -381,6 +391,7 @@
             margin-bottom: 8px;
             letter-spacing: 0.02em;
         }
+
         .filter-col-list {
             max-height: 140px;
             overflow-y: auto;
@@ -388,6 +399,7 @@
             flex-direction: column;
             gap: 3px;
         }
+
         .filter-item {
             display: flex;
             justify-content: space-between;
@@ -399,13 +411,25 @@
             cursor: pointer;
             transition: background 0.15s;
         }
-        .filter-item:hover { background: #e8e8ed; }
+
+        .filter-item:hover {
+            background: #e8e8ed;
+        }
+
         .filter-item.active {
             background: #e3f2fd;
             font-weight: 600;
         }
-        .filter-item-name { color: #1d1d1f; }
-        .filter-item-count { color: #0071e3; font-weight: 600; font-size: 11px; }
+
+        .filter-item-name {
+            color: #1d1d1f;
+        }
+
+        .filter-item-count {
+            color: #0071e3;
+            font-weight: 600;
+            font-size: 11px;
+        }
 
         /* =============== 우측 지도 영역 =============== */
         .map-area {
@@ -2145,7 +2169,6 @@
         // ============================================================
 
         const SHEETS_CONFIG = {
-            apiKey: 'AQ.Ab8RN6KwmiUwl-nKqJB8CQwfZ3qeZ8BjPJPtxSY92uaviUVpow',
             spreadsheetId: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
             range: '인허가데이터!A:P'
         };

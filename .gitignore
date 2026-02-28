@@ -12,3 +12,6 @@ node_modules/
 
 # 개발/테스트용 파일
 dev/
+
+# 레시피 PDF 원본 (대용량, Supabase Storage로 관리)
+assets/recipe/
