@@ -18,7 +18,7 @@ const OUTPUT_FILE = path.resolve(__dirname, 'recipe-data.json');
 const ERROR_FILE  = path.resolve(__dirname, 'recipe-errors.json');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const DELAY_MS = 12000; // 5 req/min 안전 간격 (PDF 멀티모달은 RPM 낮음)
+const DELAY_MS = 30000; // 2 req/min 초안전 간격 (일일 할당량 절약)
 
 if (!GEMINI_API_KEY) {
     console.error('❌ GEMINI_API_KEY 환경변수가 없습니다.');
@@ -38,7 +38,7 @@ if (fs.existsSync(OUTPUT_FILE)) {
 }
 const processedFilenames = new Set(existingResults.map(r => r.filename));
 
-async function extractRecipe(pdfPath) {
+async function extractRecipe(pdfPath, retryCount = 0) {
     const pdfBuffer = fs.readFileSync(pdfPath);
     const base64 = pdfBuffer.toString('base64');
 
@@ -81,11 +81,13 @@ async function extractRecipe(pdfPath) {
         }
     );
 
-    // 429 Rate Limit: 60초 대기 후 재시도
+    // 429 Rate Limit: 최대 3회 재시도, 대기 시간 점진적 증가
     if (response.status === 429) {
-        console.warn('\n⏳ Rate limit (429) — 60초 대기 후 재시도...');
-        await sleep(60000);
-        return extractRecipe(pdfPath); // 재귀 재시도
+        if (retryCount >= 3) throw new Error('Rate limit 재시도 3회 초과');
+        const waitSec = (retryCount + 1) * 60;
+        console.warn(`\n⏳ Rate limit (429) — ${waitSec}초 대기 후 재시도 (${retryCount + 1}/3)...`);
+        await sleep(waitSec * 1000);
+        return extractRecipe(pdfPath, retryCount + 1);
     }
 
     if (!response.ok) {

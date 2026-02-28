@@ -701,3 +701,101 @@ async function getProductRecommendations(menus) {
 | 3 | 자사제품 DB + 레시피 RAG (PDF) | 중간 |
 | 4 | 방문 우선순위 스코어링 | 중간 |
 | 5 | 팀 인사이트 RAG | 높음 |
+
+---
+
+## 15. 제품 DB 개선 및 이미지 등록 (2026-02-28)
+
+### 신규 제품 이미지 추가 (assets/images/)
+소프트믹스 전 라인, 두유/오트류, 테너 소스류, 연유 대용량, 후레쉬 쉐프크림 등 26개 이미지 추가
+
+### PRODUCT_IMAGE_MANUAL_MAP 케이스 오류 수정
+기존 키가 대문자(1.8KG, 900ML)였으나 Google Sheets 실제 값은 소문자(1.8kg, 900ml)
+→ 케이스 일치 수정 + 5개 신규 매핑 추가
+
+### D열 용도 변경 (이미지 → 사용용도)
+```js
+// 변경 전
+image: r['이미지'] || '📦'
+
+// 변경 후
+usage: (r['사용용도'] || '').trim()
+```
+- 이미지열은 실제 이미지 URL로 사용되지 않았음 (emoji 폴백만)
+- 사용용도 데이터를 Gemini 추천 프롬프트에 활용
+
+### 커밋
+- `6bfd353` — 후레쉬 쉐프크림 이미지 추가
+- `0ebb74d` — 25개 이미지 추가 + 케이스 오류 수정 + D열 변경
+- `76c3e22` — Rate limit 개선 + 신규 이미지 26개
+
+---
+
+## 16. naver-reviews.js AI 분석 개선 (2026-02-28)
+
+### 변경 1 — 사용용도 필드 추가
+```js
+// 변경 전
+`[${i}] ${p.name} / ${p.spec}`
+
+// 변경 후
+`[${i}] ${p.name} / ${p.spec}${p.usage ? ` / 용도: ${p.usage}` : ''}`
+```
+
+### 변경 2 — 음료 우선 추천 규칙 추가
+```
+- 일반 카페·음식점: 음료용 제품(우유·크림·베이스류) 최우선
+- 베이킹 원료(치즈·버터): 베이커리·제과점 확인 시에만 포함
+- 제품 목록의 '용도' 항목 반드시 참고
+```
+
+### 커밋
+- `cbbf865` — usage 필드 + 음료 우선 추천 규칙
+
+---
+
+## 17. 레시피 PDF 파이프라인 구축 (2026-02-28)
+
+### 배경
+- 337개 레시피 PDF → `assets/recipe/` 업로드 (79MB, 깃에 미포함)
+- Gemini Vision으로 구조화 데이터 추출 → Supabase pgvector 저장 → RAG 검색
+
+### 파이프라인 3단계
+
+**STEP 1 — PDF 추출 (scripts/process-recipes.js)**
+- 각 PDF를 base64 인코딩 후 Gemini 2.0 Flash에 전송
+- 추출 필드: name, nameEn, description, mainProducts, ingredients, steps, category, tags, isVegan
+- 30초 간격 (2 RPM, 일일 할당량 절약), 429 에러 시 최대 3회 재시도
+- 중단 후 재개 가능 (기존 recipe-data.json 확인 후 스킵)
+- 예상 소요: 약 170분 (337개 × 30초)
+
+**STEP 2 — Supabase 테이블 생성 (dev/supabase_setup.sql)**
+- `recipes` 테이블 + pgvector(768차원) + ivfflat 인덱스
+- `search_recipes()` 함수: 벡터 유사도 검색 + 카테고리 필터
+
+**STEP 3 — Supabase 업로드 (scripts/upload-recipes.js)**
+- Gemini text-embedding-004로 임베딩 생성
+- Supabase REST API upsert (filename 기준 중복 방지)
+
+### Rate Limit 이슈 및 해결
+- 문제: Gemini 2.0 Flash PDF 멀티모달 요청이 첫 요청부터 429 발생
+- 원인: 재시도 반복으로 일일 할당량(1,500 RPD) 소진
+- 해결: 딜레이 4.2초→30초, 재시도 최대 3회 제한, **다음날 오후 4시 이후 재실행 예정**
+
+### Gemini API 관련 정리
+- API 키는 인증 토큰일 뿐, 요청 간 학습/기억 없음
+- 각 요청에 데이터를 직접 프롬프트에 포함해야 컨텍스트 활용 가능
+- 새 프로젝트 키는 초기 할당량 활성화 문제 있을 수 있음 → 기존 키 사용 권장
+
+### 커밋
+- `d7a7e1e` — process-recipes.js 생성 + package.json type:module
+- `2fdf579` — upload-recipes.js + supabase recipes 테이블 스키마
+- `76c3e22` — Rate limit 개선 (30초 딜레이, 재시도 3회 제한)
+
+### 실행 명령어 (내일 오후 4시 이후)
+```bash
+cd "/Users/leedo/Documents/경기북부 인허가"
+GEMINI_API_KEY=your_key node scripts/process-recipes.js
+```
+
+---
