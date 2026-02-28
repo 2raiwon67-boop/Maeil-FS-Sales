@@ -896,20 +896,122 @@ async function getBusinessUnitForIndex() { ... }
 
 ---
 
-## 20. 마이그레이션 진행 현황 (2026-02-28)
+## 20. 마이그레이션 진행 현황 (2026-02-28 → 업데이트)
 
 | 파일 | 데이터 소스 | 상태 |
 |------|------------|------|
 | `auth.js` | Supabase | ✅ 완료 |
 | `upload.html` | Supabase | ✅ 완료 |
 | `index.html` | Supabase | ✅ 완료 (Step 2) |
-| `방문일지.html` | Google Sheets | ⏳ Step 3 (다음 작업) |
+| `방문일지.html` | Supabase | ✅ 완료 (Step 3) |
+| `login.html` / 기타 | Google Sheets 잔존 | ⏳ Step 4 (다음 작업) |
 
-### 다음 작업 (Step 3)
-`방문일지.html`에서 Google Sheets CSV 조회를 Supabase select로 전환
-- `loadVisitLogs()` → `visit_logs` 테이블
-- `loadAccounts()` → `accounts` 테이블
-- `loadLicenses()` (있다면) → `licenses` 테이블
-- 방문일지 신규 저장 → Supabase insert
+### 다음 작업 (Step 4)
+- `login.html` 등 기타 페이지에 남아있는 Google Sheets 의존성 완전 제거
+- Apps Script URL 참조 정리
+- Google Sheets 관련 fetch/CSV 파싱 코드 전면 제거
+
+---
+
+## 21. 방문일지.html — Google Sheets → Supabase 전환 (Step 3)
+
+### 변경 내용
+
+**제거**: `SHEETS_CONFIG` (visitLogs / accounts / licenses 시트 ID/GID 3개)
+
+**추가**: Supabase 역매핑 상수 3개 + business_unit 캐시 헬퍼
+
+```javascript
+// business_unit 캐시
+let _visitBusinessUnit = null;
+async function getBusinessUnitForVisit() { ... }
+
+// Supabase → 한국어 역매핑
+const VL_DB_TO_KR = {
+    'visit_date': '작성일', 'manager': '작성자',
+    'business_name': '방문처(거래처)', 'content': '내용', ...
+};
+const ACCT_DB_TO_KR = {
+    'business_name': '거래처명', 'trade_status': '거래상태', ...
+};
+const LIC_DB_TO_KR = {
+    'business_name': '사업장명', 'trade_status': '거래여부(기입예정)', ...
+};
+```
+
+**전환된 함수 3개**
+
+| 함수 | 변경 전 | 변경 후 |
+|------|---------|---------|
+| `loadVisitLogs()` | Google Sheets CSV fetch | `client.from('visit_logs')` + `visit_date desc` 정렬 |
+| `loadAccounts()` | Google Sheets CSV fetch | `client.from('accounts')` + business_unit 필터 |
+| `loadLicenses()` | Google Sheets CSV fetch | `client.from('licenses')` + business_unit 필터 |
+
+### 호환성
+- `groupAccountsByVisits()` 등 소비 코드 전혀 수정 없음
+- `'일정기간'` fallback 추가 (`log['작성일'] || log['일정기간']` 패턴 대응)
+- 한국어 필드명 그대로 유지
+
+### 커밋
+- `6865440` — 방문일지.html Google Sheets → Supabase 전환 (Step 3)
+
+---
+
+## 22. upload.html — DB현황 좌우 스크롤 + 세션 타이밍 개선
+
+### 문제 1: 좌우 스크롤 불가
+**원인**
+- `.db-table-scroll .preview-table`에 `width: max-content` 미설정 → 테이블이 컨테이너 너비 이상 확장 불가
+- `.preview-table td`의 `max-width: 160px` 제한으로 컬럼 내용 잘림
+
+**수정 CSS**
+```css
+.db-table-scroll {
+    overflow-y: auto;
+    overflow-x: auto;  /* 추가 */
+    max-height: 222px;
+}
+.db-table-scroll .preview-table {
+    display: table;
+    min-width: 100%;
+    width: max-content;  /* 추가: 컬럼 내용만큼 확장 */
+}
+.db-table-scroll .preview-table td {
+    max-width: none;  /* 160px 제한 해제 */
+}
+```
+
+### 문제 2: DB현황 가끔 안 보임 (Ctrl+Shift+R 후 정상)
+**원인**: Supabase가 localStorage에서 세션을 비동기 복원하는 도중 `getUser()`가 null 반환 → business_unit 못 가져옴 → 로딩 스피너 무한 대기
+
+**수정 JS**
+```javascript
+// 1. getBusinessUnit() — try-catch + null 미캐싱
+async function getBusinessUnit() {
+    if (currentBusinessUnit) return currentBusinessUnit;
+    if (!client) return null;
+    try {
+        const { data: userData } = await client.auth.getUser();
+        const bu = userData?.user?.user_metadata?.business_unit ?? null;
+        if (bu) currentBusinessUnit = bu; // null은 캐시 안 함 (재시도 가능)
+        return bu;
+    } catch(e) { return null; }
+}
+
+// 2. 세션 늦게 복원 시 onAuthStateChange로 자동 재시도
+client.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        currentBusinessUnit = null;
+        loadCurrentData();
+        subscription.unsubscribe();
+    }
+});
+
+// 3. business_unit null 시 재시도 버튼 표시
+'<button onclick="loadCurrentData()">🔄 다시 시도</button>'
+```
+
+### 커밋
+- `4a368dc` — DB현황 좌우 스크롤 및 세션 타이밍 개선
 
 ---
