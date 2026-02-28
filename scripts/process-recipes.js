@@ -18,7 +18,7 @@ const OUTPUT_FILE = path.resolve(__dirname, 'recipe-data.json');
 const ERROR_FILE  = path.resolve(__dirname, 'recipe-errors.json');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const DELAY_MS = 4200; // 15 req/min 제한 → 4.2초 간격
+const DELAY_MS = 12000; // 5 req/min 안전 간격 (PDF 멀티모달은 RPM 낮음)
 
 if (!GEMINI_API_KEY) {
     console.error('❌ GEMINI_API_KEY 환경변수가 없습니다.');
@@ -80,6 +80,13 @@ async function extractRecipe(pdfPath) {
             })
         }
     );
+
+    // 429 Rate Limit: 60초 대기 후 재시도
+    if (response.status === 429) {
+        console.warn('\n⏳ Rate limit (429) — 60초 대기 후 재시도...');
+        await sleep(60000);
+        return extractRecipe(pdfPath); // 재귀 재시도
+    }
 
     if (!response.ok) {
         const errText = await response.text();
