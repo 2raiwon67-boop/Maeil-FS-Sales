@@ -4715,10 +4715,8 @@
 
             // OSRM을 통한 경로 라우팅 실행
             // OSRM needs all waypoints, including start.
-            const allWaypointsForOsrm = [
-                { lat: routeStartCoord.lat, lng: routeStartCoord.lng },
-                ...routeStops.map(s => ({ lat: s.lat, lng: s.lng }))
-            ];
+            // routeStops[0]이 이미 '내 위치' 이므로 그대로 매핑
+            const allWaypointsForOsrm = routeStops.map(s => ({ lat: s.lat, lng: s.lng }));
             const coordsUrl = allWaypointsForOsrm.map(s => `${s.lng},${s.lat}`).join(';');
             const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsUrl}?overview=full&geometries=geojson`;
 
@@ -4826,7 +4824,7 @@
                     <div class="route-stop-num" style="background:${stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000'}">${idx + 1}</div>
                     <div class="route-stop-info">
                         <div class="route-stop-name">${stop.name}</div>
-                        <div class="route-stop-dist">${idx === 0 ? '현위치에서' : idx === 1 && forcedFirstStop ? '1번 목적지에서' : '이전에서'} ${stop._dist?.toFixed(1)}km</div>
+                        <div class="route-stop-dist">${idx === 0 ? '출발거리 기준점' : (idx === 1 ? '현위치에서' : (idx === 2 && forcedFirstStop ? '1번 목적지에서' : '이전에서'))} ${idx === 0 ? '' : (stop._dist?.toFixed(1) + 'km')}</div>
                     </div>
                     <span class="route-stop-tag ${cls}">${label}</span>
                     ${warnBadge}
@@ -4866,9 +4864,10 @@
             }
 
             const enc = s => encodeURIComponent(s);
-            // routeStops는 이미 최대 5개로 제한됨
+            // routeStops[0]은 "내 위치"이므로 네이버 앱이 GPS 현위치를 쓰도록 제외하고 
+            // 실제 경유지들만 waypoints로 잘라냅니다.
             const dest = routeStops[routeStops.length - 1];
-            const waypoints = routeStops.slice(0, -1); // 경유지 (목적지 제외)
+            const waypoints = routeStops.slice(1, -1); // 1번(내위치 다음)부터 목적지 직전까지
 
             const webUrl = buildNaverWebRouteUrl(waypoints, dest, enc);
             const isAndroid = /Android/i.test(navigator.userAgent);
