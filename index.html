@@ -333,7 +333,79 @@
             font-weight: 600;
         }
 
-
+        /* ── 통합 필터 패널 ── */
+        .filter-panel {
+            background: #ffffff;
+            border-radius: 10px;
+            border: 1px solid #e8e8ed;
+            overflow: hidden;
+        }
+        .filter-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid #e8e8ed;
+        }
+        .filter-panel-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #86868b;
+            letter-spacing: 0.02em;
+        }
+        .filter-reset-btn {
+            font-size: 11px;
+            color: #0071e3;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .filter-reset-btn:hover { background: #e3f2fd; }
+        .filter-panel-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+        }
+        .filter-col {
+            padding: 10px 10px 12px;
+        }
+        .filter-col:first-child {
+            border-right: 1px solid #e8e8ed;
+        }
+        .filter-col-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
+            margin-bottom: 8px;
+            letter-spacing: 0.02em;
+        }
+        .filter-col-list {
+            max-height: 140px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+        .filter-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 8px;
+            background: #f5f5f7;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .filter-item:hover { background: #e8e8ed; }
+        .filter-item.active {
+            background: #e3f2fd;
+            font-weight: 600;
+        }
+        .filter-item-name { color: #1d1d1f; }
+        .filter-item-count { color: #0071e3; font-weight: 600; font-size: 11px; }
 
         /* =============== 우측 지도 영역 =============== */
         .map-area {
@@ -1793,25 +1865,22 @@
                 </div>
             </div>
 
-            <!-- 담당자별 현황 -->
+            <!-- 담당자/지역 통합 필터 패널 -->
             <div class="section">
-                <div class="dropdown-card" id="managerDropdown">
-                    <div class="dropdown-header" onclick="toggleDropdown('managerDropdown')">
-                        <h4>👥 담당자별 현황</h4>
-                        <span class="dropdown-arrow">▼</span>
+                <div class="filter-panel">
+                    <div class="filter-panel-header">
+                        <span class="filter-panel-title">필터</span>
+                        <button class="filter-reset-btn" onclick="clearAllFilters()">초기화</button>
                     </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="managerList"></div>
-                    </div>
-                </div>
-
-                <div class="dropdown-card" id="regionDropdown">
-                    <div class="dropdown-header" onclick="toggleDropdown('regionDropdown')">
-                        <h4>🗺️ 지역별 현황</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="regionList"></div>
+                    <div class="filter-panel-body">
+                        <div class="filter-col">
+                            <div class="filter-col-header">👥 담당자</div>
+                            <div class="filter-col-list" id="managerList"></div>
+                        </div>
+                        <div class="filter-col">
+                            <div class="filter-col-header">🗺️ 지역</div>
+                            <div class="filter-col-list" id="regionList"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -2591,6 +2660,12 @@
             updateMap();
         }
 
+        function clearAllFilters() {
+            currentManager = null;
+            currentRegion = null;
+            updateDashboard();
+            updateMap();
+        }
 
         // 방문 현황 카드 클릭 필터 (인허가 데이터)
         function filterByStatus(status) {
@@ -3061,8 +3136,8 @@
             document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
                 .sort((a, b) => b[1] - a[1])
                 .map(([r, c]) => {
-                    const isActive = currentRegion === r ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
-                    return `<div class="dropdown-item" onclick="setRegionFilter('${r}')"${isActive}><span class="dropdown-item-name">${r}</span><span class="dropdown-item-count">${c}건</span></div>`;
+                    const active = currentRegion === r ? ' active' : '';
+                    return `<div class="filter-item${active}" onclick="setRegionFilter('${r}')"><span class="filter-item-name">${r}</span><span class="filter-item-count">${c}</span></div>`;
                 }).join('');
 
             const managerCounts = {};
@@ -3074,8 +3149,8 @@
             document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
                 .sort((a, b) => b[1] - a[1])
                 .map(([m, c]) => {
-                    const isActive = currentManager === m ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
-                    return `<div class="dropdown-item" onclick="setManagerFilter('${m}')"${isActive}><span class="dropdown-item-name">${m}</span><span class="dropdown-item-count">${c}건</span></div>`;
+                    const active = currentManager === m ? ' active' : '';
+                    return `<div class="filter-item${active}" onclick="setManagerFilter('${m}')"><span class="filter-item-name">${m}</span><span class="filter-item-count">${c}</span></div>`;
                 }).join('');
 
             // AI 태그 리스트 조립 (항목 분리 및 빈도수 계산)
