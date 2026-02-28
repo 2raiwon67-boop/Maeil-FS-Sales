@@ -63,6 +63,12 @@
             letter-spacing: 0.4px;
         }
 
+        .card-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
         .card-body {
             padding: 20px;
         }
@@ -279,10 +285,150 @@
             margin-right: 6px;
         }
 
+        .spinner-dark {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border: 2px solid #e5e5ea;
+            border-top-color: #0071e3;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
         @keyframes spin {
             to {
                 transform: rotate(360deg);
             }
+        }
+
+        /* DB 현황 섹션 */
+        .db-loading {
+            text-align: center;
+            padding: 28px;
+            color: #86868b;
+            font-size: 14px;
+        }
+
+        .db-empty {
+            text-align: center;
+            padding: 28px;
+            color: #c7c7cc;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .db-summary {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            background: #f5f5f7;
+            border: 1px solid #e5e5ea;
+            color: #3d3d3f;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .btn-refresh {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 15px;
+            padding: 2px 4px;
+            line-height: 1;
+            opacity: 0.6;
+            transition: opacity 0.15s;
+        }
+
+        .btn-refresh:hover {
+            opacity: 1;
+        }
+
+        /* 편집 가능 테이블 */
+        .editable-table input {
+            border: none;
+            background: transparent;
+            font-size: 12px;
+            padding: 2px 4px;
+            width: 100%;
+            outline: none;
+            font-family: inherit;
+            color: #1d1d1f;
+            border-radius: 4px;
+        }
+
+        .editable-table input:focus {
+            background: #eef5ff;
+        }
+
+        .editable-table td {
+            padding: 4px 6px !important;
+        }
+
+        .btn-add-row {
+            display: block;
+            width: 100%;
+            margin-top: 8px;
+            padding: 10px;
+            border: 2px dashed #c7c7cc;
+            background: white;
+            border-radius: 8px;
+            color: #86868b;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-add-row:hover {
+            border-color: #0071e3;
+            color: #0071e3;
+            background: #f5f8ff;
+        }
+
+        .btn-save-editable {
+            margin-left: auto;
+            padding: 7px 16px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-save-editable:hover {
+            background: #0077ed;
+        }
+
+        .btn-save-editable:disabled {
+            background: #c7c7cc;
+            cursor: default;
+        }
+
+        .btn-delete-row {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px 4px;
+            font-size: 14px;
+            opacity: 0.35;
+            transition: opacity 0.15s;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .btn-delete-row:hover {
+            opacity: 1;
         }
 
         @media (max-width: 600px) {
@@ -300,7 +446,7 @@
 
     <div class="container">
         <h1 class="page-title">데이터 관리</h1>
-        <p class="page-sub">지점 데이터를 업로드합니다. 업로드하면 기존 데이터가 새 데이터로 교체됩니다.</p>
+        <p class="page-sub">지점 데이터를 확인하고 관리합니다. 담당자·거래처는 직접 편집, 인허가·방문일지는 엑셀 업로드로 교체합니다.</p>
 
         <div class="upload-section">
 
@@ -325,9 +471,22 @@
                 </div>
             </div>
 
-            <!-- 2. 템플릿 + 파일 업로드 -->
+            <!-- 2. 현재 DB 현황 -->
             <div class="card">
-                <div class="card-header">2 — 템플릿 다운로드 후 파일 업로드</div>
+                <div class="card-header">
+                    <div class="card-header-row">
+                        <span>2 — 현재 DB 현황 (<span id="dbCurrentCount">—</span>)</span>
+                        <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
+                    </div>
+                </div>
+                <div class="card-body" id="dbCurrentBody">
+                    <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
+                </div>
+            </div>
+
+            <!-- 3. 템플릿 + 파일 업로드 -->
+            <div class="card">
+                <div class="card-header">3 — 엑셀 업로드 (대용량 일괄 교체용)</div>
                 <div class="card-body">
                     <button class="btn-template" onclick="downloadTemplate()">
                         ⬇️ 템플릿 다운로드 (.xlsx)
@@ -344,10 +503,10 @@
                 </div>
             </div>
 
-            <!-- 3. 미리보기 + 확인 버튼 -->
+            <!-- 4. 미리보기 + 확인 버튼 -->
             <div id="previewSection" style="display:none;">
                 <div class="card" style="margin-bottom:12px;">
-                    <div class="card-header">3 — 데이터 미리보기 (상위 5행)</div>
+                    <div class="card-header">4 — 데이터 미리보기 (상위 5행)</div>
                     <div class="card-body" style="overflow-x:auto;">
                         <div id="previewContent"></div>
                     </div>
@@ -364,15 +523,22 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // ── 데이터 유형 설정 (Google Sheets 실제 헤더와 1:1 일치) ──
+        // ── 데이터 유형 설정 ──────────────────────────────────
         const UPLOAD_TYPES = {
             licenses: {
                 label: '인허가 데이터', table: 'licenses',
-                // Google Sheets '인허가데이터' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
+                editable: false,
+                previewColumns: [
+                    { key: 'business_name', label: '사업장명' },
+                    { key: 'trade_status', label: '거래여부' },
+                    { key: 'business_type', label: '업태' },
+                    { key: 'manager', label: '담당자' },
+                    { key: 'permit_date', label: '허가일' },
+                    { key: 'address1', label: '주소1' }
+                ],
                 templateHeaders: ['NO', '영업 허가일', '사업장명', '거래여부(기입예정)', '업태구분명', '평형', '도로명전체주소', '주소1', '주소2', '주소3', '순위', '담당자', '앱시트등록일', '위도', '경도', '사용우유'],
                 sampleRow: ['1', '2024-01-15', '테스트카페', '인허가', '커피', '30', '경기도 포천시 테스트로 1', '경기', '포천시', '신북면', '1', '홍길동', '2024-01-20', '37.89', '127.20', '서울우유'],
                 columnMap: {
-                    // NO 는 무시 (자동 생성 값)
                     '영업 허가일': 'permit_date',
                     '사업장명': 'business_name',
                     '거래여부(기입예정)': 'trade_status',
@@ -395,12 +561,18 @@
             },
             accounts: {
                 label: '주요거래처', table: 'accounts',
-                // Google Sheets '주요거래처' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
+                editable: true,
+                columns: [
+                    { key: 'seq_no', label: 'NO' },
+                    { key: 'store_code', label: '사업장코드' },
+                    { key: 'business_name', label: '거래처명' },
+                    { key: 'trade_status', label: '거래상태' },
+                    { key: 'manager_name', label: '담당자명' },
+                    { key: 'address', label: '주소' }
+                ],
                 templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드명', '고객레벨2', '거래처ID', '거래처명', '거래상태', '주요거래처 여부', '담당자명', '주소', '도/광역시', '시/군/구', '면/동'],
                 sampleRow: ['1', '경기북부', '포천', '포천지점', 'S001', 'A', 'C001', '홍길동마트', '거래', 'Y', '홍길동', '경기도 포천시 테스트로 2', '경기도', '포천시', '신북면'],
                 columnMap: {
-                    // 저장: NO, 사업장코드명, 고객레벨2, 거래처ID, 거래처명, 거래상태, 담당자명, 주소
-                    // 무시: 사업부, 사업장, 지점, 주요거래처 여부, 도/광역시, 시/군/구, 면/동
                     'NO': 'seq_no',
                     '사업장코드명': 'store_code',
                     '고객레벨2': 'customer_level',
@@ -414,12 +586,18 @@
             },
             visit_logs: {
                 label: '방문일지', table: 'visit_logs',
-                // Google Sheets '방문일지' 시트 헤더와 동일 (내보내기 후 바로 업로드 가능)
+                editable: false,
+                previewColumns: [
+                    { key: 'seq_no', label: 'NO' },
+                    { key: 'visit_date', label: '방문일' },
+                    { key: 'manager', label: '작성자' },
+                    { key: 'dealer_name', label: '대리점' },
+                    { key: 'business_name', label: '거래처' },
+                    { key: 'content', label: '내용' }
+                ],
                 templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드', '작성일', '작성자', '방문처(대리점 코드)', '방문처(대리점)', '방문처(거래처 코드)', '방문처(거래처)', '내용', 'AI_핵심태그'],
                 sampleRow: ['1', '경기북부', '포천', '포천지점', 'S001', '2024-03-01', '홍길동', 'D001', '포천대리점', 'C001', '테스트카페', '방문 후 가격 협의 진행', '가격'],
                 columnMap: {
-                    // 저장: NO, 사업장코드, 작성일, 작성자, 방문처(대리점 코드), 방문처(대리점), 방문처(거래처 코드), 방문처(거래처), 내용
-                    // 무시: 사업부, 사업장, 지점, AI_핵심태그
                     'NO': 'seq_no',
                     '사업장코드': 'store_code',
                     '작성일': 'visit_date',
@@ -430,16 +608,22 @@
                     '방문처(거래처)': 'business_name',
                     '내용': 'content'
                 },
-                requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: []
+                requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
+                mode: 'append'
             },
             managers: {
                 label: '담당자관리', table: 'managers',
-                // Google Sheets '담당자관리' 시트 헤더와 동일
+                editable: true,
+                columns: [
+                    { key: 'region', label: '지역' },
+                    { key: 'manager_name', label: '담당자' },
+                    { key: 'email', label: '이메일' }
+                ],
                 templateHeaders: ['지역', '담당자', '이메일'],
                 sampleRow: ['포천', '홍길동', 'hong@example.com'],
                 columnMap: {
                     '지역': 'region',
-                    '담당자': 'manager_name',   // 실제 시트는 '담당자' (담당자명 아님)
+                    '담당자': 'manager_name',
                     '이메일': 'email'
                 },
                 requiredCol: 'manager_name', dateFields: [], numericFields: []
@@ -449,33 +633,272 @@
         let selectedType = 'licenses';
         let parsedData = null;
 
+        // ── DB 현황 상태 ──────────────────────────────────────
+        let currentDbData = [];
+        let currentBusinessUnit = null;
+
         // ── 페이지 초기화 ────────────────────────────────────
         window.addEventListener('load', () => {
             document.body.classList.add('loaded');
             setupLogoutButton();
+            loadCurrentData();
         });
 
         // ── 유형 선택 ────────────────────────────────────────
         function selectType(type) {
             selectedType = type;
             parsedData = null;
+            currentDbData = [];
 
             document.querySelectorAll('.type-btn').forEach((btn, i) => {
                 const keys = Object.keys(UPLOAD_TYPES);
                 btn.classList.toggle('active', keys[i] === type);
             });
 
-            // 파일 초기화
             const fi = document.getElementById('fileInput');
             if (fi) fi.value = '';
             resetDropzone();
             document.getElementById('previewSection').style.display = 'none';
+
+            loadCurrentData();
         }
 
         function resetDropzone() {
             const dz = document.getElementById('dropzone');
             dz.classList.remove('has-file', 'drag');
             document.getElementById('dropzoneText').textContent = '파일을 여기에 드롭하거나 클릭하세요';
+        }
+
+        // ── business_unit 취득 ───────────────────────────────
+        async function getBusinessUnit() {
+            if (currentBusinessUnit) return currentBusinessUnit;
+            const { data: userData } = await client.auth.getUser();
+            currentBusinessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+            return currentBusinessUnit;
+        }
+
+        // ── HTML 속성 이스케이프 ─────────────────────────────
+        function escapeAttr(val) {
+            return String(val ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // ── 현재 DB 데이터 로드 ──────────────────────────────
+        async function loadCurrentData() {
+            const dbBody = document.getElementById('dbCurrentBody');
+            const dbCount = document.getElementById('dbCurrentCount');
+            const cfg = UPLOAD_TYPES[selectedType];
+
+            dbBody.innerHTML = '<div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>';
+            dbCount.textContent = '—';
+
+            const businessUnit = await getBusinessUnit();
+            if (!businessUnit) {
+                dbBody.innerHTML = '<div class="db-empty">소속(business_unit) 정보가 없습니다.<br>관리자에게 문의하세요.</div>';
+                return;
+            }
+
+            try {
+                // 전체 건수 조회
+                const { count: totalCount, error: countErr } = await client
+                    .from(cfg.table)
+                    .select('*', { count: 'exact', head: true })
+                    .eq('business_unit', businessUnit);
+
+                if (countErr) throw countErr;
+
+                dbCount.textContent = `${totalCount ?? 0}건`;
+
+                if (!totalCount) {
+                    dbBody.innerHTML = '<div class="db-empty">아직 업로드된 데이터가 없습니다.</div>';
+                    return;
+                }
+
+                // 실제 데이터 조회
+                let query = client.from(cfg.table).select('*').eq('business_unit', businessUnit);
+
+                if (cfg.table === 'visit_logs') {
+                    query = query.order('seq_no', { ascending: false });
+                } else if (cfg.table === 'licenses') {
+                    query = query.order('uploaded_at', { ascending: false, nullsFirst: false });
+                }
+
+                // 읽기 전용은 최근 10건만
+                if (!cfg.editable) {
+                    query = query.limit(10);
+                }
+
+                const { data, error } = await query;
+                if (error) throw error;
+
+                if (cfg.editable) {
+                    currentDbData = data || [];
+                    renderEditableTable(currentDbData, cfg, totalCount);
+                } else {
+                    renderReadonlyTable(data || [], cfg, totalCount);
+                }
+
+            } catch (e) {
+                dbBody.innerHTML = `<div class="banner banner-error" style="margin:0;">❌ 데이터 로드 실패: ${e.message}</div>`;
+                dbCount.textContent = '오류';
+            }
+        }
+
+        // ── 읽기 전용 테이블 렌더링 ─────────────────────────
+        function renderReadonlyTable(data, cfg, total) {
+            const dbBody = document.getElementById('dbCurrentBody');
+            const cols = cfg.previewColumns;
+
+            let summaryHtml = '';
+            if (cfg.table === 'licenses') {
+                const lastUpload = data[0]?.uploaded_at
+                    ? new Date(data[0].uploaded_at).toLocaleDateString('ko-KR')
+                    : '-';
+                summaryHtml = `
+                    <span class="badge">총 ${total}건</span>
+                    <span class="badge">마지막 업로드: ${lastUpload}</span>`;
+            } else if (cfg.table === 'visit_logs') {
+                const latestSeq = data[0]?.seq_no ?? '-';
+                const latestDate = data[0]?.visit_date ?? '-';
+                summaryHtml = `
+                    <span class="badge">총 ${total}건</span>
+                    <span class="badge">최신 seq_no: ${latestSeq}</span>
+                    <span class="badge">최근 방문일: ${latestDate}</span>`;
+            }
+
+            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('');
+            const rowsHtml = data.map(row => `
+                <tr>${cols.map(c => `<td title="${escapeAttr(row[c.key])}">${escapeAttr(row[c.key])}</td>`).join('')}</tr>
+            `).join('');
+
+            dbBody.innerHTML = `
+                <div class="db-summary">${summaryHtml}</div>
+                ${total > 10 ? `<p style="font-size:12px;color:#86868b;margin:0 0 8px;">최근 10건 표시 (전체 ${total}건)</p>` : ''}
+                <div style="overflow-x:auto;">
+                    <table class="preview-table">
+                        <thead><tr>${headerHtml}</tr></thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        // ── 편집 가능 테이블 렌더링 ─────────────────────────
+        function renderEditableTable(data, cfg, total) {
+            const dbBody = document.getElementById('dbCurrentBody');
+            const cols = cfg.columns;
+
+            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('') + '<th style="width:36px"></th>';
+            const rowsHtml = data.map((row, i) => `
+                <tr>
+                    ${cols.map(c => `<td><input type="text" value="${escapeAttr(row[c.key])}" data-key="${c.key}"></td>`).join('')}
+                    <td><button class="btn-delete-row" onclick="deleteRow(${i})" title="삭제">🗑️</button></td>
+                </tr>`).join('');
+
+            dbBody.innerHTML = `
+                <div class="db-summary">
+                    <span class="badge">${total ?? data.length}건</span>
+                    <button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
+                </div>
+                <div style="overflow-x:auto;margin-top:10px;">
+                    <table class="preview-table editable-table">
+                        <thead><tr>${headerHtml}</tr></thead>
+                        <tbody id="editableTableBody">${rowsHtml}</tbody>
+                    </table>
+                </div>
+                <button class="btn-add-row" onclick="addRow()">+ 행 추가</button>`;
+        }
+
+        // ── 편집 테이블 DOM → currentDbData 동기화 ──────────
+        function collectEditableValues() {
+            const rows = document.querySelectorAll('#editableTableBody tr');
+            rows.forEach((tr, i) => {
+                if (!currentDbData[i]) return;
+                tr.querySelectorAll('input[data-key]').forEach(input => {
+                    currentDbData[i][input.dataset.key] = input.value || null;
+                });
+            });
+        }
+
+        function deleteRow(i) {
+            collectEditableValues();
+            currentDbData.splice(i, 1);
+            renderEditableTable(currentDbData, UPLOAD_TYPES[selectedType], currentDbData.length);
+        }
+
+        function addRow() {
+            collectEditableValues();
+            const cfg = UPLOAD_TYPES[selectedType];
+            const emptyRow = {};
+            cfg.columns.forEach(c => { emptyRow[c.key] = ''; });
+            currentDbData.push(emptyRow);
+            renderEditableTable(currentDbData, cfg, currentDbData.length);
+            setTimeout(() => {
+                const tbody = document.getElementById('editableTableBody');
+                if (tbody?.lastElementChild) {
+                    tbody.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    // 첫 번째 입력 포커스
+                    const firstInput = tbody.lastElementChild.querySelector('input');
+                    if (firstInput) firstInput.focus();
+                }
+            }, 50);
+        }
+
+        // ── 편집 데이터 저장 (managers, accounts) ───────────
+        async function saveEditableData() {
+            collectEditableValues();
+            const cfg = UPLOAD_TYPES[selectedType];
+            const businessUnit = await getBusinessUnit();
+
+            if (!businessUnit) {
+                showToast('❌ 소속 정보가 없습니다.');
+                return;
+            }
+
+            const toSave = currentDbData.filter(row =>
+                cfg.columns.some(c => row[c.key] && String(row[c.key]).trim())
+            );
+
+            if (toSave.length === 0) {
+                showToast('저장할 데이터가 없습니다.');
+                return;
+            }
+
+            if (!confirm(`${cfg.label} 데이터를 ${toSave.length}건으로 저장합니다.\n기존 데이터가 모두 교체됩니다. 계속하시겠습니까?`)) return;
+
+            const btn = document.getElementById('btnSaveEditable');
+            if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+
+            try {
+                const { data: userData, error: authErr } = await client.auth.getUser();
+                if (authErr || !userData?.user) throw new Error('로그인 정보를 가져올 수 없습니다.');
+
+                const user = userData.user;
+                const now = new Date().toISOString();
+
+                // 1. 기존 데이터 삭제
+                const { error: delErr } = await client.from(cfg.table).delete().eq('business_unit', businessUnit);
+                if (delErr) throw new Error('기존 데이터 삭제 실패: ' + delErr.message);
+
+                // 2. INSERT
+                const rows = toSave.map(row => ({
+                    ...row,
+                    business_unit: businessUnit,
+                    uploaded_by: user.id,
+                    uploaded_at: now
+                }));
+
+                const BATCH = 500;
+                for (let i = 0; i < rows.length; i += BATCH) {
+                    const { error } = await client.from(cfg.table).insert(rows.slice(i, i + BATCH));
+                    if (error) throw new Error(`저장 실패 (${i + 1}~${Math.min(i + BATCH, rows.length)}번째): ` + error.message);
+                }
+
+                showToast(`✅ ${cfg.label} ${toSave.length}건 저장 완료!`);
+                await loadCurrentData();
+
+            } catch (e) {
+                showToast('❌ ' + e.message);
+                if (btn) { btn.disabled = false; btn.textContent = '변경사항 저장'; }
+            }
         }
 
         // ── 템플릿 다운로드 ──────────────────────────────────
@@ -517,7 +940,6 @@
                     const fileHeaders = raw[0].map(h => String(h || '').trim());
                     const rows = raw.slice(1).filter(row => row.some(c => c !== '' && c != null));
 
-                    // 헤더 → DB 컬럼 매핑
                     parsedData = rows.map(row => {
                         const obj = {};
                         fileHeaders.forEach((header, i) => {
@@ -542,13 +964,11 @@
                         return;
                     }
 
-                    // 드롭존 업데이트
                     const dz = document.getElementById('dropzone');
                     dz.classList.add('has-file');
                     document.getElementById('dropzoneText').innerHTML =
                         `<strong>${file.name}</strong> — ${parsedData.length}건 인식`;
 
-                    // 미리보기
                     const previewRows = parsedData.slice(0, 5);
                     const dbCols = Object.keys(previewRows[0]);
 
@@ -561,17 +981,20 @@
                             <tbody>
                                 ${previewRows.map(row =>
                         `<tr>${dbCols.map(c =>
-                            `<td title="${row[c] ?? ''}">${row[c] ?? ''}</td>`
+                            `<td title="${escapeAttr(row[c])}">${row[c] ?? ''}</td>`
                         ).join('')}</tr>`
                     ).join('')}
                             </tbody>
                         </table>`;
 
+                    const isAppend = cfg.mode === 'append';
                     document.getElementById('uploadBanner').className = 'banner banner-warn';
-                    document.getElementById('uploadBanner').innerHTML =
-                        `⚠️ 기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedData.length}건</strong>으로 교체됩니다.`;
-                    document.getElementById('btnUpload').textContent =
-                        `업로드 확인 (${parsedData.length}건 교체)`;
+                    document.getElementById('uploadBanner').innerHTML = isAppend
+                        ? `➕ <strong>${cfg.label}</strong> 기존 데이터에 <strong>${parsedData.length}건</strong>을 추가합니다. (seq_no 중복 시 덮어씀)`
+                        : `⚠️ 기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedData.length}건</strong>으로 교체됩니다.`;
+                    document.getElementById('btnUpload').textContent = isAppend
+                        ? `업로드 확인 (${parsedData.length}건 추가/갱신)`
+                        : `업로드 확인 (${parsedData.length}건 교체)`;
                     document.getElementById('previewSection').style.display = 'block';
 
                 } catch (err) {
@@ -600,13 +1023,15 @@
                 const businessUnit = user.user_metadata?.business_unit;
                 if (!businessUnit) throw new Error('소속(business_unit)이 설정되지 않은 계정입니다. 관리자에게 문의하세요.');
 
-                // 1. 기존 데이터 삭제 (RLS: 자신이 업로드한 것만 삭제됨)
-                const { error: delErr } = await client.from(cfg.table)
-                    .delete()
-                    .eq('business_unit', businessUnit);
-                if (delErr) throw new Error('기존 데이터 삭제 실패: ' + delErr.message);
+                const isAppend = cfg.mode === 'append';
 
-                // 2. 500건씩 분할 INSERT
+                if (!isAppend) {
+                    const { error: delErr } = await client.from(cfg.table)
+                        .delete()
+                        .eq('business_unit', businessUnit);
+                    if (delErr) throw new Error('기존 데이터 삭제 실패: ' + delErr.message);
+                }
+
                 const BATCH = 500;
                 const now = new Date().toISOString();
                 let inserted = 0;
@@ -624,21 +1049,33 @@
                         return base;
                     });
 
-                    const { error: insErr } = await client.from(cfg.table).insert(batch);
-                    if (insErr) throw new Error(`INSERT 실패 (${i + 1}~${i + batch.length}번째): ` + insErr.message);
+                    let opErr;
+                    if (isAppend) {
+                        const { error } = await client.from(cfg.table)
+                            .upsert(batch, { onConflict: 'seq_no,business_unit' });
+                        opErr = error;
+                    } else {
+                        const { error } = await client.from(cfg.table).insert(batch);
+                        opErr = error;
+                    }
+                    if (opErr) throw new Error(`업로드 실패 (${i + 1}~${i + batch.length}번째): ` + opErr.message);
 
                     inserted += batch.length;
                     btn.innerHTML = `<span class="spinner-inline"></span>${inserted}/${parsedData.length}건 처리 중...`;
                 }
 
-                // 성공
+                const doneMsg = isAppend
+                    ? `✅ <strong>${cfg.label}</strong> ${inserted}건 추가/갱신 완료!`
+                    : `✅ <strong>${cfg.label}</strong> ${inserted}건 업로드 완료!`;
                 document.getElementById('uploadBanner').className = 'banner banner-success';
-                document.getElementById('uploadBanner').innerHTML =
-                    `✅ <strong>${cfg.label}</strong> ${inserted}건 업로드 완료!`;
+                document.getElementById('uploadBanner').innerHTML = doneMsg;
                 btn.disabled = false;
                 btn.textContent = '업로드 완료 ✅';
                 parsedData = null;
-                showToast(`✅ ${cfg.label} ${inserted}건 업로드 완료!`);
+                showToast(doneMsg.replace(/<[^>]+>/g, ''));
+
+                // DB 현황 자동 갱신
+                await loadCurrentData();
 
             } catch (e) {
                 btn.disabled = false;
