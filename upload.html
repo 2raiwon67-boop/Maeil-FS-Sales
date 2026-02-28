@@ -741,9 +741,9 @@
                     query = query.order('permit_date', { ascending: false, nullsFirst: false });
                 }
 
-                // 읽기 전용은 최근 5건만
+                // 읽기 전용은 최근 20건 (스크롤로 탐색)
                 if (!cfg.editable) {
-                    query = query.limit(5);
+                    query = query.limit(20);
                 }
 
                 const { data, error } = await query;
@@ -791,7 +791,7 @@
 
             dbBody.innerHTML = `
                 <div class="db-summary">${summaryHtml}</div>
-                ${total > 5 ? `<p style="font-size:12px;color:#86868b;margin:0 0 6px;">최신 5건 표시 (전체 ${total}건)</p>` : ''}
+                ${total > 20 ? `<p style="font-size:12px;color:#86868b;margin:0 0 6px;">최신 20건 표시 (전체 ${total}건)</p>` : ''}
                 <div class="db-table-scroll" style="overflow-x:auto;">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
