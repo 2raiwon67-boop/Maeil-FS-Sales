@@ -1269,19 +1269,52 @@
         let allAccounts = [];
         let allLicenses = [];
 
-        const SHEETS_CONFIG = {
-            visitLogs: {
-                id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-                gid: '707066983'
-            },
-            accounts: {
-                id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-                gid: '43116531'
-            },
-            licenses: {
-                id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-                gid: '0'
-            }
+        // ── Supabase business_unit 캐시 ──
+        let _visitBusinessUnit = null;
+        async function getBusinessUnitForVisit() {
+            if (_visitBusinessUnit) return _visitBusinessUnit;
+            try {
+                const { data: userData } = await client.auth.getUser();
+                _visitBusinessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+            } catch (e) { _visitBusinessUnit = null; }
+            return _visitBusinessUnit;
+        }
+
+        // ── Supabase → 한국어 컬럼 역매핑 ──
+        const VL_DB_TO_KR = {
+            'seq_no':       'NO',
+            'visit_date':   '작성일',
+            'manager':      '작성자',
+            'dealer_code':  '방문처(대리점 코드)',
+            'dealer_name':  '방문처(대리점)',
+            'account_code': '방문처(거래처 코드)',
+            'business_name':'방문처(거래처)',
+            'content':      '내용',
+            'store_code':   '사업장코드'
+        };
+        const ACCT_DB_TO_KR = {
+            'business_name': '거래처명',
+            'trade_status':  '거래상태',
+            'manager_name':  '담당자명',
+            'address':       '주소',
+            'store_code':    '사업장코드명',
+            'seq_no':        'NO',
+            'account_id':    '거래처ID',
+            'customer_level':'고객레벨2'
+        };
+        const LIC_DB_TO_KR = {
+            'business_name': '사업장명',
+            'trade_status':  '거래여부(기입예정)',
+            'business_type': '업태구분명',
+            'area':          '평형',
+            'road_address':  '도로명전체주소',
+            'manager':       '담당자',
+            'permit_date':   '영업 허가일',
+            'address1':      '주소1',
+            'address2':      '주소2',
+            'address3':      '주소3',
+            'lat':           '위도',
+            'lng':           '경도'
         };
 
         window.addEventListener('load', () => {
@@ -1326,11 +1359,18 @@
         }
 
         async function loadVisitLogs() {
-            const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogs.id}/export?format=csv&gid=${SHEETS_CONFIG.visitLogs.gid}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`방문일지 로드 실패 (HTTP ${response.status})`);
-            const csv = await response.text();
-            allVisitLogs = parseCSV(csv).filter(row => row['작성자'] && row['작성자'].trim() !== '');
+            const businessUnit = await getBusinessUnitForVisit();
+            let query = client.from('visit_logs').select('*').order('visit_date', { ascending: false });
+            if (businessUnit) query = query.eq('business_unit', businessUnit);
+            const { data, error } = await query;
+            if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
+            allVisitLogs = (data || []).filter(row => row.manager).map(row => {
+                const obj = {};
+                Object.entries(VL_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+                obj['일정기간'] = row.visit_date ?? '';  // 소비 코드가 '일정기간'도 사용
+                obj['business_unit'] = row.business_unit;
+                return obj;
+            });
 
 
             // 거래처별 그룹화
@@ -1461,11 +1501,16 @@
 
         async function loadAccounts() {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.accounts.id}/export?format=csv&gid=${SHEETS_CONFIG.accounts.gid}`;
-                const response = await fetch(url);
-                if (!response.ok) throw new Error(`주요거래처 로드 실패 (HTTP ${response.status})`);
-                const csv = await response.text();
-                allAccounts = parseCSV(csv);
+                const businessUnit = await getBusinessUnitForVisit();
+                let query = client.from('accounts').select('*');
+                if (businessUnit) query = query.eq('business_unit', businessUnit);
+                const { data, error } = await query;
+                if (error) throw new Error(error.message);
+                allAccounts = (data || []).map(row => {
+                    const obj = {};
+                    Object.entries(ACCT_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+                    return obj;
+                });
             } catch (e) {
                 console.error('주요거래처 로드 실패:', e.message);
                 allAccounts = [];
@@ -1474,10 +1519,16 @@
 
         async function loadLicenses() {
             try {
-                const url = `https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.licenses.id}/export?format=csv&gid=${SHEETS_CONFIG.licenses.gid}`;
-                const response = await fetch(url);
-                const csv = await response.text();
-                allLicenses = parseCSV(csv);
+                const businessUnit = await getBusinessUnitForVisit();
+                let query = client.from('licenses').select('*');
+                if (businessUnit) query = query.eq('business_unit', businessUnit);
+                const { data, error } = await query;
+                if (error) throw new Error(error.message);
+                allLicenses = (data || []).map(row => {
+                    const obj = {};
+                    Object.entries(LIC_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+                    return obj;
+                });
             } catch (e) {
                 console.warn('인허가 데이터 로드 실패 (선택사항)');
                 allLicenses = [];
