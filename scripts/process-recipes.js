@@ -19,27 +19,28 @@ const OUTPUT_FILE = path.resolve(__dirname, 'recipe-data.json');
 const ERROR_FILE  = path.resolve(__dirname, 'recipe-errors.json');
 
 // ── 자사 브랜드/제품 키워드 (mainProducts 추출용) ──────────────────
+// 공백 있는 정규 표기만 유지. 공백 없는 변형('매일우유' 등)은 extractMainProducts에서 처리.
+// '매일' 단독 키워드 제거 (너무 범용적 — 일반 문장에서 오인식)
 const PRODUCT_KEYWORDS = [
-    '어메이징오트 바리스타', '어메이징 오트 바리스타',
-    '어메이징오트', '어메이징 오트',
-    '상하목장 소프트믹스', '상하목장소프트믹스',
-    '상하목장 초콜릿믹스', '상하목장초콜릿믹스',
-    '상하목장 요거트', '상하목장요거트',
+    '어메이징 오트 바리스타',
+    '어메이징 오트',
+    '상하목장 소프트믹스',
+    '상하목장 초콜릿믹스',
+    '상하목장 요거트',
     '상하목장',
     '소프트믹스',
-    '테너베이스', '테너 베이스',
-    '테너 과육플러스', '테너과육플러스',
-    '매일 바이오', '매일바이오',
-    '매일 두유', '매일두유',
-    '매일 우유', '매일우유',
+    '테너 베이스',
+    '테너 과육플러스',
+    '매일 바이오',
+    '매일 두유',
+    '매일 우유',
     '후레쉬 쉐프크림', '쉐프크림',
-    '매일 크림', '매일크림',
-    '알라 크림', '알라크림',
+    '매일 크림',
+    '알라 크림',
     '라크림 스프레이', '라크림',
     '사워크림',
     '연유',
     '아몬드브리즈',
-    '매일',
 ];
 
 // ── 카테고리 키워드 매핑 ───────────────────────────────────────────
@@ -89,12 +90,21 @@ function extractEnglishName(text) {
 function extractMainProducts(text) {
     const found = [];
     const lower = text.toLowerCase();
+    // PDF에서 공백이 생략된 경우도 인식 (예: '매일우유' → 정규표기 '매일 우유'로 저장)
+    const noSpace = lower.replace(/\s/g, '');
+
     for (const kw of PRODUCT_KEYWORDS) {
-        if (lower.includes(kw.toLowerCase()) && !found.includes(kw)) {
-            // 더 구체적인 키워드가 이미 포함되어 있으면 짧은 키워드 스킵
-            const alreadyCovered = found.some(f => f.toLowerCase().includes(kw.toLowerCase()));
-            if (!alreadyCovered) found.push(kw);
-        }
+        const kwLower  = kw.toLowerCase();
+        const kwNoSpace = kwLower.replace(/\s/g, '');
+
+        // 공백 포함 원문 또는 공백 제거 버전 중 하나라도 매칭되면 인식
+        if (!lower.includes(kwLower) && !noSpace.includes(kwNoSpace)) continue;
+
+        // 이미 추가된 더 구체적인 키워드가 현재 kw를 포함하면 스킵 (공백 정규화 비교)
+        const alreadyCovered = found.some(f =>
+            f.toLowerCase().replace(/\s/g, '').includes(kwNoSpace)
+        );
+        if (!alreadyCovered) found.push(kw);
     }
     return found;
 }
