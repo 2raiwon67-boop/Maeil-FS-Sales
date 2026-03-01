@@ -911,6 +911,31 @@
             '테너 베이스 과육플러스 청포도 1kg': '테너베이스 과육 플러스 청포도 1kg.jpg',
         };
 
+        function parseCSV(text) {
+            const lines = text.split(/\r?\n/);
+            if (lines.length < 2) return [];
+            const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const result = [];
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                // 따옴표 포함 필드 처리
+                const cols = [];
+                let cur = '', inQ = false;
+                for (let j = 0; j < line.length; j++) {
+                    const c = line[j];
+                    if (c === '"') { inQ = !inQ; }
+                    else if (c === ',' && !inQ) { cols.push(cur); cur = ''; }
+                    else { cur += c; }
+                }
+                cols.push(cur);
+                const obj = {};
+                headers.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
+                result.push(obj);
+            }
+            return result;
+        }
+
         function findProductImage(productName) {
             const trimmed = productName.trim();
             if (!trimmed) return null;
