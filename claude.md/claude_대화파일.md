@@ -1204,6 +1204,91 @@ if (cfg.editable) {
 **렌더링**: `cfg.scrollAll`이면 페이지 버튼 없이 `총 N건` 텍스트만 표시
 
 ### 커밋
-- (이번 커밋)
+- `93edc29` — 인허가 DB현황 페이지네이션 제거 (스크롤 전체 표시) + 대화파일 업데이트
+
+---
+
+## 28. proposal.html — parseCSV 함수 누락 복구 (2026-03-01)
+
+### 문제
+`loadProductDBFromSheets()` 내부에서 `parseCSV(csv)` 를 호출하지만 함수 정의가 없음
+→ **"제품 DB 로드 실패: parseCSV is not defined"** 콘솔 에러 + 추천상품 전체 미작동
+
+**원인**: Step 4 Google Sheets 의존성 제거 시 `parseCSV()` 함수도 함께 삭제됨.
+단, `proposal.html`의 `PRODUCT_DB_SHEETS_URL` / `loadProductDBFromSheets()`는 보류 처리였으므로 여전히 `parseCSV`가 필요했음.
+
+### 수정
+```javascript
+// findProductImage() 앞에 함수 추가
+function parseCSV(text) {
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const result = [];
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        // 따옴표 포함 필드 처리
+        const cols = [];
+        let cur = '', inQ = false;
+        for (let j = 0; j < line.length; j++) {
+            const c = line[j];
+            if (c === '"') { inQ = !inQ; }
+            else if (c === ',' && !inQ) { cols.push(cur); cur = ''; }
+            else { cur += c; }
+        }
+        cols.push(cur);
+        const obj = {};
+        headers.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
+        result.push(obj);
+    }
+    return result;
+}
+```
+
+### 커밋
+- `1ad0367` — proposal.html parseCSV 함수 누락 복구
+
+---
+
+## 29. 방문일지.html — Supabase max-rows 1000 완전 우회 (2026-03-01)
+
+### 문제
+`.limit(10000)` 을 추가했음에도 여전히 정확히 1,000건만 표시됨.
+
+**원인**: Supabase PostgREST 서버 설정의 `max-rows`(db-max-rows)가 1,000으로 고정되어 있음.
+클라이언트 `.limit()` 은 `Range` 헤더로 전달되지만, 서버 `max-rows`가 우선 적용되어 1,000 이상 반환 불가.
+
+### 해결 방법
+1,000건씩 `range(from, to)` 로 반복 요청 → 전체 데이터 합산
+
+```javascript
+async function loadVisitLogs() {
+    const businessUnit = await getBusinessUnitForVisit();
+    const PAGE_SIZE = 1000;
+    let allData = [];
+    let from = 0;
+    while (true) {
+        let query = client.from('visit_logs')
+            .select('*')
+            .order('visit_date', { ascending: false })
+            .range(from, from + PAGE_SIZE - 1);
+        if (businessUnit) query = query.eq('business_unit', businessUnit);
+        const { data, error } = await query;
+        if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
+        allData = allData.concat(data || []);
+        if (!data || data.length < PAGE_SIZE) break; // 마지막 페이지
+        from += PAGE_SIZE;
+    }
+    const data = allData;
+    // ... 이하 기존 코드 동일
+}
+```
+
+**주의**: 데이터가 많을수록 초기 로딩 시간 증가 (건당 ~50ms × 페이지 수)
+현재 데이터 규모(1,000~3,000건)에서는 체감 지연 없음.
+
+### 커밋
+- `91637f0` — 방문일지 전체 데이터 로드 — Supabase max-rows 1000 우회
 
 ---
