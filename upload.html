@@ -673,6 +673,8 @@
         // ── DB 현황 상태 ──────────────────────────────────────
         let currentDbData = [];
         let currentBusinessUnit = null;
+        let previewPage = 0;
+        const PREVIEW_PAGE_SIZE = 50;
 
         // ── 페이지 초기화 ────────────────────────────────────
         window.addEventListener('load', () => {
@@ -707,6 +709,12 @@
             resetDropzone();
             document.getElementById('previewSection').style.display = 'none';
 
+            previewPage = 0;
+            loadCurrentData();
+        }
+
+        function changePage(page) {
+            previewPage = page;
             loadCurrentData();
         }
 
@@ -750,11 +758,13 @@
             }
 
             try {
-                // 전체 건수 조회
+                // 전체 건수 조회 — limit(1) + count:exact 방식
+                // (head:true는 Supabase 기본 max-rows 1,000에 영향받을 수 있음)
                 const { count: totalCount, error: countErr } = await client
                     .from(cfg.table)
-                    .select('*', { count: 'exact', head: true })
-                    .eq('business_unit', businessUnit);
+                    .select('*', { count: 'exact' })
+                    .eq('business_unit', businessUnit)
+                    .limit(1);
 
                 if (countErr) throw countErr;
 
@@ -774,9 +784,14 @@
                     query = query.order('permit_date', { ascending: false, nullsFirst: false });
                 }
 
-                // 읽기 전용은 최근 20건 (스크롤로 탐색)
-                if (!cfg.editable) {
-                    query = query.limit(20);
+                if (cfg.editable) {
+                    // 편집 테이블: 전체 로드 (최대 1,000건 — managers/accounts는 소량)
+                    query = query.limit(1000);
+                } else {
+                    // 읽기 전용: 50건 페이지네이션
+                    const from = previewPage * PREVIEW_PAGE_SIZE;
+                    const to   = from + PREVIEW_PAGE_SIZE - 1;
+                    query = query.range(from, to);
                 }
 
                 const { data, error } = await query;
@@ -822,15 +837,28 @@
                 <tr>${cols.map(c => `<td title="${escapeAttr(row[c.key])}">${escapeAttr(row[c.key])}</td>`).join('')}</tr>
             `).join('');
 
+            const totalPages = Math.ceil(total / PREVIEW_PAGE_SIZE);
+            const startRow  = previewPage * PREVIEW_PAGE_SIZE + 1;
+            const endRow    = Math.min(startRow + PREVIEW_PAGE_SIZE - 1, total);
+
+            const paginationHtml = totalPages > 1 ? `
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#86868b;">
+                    <button onclick="changePage(${previewPage - 1})" ${previewPage === 0 ? 'disabled' : ''}
+                        style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">◀ 이전</button>
+                    <span>${startRow}–${endRow} / 총 ${total}건 (${previewPage + 1}/${totalPages}페이지)</span>
+                    <button onclick="changePage(${previewPage + 1})" ${previewPage >= totalPages - 1 ? 'disabled' : ''}
+                        style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">다음 ▶</button>
+                </div>` : `<p style="font-size:12px;color:#86868b;margin:4px 0 0;">총 ${total}건</p>`;
+
             dbBody.innerHTML = `
                 <div class="db-summary">${summaryHtml}</div>
-                ${total > 20 ? `<p style="font-size:12px;color:#86868b;margin:0 0 6px;">최신 20건 표시 (전체 ${total}건)</p>` : ''}
                 <div class="db-table-scroll">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody>${rowsHtml}</tbody>
                     </table>
-                </div>`;
+                </div>
+                ${paginationHtml}`;
         }
 
         // ── 편집 가능 테이블 렌더링 ─────────────────────────
@@ -945,6 +973,7 @@
                 }
 
                 showToast(`✅ ${cfg.label} ${toSave.length}건 저장 완료!`);
+                previewPage = 0;
                 await loadCurrentData();
 
             } catch (e) {
@@ -1127,6 +1156,7 @@
                 showToast(doneMsg.replace(/<[^>]+>/g, ''));
 
                 // DB 현황 자동 갱신
+                previewPage = 0;
                 await loadCurrentData();
 
             } catch (e) {
