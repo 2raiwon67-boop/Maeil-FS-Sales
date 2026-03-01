@@ -190,7 +190,7 @@ ${productList}
                         topP: 0.95,
                         topK: 40,
                         thinkingConfig: {
-                            thinkingBudget: 1024  // thinking 모델 토큰 상한 (0=비활성, 최대 24576)
+                            thinkingBudget: 0  // JSON 반환 작업은 thinking 불필요 → 비활성화
                         }
                     }
                 })
