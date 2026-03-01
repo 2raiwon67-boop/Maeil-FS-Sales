@@ -5,11 +5,20 @@
 //           SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 // ============================================================
 
-const SHEETS_ID = '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI';
-const SHEETS = {
-    visitLogs: '707066983',
-    accounts:  '43116531',
-    licenses:  '0'
+// Supabase 역매핑 (영문 컬럼 → 한국어 키, 기존 리포트 생성 코드 무수정 유지)
+const VL_DB_TO_KR = {
+    'visit_date': '작성일', 'manager': '작성자',
+    'business_name': '방문처(거래처)', 'dealer_name': '방문처(대리점)',
+    'dealer_code': '방문처(대리점 코드)', 'account_code': '방문처(거래처 코드)',
+    'content': '내용', 'seq_no': 'NO', 'store_code': '사업장코드'
+};
+const ACCT_DB_TO_KR = {
+    'business_name': '거래처명', 'trade_status': '거래상태',
+    'manager_name': '담당자명', 'address': '주소', 'seq_no': 'NO'
+};
+const LIC_DB_TO_KR = {
+    'business_name': '사업장명', 'trade_status': '거래여부(기입예정)',
+    'business_type': '업태구분명', 'manager': '담당자'
 };
 
 export default async function handler(req, res) {
@@ -48,23 +57,37 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, message: '발송할 사용자 없음' });
         }
 
-        // ── 2. Google Sheets 데이터 ───────────────────────────
-        const sheetUrl = (gid) =>
-            `https://docs.google.com/spreadsheets/d/${SHEETS_ID}/export?format=csv&gid=${gid}`;
-
-        const [visitText, accountText, licenseText] = await Promise.all([
-            fetch(sheetUrl(SHEETS.visitLogs)).then(r => r.text()),
-            fetch(sheetUrl(SHEETS.accounts)).then(r => r.text()),
-            fetch(sheetUrl(SHEETS.licenses)).then(r => r.text())
+        // ── 2. Supabase 데이터 조회 (서비스 롤 키로 전체 데이터) ──
+        const sbHeaders = {
+            'apikey': SERVICE_KEY,
+            'Authorization': `Bearer ${SERVICE_KEY}`,
+            'Content-Type': 'application/json'
+        };
+        const [vlRes, acctRes, licRes] = await Promise.all([
+            fetch(`${SUPABASE_URL}/rest/v1/visit_logs?select=*&order=visit_date.desc`, { headers: sbHeaders }).then(r => r.json()),
+            fetch(`${SUPABASE_URL}/rest/v1/accounts?select=*`, { headers: sbHeaders }).then(r => r.json()),
+            fetch(`${SUPABASE_URL}/rest/v1/licenses?select=*`, { headers: sbHeaders }).then(r => r.json())
         ]);
 
-        const allVisitLogs = parseCSV(visitText).filter(r => r['작성자']?.trim());
-        const allAccounts  = parseCSV(accountText).filter(r =>
-            (r['거래처명'] || r['매장명'] || r['사업장명'] || r['상호'])?.trim()
-        );
-        const allLicenses  = parseCSV(licenseText).filter(r =>
-            (r['사업장명'] || r['업소명'] || r['상호명'] || r['거래처명'])?.trim()
-        );
+        const allVisitLogs = (Array.isArray(vlRes) ? vlRes : []).filter(r => r.manager).map(row => {
+            const obj = {};
+            Object.entries(VL_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+            obj['일정기간'] = row.visit_date ?? '';
+            obj['business_unit'] = row.business_unit ?? '';
+            return obj;
+        });
+        const allAccounts = (Array.isArray(acctRes) ? acctRes : []).filter(r => r.business_name).map(row => {
+            const obj = {};
+            Object.entries(ACCT_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+            obj['business_unit'] = row.business_unit ?? '';
+            return obj;
+        });
+        const allLicenses = (Array.isArray(licRes) ? licRes : []).filter(r => r.business_name).map(row => {
+            const obj = {};
+            Object.entries(LIC_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+            obj['business_unit'] = row.business_unit ?? '';
+            return obj;
+        });
 
         // ── 3. 이전 달 계산 ───────────────────────────────────
         const now      = new Date();
@@ -198,34 +221,6 @@ export default async function handler(req, res) {
     }
 }
 
-// ── CSV 파싱 ────────────────────────────────────────────────
-function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    if (lines.length < 2) return [];
-    const headers = parseCSVLine(lines[0]);
-    return lines.slice(1).map(line => {
-        const values = parseCSVLine(line);
-        const obj = {};
-        headers.forEach((h, i) => { obj[h.trim()] = (values[i] || '').trim(); });
-        return obj;
-    });
-}
-
-function parseCSVLine(line) {
-    const result = [];
-    let cur = '', inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-        const c = line[i];
-        if (c === '"') {
-            if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
-            else inQuote = !inQuote;
-        } else if (c === ',' && !inQuote) {
-            result.push(cur); cur = '';
-        } else cur += c;
-    }
-    result.push(cur);
-    return result;
-}
 
 function normalize(str) {
     return (str || '').toLowerCase().replace(/\s+/g, '').replace(/[^\w가-힣]/g, '');

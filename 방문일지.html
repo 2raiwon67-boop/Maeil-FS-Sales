@@ -1536,68 +1536,6 @@
         }
 
         // ============================================================
-        // CSV 파싱
-        // ============================================================
-
-        function parseCSV(text) {
-            const lines = [];
-            let currentLine = [];
-            let currentField = '';
-            let inQuotes = false;
-
-            for (let i = 0; i < text.length; i++) {
-                const char = text[i];
-                const nextChar = text[i + 1];
-
-                if (char === '"') {
-                    if (inQuotes && nextChar === '"') {
-                        currentField += '"';
-                        i++;
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                } else if (char === ',' && !inQuotes) {
-                    currentLine.push(currentField.trim());
-                    currentField = '';
-                } else if ((char === '\n' || char === '\r') && !inQuotes) {
-                    if (currentField || currentLine.length > 0) {
-                        currentLine.push(currentField.trim());
-                        if (currentLine.some(f => f)) {
-                            lines.push(currentLine);
-                        }
-                        currentLine = [];
-                        currentField = '';
-                    }
-                    if (char === '\r' && nextChar === '\n') {
-                        i++;
-                    }
-                } else {
-                    currentField += char;
-                }
-            }
-
-            if (currentField || currentLine.length > 0) {
-                currentLine.push(currentField.trim());
-                if (currentLine.some(f => f)) {
-                    lines.push(currentLine);
-                }
-            }
-
-            if (lines.length > 1) {
-                const headers = lines[0];
-                return lines.slice(1).map(values => {
-                    const obj = {};
-                    headers.forEach((h, i) => {
-                        obj[h] = values[i] || '';
-                    });
-                    return obj;
-                });
-            }
-
-            return [];
-        }
-
-        // ============================================================
         // 통계 업데이트
         // ============================================================
 

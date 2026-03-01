@@ -545,11 +545,20 @@
 
     <script src="js/auth.js"></script>
     <script>
-        // ── 설정 ──────────────────────────────────────────────
-        const SHEETS_CONFIG = {
-            visitLogs: { id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI', gid: '707066983' },
-            accounts: { id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI', gid: '43116531' },
-            licenses: { id: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI', gid: '0' }
+        // ── Supabase 역매핑 ────────────────────────────────────
+        const VL_DB_TO_KR = {
+            'visit_date': '작성일', 'manager': '작성자',
+            'business_name': '방문처(거래처)', 'dealer_name': '방문처(대리점)',
+            'dealer_code': '방문처(대리점 코드)', 'account_code': '방문처(거래처 코드)',
+            'content': '내용', 'seq_no': 'NO', 'store_code': '사업장코드'
+        };
+        const ACCT_DB_TO_KR = {
+            'business_name': '거래처명', 'trade_status': '거래상태',
+            'manager_name': '담당자명', 'address': '주소', 'seq_no': 'NO'
+        };
+        const LIC_DB_TO_KR = {
+            'business_name': '사업장명', 'trade_status': '거래여부(기입예정)',
+            'business_type': '업태구분명', 'manager': '담당자'
         };
 
         // ── 전역 변수 ──────────────────────────────────────────
@@ -595,56 +604,44 @@
             }
         }
 
-        // ── CSV 파싱 ──────────────────────────────────────────
-        function parseCSV(text) {
-            const lines = text.trim().split('\n');
-            if (lines.length < 2) return [];
-            const headers = parseCSVLine(lines[0]);
-            return lines.slice(1).map(line => {
-                const values = parseCSVLine(line);
-                const obj = {};
-                headers.forEach((h, i) => { obj[h.trim()] = (values[i] || '').trim(); });
-                return obj;
-            });
-        }
-
-        function parseCSVLine(line) {
-            const result = [];
-            let cur = '', inQuote = false;
-            for (let i = 0; i < line.length; i++) {
-                const c = line[i];
-                if (c === '"') {
-                    if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
-                    else inQuote = !inQuote;
-                } else if (c === ',' && !inQuote) {
-                    result.push(cur); cur = '';
-                } else cur += c;
-            }
-            result.push(cur);
-            return result;
-        }
-
         function normalize(str) {
             return (str || '').replace(/\s+/g, '').toLowerCase();
         }
 
-        // ── 데이터 로드 ───────────────────────────────────────
+        // ── 데이터 로드 (Supabase) ────────────────────────────
         async function loadAllData() {
             try {
-                const [visitRes, accountRes, licenseRes] = await Promise.all([
-                    fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.visitLogs.id}/export?format=csv&gid=${SHEETS_CONFIG.visitLogs.gid}`),
-                    fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.accounts.id}/export?format=csv&gid=${SHEETS_CONFIG.accounts.gid}`),
-                    fetch(`https://docs.google.com/spreadsheets/d/${SHEETS_CONFIG.licenses.id}/export?format=csv&gid=${SHEETS_CONFIG.licenses.gid}`)
+                if (!client) throw new Error('Supabase client 초기화 오류');
+                const { data: userData } = await client.auth.getUser();
+                const businessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+
+                const applyFilter = (q) => businessUnit ? q.eq('business_unit', businessUnit) : q;
+
+                const [vlRes, acctRes, licRes] = await Promise.all([
+                    applyFilter(client.from('visit_logs').select('*').order('visit_date', { ascending: false })),
+                    applyFilter(client.from('accounts').select('*')),
+                    applyFilter(client.from('licenses').select('*'))
                 ]);
 
-                allVisitLogs = parseCSV(await visitRes.text()).filter(r => r['작성자']?.trim());
-                allAccounts = parseCSV(await accountRes.text()).filter(r => {
-                    const name = r['거래처명'] || r['매장명'] || r['사업장명'] || r['상호'];
-                    return name?.trim();
+                if (vlRes.error)   throw vlRes.error;
+                if (acctRes.error) throw acctRes.error;
+                if (licRes.error)  throw licRes.error;
+
+                allVisitLogs = (vlRes.data || []).filter(r => r.manager).map(row => {
+                    const obj = {};
+                    Object.entries(VL_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+                    obj['일정기간'] = row.visit_date ?? ''; // 소비 코드 fallback
+                    return obj;
                 });
-                allLicenses = parseCSV(await licenseRes.text()).filter(r => {
-                    const name = r['사업장명'] || r['업소명'] || r['상호명'];
-                    return name?.trim();
+                allAccounts = (acctRes.data || []).filter(r => r.business_name).map(row => {
+                    const obj = {};
+                    Object.entries(ACCT_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+                    return obj;
+                });
+                allLicenses = (licRes.data || []).filter(r => r.business_name).map(row => {
+                    const obj = {};
+                    Object.entries(LIC_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
+                    return obj;
                 });
             } catch (e) {
                 console.error('데이터 로드 오류:', e);

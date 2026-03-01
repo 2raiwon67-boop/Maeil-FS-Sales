@@ -136,34 +136,6 @@ async function getUser() {
     return user;
 }
 
-// ============================================================
-// 6. 담당자 이메일 자동 매칭 (B방식)
-// - 로그인/회원가입 성공 시 이름이 담당자관리 시트와 일치하면 이메일 자동 등록
-// - 일치하지 않아도 로그인/가입은 정상 진행됨
-// ============================================================
-const AUTH_APPS_SCRIPT_URL = (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL : 'https://script.google.com/macros/s/AKfycbxEXZ-22BYHC-98YhmjCOBS741-rGNKwk-IXj0Zoe6Gi1bmBCc74lf5z-zvOG5VQpOn/exec';
-
-async function matchManagerEmail(fullName, email) {
-    if (!fullName || !email) return;
-    try {
-        const response = await fetch(AUTH_APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'matchManagerEmail',
-                name: fullName,
-                email: email
-            })
-        });
-        const result = await response.json();
-        if (result.matched) {
-        } else {
-        }
-    } catch (e) {
-        // 매칭 실패해도 로그인/가입에는 영향 없음
-        console.warn('담당자 이메일 매칭 실패 (무시):', e.message);
-    }
-}
-
 // 페이지 로드 시 자동 실행
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();

@@ -2168,13 +2168,6 @@
         // 설정
         // ============================================================
 
-        const SHEETS_CONFIG = {
-            spreadsheetId: '1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI',
-            range: '인허가데이터!A:P'
-        };
-
-        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxEXZ-22BYHC-98YhmjCOBS741-rGNKwk-IXj0Zoe6Gi1bmBCc74lf5z-zvOG5VQpOn/exec';
-
         // ============================================================
         // 전역 변수
         // ============================================================
@@ -4117,7 +4110,7 @@
                         throw new Error('업로드할 데이터 중 1순위 데이터가 없습니다.');
                     }
 
-                    await uploadToSheets(finalData);
+                    throw new Error('인허가 데이터 업로드는 "데이터 관리" 페이지(upload.html)에서 진행해주세요.');
                 } catch (err) {
                     document.getElementById('loading2').classList.remove('active');
                     showAlert('alert2', 'error', '❌ 오류: ' + err.message);
@@ -4126,89 +4119,7 @@
             reader.readAsArrayBuffer(file);
         }
 
-        async function uploadToSheets(data) {
-            try {
-                // 데이터 검증
-                if (!data || data.length === 0) {
-                    throw new Error('업로드할 데이터가 없습니다');
-                }
-
-                // Apps Script로 전송
-                const response = await fetch(APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'upload', data: data })
-                });
-
-                if (!response.ok) {
-                    throw new Error('서버 응답 오류 (HTTP ' + response.status + ')');
-                }
-
-                const text = await response.text();
-                // console.log('서버 응답:', text);
-
-                let result;
-                try {
-                    result = JSON.parse(text);
-                } catch (e) {
-                    alert('서버 응답 오류 (HTML 또는 권한 문제):\n' + text.substring(0, 200));
-                    throw new Error('서버 응답 오류');
-                }
-
-                if (!result.success) {
-                    alert('업로드 실패:\n' + (result.error || '알 수 없는 오류'));
-                    throw new Error(result.error);
-                }
-
-                // 성공 메시지 (시스템 팝업 사용)
-                let msg = `✅ 업로드 완료\n\n- 저장된 데이터: ${result.count}건`;
-
-                if (result.emailsSent && result.sentCount > 0) {
-                    msg += `\n- 이메일 발송: ${result.sentCount}통 완료`;
-                } else {
-                    msg += `\n- 이메일 발송: 0통 (대상 없음)`;
-                }
-
-                // [디버그 로그 추가] 이메일 발송 0통이거나 디버그 로그가 있으면 보여줌
-                if (result.logs && result.logs.length > 0) {
-                    msg += `\n\n[디버그 로그 - 발송 안 된 이유 확인]\n` + result.logs.join('\n');
-                }
-
-                alert(msg);
-
-
-                // UI 정리
-                document.getElementById('loading2').classList.remove('active');
-                closeFinalUploadModal();
-
-                // 2초 후 대시보드 새로고침
-                setTimeout(loadDataFromSheets, 2000);
-
-            } catch (err) {
-                document.getElementById('loading2').classList.remove('active');
-
-                // 상세한 오류 메시지
-                let errorMsg = '❌ 업로드 오류<br><br>';
-
-                if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-                    errorMsg += '<strong>네트워크 오류</strong><br>' +
-                        '1. 인터넷 연결 확인<br>' +
-                        '2. Apps Script URL 확인<br>' +
-                        '3. 잠시 후 다시 시도';
-                } else if (err.message.includes('데이터가 없습니다')) {
-                    errorMsg += '<strong>파일 오류</strong><br>' +
-                        '엑셀 파일에 데이터가 없거나<br>' +
-                        '형식이 올바르지 않습니다.';
-                } else {
-                    errorMsg += '<strong>파일 점검 필요</strong><br>' +
-                        '1. 파일 보안 해제 확인<br>' +
-                        '2. 엑셀 파일 형식 확인<br>' +
-                        '3. 컬럼명 일치 여부 확인<br><br>' +
-                        `<small>오류 내용: ${err.message}</small>`;
-                }
-
-                showAlert('alert2', 'error', errorMsg);
-            }
-        }
+        // uploadToSheets() 제거 — 데이터 업로드는 upload.html 에서 처리
 
 
 

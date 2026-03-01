@@ -1318,46 +1318,39 @@
         const RATE_LIMIT_MS = 3000; // 3초 쿨다운
         const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
 
-        // 방문일지 Google Sheets 직접 로드 (localStorage 미저장 문제 해결)
-        const VISIT_LOG_URL = 'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=707066983';
-
-        function parseCSV(text) {
-            const lines = [];
-            let current = [], field = '', inQ = false;
-            for (let i = 0; i < text.length; i++) {
-                const c = text[i], n = text[i + 1];
-                if (c === '"') { inQ ? (n === '"' ? (field += '"', i++) : (inQ = false)) : (inQ = true); }
-                else if (c === ',' && !inQ) { current.push(field.trim()); field = ''; }
-                else if ((c === '\n' || c === '\r') && !inQ) {
-                    if (field || current.length) { current.push(field.trim()); lines.push(current); current = []; field = ''; }
-                    if (c === '\r' && n === '\n') i++;
-                } else { field += c; }
-            }
-            if (field || current.length) { current.push(field.trim()); lines.push(current); }
-            if (lines.length < 2) return [];
-            const headers = lines[0];
-            return lines.slice(1).filter(r => r.some(v => v)).map(r => {
-                const obj = {};
-                headers.forEach((h, i) => { obj[h] = r[i] || ''; });
-                return obj;
-            });
-        }
-
+        // ── 방문일지 조회 (Supabase) ────────────────────────────
         async function loadVisitLogsForStore(keyword) {
             try {
-                const res = await fetch(VISIT_LOG_URL);
-                if (!res.ok) return [];
-                const csv = await res.text();
-                const all = parseCSV(csv).filter(r => r['작성자'] && r['작성자'].trim());
+                if (!client) return [];
+                const { data: userData } = await client.auth.getUser();
+                const businessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+
+                let query = client.from('visit_logs')
+                    .select('manager, visit_date, business_name, content, dealer_name')
+                    .order('visit_date', { ascending: false });
+                if (businessUnit) query = query.eq('business_unit', businessUnit);
+
+                const { data, error } = await query;
+                if (error) return [];
+
                 const kw = keyword.toLowerCase().replace(/\s/g, '');
-                return all.filter(log => {
-                    const rawName = (log['방문처(거래처)'] || '').trim();
-                    if (!rawName) return false;
-                    // [지역명] 접두사 제거 후 매칭
-                    const cleanName = rawName.replace(/^\[[^\]]+\]\s*/, '');
-                    const name = cleanName.toLowerCase().replace(/\s/g, '');
-                    return name.includes(kw) || kw.includes(name);
-                });
+                return (data || [])
+                    .filter(r => r.manager)
+                    .map(r => ({
+                        '작성자':        r.manager       ?? '',
+                        '방문처(거래처)': r.business_name ?? '',
+                        '작성일':        r.visit_date    ?? '',
+                        '일정기간':      r.visit_date    ?? '',
+                        '내용':          r.content       ?? '',
+                        '방문처(대리점)': r.dealer_name   ?? ''
+                    }))
+                    .filter(log => {
+                        const rawName = (log['방문처(거래처)'] || '').trim();
+                        if (!rawName) return false;
+                        const cleanName = rawName.replace(/^\[[^\]]+\]\s*/, '');
+                        const name = cleanName.toLowerCase().replace(/\s/g, '');
+                        return name.includes(kw) || kw.includes(name);
+                    });
             } catch (e) {
                 console.warn('방문일지 로드 실패:', e.message);
                 return [];
