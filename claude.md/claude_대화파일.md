@@ -1292,3 +1292,146 @@ async function loadVisitLogs() {
 - `91637f0` — 방문일지 전체 데이터 로드 — Supabase max-rows 1000 우회
 
 ---
+
+## 30. 레시피 RAG 파이프라인 구축 완료 (2026-03-01)
+
+### 배경
+- 337개 레시피 PDF → Supabase pgvector에 임베딩 저장 → 향후 견적서(proposal.html)에서 메뉴 기반 자사제품 자동 추천
+
+### 최종 아키텍처 (AI 사용 시점)
+
+| 단계 | AI 사용 여부 | 비용 |
+|------|------------|------|
+| PDF 파싱 (`process-recipes.js`) | ❌ 없음 (pdfjs + 규칙 기반) | $0 |
+| 임베딩 배치 (`upload-recipes.js`) | ✅ 1회 — 337건 × 1 API 호출 | 무료 (완료, 반복 불필요) |
+| 검색 시 (`proposal.html`, 미구현) | ✅ 검색마다 1 API 호출 | 무료 티어 1,500건/일 이내 |
+
+**레시피는 전 지점 공유**: `recipes` 테이블에 `business_unit` 필터 없음 → 경기북부/서울/경기남부 등 모든 지점이 동일 레시피 풀 사용
+
+### 파이프라인 3단계 최종 구현
+
+**STEP 1 — `scripts/process-recipes.js` (규칙 기반, API 없음)**
+- `pdfjs-dist/legacy/build/pdf.mjs` 로 텍스트 추출
+- 추출 필드: `filename`, `name`, `nameEn`, `mainProducts`, `category`, `tags`, `isVegan`
+- PRODUCT_KEYWORDS: 자사 브랜드 키워드 매핑 (어메이징오트, 상하목장, 매일바이오 등)
+- CATEGORY_MAP: 텍스트 기반 카테고리 분류 (라떼, 에이드, 블렌디드, 슬러시 등)
+- `ingredients: []`, `steps: []` — 재료/단계는 빈 배열 (추천 목적엔 불필요)
+- 출력: `scripts/recipe-data.json`
+
+**과정에서 겪은 문제들**
+| 시도 | 결과 |
+|------|------|
+| Gemini 2.0 Flash (PDF base64) | 첫 요청부터 429 (토큰 폭발) |
+| Gemini 1.5 Flash | 404 (미제공 모델) |
+| Gemini 2.0 Flash Lite | 429 |
+| **규칙 기반 pdfjs** | ✅ 성공, API 불필요 |
+
+**STEP 2 — `scripts/upload-recipes.js` (Gemini 임베딩)**
+- 임베딩 텍스트: `name + nameEn + description + tags + mainProducts + 재료명` 조합
+- 모델: `gemini-embedding-001` (outputDimensionality: 768) — `text-embedding-004`는 404
+- Supabase upsert (filename 기준 중복 방지)
+- 딜레이: 50ms (임베딩 API는 할당량 여유 있음)
+- **337개 모두 성공 완료**
+
+**STEP 3 — Supabase `recipes` 테이블**
+```sql
+CREATE TABLE recipes (
+    id BIGSERIAL PRIMARY KEY,
+    filename TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    name_en TEXT,
+    description TEXT,
+    main_products TEXT[] DEFAULT '{}',
+    ingredients JSONB DEFAULT '[]',
+    steps JSONB DEFAULT '[]',
+    category TEXT,
+    tags TEXT[] DEFAULT '{}',
+    is_vegan BOOLEAN DEFAULT FALSE,
+    embedding vector(768),
+    ...
+);
+```
+
+### 실행 방법 (신규 레시피 추가 시)
+```bash
+# 1. PDF를 assets/recipe/ 에 추가
+# 2. 파싱 (API 없음, 즉시 실행)
+node scripts/process-recipes.js
+
+# 3. 임베딩 + 업로드 (run-upload.sh 사용)
+bash scripts/run-upload.sh
+```
+
+### 커밋
+- `d7a7e1e` — process-recipes.js 초기 버전
+- `2fdf579` — upload-recipes.js + supabase recipes 스키마
+- `76c3e22` — Rate limit 개선
+- `22b131b` — 규칙 기반 파싱으로 전환 + run-upload.sh + upload.html 레시피 뷰
+
+---
+
+## 31. upload.html — 레시피 관리 뷰 추가 (관리자 전용, 2026-03-01)
+
+### 배경
+레시피 데이터는 CLI 스크립트로만 관리. 관리자 페이지에서 현재 업로드된 레시피를 확인하는 읽기 전용 뷰 추가.
+
+### 변경 내용
+
+**레시피 버튼 — 관리자 전용**
+```javascript
+// 기본: display:none
+// 관리자 접속(sessionStorage.fs_admin_access === 'true') 시에만 표시
+if (sessionStorage.getItem('fs_admin_access') === 'true') {
+    document.getElementById('recipeTypeBtn').style.display = '';
+}
+```
+
+**UPLOAD_TYPES에 recipes 추가**
+```javascript
+recipes: {
+    label: '레시피 데이터', table: 'recipes',
+    editable: false, scrollAll: true,
+    noBusinessUnit: true,  // ← 전 지점 공유 플래그
+    previewColumns: [
+        { key: 'name',          label: '레시피명' },
+        { key: 'name_en',       label: '영문명' },
+        { key: 'category',      label: '카테고리' },
+        { key: 'main_products', label: '자사제품' },
+        { key: 'tags',          label: '태그' },
+        { key: 'is_vegan',      label: '비건' }
+    ]
+}
+```
+
+**`noBusinessUnit` 플래그 동작**
+```javascript
+const businessUnit = cfg.noBusinessUnit ? null : await getBusinessUnit();
+if (!cfg.noBusinessUnit && !businessUnit) { /* 에러 처리 */ }
+// business_unit 필터 적용 안 함 → 전 지점 데이터 조회
+```
+
+**배열/불리언 셀 렌더링**
+```javascript
+function formatCellValue(val) {
+    if (Array.isArray(val)) return val.join(', ');      // main_products, tags
+    if (typeof val === 'boolean') return val ? '✓' : ''; // is_vegan
+    return String(val ?? '');
+}
+```
+
+**레시피 선택 시 엑셀 업로드 카드 숨김**
+```javascript
+const uploadCard = document.getElementById('uploadCard');
+if (uploadCard) uploadCard.style.display = cfg.noBusinessUnit ? 'none' : '';
+```
+
+**스크롤 높이**: 222px → 400px (337건 브라우징)
+
+### 미구현 (다음 단계)
+- **proposal.html RAG 통합**: 메뉴 입력 → 쿼리 임베딩 → `match_recipes()` pgvector 검색 → `main_products` 추출 → 자사제품 추천에 자동 삽입
+- Supabase SQL 함수 `match_recipes()` 이미 생성되어 있음 (dev/supabase_setup.sql)
+
+### 커밋
+- `22b131b` — 레시피 RAG 파이프라인 및 upload.html 레시피 관리 뷰 추가
+
+---
