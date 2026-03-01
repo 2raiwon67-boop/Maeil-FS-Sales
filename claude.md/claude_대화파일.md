@@ -1435,3 +1435,61 @@ if (uploadCard) uploadCard.style.display = cfg.noBusinessUnit ? 'none' : '';
 - `22b131b` — 레시피 RAG 파이프라인 및 upload.html 레시피 관리 뷰 추가
 
 ---
+
+## 32. 레시피 mainProducts 품질 개선 + API 키 보안 조치 (2026-03-01)
+
+### 문제
+
+**① 중복 제품 추출** — `PRODUCT_KEYWORDS`에 `'매일 우유'`/`'매일우유'` 같은 공백 차이 중복 쌍이 존재.
+`alreadyCovered` 체크가 공백 차이를 인식하지 못해 둘 다 배열에 추가됨 (16건 영향).
+
+**② 범용 키워드 오인식** — 마지막에 `'매일'` 단독 키워드가 있어 레시피 문장 내 일반 '매일'에도 매칭됨.
+
+### 수정 내용 (`scripts/process-recipes.js`)
+
+**PRODUCT_KEYWORDS 정리**
+- 공백 있는 정규 표기만 유지 (`'매일 우유'`, `'어메이징 오트'` 등)
+- 공백 없는 변형 (`'매일우유'`, `'어메이징오트'` 등) 전량 제거
+- `'매일'` 단독 키워드 제거
+
+**`extractMainProducts()` 개선**
+```javascript
+const noSpace = lower.replace(/\s/g, '');  // 공백 제거 버전 생성
+
+// 공백 포함 원문 또는 공백 제거 버전 중 하나라도 매칭되면 인식
+if (!lower.includes(kwLower) && !noSpace.includes(kwNoSpace)) continue;
+
+// alreadyCovered도 공백 정규화 비교로 수정
+const alreadyCovered = found.some(f =>
+    f.toLowerCase().replace(/\s/g, '').includes(kwNoSpace)
+);
+```
+→ PDF가 `매일우유`(공백 없음)로 표기해도 정규 표기 `'매일 우유'`로 저장됨
+
+### 결과
+
+| 항목 | 이전 | 이후 |
+|------|------|------|
+| 중복 제품 (매일 우유+매일우유) | 16건 | **0건** |
+| 범용 '매일' 단독 오인식 | 다수 | **제거** |
+| 빈 mainProducts | 5건 | 8건 (3건은 이전에 '매일'로만 잡혔던 것 — 실제로는 해당 없음) |
+
+### API 키 유출 및 조치
+
+`scripts/run-upload.sh`에 Gemini API 키가 하드코딩된 상태로 커밋되어 있었음.
+Git 히스토리를 통해 Google이 자동 감지 → 해당 키 비활성화됨.
+
+**처리 내용**
+- `scripts/run-upload.sh` → `.gitignore`에 추가
+- `git rm --cached scripts/run-upload.sh` — git 추적 해제 (파일 자체는 로컬 유지)
+
+**Supabase 재업로드 상태**
+- 기존 337건 전체 삭제 후 재업로드 시도
+- **65건 성공 / 272건 실패** (API 키 비활성화로 중단)
+- **다음 작업**: 새 Gemini API 키 발급 후 `run-upload.sh` 키 교체 → 재실행 (65건 자동 스킵, 272건 재시도)
+
+### 커밋
+- `73ca3f3` — process-recipes.js mainProducts 추출 품질 개선
+- `3470a79` — run-upload.sh gitignore 추가 및 git 추적 해제
+
+---
