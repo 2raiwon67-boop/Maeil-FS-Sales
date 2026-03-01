@@ -1360,10 +1360,22 @@
 
         async function loadVisitLogs() {
             const businessUnit = await getBusinessUnitForVisit();
-            let query = client.from('visit_logs').select('*').order('visit_date', { ascending: false }).limit(10000);
-            if (businessUnit) query = query.eq('business_unit', businessUnit);
-            const { data, error } = await query;
-            if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
+            const PAGE_SIZE = 1000;
+            let allData = [];
+            let from = 0;
+            while (true) {
+                let query = client.from('visit_logs')
+                    .select('*')
+                    .order('visit_date', { ascending: false })
+                    .range(from, from + PAGE_SIZE - 1);
+                if (businessUnit) query = query.eq('business_unit', businessUnit);
+                const { data, error } = await query;
+                if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
+                allData = allData.concat(data || []);
+                if (!data || data.length < PAGE_SIZE) break;
+                from += PAGE_SIZE;
+            }
+            const data = allData;
             allVisitLogs = (data || []).filter(row => row.manager).map(row => {
                 const obj = {};
                 Object.entries(VL_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
