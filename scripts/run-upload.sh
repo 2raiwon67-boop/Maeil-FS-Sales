@@ -1,0 +1,7 @@
+#!/bin/bash
+source ~/.nvm/nvm.sh
+nvm use 24
+export GEMINI_API_KEY=AIzaSyBpEd-mYi8UroDWtPoraMXgDsPKkqUHzZI
+export SUPABASE_URL=https://hcqbmilmldeeuydtrayx.supabase.co
+export SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDgxNDQ4MiwiZXhwIjoyMDg2MzkwNDgyfQ.ZAV3gIvsVpmmmMd-FGZeKYykiggyQnB4-nvlOD60Mhc
+node scripts/upload-recipes.js

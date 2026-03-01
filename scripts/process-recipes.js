@@ -1,134 +1,177 @@
 /**
- * 레시피 PDF → Gemini 추출 → recipe-data.json 저장
+ * 레시피 PDF → 규칙 기반 파싱 → recipe-data.json 저장
+ * API 키 불필요. pdfjs-dist로 텍스트 추출 후 규칙으로 구조화.
  *
  * 실행 방법:
- *   GEMINI_API_KEY=your_key node scripts/process-recipes.js
+ *   node scripts/process-recipes.js
  *
- * 결과: scripts/recipe-data.json (이후 Supabase 업로드에 사용)
+ * 결과: scripts/recipe-data.json (이후 upload-recipes.js로 Supabase 업로드)
  */
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const RECIPE_DIR  = path.resolve(__dirname, '../assets/recipe');
 const OUTPUT_FILE = path.resolve(__dirname, 'recipe-data.json');
 const ERROR_FILE  = path.resolve(__dirname, 'recipe-errors.json');
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const DELAY_MS = 30000; // 2 req/min 초안전 간격 (일일 할당량 절약)
+// ── 자사 브랜드/제품 키워드 (mainProducts 추출용) ──────────────────
+const PRODUCT_KEYWORDS = [
+    '어메이징오트 바리스타', '어메이징 오트 바리스타',
+    '어메이징오트', '어메이징 오트',
+    '상하목장 소프트믹스', '상하목장소프트믹스',
+    '상하목장 초콜릿믹스', '상하목장초콜릿믹스',
+    '상하목장 요거트', '상하목장요거트',
+    '상하목장',
+    '소프트믹스',
+    '테너베이스', '테너 베이스',
+    '테너 과육플러스', '테너과육플러스',
+    '매일 바이오', '매일바이오',
+    '매일 두유', '매일두유',
+    '매일 우유', '매일우유',
+    '후레쉬 쉐프크림', '쉐프크림',
+    '매일 크림', '매일크림',
+    '알라 크림', '알라크림',
+    '라크림 스프레이', '라크림',
+    '사워크림',
+    '연유',
+    '아몬드브리즈',
+    '매일',
+];
 
-if (!GEMINI_API_KEY) {
-    console.error('❌ GEMINI_API_KEY 환경변수가 없습니다.');
-    console.error('   실행 예시: GEMINI_API_KEY=your_key node scripts/process-recipes.js');
-    process.exit(1);
-}
+// ── 카테고리 키워드 매핑 ───────────────────────────────────────────
+const CATEGORY_MAP = [
+    { keywords: ['라떼', 'latte', 'latte'],    category: '라떼' },
+    { keywords: ['에이드', 'ade'],              category: '에이드' },
+    { keywords: ['블렌디드', 'blended'],        category: '블렌디드' },
+    { keywords: ['슬러시', 'slush'],            category: '슬러시' },
+    { keywords: ['밀크티', 'milk tea'],         category: '밀크티' },
+    { keywords: ['스무디', 'smoothie'],         category: '스무디' },
+    { keywords: ['요거트', 'yogurt', 'yoghurt'],category: '요거트' },
+];
 
-// 이미 처리된 결과가 있으면 이어서 진행 (중단 후 재개 가능)
-let existingResults = [];
-if (fs.existsSync(OUTPUT_FILE)) {
-    try {
-        existingResults = JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf-8'));
-        console.log(`📂 기존 결과 ${existingResults.length}개 로드 (이어서 처리)`);
-    } catch (e) {
-        existingResults = [];
+// ── 태그 키워드 목록 ───────────────────────────────────────────────
+const TAG_KEYWORDS = [
+    '딸기', '바닐라', '초코', '초콜릿', '말차', '녹차', '쑥', '흑임자',
+    '유자', '레몬', '라임', '복숭아', '피치', '망고', '패션후르츠',
+    '청포도', '포도', '사과', '배', '홍시', '밤', '호박', '고구마',
+    '아몬드', '피넛', '헤이즐넛', '카라멜', '시나몬', '얼그레이',
+    '아쌈', '우롱', '히비스커스', '라벤더', '엘더플라워',
+    '오트', '두유', '식물성', '비건', 'vegan',
+    'ICE', 'HOT', '아이스', '핫',
+    '크림', '폼', '라떼', '에이드', '블렌디드', '슬러시',
+];
+
+// ── PDF 텍스트 추출 ────────────────────────────────────────────────
+async function extractText(pdfPath) {
+    const buf = fs.readFileSync(pdfPath);
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+    let text = '';
+    for (let i = 1; i <= doc.numPages; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + ' ';
     }
+    return text.replace(/\s+/g, ' ').trim();
 }
-const processedFilenames = new Set(existingResults.map(r => r.filename));
 
-async function extractRecipe(pdfPath, retryCount = 0) {
-    const pdfBuffer = fs.readFileSync(pdfPath);
-    const base64 = pdfBuffer.toString('base64');
+// ── 영문명 추출 (연속된 영문 대문자 단어) ─────────────────────────
+function extractEnglishName(text) {
+    // 2단어 이상 연속된 영문 단어 (첫 글자 대문자)
+    const match = text.match(/([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,5})/);
+    return match ? match[1].trim() : null;
+}
 
-    const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [
-                        {
-                            inlineData: {
-                                mimeType: 'application/pdf',
-                                data: base64
-                            }
-                        },
-                        {
-                            text: `이 레시피 카드에서 정보를 추출하여 아래 JSON 형식으로만 반환하세요. 코드블록 없이 순수 JSON만 출력하세요.
-
-{
-  "name": "레시피명 (한글)",
-  "nameEn": "레시피명 (영문, 없으면 null)",
-  "description": "레시피 설명 한 줄 (없으면 null)",
-  "mainProducts": ["사용된 자사 브랜드 제품명 배열 (매일/어메이징오트/테너/상하목장/알라 등 브랜드 제품만, 에스프레소·얼음 등 제외)"],
-  "ingredients": [{"name": "재료명", "amount": "분량 (없으면 null)"}],
-  "steps": ["제조 순서 1", "제조 순서 2"],
-  "category": "라떼|에이드|블렌디드|슬러시|밀크티|스무디|요거트|기타 중 하나",
-  "tags": ["관련 키워드 3~5개 (예: 딸기, 오트, 비건, 여름, 과육)"],
-  "isVegan": true또는false
-}`
-                        }
-                    ]
-                }],
-                generationConfig: {
-                    temperature: 0.1,
-                    maxOutputTokens: 1000
-                }
-            })
+// ── 자사 제품 추출 ─────────────────────────────────────────────────
+function extractMainProducts(text) {
+    const found = [];
+    const lower = text.toLowerCase();
+    for (const kw of PRODUCT_KEYWORDS) {
+        if (lower.includes(kw.toLowerCase()) && !found.includes(kw)) {
+            // 더 구체적인 키워드가 이미 포함되어 있으면 짧은 키워드 스킵
+            const alreadyCovered = found.some(f => f.toLowerCase().includes(kw.toLowerCase()));
+            if (!alreadyCovered) found.push(kw);
         }
-    );
-
-    // 429 Rate Limit: 최대 3회 재시도, 대기 시간 점진적 증가
-    if (response.status === 429) {
-        if (retryCount >= 3) throw new Error('Rate limit 재시도 3회 초과');
-        const waitSec = (retryCount + 1) * 60;
-        console.warn(`\n⏳ Rate limit (429) — ${waitSec}초 대기 후 재시도 (${retryCount + 1}/3)...`);
-        await sleep(waitSec * 1000);
-        return extractRecipe(pdfPath, retryCount + 1);
     }
-
-    if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`Gemini API ${response.status}: ${errText.substring(0, 200)}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-    // 마크다운 코드블록 제거
-    const jsonStr = text
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/,     '')
-        .replace(/\s*```$/,     '')
-        .trim();
-
-    const braceStart = jsonStr.indexOf('{');
-    const braceEnd   = jsonStr.lastIndexOf('}');
-    const cleaned = braceStart !== -1 && braceEnd !== -1
-        ? jsonStr.substring(braceStart, braceEnd + 1)
-        : jsonStr;
-
-    return JSON.parse(cleaned);
+    return found;
 }
 
-async function sleep(ms) {
-    return new Promise(r => setTimeout(r, ms));
+// ── 카테고리 추출 ──────────────────────────────────────────────────
+function extractCategory(text, filename) {
+    const lower = (text + ' ' + filename).toLowerCase();
+    for (const { keywords, category } of CATEGORY_MAP) {
+        if (keywords.some(k => lower.includes(k.toLowerCase()))) return category;
+    }
+    return '기타';
 }
 
+// ── 태그 추출 ──────────────────────────────────────────────────────
+function extractTags(text, filename) {
+    const source = (text + ' ' + filename).toLowerCase();
+    return TAG_KEYWORDS.filter(k => source.includes(k.toLowerCase())).slice(0, 8);
+}
+
+// ── 설명 추출 (마케팅 문구 패턴) ──────────────────────────────────
+function extractDescription(text) {
+    // 느낌표나 마침표 앞의 한글 문장 중 10자 이상인 것
+    const matches = text.match(/[가-힣a-zA-Z0-9\s,!\.]{10,60}[!\.]/g);
+    if (matches) {
+        const candidate = matches.find(m => m.length >= 10 && /[가-힣]/.test(m));
+        if (candidate) return candidate.trim();
+    }
+    return null;
+}
+
+// ── 메인 파싱 함수 ─────────────────────────────────────────────────
+async function parseRecipe(pdfPath) {
+    const filename = path.basename(pdfPath, '.pdf');
+    const text = await extractText(pdfPath);
+
+    const name        = filename;
+    const nameEn      = extractEnglishName(text);
+    const mainProducts = extractMainProducts(text);
+    const category    = extractCategory(text, filename);
+    const tags        = extractTags(text, filename);
+    const description = extractDescription(text);
+    const isVegan     = /비건|vegan/i.test(text);
+
+    return {
+        filename,
+        name,
+        nameEn,
+        description,
+        mainProducts,
+        ingredients: [],
+        steps: [],
+        category,
+        tags,
+        isVegan,
+    };
+}
+
+// ── 메인 ──────────────────────────────────────────────────────────
 async function main() {
     const allFiles = fs.readdirSync(RECIPE_DIR)
         .filter(f => f.endsWith('.pdf'))
         .sort();
 
-    const pending = allFiles.filter(f => !processedFilenames.has(path.basename(f, '.pdf')));
-    console.log(`📋 전체 ${allFiles.length}개 중 ${pending.length}개 처리 예정`);
-    console.log(`⏱  예상 소요 시간: 약 ${Math.ceil(pending.length * DELAY_MS / 60000)}분\n`);
+    // 이미 처리된 결과 이어받기
+    let results = [];
+    if (fs.existsSync(OUTPUT_FILE)) {
+        try {
+            results = JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf-8'));
+            console.log(`📂 기존 결과 ${results.length}개 로드 (이어서 처리)`);
+        } catch (e) { results = []; }
+    }
+    const processed = new Set(results.map(r => r.filename));
+    const pending   = allFiles.filter(f => !processed.has(path.basename(f, '.pdf')));
 
-    const results = [...existingResults];
-    const errors  = [];
+    console.log(`📋 전체 ${allFiles.length}개 중 ${pending.length}개 처리 예정\n`);
+
+    const errors = [];
 
     for (let i = 0; i < pending.length; i++) {
         const file    = pending[i];
@@ -138,36 +181,28 @@ async function main() {
         process.stdout.write(`[${i + 1}/${pending.length}] ${name} ... `);
 
         try {
-            const recipe = await extractRecipe(pdfPath);
-            recipe.filename = name;
+            const recipe = await parseRecipe(pdfPath);
             results.push(recipe);
 
-            // 중간 저장 (10개마다)
-            if ((i + 1) % 10 === 0) {
+            if ((i + 1) % 50 === 0) {
                 fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
             }
 
-            console.log(`✅ ${recipe.name} [${recipe.category}] 제품: ${recipe.mainProducts?.join(', ') || '-'}`);
+            console.log(`✅ [${recipe.category}] 제품: ${recipe.mainProducts.join(', ') || '없음'}`);
         } catch (e) {
             console.log(`❌ ${e.message.substring(0, 80)}`);
             errors.push({ file, error: e.message });
         }
-
-        if (i < pending.length - 1) await sleep(DELAY_MS);
     }
 
-    // 최종 저장
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(results, null, 2));
-    if (errors.length > 0) {
-        fs.writeFileSync(ERROR_FILE, JSON.stringify(errors, null, 2));
-    }
+    if (errors.length > 0) fs.writeFileSync(ERROR_FILE, JSON.stringify(errors, null, 2));
 
     console.log('\n========================================');
     console.log(`✅ 완료: ${results.length}개 성공, ${errors.length}개 실패`);
-    console.log(`📄 결과 파일: ${OUTPUT_FILE}`);
-    if (errors.length > 0) console.log(`⚠️  오류 파일: ${ERROR_FILE}`);
+    console.log(`📄 결과: ${OUTPUT_FILE}`);
     console.log('========================================');
-    console.log('다음 단계: node scripts/upload-recipes.js 로 Supabase에 업로드');
+    console.log('다음 단계: GEMINI_API_KEY=... SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/upload-recipes.js');
 }
 
 main().catch(console.error);

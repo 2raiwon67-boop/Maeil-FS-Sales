@@ -435,7 +435,7 @@
         .db-table-scroll {
             overflow-y: auto;
             overflow-x: auto;
-            max-height: 222px; /* 헤더 + 약 5행 */
+            max-height: 400px;
             border-radius: 6px;
             border: 1px solid #e5e5ea;
         }
@@ -490,6 +490,9 @@
                         <button class="type-btn" onclick="selectType('visit_logs')">
                             <span class="type-icon">🗒️</span>방문일지
                         </button>
+                        <button class="type-btn" id="recipeTypeBtn" onclick="selectType('recipes')" style="display:none;">
+                            <span class="type-icon">📖</span>레시피 데이터
+                        </button>
                         <button class="type-btn" onclick="selectType('managers')">
                             <span class="type-icon">👥</span>담당자관리
                         </button>
@@ -511,7 +514,7 @@
             </div>
 
             <!-- 3. 템플릿 + 파일 업로드 -->
-            <div class="card">
+            <div class="card" id="uploadCard">
                 <div class="card-header">3 — 엑셀 업로드 (대용량 일괄 교체용)</div>
                 <div class="card-body">
                     <button class="btn-template" onclick="downloadTemplate()">
@@ -648,6 +651,18 @@
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
                 mode: 'append'
             },
+            recipes: {
+                label: '레시피 데이터', table: 'recipes',
+                editable: false, scrollAll: true, noBusinessUnit: true,
+                previewColumns: [
+                    { key: 'name',          label: '레시피명' },
+                    { key: 'name_en',       label: '영문명' },
+                    { key: 'category',      label: '카테고리' },
+                    { key: 'main_products', label: '자사제품' },
+                    { key: 'tags',          label: '태그' },
+                    { key: 'is_vegan',      label: '비건' }
+                ]
+            },
             managers: {
                 label: '담당자관리', table: 'managers',
                 editable: true,
@@ -680,6 +695,11 @@
         window.addEventListener('load', () => {
             document.body.classList.add('loaded');
             setupLogoutButton();
+            // 레시피 버튼: 관리자만 표시
+            if (sessionStorage.getItem('fs_admin_access') === 'true') {
+                const recipeBtn = document.getElementById('recipeTypeBtn');
+                if (recipeBtn) recipeBtn.style.display = '';
+            }
             // onAuthStateChange를 통해 세션 복원 시점에 데이터 로드
             // (INITIAL_SESSION: 기존 세션 복원, SIGNED_IN: 신규 로그인)
             if (client) {
@@ -712,6 +732,9 @@
             document.getElementById('previewSection').style.display = 'none';
 
             previewPage = 0;
+            // 레시피는 CLI로만 관리 — 업로드 카드 숨김
+            const uploadCard = document.getElementById('uploadCard');
+            if (uploadCard) uploadCard.style.display = cfg.noBusinessUnit ? 'none' : '';
             loadCurrentData();
         }
 
@@ -757,21 +780,18 @@
             dbBody.innerHTML = '<div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>';
             dbCount.textContent = '—';
 
-            const businessUnit = await getBusinessUnit();
-            if (!businessUnit) {
+            const businessUnit = cfg.noBusinessUnit ? null : await getBusinessUnit();
+            if (!cfg.noBusinessUnit && !businessUnit) {
                 dbBody.innerHTML = '<div class="db-empty">소속 정보를 불러오지 못했습니다.<br><button onclick="loadCurrentData()" style="margin-top:8px;padding:6px 14px;background:#0071e3;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🔄 다시 시도</button></div>';
                 dbCount.textContent = '—';
                 return;
             }
 
             try {
-                // 전체 건수 조회 — limit(1) + count:exact 방식
-                // (head:true는 Supabase 기본 max-rows 1,000에 영향받을 수 있음)
-                const { count: totalCount, error: countErr } = await client
-                    .from(cfg.table)
-                    .select('*', { count: 'exact' })
-                    .eq('business_unit', businessUnit)
-                    .limit(1);
+                // 전체 건수 조회
+                let countQuery = client.from(cfg.table).select('*', { count: 'exact' }).limit(1);
+                if (businessUnit) countQuery = countQuery.eq('business_unit', businessUnit);
+                const { count: totalCount, error: countErr } = await countQuery;
 
                 if (countErr) throw countErr;
 
@@ -783,12 +803,15 @@
                 }
 
                 // 실제 데이터 조회
-                let query = client.from(cfg.table).select('*').eq('business_unit', businessUnit);
+                let query = client.from(cfg.table).select('*');
+                if (businessUnit) query = query.eq('business_unit', businessUnit);
 
                 if (cfg.table === 'visit_logs') {
                     query = query.order('visit_date', { ascending: false, nullsFirst: false });
                 } else if (cfg.table === 'licenses') {
                     query = query.order('permit_date', { ascending: false, nullsFirst: false });
+                } else if (cfg.table === 'recipes') {
+                    query = query.order('name', { ascending: true });
                 }
 
                 if (cfg.editable) {
@@ -820,6 +843,13 @@
             }
         }
 
+        // ── 셀 값 포맷 (배열·불리언 처리) ───────────────────
+        function formatCellValue(val) {
+            if (Array.isArray(val)) return val.join(', ');
+            if (typeof val === 'boolean') return val ? '✓' : '';
+            return String(val ?? '');
+        }
+
         // ── 읽기 전용 테이블 렌더링 ─────────────────────────
         function renderReadonlyTable(data, cfg, total) {
             const dbBody = document.getElementById('dbCurrentBody');
@@ -840,11 +870,18 @@
                     <span class="badge">총 ${total}건</span>
                     <span class="badge">최신 seq_no: ${latestSeq}</span>
                     <span class="badge">최근 방문일: ${latestDate}</span>`;
+            } else if (cfg.table === 'recipes') {
+                summaryHtml = `
+                    <span class="badge">총 ${total}건</span>
+                    <span class="badge">레시피 데이터 (CLI 스크립트로 관리)</span>`;
             }
 
             const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('');
             const rowsHtml = data.map(row => `
-                <tr>${cols.map(c => `<td title="${escapeAttr(row[c.key])}">${escapeAttr(row[c.key])}</td>`).join('')}</tr>
+                <tr>${cols.map(c => {
+                    const v = escapeAttr(formatCellValue(row[c.key]));
+                    return `<td title="${v}">${v}</td>`;
+                }).join('')}</tr>
             `).join('');
 
             let paginationHtml;
