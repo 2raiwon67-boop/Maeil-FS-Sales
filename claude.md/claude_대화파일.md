@@ -1099,6 +1099,111 @@ client.auth.onAuthStateChange((event) => {
 - AI 전략 분석 (Gemini), 지오코딩 캐시 기능 제외 (간소화)
 
 ### 커밋
+- `63b5061` — 아이콘 경로 이동, CSS 정리, API키 제거, 프로젝트 문서 추가
+
+---
+
+## 26. 버그 수정 3종 — 방문일지 건수/upload 세션/proposal 추천상품 (2026-03-01)
+
+### 문제 1 — 방문일지.html "전체 1000건" 제한
+
+**원인**: `loadVisitLogs()` 쿼리에 명시적 limit 없음 → Supabase 기본 max-rows(1,000) 적용
+
+**수정**:
+```javascript
+// 변경 전
+client.from('visit_logs').select('*').order('visit_date', { ascending: false })
+
+// 변경 후
+client.from('visit_logs').select('*').order('visit_date', { ascending: false }).limit(10000)
+```
+
+---
+
+### 문제 2 — upload.html 강제 새로고침 없이 DB현황 미표시
+
+**원인 A**: `getBusinessUnit()`이 `client.auth.getUser()`(네트워크 요청)를 사용 → 페이지 로드 직후 세션 미복원 상태면 null 반환
+
+**원인 B**: `onAuthStateChange` 콜백이 `SIGNED_IN`만 처리 → 기존 세션 복원 시 발생하는 `INITIAL_SESSION` 이벤트 누락
+
+**수정**:
+```javascript
+// getBusinessUnit() — getSession(localStorage 즉시 읽기) 우선 시도
+async function getBusinessUnit() {
+    const { data: { session } } = await client.auth.getSession(); // 네트워크 불필요
+    const bu = session?.user?.user_metadata?.business_unit ?? null;
+    if (bu) { currentBusinessUnit = bu; return bu; }
+    // 없으면 getUser() 폴백
+    const { data: userData } = await client.auth.getUser();
+    ...
+}
+
+// INITIAL_SESSION 추가
+client.auth.onAuthStateChange((event) => {
+    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        currentBusinessUnit = null;
+        loadCurrentData();
+        subscription.unsubscribe();
+    }
+});
+```
+
+---
+
+### 문제 3 — proposal.html 추천상품 미표시 + 이미지 오류
+
+**원인 A**: `loadProductDBFromSheets()` 실패(네트워크 오류 등) 시 `productDB = []` 상태에서 분석 호출 → API가 빈 `items: []` 반환
+
+**원인 B**: `어메이징오트 바리스타 950ML.png` 파일명 대소문자 불일치 (실제 파일: `950ml.png`) → GitHub Pages(Linux, 대소문자 구분)에서 이미지 404
+
+**수정**:
+```javascript
+// 파일명 수정
+'어메이징오트 바리스타 950ml.png'  // ML → ml
+
+// analyzeStore() 시작 시 productDB 미로드 체크
+if (productDB.length === 0) {
+    await loadProductDBFromSheets();
+    if (productDB.length === 0) {
+        text.innerHTML = '❌ 제품 DB를 불러올 수 없습니다. 페이지를 새로고침 해주세요.';
+        return;
+    }
+}
+
+// 로드 실패 시 버튼 경고 표시
+analyzeBtn.title = '제품 DB 로드 실패 — 추천상품이 표시되지 않을 수 있습니다.';
+analyzeBtn.style.opacity = '0.7';
+```
+
+### 커밋
+- `33f0e2f` — 방문일지 1000건 제한, upload 세션 감지, proposal 추천상품 개선
+
+---
+
+## 27. upload.html — 인허가 읽기전용 페이지네이션 제거 (스크롤 전체 표시)
+
+### 배경
+인허가 데이터는 페이지 이동 버튼(`◀ 이전 / 다음 ▶`) 없이 스크롤로 전체를 확인하는 방식이 더 편리.
+방문일지는 건수가 많아 페이지네이션 유지.
+
+### 변경 내용
+
+**`UPLOAD_TYPES.licenses`에 `scrollAll: true` 플래그 추가**
+
+**쿼리 분기**:
+```javascript
+if (cfg.editable) {
+    query = query.limit(1000);      // 편집 테이블 (managers/accounts)
+} else if (cfg.scrollAll) {
+    query = query.limit(5000);      // 스크롤 전체 (licenses)
+} else {
+    query = query.range(from, to);  // 페이지네이션 (visit_logs)
+}
+```
+
+**렌더링**: `cfg.scrollAll`이면 페이지 버튼 없이 `총 N건` 텍스트만 표시
+
+### 커밋
 - (이번 커밋)
 
 ---
