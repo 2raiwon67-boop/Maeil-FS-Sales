@@ -1493,3 +1493,62 @@ Git 히스토리를 통해 Google이 자동 감지 → 해당 키 비활성화�
 - `3470a79` — run-upload.sh gitignore 추가 및 git 추적 해제
 
 ---
+
+## 33. Gemini API 키 교체 및 run-upload.sh 보안 개선 (2026-03-01)
+
+### 배경
+섹션 32에서 `run-upload.sh`의 API 키(`...HzZI`)가 GitHub에 노출되어 Google이 경고 처리.
+결과적으로 해당 키를 Vercel 환경변수로 사용하던 챗봇·매장 AI 분석 기능도 403 오류 발생.
+
+### API 키 구조 파악
+
+| 키 (끝 4자리) | 프로젝트 | 용도 | 상태 |
+|--------------|---------|------|------|
+| `...HzZI` | MISO | Vercel 서비스 전체 + run-upload.sh | ⚠️ 경고 → 403 차단 |
+| `...xqmQ` | MISO RECIPE | 미사용 (신규) | ✅ 정상 |
+
+→ 두 키가 같은 키인 줄 알았으나 실제로는 별개. `...HzZI`가 Vercel과 스크립트 양쪽에 쓰이고 있었음.
+
+### 조치 내용
+
+**① Vercel 환경변수 교체**
+- `GEMINI_API_KEY` → `...xqmQ` 키로 교체 후 Redeploy
+- 챗봇·매장 AI 분석 정상 복구
+
+**② `run-upload.sh` 키 교체 → 하드코딩 완전 제거**
+```bash
+# 변경 전: 키 하드코딩
+export GEMINI_API_KEY=AIzaSy...HzZI
+export SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# 변경 후: 환경변수 없으면 실행 시 입력 받기
+if [ -z "$GEMINI_API_KEY" ]; then
+    read -rp "GEMINI_API_KEY: " GEMINI_API_KEY
+    export GEMINI_API_KEY
+fi
+if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+    read -rp "SUPABASE_SERVICE_ROLE_KEY: " SUPABASE_SERVICE_ROLE_KEY
+    export SUPABASE_SERVICE_ROLE_KEY
+fi
+```
+→ 스크립트 파일에 비밀값 없음. 실수로 깃에 올라가도 안전.
+
+**실행 방법 (이후)**
+```bash
+# 실행 시 프롬프트에서 직접 입력
+bash scripts/run-upload.sh
+
+# 또는 인라인으로 전달
+GEMINI_API_KEY=AIzaSy... bash scripts/run-upload.sh
+```
+
+**③ 레시피 272건 재업로드 완료**
+- 섹션 32에서 실패한 272건 재시도
+- **272개 성공, 0개 실패** → 총 337건 Supabase 정상 적재
+
+### 현재 상태
+- Supabase `recipes` 테이블: 337건 (전체 완료)
+- 챗봇·AI 분석: 정상 작동
+- `run-upload.sh`: 하드코딩 비밀값 없음, gitignore 처리됨
+
+---
