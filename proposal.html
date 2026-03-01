@@ -882,7 +882,7 @@
             '매일바이오 무가당 플레인(카톤)1kg.jpg',
             '아몬드 브리즈 오리지널 950ml.jpeg',
             '아몬드 브리즈 언스위트 950ml.jpeg',
-            '어메이징오트 바리스타 950ML.png',
+            '어메이징오트 바리스타 950ml.png',
             '라크림 스프레이 500g.png',
             '상하목장 요거트 소프트믹스 OM3.jpg',
             '상하목장소프트믹스OM10 1L.jpg',
@@ -946,7 +946,13 @@
                 });
                 updateDatalist();
             } catch (e) {
-                console.warn('제품 DB 로드 실패, 기본값 사용:', e.message);
+                console.warn('제품 DB 로드 실패:', e.message);
+                // 로드 실패 시 분석 버튼 옆에 경고 표시
+                const analyzeBtn = document.querySelector('.analyze-btn');
+                if (analyzeBtn) {
+                    analyzeBtn.title = '제품 DB 로드 실패 — 추천상품이 표시되지 않을 수 있습니다. 페이지를 새로고침 해주세요.';
+                    analyzeBtn.style.opacity = '0.7';
+                }
             }
         }
 
@@ -1378,6 +1384,19 @@
             if (!keyword) {
                 alert('매장명을 입력해주세요!');
                 return;
+            }
+
+            // 제품 DB 미로드 시 재시도
+            if (productDB.length === 0) {
+                text.innerHTML = '⏳ 제품 DB 로딩 중... 잠시 후 다시 시도합니다.';
+                card.style.display = 'block';
+                card.classList.add('active');
+                await loadProductDBFromSheets();
+                if (productDB.length === 0) {
+                    text.innerHTML = '❌ 제품 DB를 불러올 수 없습니다. 페이지를 새로고침 해주세요.';
+                    return;
+                }
+                text.innerHTML = '';
             }
 
             // Rate Limiting 체크

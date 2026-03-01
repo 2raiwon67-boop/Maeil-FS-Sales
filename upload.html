@@ -680,16 +680,18 @@
         window.addEventListener('load', () => {
             document.body.classList.add('loaded');
             setupLogoutButton();
-            loadCurrentData();
-            // Supabase 세션이 늦게 복원될 때를 대비한 재시도
+            // onAuthStateChange를 통해 세션 복원 시점에 데이터 로드
+            // (INITIAL_SESSION: 기존 세션 복원, SIGNED_IN: 신규 로그인)
             if (client) {
                 const { data: { subscription } } = client.auth.onAuthStateChange((event) => {
-                    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-                        currentBusinessUnit = null; // 캐시 초기화 후 재시도
+                    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                        currentBusinessUnit = null;
                         loadCurrentData();
                         subscription.unsubscribe();
                     }
                 });
+            } else {
+                loadCurrentData();
             }
         });
 
@@ -729,10 +731,15 @@
             if (currentBusinessUnit) return currentBusinessUnit;
             if (!client) return null;
             try {
+                // getSession()은 localStorage에서 즉시 읽음 (네트워크 불필요)
+                const { data: { session } } = await client.auth.getSession();
+                const bu = session?.user?.user_metadata?.business_unit ?? null;
+                if (bu) { currentBusinessUnit = bu; return bu; }
+                // 세션이 없으면 getUser()로 재확인 (네트워크 요청)
                 const { data: userData } = await client.auth.getUser();
-                const bu = userData?.user?.user_metadata?.business_unit ?? null;
-                if (bu) currentBusinessUnit = bu; // null은 캐시하지 않음 (재시도 가능하도록)
-                return bu;
+                const bu2 = userData?.user?.user_metadata?.business_unit ?? null;
+                if (bu2) currentBusinessUnit = bu2;
+                return bu2;
             } catch(e) { return null; }
         }
 

@@ -1360,7 +1360,7 @@
 
         async function loadVisitLogs() {
             const businessUnit = await getBusinessUnitForVisit();
-            let query = client.from('visit_logs').select('*').order('visit_date', { ascending: false });
+            let query = client.from('visit_logs').select('*').order('visit_date', { ascending: false }).limit(10000);
             if (businessUnit) query = query.eq('business_unit', businessUnit);
             const { data, error } = await query;
             if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
