@@ -3,6 +3,7 @@
 .env.local
 .env.production
 config.local.js
+scripts/run-upload.sh
 
 # macOS
 .DS_Store
