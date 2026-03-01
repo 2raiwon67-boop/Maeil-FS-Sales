@@ -904,12 +904,9 @@ async function getBusinessUnitForIndex() { ... }
 | `upload.html` | Supabase | ✅ 완료 |
 | `index.html` | Supabase | ✅ 완료 (Step 2) |
 | `방문일지.html` | Supabase | ✅ 완료 (Step 3) |
-| `login.html` / 기타 | Google Sheets 잔존 | ⏳ Step 4 (다음 작업) |
-
-### 다음 작업 (Step 4)
-- `login.html` 등 기타 페이지에 남아있는 Google Sheets 의존성 완전 제거
-- Apps Script URL 참조 정리
-- Google Sheets 관련 fetch/CSV 파싱 코드 전면 제거
+| `login.html` / 기타 | Google Sheets 잔존 | ✅ 완료 (Step 4) |
+| `proposal.html` 제품DB | Google Sheets (products 테이블 없음) | ⚠️ 보류 |
+| `dev/apps_script_dynamic.txt` 주간 이메일 | Vercel Cron으로 이관 | ✅ 완료 |
 
 ---
 
@@ -1040,5 +1037,68 @@ client.auth.onAuthStateChange((event) => {
 
 ### 커밋
 - `aacd738` — 인허가·주요거래처 DB현황 컬럼 Excel과 동일하게 확장
+
+---
+
+## 24. Google Sheets 의존성 완전 제거 (Step 4)
+
+### 제거 대상 파일 6개
+
+| 파일 | 제거 내용 |
+|------|-----------|
+| `index.html` | `SHEETS_CONFIG`, `APPS_SCRIPT_URL`, `uploadToSheets()` 함수 (~80줄) 제거 |
+| `report.html` | `SHEETS_CONFIG`, `parseCSV()`, `parseCSVLine()` 제거 → Supabase 병렬 쿼리로 교체 |
+| `proposal.html` | `VISIT_LOG_URL`, `parseCSV()` 제거 → `loadVisitLogsForStore()` Supabase 전환 |
+| `방문일지.html` | `parseCSV()` 함수 제거 (Step 3에서 이미 미사용 상태) |
+| `js/auth.js` | `AUTH_APPS_SCRIPT_URL`, `matchManagerEmail()` (빈 함수) 제거 |
+| `api/send-monthly-report.js` | `SHEETS_ID`, `SHEETS` 상수, `parseCSV/Line()` 제거 → Supabase REST API로 교체 |
+
+### 보류 항목
+- `proposal.html`의 `PRODUCT_DB_SHEETS_URL` + `loadProductDBFromSheets()` — Supabase `products` 테이블 미존재, 보류
+
+### 커밋
+- `ad8d5d7` — Step 4: Google Sheets 의존성 완전 제거
+
+---
+
+## 25. 인허가 주간 알림 이메일 — Vercel Cron 이관
+
+### 배경
+`dev/apps_script_dynamic.txt` (Google Apps Script, 매주 월요일 실행)가 Google Sheets 직접 읽기 방식이었으나, Supabase 마이그레이션 이후 Google Sheets 데이터가 갱신되지 않아 알림이 동작 불가.
+
+### 해결: `api/send-license-alert.js` 신규 생성
+
+**동작 방식**
+
+| 항목 | 내용 |
+|------|------|
+| 실행 시각 | 매주 월요일 오전 9:15 KST (`"15 0 * * 1"` UTC) |
+| D+14 대상 | `permit_date` 기준 14일 이상 경과 + `trade_status = '인허가'` + 순위 1·2 |
+| D+28 대상 | `permit_date` 기준 28일 이상 경과 + `trade_status = '공사중'` + 순위 1·2 |
+| 담당자 이메일 | `managers` 테이블 (`manager_name` → `email` 매핑) |
+| 지점장 | `region = '지점장'` or `'전체'` → 전체 대상 통합 수신 |
+| 동선 최적화 | `licenses.lat/lng` 좌표 기반 Nearest Neighbor TSP (최대 5건) |
+| 이메일 발송 | Resend API (기존 send-monthly-report.js 패턴 동일) |
+
+**주요 함수**
+- `optimizeRoute(targets)` — 앵커(인허가 우선) 기준 TSP, 유효 좌표 항목만 처리
+- `buildNaverRouteUrl(routeStops)` — 1건: 네이버 웹 URL, 2건+: nmap:// 앱 스킴
+- `buildAlertEmailHtml(managerName, targets, routeStops)` — Outlook 호환 테이블 기반 HTML
+
+**vercel.json 추가**
+```json
+{
+  "path": "/api/send-license-alert",
+  "schedule": "15 0 * * 1"
+}
+```
+
+**주의 사항**
+- Vercel Hobby 플랜 Cron 최대 2개 → 현재 정확히 2개 사용 (`send-monthly-report` + `send-license-alert`)
+- Google Apps Script `runDailyEmailJob` 트리거 수동 삭제 필요 (중복 발송 방지)
+- AI 전략 분석 (Gemini), 지오코딩 캐시 기능 제외 (간소화)
+
+### 커밋
+- (이번 커밋)
 
 ---
