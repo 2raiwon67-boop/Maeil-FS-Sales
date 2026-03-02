@@ -767,7 +767,8 @@
                 },
                 requiredCol: 'business_name',
                 dateFields: ['permit_date', 'appsheet_date'],
-                numericFields: ['lat', 'lng']
+                numericFields: ['lat', 'lng'],
+                mode: 'append'
             },
             accounts: {
                 label: '주요거래처', table: 'accounts',
@@ -821,7 +822,7 @@
                     '내용': 'content'
                 },
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
-                mode: 'append'
+                mode: 'append', conflictKey: 'seq_no,business_unit'
             },
             recipes: {
                 label: '레시피 데이터', table: 'recipes',
@@ -1352,11 +1353,13 @@
                     });
 
                     let opErr;
-                    if (isAppend) {
+                    if (isAppend && cfg.conflictKey) {
+                        // 충돌 키가 있는 경우 upsert (방문일지: seq_no,business_unit)
                         const { error } = await client.from(cfg.table)
-                            .upsert(batch, { onConflict: 'seq_no,business_unit' });
+                            .upsert(batch, { onConflict: cfg.conflictKey });
                         opErr = error;
                     } else {
+                        // 충돌 키 없는 append(인허가) 또는 replace: 단순 INSERT
                         const { error } = await client.from(cfg.table).insert(batch);
                         opErr = error;
                     }

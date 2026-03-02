@@ -148,7 +148,11 @@ export default async function handler(req, res) {
             typeList.map(t => fetchAllForType(t, API_KEY, startDate, endDate, regionList))
         );
 
-        // 취합 + 중복 제거 + 지역 필터
+        // 인허가일 날짜 범위 (YYYY-MM-DD 형식으로 변환)
+        const startISO = `${startDate.slice(0,4)}-${startDate.slice(4,6)}-${startDate.slice(6,8)}`;
+        const endISO   = `${endDate.slice(0,4)}-${endDate.slice(4,6)}-${endDate.slice(6,8)}`;
+
+        // 취합 + 중복 제거 + 지역 필터 + 인허가일 필터
         const seen  = new Set();
         const items = [];
 
@@ -161,6 +165,9 @@ export default async function handler(req, res) {
                 // JS 정밀 지역 필터 (서버 힌트가 완벽하지 않으므로)
                 const addrStr = norm.road_address + norm.address1 + norm.address2;
                 if (!regionList.some(r => addrStr.includes(r))) return;
+
+                // 영업허가일 기준 날짜 필터 (data.go.kr은 수정일 기준으로 반환하므로 필수)
+                if (norm.permit_date && (norm.permit_date < startISO || norm.permit_date > endISO)) return;
 
                 items.push(norm);
             });
