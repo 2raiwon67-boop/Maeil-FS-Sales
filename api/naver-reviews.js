@@ -154,7 +154,11 @@ export default async function handler(req, res) {
                                 recipeSection = `\n## 자사 레시피 DB — 유사 메뉴 활용 사례\n${recipeLines}\n\n⚠️ 위 레시피는 실제 매일유업 제품이 사용된 유사 메뉴 사례입니다. 제품 추천·시그니처 메뉴 대응 시 반드시 참고하세요.\n`;
                             }
                         } else {
-                            console.warn('Recipe RPC error:', rpcRes.status);
+                            const rpcErr = await rpcRes.text().catch(() => '');
+                            console.warn(`Recipe RPC error: ${rpcRes.status} — ${rpcErr.slice(0, 200)}`);
+                            // 403: GRANT EXECUTE ON FUNCTION search_recipes TO anon; 실행 필요
+                            // 404: search_recipes 함수명 확인 필요
+                            // 500: 벡터 차원(768) 또는 함수 시그니처 확인 필요
                         }
                     }
                 }
