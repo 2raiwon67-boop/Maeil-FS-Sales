@@ -3353,10 +3353,9 @@
         }
 
         /**
-         * updateMap() — 필터 상태를 마커에 반영합니다.
-         * allMarkers가 없으면 initAllMarkers() 를 호출하여 최초 생성 후 필터합니다.
+         * _doUpdateMap() — 실제 마커 갱신 로직 (debounce 내부용)
          */
-        function updateMap() {
+        function _doUpdateMap() {
             if (!naverMap) return;
             if (allMarkers.length === 0) {
                 initAllMarkers(); // initAllMarkers 내부에서 filterMarkers 호출함
@@ -3364,6 +3363,16 @@
                 filterMarkers();
             }
             filterAccountMarkers();
+        }
+
+        /**
+         * updateMap() — 필터 상태를 마커에 반영합니다.
+         * 50ms debounce: 연속 필터 변경 시 마지막 1회만 실행해 setMap() 폭탄 방지.
+         */
+        let _updateMapTimer = null;
+        function updateMap() {
+            clearTimeout(_updateMapTimer);
+            _updateMapTimer = setTimeout(_doUpdateMap, 50);
         }
 
         /**
