@@ -2,13 +2,21 @@ name: 공공인허가 데이터 수집
 
 # ─────────────────────────────────────────────
 #  실행 조건
-#  - 매일 오전 9시 KST (= UTC 00:00) 자동 실행
+#  - 매주 월요일 오전 9시 15분 KST (= UTC 00:15) 자동 실행
+#    → send-license-alert (00:15 UTC)와 같은 시간대에 맞춰 수집 후 알림
 #  - GitHub Actions UI에서 수동 실행도 가능
+#
+#  ⚠️ GitHub Actions cron 오차: ±15~30분 발생 가능 (정상)
 # ─────────────────────────────────────────────
 on:
   schedule:
-    - cron: '0 0 * * *'   # 매일 UTC 00:00 = KST 09:00
+    - cron: '0 0 * * 1'   # 매주 월요일 UTC 00:00 = KST 09:00
   workflow_dispatch:        # 수동 실행 (테스트용)
+    inputs:
+      lookback_days:
+        description: '수집 범위 (일수, 기본 7)'
+        required: false
+        default: '7'
 
 jobs:
   fetch-licenses:
@@ -26,12 +34,7 @@ jobs:
         with:
           node-version: '20'
 
-      # 3. 의존성 설치 (package.json 있을 경우)
-      # - name: Install dependencies
-      #   run: npm ci
-
-      # 4. 공공데이터 수집 스크립트 실행
-      #    scripts/fetch-public-licenses.js 를 별도로 작성해야 함
+      # 3. 공공데이터 수집 스크립트 실행
       - name: 공공인허가 데이터 수집 및 Supabase 업로드
         run: node scripts/fetch-public-licenses.js
         env:
@@ -39,3 +42,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           PUBLIC_DATA_API_KEY: ${{ secrets.PUBLIC_DATA_API_KEY }}
+          # 선택 설정 (필요시 Secrets 또는 Variables에 추가)
+          BUSINESS_UNIT: ${{ vars.BUSINESS_UNIT }}
+          TARGET_REGIONS: ${{ vars.TARGET_REGIONS }}
+          LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '7' }}
