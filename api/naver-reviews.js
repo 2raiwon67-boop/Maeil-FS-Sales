@@ -104,6 +104,65 @@ export default async function handler(req, res) {
         // 현재 리뷰 링크 목록 (캐싱용)
         const currentReviewLinks = filteredBlogItems.map(item => item.link);
 
+        // ── 2.5. Recipe RAG — 레시피 DB 유사도 검색 ──
+        let recipeSection = '';
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+            try {
+                // 임베딩 쿼리: 매장명 + 블로그 제목 상위 5개 (메뉴·음료 키워드 포함)
+                const embedText = [storeName, ...filteredBlogItems.slice(0, 5).map(b => stripHtml(b.title))].join(' ');
+
+                const embedRes = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'models/gemini-embedding-001',
+                            content: { parts: [{ text: embedText }] },
+                            outputDimensionality: 768
+                        })
+                    }
+                );
+
+                if (embedRes.ok) {
+                    const embedData = await embedRes.json();
+                    const vector = embedData.embedding?.values;
+
+                    if (Array.isArray(vector) && vector.length === 768) {
+                        const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/search_recipes`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'apikey': SUPABASE_ANON_KEY,
+                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            },
+                            body: JSON.stringify({
+                                query_embedding: `[${vector.join(',')}]`,
+                                match_count: 5
+                            })
+                        });
+
+                        if (rpcRes.ok) {
+                            const matched = await rpcRes.json();
+                            if (Array.isArray(matched) && matched.length > 0) {
+                                const recipeLines = matched.map(r =>
+                                    `- [${r.category || '음료'}] ${r.name}: 자사제품=[${(r.main_products || []).join(', ')}] 태그=[${(r.tags || []).slice(0, 4).join(', ')}]`
+                                ).join('\n');
+                                recipeSection = `\n## 자사 레시피 DB — 유사 메뉴 활용 사례\n${recipeLines}\n\n⚠️ 위 레시피는 실제 매일유업 제품이 사용된 유사 메뉴 사례입니다. 제품 추천·시그니처 메뉴 대응 시 반드시 참고하세요.\n`;
+                            }
+                        } else {
+                            console.warn('Recipe RPC error:', rpcRes.status);
+                        }
+                    }
+                }
+            } catch (recipeErr) {
+                console.warn('Recipe RAG 검색 실패 (무시):', recipeErr.message);
+            }
+        }
+
         // ── 3. Gemini 프롬프트 구성 ──
         const products = productDB || [];
         // 제품 목록: 인덱스·품명·규격·사용용도 (가격 등은 매핑 시 활용) — 토큰 절감
@@ -144,8 +203,7 @@ ${updateNote}
 ${JSON.stringify(localSummary, null, 2)}
 
 ## 네이버 블로그 리뷰 요약
-${JSON.stringify(blogSummary, null, 2)}${visitHistorySection}
-
+${JSON.stringify(blogSummary, null, 2)}${visitHistorySection}${recipeSection}
 ## 매일유업 제품 목록
 ${productList}
 
@@ -156,6 +214,7 @@ ${productList}
    - ${hasVisitHistory ? '**과거 방문 실패/거절 사유를 극복**할 수 있는 접근법 (방문 기록 기반)' : '이 매장 업종/규모에서 자주 발생하는 거절 사유와 극복 전략'}
    중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
 3. 위 두 가지 관점(시그니처 메뉴 대응 + ${hasVisitHistory ? '과거 실패 극복' : '거절 극복'})에서 **가장 효과적인 제품 정확히 3개**를 인덱스 번호로 추천하세요.
+   - 레시피 DB에 유사 메뉴 사례가 있다면 해당 레시피의 자사제품을 **최우선** 고려하세요.
    - 매장이 일반 카페·음식점인 경우: 음료용 제품(우유, 크림, 베이스류 등)을 **최우선** 추천하세요. 베이커리 전문점·제과점이 아닌 한 치즈·버터 등 베이킹 원료는 추천에서 제외하세요.
    - 베이커리 카페, 제과점, 브런치 카페임이 리뷰·업종에서 명확히 확인된 경우에만 베이킹 원료를 포함하세요.
    - 제품 목록의 '용도' 항목을 반드시 참고하여 매장 유형과 맞는 제품을 선택하세요.
