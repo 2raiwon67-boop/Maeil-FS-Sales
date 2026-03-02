@@ -2614,13 +2614,6 @@
             document.body.classList.add('loaded'); // 페이지 로드 시 페이드 인 효과 적용
             setupUploadZones();
 
-            // 날짜 기본값: 시작일 = 1년 전, 종료일 = 오늘
-            const today = new Date();
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(today.getFullYear() - 1);
-            document.getElementById('apiEndDate').value = today.toISOString().split('T')[0];
-            document.getElementById('apiStartDate').value = oneYearAgo.toISOString().split('T')[0];
-
             initNaverMap();
 
 
