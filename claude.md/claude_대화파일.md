@@ -1738,11 +1738,89 @@ jobs:
 ### Secrets 등록 방법
 `GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret`
 
-### 다음 단계 (미완료)
-- `scripts/fetch-public-licenses.js` 실제 수집 스크립트 작성 필요
-  - 공공데이터포털 API 호출 → Supabase 업로드 로직
+### Secrets 등록 항목 (3종 필수 + 2종 선택)
+| 종류 | 키 이름 | 내용 |
+|---|---|---|
+| Secret | `SUPABASE_URL` | Supabase 프로젝트 URL |
+| Secret | `SUPABASE_SERVICE_ROLE_KEY` | Supabase 서비스 롤 키 |
+| Secret | `PUBLIC_DATA_API_KEY` | data.go.kr API 인증키 |
+| Variable | `BUSINESS_UNIT` | (선택) 업로드 대상 팀 이름 |
+| Variable | `TARGET_REGIONS` | (선택) 쉼표 구분 대상 지역 |
 
 ### 커밋
 - `1d7128e` — send-monthly-report Resend 429 한도 대응 + GitHub Actions 워크플로우 추가
+
+---
+
+## 38. 공공인허가 데이터 자동 수집 스크립트 구현 (2026-03-02)
+
+### 생성 파일 (`scripts/fetch-public-licenses.js`)
+
+#### 흐름
+```
+data.go.kr API (업태 3종 × 페이지네이션)
+  ↓ 지역 필터 (TARGET_REGIONS 목록과 주소 대조)
+  ↓ 중복 체크 (기존 DB business_name + road_address 대조)
+  ↓ 신규만 100건씩 배치 INSERT
+  → Supabase licenses 테이블
+```
+
+#### 핵심 동작
+- **업태**: 휴게음식점, 일반음식점, 제과점영업
+- **기간**: 최근 7일 수정분 (`lastModTsBgn/lastModTsEnd` 파라미터)
+- **지역 필터**: 경기북부 10개 도시 (환경변수 `TARGET_REGIONS`로 변경 가능)
+- **중복 방지**: DB에서 `(business_name, road_address)` 세트 로드 → Set 비교
+- **삽입 기본값**: `trade_status='인허가'`, `priority='1'`, `manager=''`
+  - priority='1' 이므로 `send-license-alert.js`가 D+14 이후 자동 알림 발송
+  - manager가 비어 있으면 알림이 가지 않음 → 담당자 수동 배정 후 알림 시작
+
+#### 환경변수
+```
+SUPABASE_URL              필수
+SUPABASE_SERVICE_ROLE_KEY 필수
+PUBLIC_DATA_API_KEY       필수 (data.go.kr 회원가입 → 활용신청)
+BUSINESS_UNIT             선택 (기본: '경기북부')
+TARGET_REGIONS            선택 (기본: 경기도 의정부시,양주시,동두천시...)
+LOOKBACK_DAYS             선택 (기본: 7)
+LICENSE_API_URL           선택 (API 주소 변경 시)
+```
+
+#### data.go.kr API 파라미터
+| 파라미터 | 값 | 설명 |
+|---|---|---|
+| `uptaeNm` | 휴게음식점 등 | 업태 필터 |
+| `stateGbn` | 01 | 영업 중만 |
+| `lastModTsBgn/End` | YYYYMMDDHHmmss | 수정일 범위 |
+| `pageNo` / `numOfRows` | 1~ / 100 | 페이지네이션 |
+
+#### 응답 컬럼 → licenses 테이블 매핑
+| API 필드 | licenses 컬럼 |
+|---|---|
+| `bplcNm` | `business_name` |
+| `uptaeNm` | `business_type` |
+| `apvPermYmd` | `permit_date` (YYYY-MM-DD 변환) |
+| `rdnWhlAddr` | `road_address` |
+| `siteWhlAddr` | `address` |
+| `y` / `lat` | `lat` |
+| `x` / `lon` | `lng` |
+
+#### GitHub Actions cron 변경
+- 기존: 매일 UTC 00:00
+- **변경**: 매주 월요일 UTC 00:00 (KST 09:00) — Vercel send-license-alert와 같은 날
+
+### 전체 자동화 흐름 (완성 후)
+```
+[매주 월요일 KST 09:00]
+  GitHub Actions: fetch-public-licenses.js 실행
+    → 지난 7일 신규 인허가 업체 수집
+    → licenses 테이블에 INSERT (trade_status='인허가', priority='1')
+
+  Vercel Cron: send-license-alert (15분 후, 00:15 UTC)
+    → priority 1/2 + D+14 이상 업체에 담당자 이메일 알림
+    (담당자가 배정된 건만 알림 발송됨)
+```
+
+### 커밋
+- `99d4a8a` — 공공인허가 데이터 자동 수집 스크립트 추가
 
 ---
