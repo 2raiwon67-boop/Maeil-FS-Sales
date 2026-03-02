@@ -862,7 +862,6 @@
         let currentDbData = [];
         let currentBusinessUnit = null;
         let previewPage = 0;
-        let editPage = 0;
         const PREVIEW_PAGE_SIZE = 5;
 
         // ── 페이지 초기화 ────────────────────────────────────
@@ -906,7 +905,6 @@
             document.getElementById('previewSection').style.display = 'none';
 
             previewPage = 0;
-            editPage = 0;
             const cfg = UPLOAD_TYPES[type];
 
             // 공공인허가 조회 패널: 인허가 탭일 때만 표시
@@ -1090,71 +1088,41 @@
             const dbBody = document.getElementById('dbCurrentBody');
             const cols = cfg.columns;
 
-            const pageStart  = editPage * PREVIEW_PAGE_SIZE;
-            const pageEnd    = Math.min(pageStart + PREVIEW_PAGE_SIZE, data.length);
-            const pageData   = data.slice(pageStart, pageEnd);
-            const totalPages = Math.ceil(data.length / PREVIEW_PAGE_SIZE);
-            const startRow   = pageStart + 1;
-            const endRow     = pageEnd;
-
             const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('') + '<th style="width:36px"></th>';
-            const rowsHtml = pageData.map((row, localI) => {
-                const globalI = pageStart + localI;
-                return `
+            const rowsHtml = data.map((row, i) => `
                 <tr>
                     ${cols.map(c => `<td><input type="text" value="${escapeAttr(row[c.key])}" data-key="${c.key}"></td>`).join('')}
-                    <td><button class="btn-delete-row" onclick="deleteRow(${globalI})" title="삭제">🗑️</button></td>
-                </tr>`;
-            }).join('');
-
-            const paginationHtml = totalPages > 1 ? `
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#86868b;">
-                        <button onclick="changeEditPage(${editPage - 1})" ${editPage === 0 ? 'disabled' : ''}
-                            style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">◀ 이전</button>
-                        <span>${startRow}–${endRow} / 총 ${total}건 (${editPage + 1}/${totalPages}페이지)</span>
-                        <button onclick="changeEditPage(${editPage + 1})" ${editPage >= totalPages - 1 ? 'disabled' : ''}
-                            style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">다음 ▶</button>
-                    </div>` : `<p style="font-size:12px;color:#86868b;margin:4px 0 0;">총 ${total}건</p>`;
+                    <td><button class="btn-delete-row" onclick="deleteRow(${i})" title="삭제">🗑️</button></td>
+                </tr>`).join('');
 
             dbBody.innerHTML = `
                 <div class="db-summary">
                     <span class="badge">${total ?? data.length}건</span>
                     <button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
                 </div>
-                <div class="db-table-scroll" style="margin-top:10px;">
+                <div class="db-table-scroll" style="margin-top:10px;max-height:220px;">
                     <table class="preview-table editable-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody id="editableTableBody">${rowsHtml}</tbody>
                     </table>
                 </div>
-                <button class="btn-add-row" onclick="addRow()">+ 행 추가</button>
-                ${paginationHtml}`;
+                <button class="btn-add-row" onclick="addRow()">+ 행 추가</button>`;
         }
 
         // ── 편집 테이블 DOM → currentDbData 동기화 ──────────
         function collectEditableValues() {
             const rows = document.querySelectorAll('#editableTableBody tr');
-            const pageStart = editPage * PREVIEW_PAGE_SIZE;
-            rows.forEach((tr, localI) => {
-                const globalI = pageStart + localI;
-                if (!currentDbData[globalI]) return;
+            rows.forEach((tr, i) => {
+                if (!currentDbData[i]) return;
                 tr.querySelectorAll('input[data-key]').forEach(input => {
-                    currentDbData[globalI][input.dataset.key] = input.value || null;
+                    currentDbData[i][input.dataset.key] = input.value || null;
                 });
             });
-        }
-
-        function changeEditPage(page) {
-            collectEditableValues();
-            editPage = page;
-            renderEditableTable(currentDbData, UPLOAD_TYPES[selectedType], currentDbData.length);
         }
 
         function deleteRow(i) {
             collectEditableValues();
             currentDbData.splice(i, 1);
-            const totalPages = Math.ceil(currentDbData.length / PREVIEW_PAGE_SIZE);
-            if (editPage >= totalPages && editPage > 0) editPage--;
             renderEditableTable(currentDbData, UPLOAD_TYPES[selectedType], currentDbData.length);
         }
 
@@ -1164,8 +1132,6 @@
             const emptyRow = {};
             cfg.columns.forEach(c => { emptyRow[c.key] = ''; });
             currentDbData.push(emptyRow);
-            // 새 행이 있는 마지막 페이지로 이동
-            editPage = Math.floor((currentDbData.length - 1) / PREVIEW_PAGE_SIZE);
             renderEditableTable(currentDbData, cfg, currentDbData.length);
             setTimeout(() => {
                 const tbody = document.getElementById('editableTableBody');
