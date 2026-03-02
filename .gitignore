@@ -11,8 +11,18 @@ scripts/run-upload.sh
 # Node
 node_modules/
 
-# 개발/테스트용 파일
-dev/
+# 개발/테스트용 파일 (폴더 삭제됨)
 
 # 레시피 PDF 원본 (대용량, Supabase Storage로 관리)
 assets/recipe/
+
+# 임시 에러 로그
+scripts/upload-errors.json
+
+# Skills 도구 로컬 설정
+.agent/
+.agents/
+skills-lock.json
+
+# Claude Code 로컬 설정
+.claude/

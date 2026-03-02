@@ -462,6 +462,128 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+
+        /* ── 공공인허가 조회 패널 ── */
+        .search-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 14px;
+        }
+
+        .search-field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+            min-width: 130px;
+        }
+
+        .search-field label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .search-field input[type="date"] {
+            padding: 8px 10px;
+            border: 1px solid #e5e5ea;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            color: #1d1d1f;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .search-field input[type="date"]:focus {
+            border-color: #0071e3;
+        }
+
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .chip {
+            padding: 5px 12px;
+            border: 1px solid #e5e5ea;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            background: white;
+            color: #3d3d3f;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .chip.active {
+            background: #0071e3;
+            border-color: #0071e3;
+            color: white;
+        }
+
+        .chip:hover:not(.active) {
+            border-color: #0071e3;
+            color: #0071e3;
+        }
+
+        .search-divider {
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 8px;
+        }
+
+        .btn-search {
+            padding: 9px 20px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+        }
+
+        .btn-search:hover { background: #0077ed; }
+        .btn-search:disabled { background: #c7c7cc; cursor: default; }
+
+        .search-result-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            background: #34c759;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-download:hover { background: #2db54e; }
+        .btn-download:disabled { background: #c7c7cc; cursor: default; }
     </style>
 </head>
 
@@ -510,6 +632,56 @@
                 </div>
                 <div class="card-body" id="dbCurrentBody">
                     <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
+                </div>
+            </div>
+
+            <!-- 2-1. 공공인허가 데이터 조회 (인허가 탭 전용) -->
+            <div class="card" id="publicSearchCard">
+                <div class="card-header">공공인허가 데이터 조회 (data.go.kr)</div>
+                <div class="card-body">
+
+                    <!-- 날짜 -->
+                    <div class="search-divider">조회 기간</div>
+                    <div class="search-row">
+                        <div class="search-field">
+                            <label>시작일</label>
+                            <input type="date" id="srchStartDate">
+                        </div>
+                        <div class="search-field">
+                            <label>종료일</label>
+                            <input type="date" id="srchEndDate">
+                        </div>
+                        <button class="btn-search" id="btnSearch" onclick="searchPublicLicense()">조회</button>
+                    </div>
+
+                    <!-- 업종 -->
+                    <div class="search-divider">업종</div>
+                    <div class="chip-group" id="typeChips">
+                        <span class="chip active" data-code="general_restaurants">일반음식점</span>
+                        <span class="chip active" data-code="rest_cafes">휴게음식점</span>
+                        <span class="chip active" data-code="bakeries">제과점영업</span>
+                    </div>
+
+                    <!-- 지역 -->
+                    <div class="search-divider">지역</div>
+                    <div class="chip-group" id="regionChips">
+                        <span class="chip active" data-region="의정부">의정부</span>
+                        <span class="chip active" data-region="양주">양주</span>
+                        <span class="chip active" data-region="동두천">동두천</span>
+                        <span class="chip active" data-region="포천">포천</span>
+                        <span class="chip active" data-region="연천">연천</span>
+                        <span class="chip active" data-region="파주">파주</span>
+                        <span class="chip active" data-region="고양">고양</span>
+                        <span class="chip active" data-region="남양주">남양주</span>
+                        <span class="chip active" data-region="구리">구리</span>
+                        <span class="chip active" data-region="가평">가평</span>
+                        <span class="chip active" data-region="김포">김포</span>
+                        <span class="chip active" data-region="부천">부천</span>
+                        <span class="chip active" data-region="인천">인천</span>
+                    </div>
+
+                    <!-- 결과 -->
+                    <div id="searchResultArea"></div>
                 </div>
             </div>
 
@@ -732,6 +904,12 @@
             document.getElementById('previewSection').style.display = 'none';
 
             previewPage = 0;
+            const cfg = UPLOAD_TYPES[type];
+
+            // 공공인허가 조회 패널: 인허가 탭일 때만 표시
+            const searchCard = document.getElementById('publicSearchCard');
+            if (searchCard) searchCard.style.display = type === 'licenses' ? '' : 'none';
+
             // 레시피는 CLI로만 관리 — 업로드 카드 숨김
             const uploadCard = document.getElementById('uploadCard');
             if (uploadCard) uploadCard.style.display = cfg.noBusinessUnit ? 'none' : '';
@@ -1209,6 +1387,157 @@
                 document.getElementById('uploadBanner').innerHTML = '❌ ' + e.message;
                 showToast('❌ ' + e.message);
             }
+        }
+
+        // ── 공공인허가 조회 ───────────────────────────────────
+
+        // 칩 토글
+        document.addEventListener('click', e => {
+            if (e.target.classList.contains('chip')) {
+                e.target.classList.toggle('active');
+            }
+        });
+
+        // 날짜 기본값: 이번 주 월~일
+        (function initSearchDates() {
+            const today = new Date();
+            const day   = today.getDay();
+            const mon   = new Date(today);
+            mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            const fmt = d => d.toISOString().split('T')[0];
+            document.getElementById('srchStartDate').value = fmt(mon);
+            document.getElementById('srchEndDate').value   = fmt(sun);
+        })();
+
+        let srchResults = [];
+        let srchSelected = new Set();
+
+        async function searchPublicLicense() {
+            const startDate = document.getElementById('srchStartDate').value.replace(/-/g, '');
+            const endDate   = document.getElementById('srchEndDate').value.replace(/-/g, '');
+            if (!startDate || !endDate) { showToast('조회 기간을 선택해주세요.'); return; }
+
+            const types   = [...document.querySelectorAll('#typeChips .chip.active')].map(c => c.dataset.code).join(',');
+            const regions = [...document.querySelectorAll('#regionChips .chip.active')].map(c => c.dataset.region).join(',');
+            if (!types)   { showToast('업종을 하나 이상 선택해주세요.'); return; }
+            if (!regions) { showToast('지역을 하나 이상 선택해주세요.'); return; }
+
+            const btn = document.getElementById('btnSearch');
+            btn.disabled = true;
+            btn.textContent = '조회 중...';
+            document.getElementById('searchResultArea').innerHTML =
+                '<div class="db-loading"><span class="spinner-dark"></span>공공데이터 조회 중...</div>';
+
+            try {
+                const params = new URLSearchParams({ types, regions, startDate, endDate });
+                const res  = await fetch(`/api/public-license?${params}`);
+                const data = await res.json();
+
+                if (!data.success) throw new Error(data.error || '조회 실패');
+
+                srchResults  = data.items;
+                srchSelected = new Set();
+                renderSearchResults();
+
+            } catch (e) {
+                document.getElementById('searchResultArea').innerHTML =
+                    `<div class="banner banner-error" style="margin:0;">❌ ${e.message}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '조회';
+            }
+        }
+
+        function renderSearchResults() {
+            const area = document.getElementById('searchResultArea');
+            if (!srchResults.length) {
+                area.innerHTML = '<div class="db-empty">해당 기간·지역의 인허가 데이터가 없습니다.</div>';
+                return;
+            }
+
+            const allChecked = srchSelected.size === srchResults.length;
+            const headerHtml = ['영업 허가일','사업장명','업태구분명','평형','도로명전체주소'].map(h => `<th>${h}</th>`).join('');
+            const rowsHtml = srchResults.map((item, i) => {
+                const chk = srchSelected.has(i) ? 'checked' : '';
+                return `<tr>
+                    <td><input type="checkbox" ${chk} onchange="toggleSrchItem(${i}, this.checked)" style="cursor:pointer;"></td>
+                    <td title="${escapeAttr(item.permit_date)}">${item.permit_date || '-'}</td>
+                    <td title="${escapeAttr(item.business_name)}">${escapeAttr(item.business_name)}</td>
+                    <td>${escapeAttr(item.business_type)}</td>
+                    <td>${item.area || '-'}</td>
+                    <td title="${escapeAttr(item.road_address)}">${escapeAttr(item.road_address) || '-'}</td>
+                </tr>`;
+            }).join('');
+
+            area.innerHTML = `
+                <div class="search-result-bar">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span class="badge">총 ${srchResults.length}건</span>
+                        ${srchSelected.size > 0 ? `<span class="badge" style="background:#e8f2fd;border-color:#0071e3;color:#0071e3;">${srchSelected.size}건 선택</span>` : ''}
+                    </div>
+                    <button class="btn-download" onclick="downloadSrchResults()" ${srchSelected.size === 0 ? 'disabled' : ''}>
+                        ⬇️ 선택 항목 엑셀 다운로드 (${srchSelected.size}건)
+                    </button>
+                </div>
+                <div class="db-table-scroll">
+                    <table class="preview-table">
+                        <thead>
+                            <tr>
+                                <th style="width:36px;">
+                                    <input type="checkbox" ${allChecked ? 'checked' : ''} onchange="toggleAllSrch(this.checked)" style="cursor:pointer;">
+                                </th>
+                                ${headerHtml}
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        function toggleSrchItem(i, checked) {
+            checked ? srchSelected.add(i) : srchSelected.delete(i);
+            renderSearchResults();
+        }
+
+        function toggleAllSrch(checked) {
+            srchSelected = checked ? new Set(srchResults.map((_, i) => i)) : new Set();
+            renderSearchResults();
+        }
+
+        function downloadSrchResults() {
+            if (!srchSelected.size) return;
+            const selected = [...srchSelected].map(i => srchResults[i]);
+            const headers  = ['NO','영업 허가일','사업장명','거래여부(기입예정)','업태구분명','평형','도로명전체주소','주소1','주소2','주소3','순위','담당자','앱시트등록일','위도','경도','사용우유'];
+            const rows = selected.map((item, idx) => [
+                idx + 1,
+                item.permit_date || '',
+                item.business_name || '',
+                '인허가',
+                item.business_type || '',
+                item.area || '',
+                item.road_address || '',
+                item.address1 || '',
+                item.address2 || '',
+                item.address3 || '',
+                '1',
+                '',
+                '',
+                item.lat || '',
+                item.lng || '',
+                ''
+            ]);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 2, 14) }));
+            XLSX.utils.book_append_sheet(wb, ws, '인허가데이터');
+
+            const start = document.getElementById('srchStartDate').value;
+            const end   = document.getElementById('srchEndDate').value;
+            XLSX.writeFile(wb, `인허가_공공데이터_${start}_${end}.xlsx`);
+            showToast(`✅ ${selected.length}건 다운로드 완료`);
         }
 
         // ── 토스트 ───────────────────────────────────────────

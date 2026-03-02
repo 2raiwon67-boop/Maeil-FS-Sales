@@ -1908,20 +1908,6 @@
                     </div>
                 </div>
 
-                <div class="dropdown-card" id="aiTagDropdown">
-                    <div class="dropdown-header" onclick="toggleDropdown('aiTagDropdown')">
-                        <h4 style="color: #667eea;">🚀 AI 인사이트 필터</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="aiTagList">
-                            <!-- AI tags will be populated here -->
-                            <div class="dropdown-item" onclick="filterByAITag(null)">
-                                <span>전체 보기</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
 
@@ -1930,31 +1916,9 @@
             <div class="section">
                 <div class="section-header">💾 데이터 관리</div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div style="display: flex; flex-direction: column; gap: 6px;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <label style="font-size:11px; color:#86868b; width:32px; flex-shrink:0;">시작일</label>
-                            <input type="date" id="apiStartDate"
-                                style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                            <label style="font-size:11px; color:#86868b; width:32px; flex-shrink:0;">종료일</label>
-                            <input type="date" id="apiEndDate"
-                                style="flex:1; font-size:11px; padding:4px 6px; border:1px solid #d2d2d7; border-radius:6px; background:#fff; color:#1d1d1f;">
-                        </div>
-                    </div>
-                    <button onclick="loadDataFromPublicAPI()" id="apiLoadBtn" class="naver-map-btn"
-                        style="background: #FF9F0A; justify-content: center;">
-                        🌐 공공데이터 자동 불러오기
-                    </button>
-                    <div id="apiLoadStatus"
-                        style="font-size:11px; color:#86868b; text-align:center; display:none; line-height:1.5;"></div>
                     <button onclick="openUploadModal()" class="naver-map-btn"
                         style="background: #34c759; justify-content: center;">
                         📂 RAW 파일 업로드
-                    </button>
-                    <button onclick="openFinalUploadModal()" class="naver-map-btn"
-                        style="background: #0071e3; justify-content: center;">
-                        🚀 최종본 업로드
                     </button>
                 </div>
             </div>
@@ -2142,26 +2106,6 @@
         </div>
     </div>
 
-    <!-- 최종본 업로드 모달 -->
-    <div class="modal" id="finalUploadModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>최종본 업로드</h2>
-                <span class="close-btn" onclick="closeFinalUploadModal()">&times;</span>
-            </div>
-            <div class="upload-zone" id="uploadZone2">
-                <div class="upload-icon">📂</div>
-                <p class="upload-text">수정 완료한 파일 업로드</p>
-                <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
-            </div>
-            <input type="file" id="fileInput2" accept=".xlsx,.xls">
-            <div class="loading" id="loading2">
-                <div class="spinner"></div>
-                <p>Google Sheets 업로드 중...</p>
-            </div>
-            <div id="alert2"></div>
-        </div>
-    </div>
 
     <script>
         // ============================================================
