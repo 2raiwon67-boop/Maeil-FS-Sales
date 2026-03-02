@@ -104,6 +104,7 @@ export default async function handler(req, res) {
 
         // ── 4. 담당자별 이메일 발송 ───────────────────────────
         const results = [];
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
         const activeManagers = new Set([
             ...newTargets.map(t => t.manager),
@@ -142,6 +143,7 @@ export default async function handler(req, res) {
                 revisit: myRevisit.length,
                 id:      sendData.id || sendData.error
             });
+            await sleep(600); // Resend 2 req/s 한도 대응
         }
 
         // ── 5. 지점장 전체 발송 ───────────────────────────────
@@ -170,6 +172,7 @@ export default async function handler(req, res) {
                 revisit: revisitTargets.length,
                 id:      sendData.id || sendData.error
             });
+            await sleep(600); // Resend 2 req/s 한도 대응
         }
 
         return res.status(200).json({

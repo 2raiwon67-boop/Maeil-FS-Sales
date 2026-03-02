@@ -1552,3 +1552,125 @@ GEMINI_API_KEY=AIzaSy... bash scripts/run-upload.sh
 - `run-upload.sh`: 하드코딩 비밀값 없음, gitignore 처리됨
 
 ---
+
+## 34. 서비스워커 캐시 버전 업데이트 및 upload.html 확인 (2026-03-02)
+
+### 배경
+`proposal.html` 방문일지 분석·제품사진 표시 이상 및 `방문일지.html` 전체 데이터 표시 여부 확인 요청.
+한 번씩 캐시 삭제 후 새로고침하면 정상이지만, 기존 캐시가 있으면 구버전 HTML이 계속 서빙되는 문제.
+
+### 원인 및 수정
+
+**원인**: `sw.js`의 Cache-First 전략 — `CACHE_NAME = 'fs-miso-v18'`이 그대로면 브라우저가 새 배포 이후에도 구버전 HTML을 반환.
+
+**수정**: 캐시 버전 번프
+```javascript
+// sw.js
+const CACHE_NAME = 'fs-miso-v18';  // 변경 전
+const CACHE_NAME = 'fs-miso-v19';  // 변경 후
+```
+→ 다음 방문 시 activate 핸들러가 v18 캐시를 삭제하고 v19로 새로 캐싱.
+
+### 각 페이지 기능 확인 결과
+
+| 항목 | 확인 결과 |
+|------|----------|
+| `proposal.html` 방문일지 분석 | `loadVisitLogsForStore()` 정상 동작 |
+| `proposal.html` 제품사진 | GitHub Pages 외부 URL, 서비스워커 개입 없음 — 정상 |
+| `방문일지.html` 전체 조회 | 이전 세션(섹션 21)에서 PAGE_SIZE=1000 루프로 이미 구현 완료 |
+| `upload.html` DB 미리보기 | 이전 계획의 모든 기능(편집 가능 테이블, 읽기 전용, 페이지네이션) 이미 구현됨 |
+
+### 커밋
+- `d42b028` — sw.js 캐시 버전 v18→v19 업데이트
+
+---
+
+## 35. proposal.html Recipe RAG 통합 (2026-03-02)
+
+### 목표
+매장 분석 시 Supabase `recipes` 테이블의 벡터 검색을 활용해 유사 메뉴 사례를 Gemini 프롬프트에 주입 → 자사 제품 추천 정확도 향상.
+
+### 구현 위치
+`api/naver-reviews.js` — step 2(데이터 정제)와 step 3(Gemini 프롬프트 구성) 사이에 step 2.5 추가.
+
+### 흐름
+
+```
+매장명 + 블로그 상위 5개 제목
+        ↓
+Gemini Embedding API (gemini-embedding-001, 768차원)
+        ↓
+Supabase RPC search_recipes(query_embedding, match_count=5)
+        ↓
+유사 레시피 5건 → recipeSection 문자열 구성
+        ↓
+Gemini 프롬프트 (visitHistorySection 다음, 제품목록 앞)에 삽입
+```
+
+### 핵심 코드 (step 2.5)
+
+```javascript
+// ── 2.5. Recipe RAG — 레시피 DB 유사도 검색 ──
+let recipeSection = '';
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+
+if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+    try {
+        const embedText = [storeName, ...filteredBlogItems.slice(0, 5).map(b => stripHtml(b.title))].join(' ');
+        // 1. 임베딩 생성
+        const embedRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
+            { method: 'POST', headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({ model: 'models/gemini-embedding-001',
+                                    content: {parts:[{text: embedText}]},
+                                    outputDimensionality: 768 }) }
+        );
+        if (embedRes.ok) {
+            const vector = (await embedRes.json()).embedding?.values;
+            if (Array.isArray(vector) && vector.length === 768) {
+                // 2. Supabase 벡터 검색
+                const rpcRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/search_recipes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type':'application/json',
+                               'apikey': SUPABASE_ANON_KEY,
+                               'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                    body: JSON.stringify({ query_embedding: `[${vector.join(',')}]`, match_count: 5 })
+                });
+                if (rpcRes.ok) {
+                    const matched = await rpcRes.json();
+                    if (Array.isArray(matched) && matched.length > 0) {
+                        const recipeLines = matched.map(r =>
+                            `- [${r.category||'음료'}] ${r.name}: 자사제품=[${(r.main_products||[]).join(', ')}] 태그=[${(r.tags||[]).slice(0,4).join(', ')}]`
+                        ).join('\n');
+                        recipeSection = `\n## 자사 레시피 DB — 유사 메뉴 활용 사례\n${recipeLines}\n\n⚠️ 위 레시피는 실제 매일유업 제품이 사용된 유사 메뉴 사례입니다. 제품 추천·시그니처 메뉴 대응 시 반드시 참고하세요.\n`;
+                    }
+                }
+            }
+        }
+    } catch (recipeErr) {
+        console.warn('Recipe RAG 검색 실패 (무시):', recipeErr.message);
+    }
+}
+```
+
+### 프롬프트 변경
+1. `recipeSection`을 `visitHistorySection`과 `## 매일유업 제품 목록` 사이에 삽입
+2. 요구사항 3번에 추가:
+   > 레시피 DB에 유사 메뉴 사례가 있다면 해당 레시피의 자사제품을 **최우선** 고려하세요.
+
+### 환경변수 추가
+- Vercel에 `SUPABASE_ANON_KEY` 추가 필요 → 사용자가 추가 완료
+- Vercel Redeploy 필요 (env var 추가 후 기존 배포에는 미반영)
+
+### Supabase RPC 권한 참고
+만약 anon 키로 `search_recipes` 호출 시 403 오류 발생하면:
+```sql
+-- Supabase SQL Editor에서 실행
+GRANT EXECUTE ON FUNCTION search_recipes TO anon;
+```
+
+### 커밋
+- `a49034b` — proposal.html Recipe RAG 통합 (naver-reviews.js step 2.5 추가)
+
+---
