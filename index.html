@@ -3645,8 +3645,6 @@
 
         function openUploadModal() { document.getElementById('uploadModal').classList.add('active'); }
         function closeUploadModal() { document.getElementById('uploadModal').classList.remove('active'); }
-        function openFinalUploadModal() { document.getElementById('finalUploadModal').classList.add('active'); }
-        function closeFinalUploadModal() { document.getElementById('finalUploadModal').classList.remove('active'); }
 
         /** 네이버 지도 앱 열기 — iOS PWA에서도 작동하는 딥링크 방식 */
         function openNaverMapApp(lat, lng, name) {
@@ -3679,18 +3677,13 @@
         // 모달 외부 클릭 시 닫기
         window.onclick = function (event) {
             const modal1 = document.getElementById('uploadModal');
-            const modal2 = document.getElementById('finalUploadModal');
             if (event.target == modal1) {
                 modal1.style.display = "none";
-            }
-            if (event.target == modal2) {
-                modal2.style.display = "none";
             }
         }
 
         function setupUploadZones() {
             setupUploadZone('uploadZone1', 'fileInput1', handleRawFile);
-            setupUploadZone('uploadZone2', 'fileInput2', handleFinalFile);
         }
 
         function setupUploadZone(zoneId, inputId, handler) {
@@ -4028,42 +4021,7 @@
             XLSX.writeFile(wb, '인허가_1차가공_' + new Date().toISOString().slice(0, 10) + '.xlsx');
         };
 
-        function handleFinalFile(files) {
-            document.getElementById('loading2').classList.add('active');
-
-            // FileList에서 첫 번째 파일 추출
-            const file = files[0];
-            if (!file) {
-                document.getElementById('loading2').classList.remove('active');
-                showAlert('alert2', 'error', '❌ 파일을 선택해주세요');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const wb = XLSX.read(data, { type: 'array' });
-                    let finalData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-
-                    // 1순위만 필터링 (사용자 요청)
-                    const originalCount = finalData.length;
-                    finalData = finalData.filter(row => (row['순위'] || '').toString().trim() === '1');
-
-                    if (finalData.length === 0) {
-                        throw new Error('업로드할 데이터 중 1순위 데이터가 없습니다.');
-                    }
-
-                    throw new Error('인허가 데이터 업로드는 "데이터 관리" 페이지(upload.html)에서 진행해주세요.');
-                } catch (err) {
-                    document.getElementById('loading2').classList.remove('active');
-                    showAlert('alert2', 'error', '❌ 오류: ' + err.message);
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // uploadToSheets() 제거 — 데이터 업로드는 upload.html 에서 처리
+        // 데이터 업로드는 upload.html 에서 처리
 
 
 
