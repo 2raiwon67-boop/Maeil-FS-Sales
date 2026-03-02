@@ -689,7 +689,7 @@
         let currentDbData = [];
         let currentBusinessUnit = null;
         let previewPage = 0;
-        const PREVIEW_PAGE_SIZE = 50;
+        const PREVIEW_PAGE_SIZE = 5;
 
         // ── 페이지 초기화 ────────────────────────────────────
         window.addEventListener('load', () => {
@@ -817,11 +817,8 @@
                 if (cfg.editable) {
                     // 편집 테이블: 전체 로드 (최대 1,000건 — managers/accounts는 소량)
                     query = query.limit(1000);
-                } else if (cfg.scrollAll) {
-                    // 스크롤 전체 로드 (페이지네이션 없음 — 인허가)
-                    query = query.limit(5000);
                 } else {
-                    // 읽기 전용: 50건 페이지네이션
+                    // 읽기 전용: 5건 미리보기 + 페이지네이션
                     const from = previewPage * PREVIEW_PAGE_SIZE;
                     const to   = from + PREVIEW_PAGE_SIZE - 1;
                     query = query.range(from, to);
@@ -834,7 +831,7 @@
                     currentDbData = data || [];
                     renderEditableTable(currentDbData, cfg, totalCount);
                 } else {
-                    renderReadonlyTable(data || [], cfg, totalCount);
+                    renderReadonlyTable(data || [], cfg, totalCount, previewPage);
                 }
 
             } catch (e) {
@@ -884,15 +881,10 @@
                 }).join('')}</tr>
             `).join('');
 
-            let paginationHtml;
-            if (cfg.scrollAll) {
-                // 페이지네이션 없이 총 건수만 표시
-                paginationHtml = `<p style="font-size:12px;color:#86868b;margin:4px 0 0;">총 ${total}건</p>`;
-            } else {
-                const totalPages = Math.ceil(total / PREVIEW_PAGE_SIZE);
-                const startRow  = previewPage * PREVIEW_PAGE_SIZE + 1;
-                const endRow    = Math.min(startRow + PREVIEW_PAGE_SIZE - 1, total);
-                paginationHtml = totalPages > 1 ? `
+            const totalPages = Math.ceil(total / PREVIEW_PAGE_SIZE);
+            const startRow  = previewPage * PREVIEW_PAGE_SIZE + 1;
+            const endRow    = Math.min(startRow + PREVIEW_PAGE_SIZE - 1, total);
+            const paginationHtml = totalPages > 1 ? `
                     <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12px;color:#86868b;">
                         <button onclick="changePage(${previewPage - 1})" ${previewPage === 0 ? 'disabled' : ''}
                             style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">◀ 이전</button>
@@ -900,7 +892,6 @@
                         <button onclick="changePage(${previewPage + 1})" ${previewPage >= totalPages - 1 ? 'disabled' : ''}
                             style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">다음 ▶</button>
                     </div>` : `<p style="font-size:12px;color:#86868b;margin:4px 0 0;">총 ${total}건</p>`;
-            }
 
             dbBody.innerHTML = `
                 <div class="db-summary">${summaryHtml}</div>
