@@ -1674,3 +1674,75 @@ GRANT EXECUTE ON FUNCTION search_recipes TO anon;
 - `a49034b` — proposal.html Recipe RAG 통합 (naver-reviews.js step 2.5 추가)
 
 ---
+
+## 36. send-monthly-report.js Resend 429 한도 대응 (2026-03-02)
+
+### 배경
+- `send-license-alert.js`와 동일한 Resend 2 req/s 초과 위험이 `send-monthly-report.js`에도 존재
+- 담당자 for...of 루프에서 `buildEmailHtml()` (순수 문자열 연산, ~즉시 완료) 후 바로 `fetch()` → HTTP 왕복이 < 500ms이면 복수 요청이 1초 안에 발생
+
+### 수정 내용 (`api/send-monthly-report.js`)
+```javascript
+// ── 5. 담당자별 보고서 생성 및 이메일 발송 ───────────
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));  // ← 추가
+const results = [];
+
+for (const user of approvedUsers) {
+    // ...
+    results.push({ ... });
+    await sleep(600); // Resend 2 req/s 한도 대응  ← 추가
+}
+```
+
+### 커밋
+- `1d7128e` — send-monthly-report Resend 429 한도 대응 + GitHub Actions 워크플로우 추가
+
+---
+
+## 37. GitHub Actions 공공인허가 데이터 수집 워크플로우 추가 (2026-03-02)
+
+### 배경
+- Vercel Hobby 플랜 cron 2개 한도 초과로 공공데이터 수집 cron 추가 불가
+- GitHub Actions 무료 사용 가능 (public repo: 무제한, private: 월 2000분)
+
+### 단점
+- cron 실행 시간 ±15~30분 오차 (GitHub 트래픽에 따라)
+- 별도 Secrets 관리 (Vercel과 독립)
+- 러너 지역: US (국내 공공 API 속도 다소 느릴 수 있음)
+- yml 파일 유지보수 필요
+
+### 생성 파일 (`.github/workflows/fetch-public-licenses.yml`)
+```yaml
+name: 공공인허가 데이터 수집
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 매일 UTC 00:00 = KST 09:00
+  workflow_dispatch:        # 수동 실행 가능
+jobs:
+  fetch-licenses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 공공인허가 데이터 수집 및 Supabase 업로드
+        run: node scripts/fetch-public-licenses.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PUBLIC_DATA_API_KEY: ${{ secrets.PUBLIC_DATA_API_KEY }}
+```
+
+### Secrets 등록 방법
+`GitHub 저장소 → Settings → Secrets and variables → Actions → New repository secret`
+
+### 다음 단계 (미완료)
+- `scripts/fetch-public-licenses.js` 실제 수집 스크립트 작성 필요
+  - 공공데이터포털 API 호출 → Supabase 업로드 로직
+
+### 커밋
+- `1d7128e` — send-monthly-report Resend 429 한도 대응 + GitHub Actions 워크플로우 추가
+
+---
