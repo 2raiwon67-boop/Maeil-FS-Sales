@@ -34,41 +34,107 @@ export default async function handler(req, res) {
     }
 
     try {
-        // ── 1. 네이버 검색 API 병렬 호출 ──
-        const naverHeaders = {
-            'X-Naver-Client-Id': NAVER_CLIENT_ID,
-            'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
-        };
+        // ── 공통: Supabase 환경변수 ──
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-        const [localResult, blogResult] = await Promise.allSettled([
-            fetch(
-                `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(storeName)}&display=5`,
-                { headers: naverHeaders }
-            ).then(async r => {
-                if (!r.ok) {
-                    const text = await r.text();
-                    throw new Error(`Local Search Error (${r.status}): ${text}`);
+        // ── 0. Supabase 네이버 API 캐시 조회 (24h) ──
+        let localData = { items: [] };
+        let blogData = { items: [] };
+        let naverCacheHit = false;
+
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+            try {
+                const cacheRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/naver_cache?store_name=eq.${encodeURIComponent(storeName.trim())}&select=local_data,blog_data,cached_at`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+                if (cacheRes.ok) {
+                    const rows = await cacheRes.json();
+                    if (Array.isArray(rows) && rows.length > 0) {
+                        const row = rows[0];
+                        const ageMs = Date.now() - new Date(row.cached_at).getTime();
+                        if (ageMs < 240 * 60 * 60 * 1000) {
+                            localData = row.local_data || { items: [] };
+                            blogData = row.blog_data || { items: [] };
+                            naverCacheHit = true;
+                            console.log(`[Naver Cache HIT] ${storeName.trim()}`);
+                        } else {
+                            console.log(`[Naver Cache MISS] 만료 (${Math.floor(ageMs / 3600000)}h 경과)`);
+                        }
+                    }
                 }
-                return r.json();
-            }),
-            fetch(
-                `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(storeName + ' 리뷰')}&display=10&sort=date`,
-                { headers: naverHeaders }
-            ).then(async r => {
-                if (!r.ok) {
-                    const text = await r.text();
-                    throw new Error(`Blog Search Error (${r.status}): ${text}`);
+            } catch (cacheErr) {
+                console.warn('[Naver Cache] 조회 실패 (무시):', cacheErr.message);
+            }
+        }
+
+        if (!naverCacheHit) {
+            // ── 1. 네이버 검색 API 병렬 호출 ──
+            const naverHeaders = {
+                'X-Naver-Client-Id': NAVER_CLIENT_ID,
+                'X-Naver-Client-Secret': NAVER_CLIENT_SECRET
+            };
+
+            const [localResult, blogResult] = await Promise.allSettled([
+                fetch(
+                    `https://openapi.naver.com/v1/search/local.json?query=${encodeURIComponent(storeName)}&display=5`,
+                    { headers: naverHeaders }
+                ).then(async r => {
+                    if (!r.ok) {
+                        const text = await r.text();
+                        throw new Error(`Local Search Error (${r.status}): ${text}`);
+                    }
+                    return r.json();
+                }),
+                fetch(
+                    `https://openapi.naver.com/v1/search/blog.json?query=${encodeURIComponent(storeName + ' 리뷰')}&display=10&sort=date`,
+                    { headers: naverHeaders }
+                ).then(async r => {
+                    if (!r.ok) {
+                        const text = await r.text();
+                        throw new Error(`Blog Search Error (${r.status}): ${text}`);
+                    }
+                    return r.json();
+                })
+            ]);
+
+            // 에러 로깅
+            if (localResult.status === 'rejected') console.error('Naver Local API Error:', localResult.reason);
+            if (blogResult.status === 'rejected') console.error('Naver Blog API Error:', blogResult.reason);
+
+            localData = localResult.status === 'fulfilled' ? localResult.value : { items: [] };
+            blogData = blogResult.status === 'fulfilled' ? blogResult.value : { items: [] };
+
+            // ── 캐시 저장 ──
+            if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+                try {
+                    await fetch(`${SUPABASE_URL}/rest/v1/naver_cache`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                            'Prefer': 'resolution=merge-duplicates'
+                        },
+                        body: JSON.stringify({
+                            store_name: storeName.trim(),
+                            local_data: localData,
+                            blog_data: blogData,
+                            cached_at: new Date().toISOString()
+                        })
+                    });
+                    console.log(`[Naver Cache SAVE] ${storeName.trim()}`);
+                } catch (saveErr) {
+                    console.warn('[Naver Cache] 저장 실패 (무시):', saveErr.message);
                 }
-                return r.json();
-            })
-        ]);
-
-        // 에러 로깅
-        if (localResult.status === 'rejected') console.error('Naver Local API Error:', localResult.reason);
-        if (blogResult.status === 'rejected') console.error('Naver Blog API Error:', blogResult.reason);
-
-        const localData = localResult.status === 'fulfilled' ? localResult.value : { items: [] };
-        const blogData = blogResult.status === 'fulfilled' ? blogResult.value : { items: [] };
+            }
+        }
 
         // ── 증분 업데이트: 중복 리뷰 필터링 ──
         let filteredBlogItems = blogData.items || [];
@@ -119,9 +185,6 @@ export default async function handler(req, res) {
         // ── 2.5. Recipe RAG — 레시피 DB 유사도 검색 ──
         let recipeSection = '';
         let recipeMatchCount = 0;
-        const SUPABASE_URL = process.env.SUPABASE_URL;
-        const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
         if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
             console.log('Recipe RAG 스킵: SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경변수 미설정');
         } else if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -205,7 +268,9 @@ export default async function handler(req, res) {
             }));
 
             visitHistorySection = `\n## ✨ 우리 팀 방문 기록 (${storeHistory.length}건, 최근 5건 표시)
-${JSON.stringify(historyItems, null, 2)}
+${historyItems.map(h =>
+    `[${h.방문일}|${h.담당자}|${h.거래상태}] ${h.방문내용}${h.주요이슈 ? ` (이슈:${h.주요이슈})` : ''}`
+).join('\n')}
 
 ⚠️ **중요**: 이 매장은 우리 팀이 이미 방문한 적이 있습니다!
 과거 방문 결과를 바탕으로 **전략을 조정**하세요:
