@@ -89,11 +89,23 @@ export default async function handler(req, res) {
         // ── 2. HTML 태그 제거 및 데이터 정리 ──
         const stripHtml = (str) => str ? str.replace(/<[^>]*>/g, '') : '';
 
-        const localSummary = (localData.items || []).map(item => ({
-            name: stripHtml(item.title),
-            category: item.category,
-            address: item.roadAddress || item.address
-        }));
+        // 카페·베이커리·브런치 카테고리를 앞으로 정렬 (매장 특정 정확도 개선)
+        const CAFE_KEYWORDS = ['카페', '커피', '베이커리', '제과', '브런치', '디저트', '케이크', '티'];
+        const FOOD_KEYWORDS = ['음식점', '레스토랑', '식당', '주점', '패스트푸드'];
+        const categorySortScore = (cat) => {
+            if (!cat) return 9;
+            if (CAFE_KEYWORDS.some(k => cat.includes(k))) return 0;
+            if (FOOD_KEYWORDS.some(k => cat.includes(k))) return 1;
+            return 5;
+        };
+
+        const localSummary = (localData.items || [])
+            .map(item => ({
+                name: stripHtml(item.title),
+                category: item.category,
+                address: item.roadAddress || item.address
+            }))
+            .sort((a, b) => categorySortScore(a.category) - categorySortScore(b.category));
 
         const blogSummary = filteredBlogItems.map(item => ({
             title: stripHtml(item.title),
@@ -106,10 +118,13 @@ export default async function handler(req, res) {
 
         // ── 2.5. Recipe RAG — 레시피 DB 유사도 검색 ──
         let recipeSection = '';
+        let recipeMatchCount = 0;
         const SUPABASE_URL = process.env.SUPABASE_URL;
         const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+            console.log('Recipe RAG 스킵: SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경변수 미설정');
+        } else if (SUPABASE_URL && SUPABASE_ANON_KEY) {
             try {
                 // 임베딩 쿼리: 매장명 + 블로그 제목 상위 5개 (메뉴·음료 키워드 포함)
                 const embedText = [storeName, ...filteredBlogItems.slice(0, 5).map(b => stripHtml(b.title))].join(' ');
@@ -147,7 +162,9 @@ export default async function handler(req, res) {
 
                         if (rpcRes.ok) {
                             const matched = await rpcRes.json();
+                            console.log(`Recipe RAG: ${Array.isArray(matched) ? matched.length : 0}건 매칭`);
                             if (Array.isArray(matched) && matched.length > 0) {
+                                recipeMatchCount = matched.length;
                                 const recipeLines = matched.map(r =>
                                     `- [${r.category || '음료'}] ${r.name}: 자사제품=[${(r.main_products || []).join(', ')}] 태그=[${(r.tags || []).slice(0, 4).join(', ')}]`
                                 ).join('\n');
@@ -202,6 +219,12 @@ ${JSON.stringify(historyItems, null, 2)}
 아래 네이버 검색 결과를 분석하여 매장 특성을 파악하고, 매일유업 제품을 추천해주세요.
 ${updateNote}
 ## 검색 매장: "${storeName}"
+
+## 📌 분석 대상 특정 지침
+지역 검색 결과에 같은 이름의 여러 매장이 있거나 카테고리가 불명확한 경우:
+- 카페·베이커리·브런치·디저트·음식점 카테고리를 최우선으로 분석 대상을 특정하세요.
+- 매장명만으로 업종 판단이 어렵더라도(예: 한식당처럼 보이는 이름이지만 실제 베이커리 카페인 경우) 블로그 리뷰의 메뉴 키워드를 기반으로 실제 업종을 판단하세요.
+- 분석은 반드시 특정된 1개 매장 기준으로만 수행하세요.
 
 ## 네이버 지역 검색 결과
 ${JSON.stringify(localSummary, null, 2)}
@@ -324,6 +347,7 @@ ${productList}
             signatureMenus: analysis.signatureMenus || [],
             reviewLinks: currentReviewLinks,
             isUpdate: isIncrementalUpdate,
+            recipeMatched: recipeMatchCount,   // RAG 작동 여부 확인용 (0이면 미작동)
             naverInfo: {
                 localResults: localSummary.length,
                 blogResults: blogSummary.length,
