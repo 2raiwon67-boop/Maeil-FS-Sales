@@ -121,6 +121,7 @@ export default async function handler(req, res) {
         });
 
         // ── 5. 담당자별 보고서 생성 및 이메일 발송 ───────────
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
         const results = [];
 
         for (const user of approvedUsers) {
@@ -206,6 +207,7 @@ export default async function handler(req, res) {
                 status:  sendRes.ok ? 'sent' : 'failed',
                 id:      sendData.id || sendData.error
             });
+            await sleep(600); // Resend 2 req/s 한도 대응
         }
 
         return res.status(200).json({

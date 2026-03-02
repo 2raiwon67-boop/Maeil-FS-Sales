@@ -1,0 +1,41 @@
+name: 공공인허가 데이터 수집
+
+# ─────────────────────────────────────────────
+#  실행 조건
+#  - 매일 오전 9시 KST (= UTC 00:00) 자동 실행
+#  - GitHub Actions UI에서 수동 실행도 가능
+# ─────────────────────────────────────────────
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 매일 UTC 00:00 = KST 09:00
+  workflow_dispatch:        # 수동 실행 (테스트용)
+
+jobs:
+  fetch-licenses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # 1. 코드 체크아웃
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2. Node.js 설정
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 3. 의존성 설치 (package.json 있을 경우)
+      # - name: Install dependencies
+      #   run: npm ci
+
+      # 4. 공공데이터 수집 스크립트 실행
+      #    scripts/fetch-public-licenses.js 를 별도로 작성해야 함
+      - name: 공공인허가 데이터 수집 및 Supabase 업로드
+        run: node scripts/fetch-public-licenses.js
+        env:
+          # GitHub 저장소 → Settings → Secrets and variables → Actions 에서 등록
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PUBLIC_DATA_API_KEY: ${{ secrets.PUBLIC_DATA_API_KEY }}
