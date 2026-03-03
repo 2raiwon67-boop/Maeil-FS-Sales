@@ -2874,7 +2874,7 @@
                     filteredAccounts = filteredAccounts.filter(a => (a['담당자명'] || '').trim() === currentManager);
                 }
                 if (currentRegion) {
-                    filteredAccounts = filteredAccounts.filter(a => (a['주소2'] || '').trim() === currentRegion);
+                    filteredAccounts = filteredAccounts.filter(a => (a['주소'] || '').includes(currentRegion));
                 }
                 document.getElementById('accountDealCount').textContent = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === '거래').length || 0;
                 document.getElementById('accountNoDealCount').textContent = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === '미거래').length || 0;
@@ -3108,8 +3108,8 @@
                 if (currentAccountFilter && ds !== currentAccountFilter) {
                     marker.setMap(null); return;
                 }
-                // 공통 지역 필터
-                if (currentRegion && (marker._region || '').trim() !== currentRegion) {
+                // 공통 지역 필터 (주소 전체에 포함 여부로 비교 — 주요거래처는 주소2 컬럼 없음)
+                if (currentRegion && !(marker._address || '').includes(currentRegion)) {
                     marker.setMap(null); return;
                 }
                 // 공통 담당자 필터
