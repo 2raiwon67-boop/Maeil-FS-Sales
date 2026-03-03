@@ -388,6 +388,72 @@
             background-color: #ff3b30;
         }
 
+        /* ===== 커스텀 자동완성 드롭다운 ===== */
+        .autocomplete-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .autocomplete-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 2px);
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.13);
+            z-index: 999;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .ac-item {
+            padding: 7px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f2;
+            transition: background 0.1s;
+        }
+
+        .ac-item:last-child { border-bottom: none; }
+        .ac-item:hover { background: #f0f4ff; }
+        .ac-item .ac-name { font-weight: 600; font-size: 13px; color: #1d1d1f; }
+        .ac-item .ac-spec { font-size: 11px; color: #999; margin-top: 1px; }
+
+        /* 컴팩트 에디터 행 */
+        .editor-row-prices {
+            display: flex;
+            gap: 6px;
+        }
+
+        .editor-row-prices > div {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .price-label {
+            font-size: 10px;
+            color: #86868b;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .price-input {
+            width: 100%;
+            height: 28px;
+            font-size: 13px;
+            padding: 0 6px;
+            box-sizing: border-box;
+            border: 1px solid #d2d2d7;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .price-input:focus { border-color: #0071e3; }
+
         /* ===== 모바일 최적화 ===== */
         @media (max-width: 768px) {
             body {
@@ -734,14 +800,7 @@
                             <tr><th>No</th><th>품명</th><th>규격</th><th>내용</th><th>판매가</th><th>사진</th></tr>
                         </thead>
                         <tbody id="_mTbody"></tbody>
-                        <tfoot id="_mTfoot">
-                            <tr style="background:#fbfbfd;font-weight:700;">
-                                <td colspan="4" style="text-align:center;padding:10px;">합 계</td>
-                                <td colspan="2" style="text-align:right;padding:0 15px;">0원</td>
-                            </tr>
-                        </tfoot>
                     </table>
-                    <div id="_mNote" style="margin-top:40px;text-align:right;font-size:13px;color:#666;line-height:1.6;">* 부가세(VAT) 포함가 기준입니다.</div>
                 </div>
             `;
             document.body.appendChild(wrap);
@@ -770,8 +829,6 @@
 
             const paperRect = paper.getBoundingClientRect();
             const theadRect = document.getElementById('_mThead').getBoundingClientRect();
-            const tfootRect = document.getElementById('_mTfoot').getBoundingClientRect();
-            const noteRect = document.getElementById('_mNote').getBoundingClientRect();
             const infoRect = document.getElementById('_mInfo').getBoundingClientRect();
 
             const trs = Array.from(tbody.querySelectorAll('tr'));
@@ -779,8 +836,8 @@
 
             // 페이지1 고정 영역: 헤더 + 정보테이블 + 테이블헤더 (contentH 기준 상단 오버헤드)
             const topOverhead = firstRowTop - paperRect.top - (20 * mmPx);
-            // 하단 고정 영역: tfoot + 주석
-            const footerH = noteRect.bottom - tfootRect.top;
+            // 하단 여유 공간 (합계/주석 제거로 최소 버퍼만)
+            const footerH = 20;
             // 페이지1 행 수용 가능 높이
             const p1Available = contentH - topOverhead - footerH;
             // 이후 페이지: 정보테이블 없는 대신 페이지표시 라인(약 28px)
@@ -1127,23 +1184,9 @@
 
             html += '</tbody>';
 
-            if (isLast) {
-                html += `
-                <tfoot>
-                    <tr style="background: #fbfbfd; font-weight: 700;">
-                        <td colspan="4" style="text-align: center; padding: 10px;">합 계</td>
-                        <td colspan="2" style="text-align: right; padding: 0 15px;">
-                            <span id="preview-totalAmount">0</span>원
-                        </td>
-                    </tr>
-                </tfoot>`;
-            }
 
             html += '</table>';
 
-            if (isLast) {
-                html += `<div style="margin-top: 40px; text-align: right; font-size: 13px; color: #666; line-height: 1.6;">* 부가세(VAT) 포함가 기준입니다.</div>`;
-            }
 
             if (totalPages > 1) {
                 html += `<div style="text-align:center;font-size:11px;color:#ccc;position:absolute;bottom:10mm;left:0;width:100%;">${pageIndex + 1} / ${totalPages}</div>`;
@@ -1183,46 +1226,48 @@
             const editorRow = document.createElement('div');
             editorRow.className = 'result-card active';
             editorRow.id = `editor-${rowId}`;
-            editorRow.style.marginBottom = '10px';
-            editorRow.style.padding = '12px';
+            editorRow.style.marginBottom = '8px';
+            editorRow.style.padding = '8px 10px 6px';
             editorRow.style.background = '#fff';
             editorRow.style.border = '1px solid #d2d2d7';
 
             editorRow.innerHTML = `
-                <div style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
-                    <span style="font-weight: 700; color: #888; width: 20px;">${rowCount}</span>
-                    <input type="text" class="input-field project-name" value="${esc(name)}" list="productOptions" placeholder="품명" oninput="calculateRow(this)">
-                    <input type="text" class="input-field p-spec-input" value="${esc(spec)}" placeholder="규격" style="width: 80px;" oninput="calculateRow(this)">
-                    <button onclick="removeRow('${rowId}')" style="background: none; border: none; color: #ff3b30; cursor: pointer;">✕</button>
+                <div style="display: flex; gap: 6px; margin-bottom: 5px; align-items: center;">
+                    <span style="font-weight: 700; color: #bbb; width: 16px; font-size: 12px; flex-shrink: 0; text-align: center;">${rowCount}</span>
+                    <div class="autocomplete-wrapper">
+                        <input type="text" class="input-field project-name" value="${esc(name)}" placeholder="품명" oninput="calculateRow(this)" style="width:100%;height:30px;font-size:13px;padding:0 8px;box-sizing:border-box;">
+                        <div class="autocomplete-dropdown"></div>
+                    </div>
+                    <input type="text" class="input-field p-spec-input" value="${esc(spec)}" placeholder="규격" style="width:60px;height:30px;font-size:12px;padding:0 5px;flex-shrink:0;" oninput="calculateRow(this)">
+                    <button onclick="removeRow('${rowId}')" style="background:none;border:none;color:#ff3b30;cursor:pointer;font-size:15px;padding:0;flex-shrink:0;line-height:1;">✕</button>
                 </div>
-                <div style="display: none;">
-                    <input type="text" class="input-field p-description" oninput="calculateRow(this)">
-                </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                <input type="text" class="input-field p-description" style="display:none;" oninput="calculateRow(this)">
+                <div class="editor-row-prices">
                     <div>
-                        <label class="input-label">출고가</label>
-                        <input type="number" class="input-field factory-price" value="${price}" oninput="calculateRow(this)">
+                        <div class="price-label">출고가</div>
+                        <input type="number" class="price-input factory-price" value="${price}" oninput="calculateRow(this)">
                     </div>
                     <div>
-                        <label class="input-label">DC(%) <small title="정책 최대 DC: ${maxDc}%">Max ${maxDc}%</small></label>
-                        <input type="number" class="input-field dc-rate" value="0" oninput="calculateRow(this)">
+                        <div class="price-label">DC% <span style="font-weight:400;color:#aaa;">(max ${maxDc}%)</span></div>
+                        <input type="number" class="price-input dc-rate" value="0" oninput="calculateRow(this)">
                     </div>
                     <div>
-                        <label class="input-label">판매가</label>
-                        <input type="number" class="input-field sales-price" value="${price}" oninput="calculateRow(this)">
+                        <div class="price-label">판매가</div>
+                        <input type="number" class="price-input sales-price" value="${price}" oninput="calculateRow(this)">
                     </div>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px;">
-                    <label style="display: flex; align-items: center; gap: 4px; color: #666;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px;">
+                    <label style="display:flex;align-items:center;gap:3px;color:#888;cursor:pointer;">
                         <input type="checkbox" class="tax-free-check" ${isTaxFree ? 'checked' : ''} onchange="calculateRow(this)"> 면세
                     </label>
-                    <span style="color: #666;">공급가: <span class="cost-price-display">0</span>원</span>
+                    <span style="color:#999;">공급가: <span class="cost-price-display">0</span>원</span>
                     <span class="margin-display margin-badge">0%</span>
                 </div>
                 <input type="hidden" class="real-cost" value="0">
                 <input type="hidden" class="row-id" value="${rowId}">
             `;
             editorContainer.appendChild(editorRow);
+            setupAutocomplete(editorRow.querySelector('.project-name'));
 
             // 프리뷰 재구성 (자동 페이지 분할 포함)
             rebuildPreview();
@@ -1243,6 +1288,40 @@
 
             // 프리뷰 재구성 (빈 페이지 자동 제거 포함)
             rebuildPreview();
+        }
+
+        // ===== 커스텀 자동완성 드롭다운 설정 =====
+        function setupAutocomplete(input) {
+            const dropdown = input.parentElement.querySelector('.autocomplete-dropdown');
+            if (!dropdown) return;
+
+            function showDropdown(val) {
+                const q = val.trim().toLowerCase();
+                if (!q) { dropdown.style.display = 'none'; return; }
+                const matches = productDB.filter(p => p.name.toLowerCase().includes(q)).slice(0, 24);
+                if (!matches.length) { dropdown.style.display = 'none'; return; }
+
+                dropdown.innerHTML = matches.map(p => `
+                    <div class="ac-item" data-name="${esc(p.name)}">
+                        <div class="ac-name">${p.name}</div>
+                        ${p.spec ? `<div class="ac-spec">${p.spec}</div>` : ''}
+                    </div>
+                `).join('');
+
+                dropdown.querySelectorAll('.ac-item').forEach(el => {
+                    el.addEventListener('mousedown', e => {
+                        e.preventDefault();
+                        input.value = el.dataset.name;
+                        dropdown.style.display = 'none';
+                        calculateRow(input);
+                    });
+                });
+                dropdown.style.display = 'block';
+            }
+
+            input.addEventListener('input', () => showDropdown(input.value));
+            input.addEventListener('focus', () => { if (input.value.trim()) showDropdown(input.value); });
+            input.addEventListener('blur', () => { setTimeout(() => { dropdown.style.display = 'none'; }, 150); });
         }
 
         // 4. 계산 및 동기화 로직
@@ -1754,7 +1833,7 @@
             const container = document.getElementById('editor-items-container');
             container.innerHTML = '';
             (data.items || []).forEach(item => {
-                addRow({ name: item.name, spec: item.spec, price: item.factoryPrice || 0 });
+                addRow({ name: item.name, spec: item.spec, price: item.factoryPrice || 0, taxFree: false, maxDc: 0 });
                 const row = container.lastElementChild;
                 if (row) {
                     row.querySelector('.dc-rate').value = item.dcRate || 0;
