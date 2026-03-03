@@ -1179,6 +1179,11 @@
             color: #c8a000;
         }
 
+        .route-tag-nodeal {
+            background: rgba(142, 142, 147, 0.15);
+            color: #8e8e93;
+        }
+
         .route-summary-box {
             background: #f5f5f7;
             border-radius: 8px;
@@ -4130,7 +4135,8 @@
         function updateRouteTargetSummary() {
             const licensed = allData.filter(d => d['순위'] === '1' && d['거래여부(기입예정)'] === '인허가' && d['위도'] && d['경도']);
             const construction = allData.filter(d => d['거래여부(기입예정)'] === '공사중' && d['위도'] && d['경도']);
-            const accounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '미거래');
+            const dealAccounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '거래');
+            const nodealAccounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '미거래');
             const radiusNote = forcedFirstStop
                 ? `🎯 [${forcedFirstStop.name}] 인근 반경 3km 자동 포함`
                 : '📍 출발지 기준 반경 3km 이내 자동 포함';
@@ -4141,8 +4147,11 @@
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
                     <span>🟠 공사중</span><strong>${construction.length}건</strong>
                 </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                    <span>⭐ 주요 기거래처</span><strong>${dealAccounts.length}건 중 자동선택</strong>
+                </div>
                 <div style="display:flex;justify-content:space-between;">
-                    <span>⭐ 주요 기거래처</span><strong>${accounts.length}건 중 자동선택</strong>
+                    <span>☆ 주요 미거래처</span><strong>${nodealAccounts.length}건 중 자동선택</strong>
                 </div>
                 <div style="margin-top:8px;font-size:10px;color:#86868b;border-top:1px solid #e8e8ed;padding-top:6px;">
                     ${radiusNote}
@@ -4317,7 +4326,7 @@
             }
             const accountStops = [];
             accountMarkers
-                .filter(m => (m._dealStatus || '').trim() === '미거래' && m._lat && m._lng)
+                .filter(m => m._lat && m._lng)
                 .forEach(m => {
                     const key = `${m._lat.toFixed(5)},${m._lng.toFixed(5)}`;
                     if (addedKeys.has(key)) return;
@@ -4330,7 +4339,8 @@
                             address: m._address || '',
                             lat: m._lat,
                             lng: m._lng,
-                            type: 'account'
+                            type: 'account',
+                            dealStatus: (m._dealStatus || '').trim()
                         });
                     }
                 });
@@ -4562,12 +4572,22 @@
 
         function renderRouteResult() {
             const totalDist = routeStops.reduce((s, r) => s + (r._dist || 0), 0);
-            const tagInfo = { primary: ['route-tag-primary', '인허가'], construction: ['route-tag-construction', '공사중'], account: ['route-tag-account', '기거래처'] };
-
             document.getElementById('routeStopList').innerHTML = routeStops.map((stop, idx) => {
                 const isStart = idx === 0;
-                const [cls, label] = isStart ? ['', ''] : (tagInfo[stop.type] || ['', '']);
-                const numBg = isStart ? '#86868b' : (stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000');
+                let cls = '', label = '', numBg = '#86868b';
+                if (!isStart) {
+                    if (stop.type === 'primary') {
+                        cls = 'route-tag-primary'; label = '인허가'; numBg = '#ff3b30';
+                    } else if (stop.type === 'construction') {
+                        cls = 'route-tag-construction'; label = '공사중'; numBg = '#ff9500';
+                    } else if (stop.type === 'account') {
+                        if (stop.dealStatus === '거래') {
+                            cls = 'route-tag-account'; label = '기거래처'; numBg = '#c8a000';
+                        } else {
+                            cls = 'route-tag-nodeal'; label = '미거래처'; numBg = '#8e8e93';
+                        }
+                    }
+                }
                 const hasInvalidCoord = !isValidCoord(stop.lat, stop.lng);
                 const warnBadge = hasInvalidCoord
                     ? `<span title="주소 좌표 오류 - 데이터베이스 주소 확인 필요" style="color:#ff3b30;font-size:13px;flex-shrink:0;">⚠️</span>`
@@ -4585,11 +4605,13 @@
 
             const primary = routeStops.filter(s => s.type === 'primary').length;
             const cons = routeStops.filter(s => s.type === 'construction').length;
-            const acc = routeStops.filter(s => s.type === 'account').length;
+            const accDeal = routeStops.filter(s => s.type === 'account' && s.dealStatus === '거래').length;
+            const accNodeal = routeStops.filter(s => s.type === 'account' && s.dealStatus !== '거래').length;
             document.getElementById('routeSummaryBox').innerHTML = `
                 <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>인허가 1순위</span><strong>${primary}건</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>공사중</span><strong>${cons}건</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>주요 기거래처</span><strong>${acc}건</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>주요 기거래처</span><strong>${accDeal}건</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>주요 미거래처</span><strong>${accNodeal}건</strong></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid #e8e8ed;padding-top:6px;">
                     <span>예상 총 거리 (직선)</span><strong>약 ${totalDist.toFixed(1)}km</strong>
                 </div>`;
