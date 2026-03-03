@@ -3890,7 +3890,10 @@
                         <div style="margin-top:12px;">
                             <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
                             <textarea id="${memoUid}" data-memokey="${memoKey}" style="width:100%;height:58px;border:1px solid #e8e8ed;border-radius:6px;padding:6px 8px;font-size:12px;resize:none;font-family:inherit;color:#1d1d1f;box-sizing:border-box;" placeholder="메모를 입력하세요...">${savedMemo}</textarea>
-                            <button onclick="saveMemo('${memoUid}')" style="margin-top:4px;width:100%;padding:7px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+                            <div style="display:flex;gap:5px;margin-top:4px;">
+                                <button id="save_${memoUid}" onclick="saveMemo('${memoUid}')" style="flex:1;padding:7px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+                                <button id="del_${memoUid}" onclick="deleteMemo('${memoUid}')" style="display:${savedMemo ? 'block' : 'none'};padding:7px 12px;background:#ff3b30;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">삭제</button>
+                            </div>
                         </div>
                     </div>
                     <div class="info-footer">
@@ -3904,11 +3907,29 @@
         function saveMemo(memoUid) {
             const ta = document.getElementById(memoUid);
             if (!ta) return;
-            localStorage.setItem(ta.dataset.memokey, ta.value);
-            const btn = ta.nextElementSibling;
-            btn.textContent = '✓ 저장됨';
-            btn.style.background = '#34C759';
-            setTimeout(() => { btn.textContent = '저장'; btn.style.background = '#0071e3'; }, 1500);
+            if (ta.value.trim()) {
+                localStorage.setItem(ta.dataset.memokey, ta.value);
+            } else {
+                localStorage.removeItem(ta.dataset.memokey);
+            }
+            const delBtn = document.getElementById('del_' + memoUid);
+            if (delBtn) delBtn.style.display = ta.value.trim() ? 'block' : 'none';
+            const saveBtn = document.getElementById('save_' + memoUid);
+            if (saveBtn) {
+                saveBtn.textContent = '✓ 저장됨';
+                saveBtn.style.background = '#34C759';
+                setTimeout(() => { saveBtn.textContent = '저장'; saveBtn.style.background = '#0071e3'; }, 1500);
+            }
+        }
+
+        function deleteMemo(memoUid) {
+            const ta = document.getElementById(memoUid);
+            if (!ta) return;
+            if (!confirm('메모를 삭제하시겠습니까?')) return;
+            localStorage.removeItem(ta.dataset.memokey);
+            ta.value = '';
+            const delBtn = document.getElementById('del_' + memoUid);
+            if (delBtn) delBtn.style.display = 'none';
         }
 
         async function updateDealStatus(name, address, newStatus, btnElement) {
@@ -4047,7 +4068,10 @@
                     <div style="margin-top:16px;">
                         <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
                         <textarea id="${sheetMemoUid}" data-memokey="${sheetMemoKey}" style="width:100%;height:68px;border:1px solid #e8e8ed;border-radius:8px;padding:8px;font-size:13px;resize:none;font-family:inherit;color:#1d1d1f;box-sizing:border-box;" placeholder="메모를 입력하세요...">${sheetSavedMemo}</textarea>
-                        <button onclick="saveMemo('${sheetMemoUid}')" style="margin-top:6px;width:100%;padding:10px;background:#0071e3;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">저장</button>
+                        <div style="display:flex;gap:6px;margin-top:6px;">
+                            <button id="save_${sheetMemoUid}" onclick="saveMemo('${sheetMemoUid}')" style="flex:1;padding:10px;background:#0071e3;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">저장</button>
+                            <button id="del_${sheetMemoUid}" onclick="deleteMemo('${sheetMemoUid}')" style="display:${sheetSavedMemo ? 'block' : 'none'};padding:10px 16px;background:#ff3b30;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">삭제</button>
+                        </div>
                     </div>
                     <button class="naver-map-btn" style="margin-top:12px;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">🗺️ 네이버 지도 앱 열기</button>
                     ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
