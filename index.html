@@ -3848,6 +3848,11 @@
             const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const mapBtn = `<button class="naver-map-btn" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">🗺️ 네이버 지도 앱 열기</button>`;
 
+            // 메모 (localStorage)
+            const memoKey = 'maeil_memo_' + name;
+            const savedMemo = localStorage.getItem(memoKey) || '';
+            const memoUid = 'memoTa_' + Math.random().toString(36).substr(2, 8);
+
             return `
                 <div class="custom-info-window">
                     <div class="info-header">
@@ -3871,7 +3876,7 @@
                             <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">상태 변경</span>
                             <div class="status-button-group">
                                 ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s => `
-                                    <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}" 
+                                    <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}"
                                             onclick="updateDealStatus('${name.replace(/'/g, "\\'")}', '${address.replace(/'/g, "\\'")}', '${s}', this)">
                                         ${s}
                                     </button>
@@ -3882,6 +3887,11 @@
                             <span class="info-label">허가일:</span>
                             <span class="info-value">${permitDate}</span>
                         </div>
+                        <div style="margin-top:12px;">
+                            <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
+                            <textarea id="${memoUid}" data-memokey="${memoKey}" style="width:100%;height:58px;border:1px solid #e8e8ed;border-radius:6px;padding:6px 8px;font-size:12px;resize:none;font-family:inherit;color:#1d1d1f;box-sizing:border-box;" placeholder="메모를 입력하세요...">${savedMemo}</textarea>
+                            <button onclick="saveMemo('${memoUid}')" style="margin-top:4px;width:100%;padding:7px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
+                        </div>
                     </div>
                     <div class="info-footer">
                         ${mapBtn}
@@ -3889,6 +3899,16 @@
                     </div>
                 </div>
             `;
+        }
+
+        function saveMemo(memoUid) {
+            const ta = document.getElementById(memoUid);
+            if (!ta) return;
+            localStorage.setItem(ta.dataset.memokey, ta.value);
+            const btn = ta.nextElementSibling;
+            btn.textContent = '✓ 저장됨';
+            btn.style.background = '#34C759';
+            setTimeout(() => { btn.textContent = '저장'; btn.style.background = '#0071e3'; }, 1500);
         }
 
         async function updateDealStatus(name, address, newStatus, btnElement) {
@@ -4020,8 +4040,16 @@
                 const itemLat = parseFloat(item['위도']) || 0;
                 const itemLng = parseFloat(item['경도']) || 0;
                 const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item['사업장명'] || '')}`;
+                const sheetMemoKey = 'maeil_memo_' + item['사업장명'];
+                const sheetMemoUid = 'sheetMemo_' + Math.random().toString(36).substr(2, 8);
+                const sheetSavedMemo = localStorage.getItem(sheetMemoKey) || '';
                 sheetActionBtns.innerHTML = `
-                    <button class="naver-map-btn" style="margin-top:16px;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">🗺️ 네이버 지도 앱 열기</button>
+                    <div style="margin-top:16px;">
+                        <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
+                        <textarea id="${sheetMemoUid}" data-memokey="${sheetMemoKey}" style="width:100%;height:68px;border:1px solid #e8e8ed;border-radius:8px;padding:8px;font-size:13px;resize:none;font-family:inherit;color:#1d1d1f;box-sizing:border-box;" placeholder="메모를 입력하세요...">${sheetSavedMemo}</textarea>
+                        <button onclick="saveMemo('${sheetMemoUid}')" style="margin-top:6px;width:100%;padding:10px;background:#0071e3;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">저장</button>
+                    </div>
+                    <button class="naver-map-btn" style="margin-top:12px;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">🗺️ 네이버 지도 앱 열기</button>
                     ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
                 `;
             }
