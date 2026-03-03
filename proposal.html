@@ -1297,8 +1297,9 @@
 
             function showDropdown(val) {
                 const q = val.trim().toLowerCase();
-                if (!q) { dropdown.style.display = 'none'; return; }
-                const matches = productDB.filter(p => p.name.toLowerCase().includes(q)).slice(0, 24);
+                const matches = q
+                    ? productDB.filter(p => p.name.toLowerCase().includes(q)).slice(0, 24)
+                    : productDB.slice(0, 40);
                 if (!matches.length) { dropdown.style.display = 'none'; return; }
 
                 dropdown.innerHTML = matches.map(p => `
@@ -1320,7 +1321,8 @@
             }
 
             input.addEventListener('input', () => showDropdown(input.value));
-            input.addEventListener('focus', () => { if (input.value.trim()) showDropdown(input.value); });
+            input.addEventListener('focus', () => showDropdown(input.value));
+            input.addEventListener('click', () => showDropdown(input.value));
             input.addEventListener('blur', () => { setTimeout(() => { dropdown.style.display = 'none'; }, 150); });
         }
 
