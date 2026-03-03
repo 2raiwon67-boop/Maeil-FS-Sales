@@ -4142,7 +4142,7 @@
                     <span>🟠 공사중</span><strong>${construction.length}건</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;">
-                    <span>⭐ 주요 미거래처</span><strong>${accounts.length}건 중 자동선택</strong>
+                    <span>⭐ 주요 기거래처</span><strong>${accounts.length}건 중 자동선택</strong>
                 </div>
                 <div style="margin-top:8px;font-size:10px;color:#86868b;border-top:1px solid #e8e8ed;padding-top:6px;">
                     ${radiusNote}
@@ -4562,24 +4562,24 @@
 
         function renderRouteResult() {
             const totalDist = routeStops.reduce((s, r) => s + (r._dist || 0), 0);
-            const tagInfo = { primary: ['route-tag-primary', '인허가'], construction: ['route-tag-construction', '공사중'], account: ['route-tag-account', '미거래처'] };
+            const tagInfo = { primary: ['route-tag-primary', '인허가'], construction: ['route-tag-construction', '공사중'], account: ['route-tag-account', '기거래처'] };
 
             document.getElementById('routeStopList').innerHTML = routeStops.map((stop, idx) => {
-                const [cls, label] = tagInfo[stop.type] || ['', ''];
-                const naverQ = encodeURIComponent(stop.name);
+                const isStart = idx === 0;
+                const [cls, label] = isStart ? ['', ''] : (tagInfo[stop.type] || ['', '']);
+                const numBg = isStart ? '#86868b' : (stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000');
                 const hasInvalidCoord = !isValidCoord(stop.lat, stop.lng);
                 const warnBadge = hasInvalidCoord
                     ? `<span title="주소 좌표 오류 - 데이터베이스 주소 확인 필요" style="color:#ff3b30;font-size:13px;flex-shrink:0;">⚠️</span>`
                     : '';
                 return `<div class="route-stop-item">
-                    <div class="route-stop-num" style="background:${stop.type === 'primary' ? '#ff3b30' : stop.type === 'construction' ? '#ff9500' : '#c8a000'}">${idx + 1}</div>
+                    <div class="route-stop-num" style="background:${numBg}">${idx + 1}</div>
                     <div class="route-stop-info">
                         <div class="route-stop-name">${stop.name}</div>
-                        <div class="route-stop-dist">${idx === 0 ? '출발거리 기준점' : (idx === 1 ? '현위치에서' : (idx === 2 && forcedFirstStop ? '1번 목적지에서' : '이전에서'))} ${idx === 0 ? '' : (stop._dist?.toFixed(1) + 'km')}</div>
+                        <div class="route-stop-dist">${isStart ? '출발거리 기준점' : (idx === 1 ? '현위치에서' : (idx === 2 && forcedFirstStop ? '1번 목적지에서' : '이전에서'))} ${isStart ? '' : (stop._dist?.toFixed(1) + 'km')}</div>
                     </div>
-                    <span class="route-stop-tag ${cls}">${label}</span>
+                    ${label ? `<span class="route-stop-tag ${cls}">${label}</span>` : ''}
                     ${warnBadge}
-                    <a href="https://map.naver.com/v5/search/${naverQ}" target="_blank" style="margin-left:5px;font-size:15px;text-decoration:none;flex-shrink:0;" title="네이버 지도에서 보기">🧭</a>
                 </div>`;
             }).join('');
 
@@ -4589,7 +4589,7 @@
             document.getElementById('routeSummaryBox').innerHTML = `
                 <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>인허가 1순위</span><strong>${primary}건</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:3px;"><span>공사중</span><strong>${cons}건</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>주요 미거래처</span><strong>${acc}건</strong></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span>주요 기거래처</span><strong>${acc}건</strong></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid #e8e8ed;padding-top:6px;">
                     <span>예상 총 거리 (직선)</span><strong>약 ${totalDist.toFixed(1)}km</strong>
                 </div>`;
