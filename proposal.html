@@ -213,7 +213,7 @@
             background: white;
             width: 210mm;
             min-height: 297mm;
-            padding: 20mm 8mm;
+            padding: 10mm 8mm;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             position: relative;
             box-sizing: border-box;
@@ -457,34 +457,34 @@
         /* ===== 카탈로그형 견적서 스타일 ===== */
         .catalog-header {
             background: white;
-            padding: 6px 0 10px;
+            padding: 8px 0 14px;
             text-align: center;
             border-bottom: 2.5px solid #1565C0;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
         .catalog-header-top {
             display: flex;
             align-items: flex-start;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
         .catalog-logo {
-            height: 28px;
+            height: 42px;
             width: auto;
             object-fit: contain;
             /* 흰 배경이므로 필터 없이 원본 로고 색상 */
         }
         .catalog-hdr-title {
-            font-size: 21px; font-weight: 800;
-            color: #1565C0; letter-spacing: 2px; margin-bottom: 3px;
+            font-size: 28px; font-weight: 800;
+            color: #1565C0; letter-spacing: 2px; margin-bottom: 4px;
         }
         .catalog-hdr-subtitle {
-            font-size: 12px; font-weight: 600;
+            font-size: 15px; font-weight: 600;
             color: #1565C0; letter-spacing: 1px;
         }
         .catalog-recipient {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px;
-            font-size: 10px; color: #444;
-            padding: 5px 0 0; margin-top: 4px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 18px;
+            font-size: 13px; color: #333;
+            padding: 7px 0 0; margin-top: 6px;
             border-top: 1px solid #e8eef8;
         }
         .catalog-recipient strong { color: #1565C0; font-weight: 700; }
@@ -512,37 +512,37 @@
             break-inside: avoid;
         }
         .catalog-card-img {
-            width: 88px;
+            width: 130px;
             flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
             background: white;
             border-right: 1px solid #f0f0f0;
-            padding: 6px 5px;
+            padding: 8px 6px;
         }
         .catalog-card-img img {
-            max-width: 100%; max-height: 80px; object-fit: contain;
+            max-width: 100%; max-height: 116px; object-fit: contain;
         }
-        .catalog-card-no-img { font-size: 24px; opacity: 0.3; }
+        .catalog-card-no-img { font-size: 32px; opacity: 0.3; }
         .catalog-card-body {
             flex: 1; min-width: 0;
-            padding: 7px 8px 6px;
-            display: flex; flex-direction: column; gap: 2px;
+            padding: 9px 10px 8px;
+            display: flex; flex-direction: column; gap: 3px;
         }
         .catalog-card-name {
-            font-size: 10px; font-weight: 700; color: #1d1d1f;
-            line-height: 1.3; word-break: keep-all;
+            font-size: 12px; font-weight: 700; color: #1d1d1f;
+            line-height: 1.35; word-break: keep-all;
             display: -webkit-box; -webkit-line-clamp: 2;
             -webkit-box-orient: vertical; overflow: hidden;
         }
-        .catalog-card-spec { font-size: 9px; color: #666; margin-top: 1px; }
+        .catalog-card-spec { font-size: 11px; color: #555; margin-top: 1px; font-weight: 500; }
         .catalog-card-desc {
-            font-size: 8.5px; color: #999; line-height: 1.4; flex: 1;
+            font-size: 10.5px; color: #444; line-height: 1.5; flex: 1;
             display: -webkit-box; -webkit-line-clamp: 3;
             -webkit-box-orient: vertical; overflow: hidden;
         }
         .catalog-card-price {
-            font-size: 11.5px; font-weight: 800; color: #1565C0;
-            border-top: 1px solid #f0f0f0; padding-top: 4px; margin-top: 3px;
+            font-size: 13px; font-weight: 800; color: #1565C0;
+            border-top: 1px solid #f0f0f0; padding-top: 5px; margin-top: 4px;
         }
 
         /* ===== 모바일 카드 피커 ===== */
@@ -550,7 +550,7 @@
             display: none;
             flex-direction: column;
             height: calc(100vh - var(--header-height));
-            background: #f5f5f7;
+            background: white;
             overflow: hidden;
         }
         .picker-topbar {
@@ -589,7 +589,7 @@
         .picker-grid {
             flex: 1; overflow-y: auto; padding: 12px 16px;
             display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch; background: white;
         }
         .picker-card {
             background: white; border-radius: 12px; border: 2px solid transparent;
@@ -878,7 +878,7 @@
                 margin: 0 auto;
                 width: 210mm;
                 min-height: 297mm;
-                padding: 20mm 8mm;
+                padding: 10mm 8mm;
                 box-sizing: border-box;
                 page-break-after: always;
                 position: relative;
@@ -1167,7 +1167,7 @@
                 const card = document.createElement('div');
                 card.className = 'catalog-card';
                 card.innerHTML = `
-                    <div style="width:88px;flex-shrink:0;min-height:70px;background:white;"></div>
+                    <div style="width:130px;flex-shrink:0;min-height:110px;background:white;"></div>
                     <div class="catalog-card-body">
                         <div class="catalog-card-name">${editorRow.querySelector('.project-name').value}</div>
                         <div class="catalog-card-spec">${editorRow.querySelector('.p-spec-input').value}</div>
@@ -1184,7 +1184,7 @@
 
             // CSS 1mm = 96/25.4 px
             const mmPx = 96 / 25.4;
-            const contentH = (297 - 40) * mmPx; // A4 높이 - 상하 패딩(20mm*2)
+            const contentH = (297 - 20) * mmPx; // A4 높이 - 상하 패딩(10mm*2)
 
             const paperRect = paper.getBoundingClientRect();
             const hdrRect = document.getElementById('_mHdr').getBoundingClientRect();
@@ -1193,7 +1193,7 @@
             const firstCardTop = cards.length > 0 ? cards[0].getBoundingClientRect().top : hdrRect.bottom;
 
             // 페이지1: 헤더 오버헤드 + 그리드 패딩
-            const topOverhead = firstCardTop - paperRect.top - (20 * mmPx);
+            const topOverhead = firstCardTop - paperRect.top - (10 * mmPx);
             const p1Available = contentH - topOverhead;
             const pNAvailable = contentH - 24; // 이후 페이지 (page indicator 24px)
 
@@ -2045,9 +2045,22 @@
                     <div style="margin-left: auto; font-size: 18px; color: #0071e3;">+</div>
                 `;
                 div.onclick = () => {
-                    addRow(item);
                     div.style.background = '#e3f2fd';
-                    setTimeout(() => div.remove(), 300);
+                    if (window.innerWidth <= 768) {
+                        // 모바일: 가격 입력 시트 → 피커에 추가
+                        _pendingPickerCard = {
+                            name: item.name,
+                            spec: item.spec || '',
+                            price: item.price || 0,
+                            taxFree: item.taxFree || false,
+                            maxDc: item.maxDc || 0
+                        };
+                        closeMobileAnalysis();
+                        showPriceSheet(_pendingPickerCard);
+                    } else {
+                        addRow(item);
+                        setTimeout(() => div.remove(), 300);
+                    }
                 };
                 list.appendChild(div);
             });
