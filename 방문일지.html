@@ -1917,7 +1917,7 @@ ${visitLines}`;
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt,
-                        generationConfig: { temperature: 0, maxOutputTokens: 1024 }
+                        generationConfig: { temperature: 0, maxOutputTokens: 2048 }
                     })
                 });
 
@@ -1936,8 +1936,15 @@ ${visitLines}`;
                 let parsed;
                 try { parsed = JSON.parse(jsonMatch[0]); }
                 catch (pe) {
-                    console.error('[TO-DO AI] JSON.parse 실패:', jsonMatch[0]);
-                    throw new Error('AI JSON 파싱 실패');
+                    // 잘린 JSON 자동 복구 시도: 누락된 ]} 보충
+                    try {
+                        const repaired = jsonMatch[0].trimEnd() + ']}';
+                        parsed = JSON.parse(repaired);
+                        console.warn('[TO-DO AI] JSON 잘림 감지 → 자동 복구 성공');
+                    } catch (pe2) {
+                        console.error('[TO-DO AI] JSON.parse 실패:', jsonMatch[0]);
+                        throw new Error('AI JSON 파싱 실패');
+                    }
                 }
                 const aiResults = parsed.items || parsed.r || parsed.result || [];
 
