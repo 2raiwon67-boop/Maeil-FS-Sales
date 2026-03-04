@@ -454,13 +454,200 @@
 
         .price-input:focus { border-color: #0071e3; }
 
+        /* ===== 카탈로그형 견적서 스타일 ===== */
+        .catalog-header {
+            background: linear-gradient(135deg, #00205c 0%, #0071e3 65%, #3da5ff 100%);
+            color: white;
+            padding: 16px 22px 14px;
+            border-radius: 6px 6px 0 0;
+        }
+        .catalog-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .catalog-brand { font-size: 10px; font-weight: 700; opacity: 0.75; letter-spacing: 1.5px; text-transform: uppercase; }
+        .catalog-date-text { font-size: 10px; opacity: 0.65; }
+        .catalog-main-title { font-size: 20px; font-weight: 800; letter-spacing: 4px; margin-bottom: 2px; }
+        .catalog-sub { font-size: 11px; opacity: 0.75; margin-bottom: 6px; }
+        .catalog-recipient {
+            display: flex; flex-wrap: wrap; gap: 4px 12px;
+            font-size: 10.5px; background: rgba(255,255,255,0.14);
+            padding: 5px 12px; border-radius: 4px; margin-top: 6px;
+        }
+        .catalog-recipient span { opacity: 0.9; }
+        .catalog-recipient strong { opacity: 1; font-weight: 700; }
+        .catalog-page-cont {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 5px 0; border-bottom: 1px solid #eee; margin-bottom: 8px;
+            font-size: 10px; color: #bbb;
+        }
+        .catalog-brand-mini { font-weight: 700; color: #aaa; }
+        .catalog-col-header {
+            display: flex; gap: 8px; padding: 5px 8px;
+            background: #f0f4ff; border-bottom: 2px solid #0071e3;
+            font-size: 9px; font-weight: 700; color: #5c7cfa; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .catalog-col-header .ch-num  { width: 16px; flex-shrink: 0; }
+        .catalog-col-header .ch-img  { width: 72px; flex-shrink: 0; }
+        .catalog-col-header .ch-body { flex: 1; }
+        .catalog-col-header .ch-price{ width: 76px; text-align: right; flex-shrink: 0; }
+        .catalog-body { display: flex; flex-direction: column; }
+        .catalog-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 8px; border-bottom: 1px solid #f0f0f2;
+        }
+        .catalog-item:nth-child(even) { background: #fafbff; }
+        .catalog-item-num { font-size: 9px; color: #ccc; font-weight: 700; width: 16px; text-align: center; flex-shrink: 0; }
+        .catalog-item-img {
+            width: 72px; height: 56px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            background: #f5f5f7; border-radius: 5px; overflow: hidden;
+        }
+        .catalog-item-img img { width: 100%; height: 100%; object-fit: contain; }
+        .catalog-no-img { font-size: 22px; opacity: 0.4; }
+        .catalog-item-body { flex: 1; min-width: 0; }
+        .catalog-item-name {
+            font-size: 11.5px; font-weight: 700; color: #1d1d1f;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px;
+        }
+        .catalog-item-spec { font-size: 9.5px; color: #888; margin-bottom: 2px; }
+        .catalog-item-desc {
+            font-size: 9px; color: #aaa;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+            overflow: hidden; line-height: 1.4;
+        }
+        .catalog-item-price { text-align: right; flex-shrink: 0; min-width: 76px; }
+        .catalog-price-label { font-size: 8.5px; color: #aaa; margin-bottom: 1px; }
+        .catalog-price-value { font-size: 13px; font-weight: 800; color: #0071e3; white-space: nowrap; }
+        .catalog-price-unit { font-size: 8px; color: #bbb; }
+        .catalog-summary {
+            margin-top: 14px; background: linear-gradient(135deg, #00205c, #0071e3);
+            border-radius: 6px; padding: 12px 20px; color: white;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .catalog-summary-label { font-size: 11px; opacity: 0.85; }
+        .catalog-summary-right { text-align: right; }
+        .catalog-summary-value { font-size: 22px; font-weight: 800; }
+        .catalog-summary-unit { font-size: 11px; opacity: 0.75; }
+        .catalog-sign { display: flex; gap: 10px; margin-top: 12px; }
+        .catalog-sign-box {
+            flex: 1; border: 1px solid #e5e5e5; border-radius: 6px;
+            padding: 8px 14px; background: #fafafa;
+        }
+        .catalog-sign-label { font-size: 9px; color: #888; font-weight: 700; margin-bottom: 6px; }
+        .catalog-sign-content {
+            font-size: 11px; font-weight: 600; color: #1d1d1f;
+            border-bottom: 1px solid #e5e5e5; min-height: 22px; padding-bottom: 3px; margin-bottom: 3px;
+        }
+        .catalog-sign-date { font-size: 9px; color: #bbb; }
+
+        /* ===== 모바일 카드 피커 ===== */
+        .mobile-picker {
+            display: none;
+            flex-direction: column;
+            height: calc(100vh - var(--header-height));
+            background: #f5f5f7;
+            overflow: hidden;
+        }
+        .picker-topbar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 16px; background: white; border-bottom: 1px solid #e5e5ea;
+            flex-shrink: 0;
+        }
+        .picker-topbar-title { font-size: 15px; font-weight: 700; color: #1d1d1f; }
+        .picker-info-btn {
+            padding: 5px 12px; background: #f0f4ff; color: #0071e3;
+            border: 1.5px solid #c7d9ff; border-radius: 15px;
+            font-size: 12px; font-weight: 600; cursor: pointer;
+        }
+        .picker-info-panel {
+            padding: 10px 16px; background: #f8f9ff; border-bottom: 1px solid #e5e5ea;
+            display: none; gap: 8px; flex-shrink: 0;
+        }
+        .picker-input {
+            flex: 1; padding: 8px 12px; border: 1px solid #d2d2d7;
+            border-radius: 8px; font-size: 13px; outline: none; background: white;
+        }
+        .picker-input:focus { border-color: #0071e3; }
+        .picker-cats {
+            display: flex; gap: 6px; padding: 10px 16px;
+            overflow-x: auto; background: white; border-bottom: 1px solid #e5e5ea;
+            flex-shrink: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .picker-cats::-webkit-scrollbar { display: none; }
+        .picker-cat {
+            flex-shrink: 0; padding: 5px 13px; border: 1.5px solid #d2d2d7;
+            border-radius: 20px; background: white; color: #86868b;
+            font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+            transition: all 0.15s;
+        }
+        .picker-cat.active { border-color: #0071e3; background: #0071e3; color: white; }
+        .picker-grid {
+            flex: 1; overflow-y: auto; padding: 12px 16px;
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+            -webkit-overflow-scrolling: touch;
+        }
+        .picker-card {
+            background: white; border-radius: 12px; border: 2px solid transparent;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 10px;
+            cursor: pointer; transition: all 0.15s; position: relative;
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+        }
+        .picker-card.selected { border-color: #0071e3; background: #f0f7ff; }
+        .picker-card-img {
+            width: 64px; height: 50px; display: flex; align-items: center;
+            justify-content: center; background: #f5f5f7; border-radius: 8px; overflow: hidden;
+        }
+        .picker-card-img img { width: 100%; height: 100%; object-fit: contain; }
+        .picker-card-name {
+            font-size: 11px; font-weight: 700; color: #1d1d1f; text-align: center;
+            line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
+        }
+        .picker-card-spec { font-size: 10px; color: #aaa; text-align: center; }
+        .picker-card-badge {
+            position: absolute; top: 6px; right: 6px; width: 20px; height: 20px;
+            background: #0071e3; color: white; border-radius: 50%;
+            font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+        }
+        .picker-selected-bar {
+            background: white; border-top: 1px solid #e5e5ea;
+            padding: 8px 16px; max-height: 110px; overflow-y: auto; flex-shrink: 0;
+        }
+        .picker-selected-title { font-size: 11px; font-weight: 700; color: #888; margin-bottom: 5px; }
+        .picker-sel-item {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 12px; padding: 3px 0;
+        }
+        .picker-sel-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1d1d1f; }
+        .picker-sel-remove { color: #ff3b30; background: none; border: none; font-size: 14px; cursor: pointer; padding: 0; flex-shrink: 0; }
+        .picker-fab-area {
+            padding: 12px 16px; background: white; border-top: 2px solid #e5e5ea;
+            display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom));
+        }
+        .picker-fab-total { flex: 1; font-size: 13px; color: #666; }
+        .picker-fab-total strong { color: #0071e3; font-size: 16px; font-weight: 800; }
+        .picker-fab-btn {
+            padding: 13px 22px; background: #0071e3; color: white; border: none;
+            border-radius: 25px; font-size: 15px; font-weight: 700; cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0,113,227,0.4); white-space: nowrap;
+        }
+        .picker-fab-btn:active { background: #005cc5; transform: scale(0.97); }
+
         /* ===== 모바일 최적화 ===== */
         @media (max-width: 768px) {
+            /* PC 컨테이너 숨기고 모바일 피커 표시 */
+            .container { display: none !important; }
+            .mobile-picker { display: flex !important; }
+
             body {
                 overflow: auto;
             }
 
-            /* 전체 컨테이너: 세로 스택 */
+            /* 전체 컨테이너: 세로 스택 (인쇄 호환성 유지용) */
             .container {
                 flex-direction: column;
                 height: auto;
@@ -762,6 +949,48 @@
         </datalist>
     </div>
 
+    <!-- 모바일 전용: 카드 피커 UI -->
+    <div id="mobile-picker" class="mobile-picker">
+        <!-- 상단 바 -->
+        <div class="picker-topbar">
+            <div class="picker-topbar-title">📋 제품 제안서 작성</div>
+            <button class="picker-info-btn" onclick="togglePickerInfo()">수신처 입력</button>
+        </div>
+        <!-- 수신처 입력 패널 (토글) -->
+        <div id="picker-info-panel" class="picker-info-panel">
+            <input type="text" class="picker-input" id="picker-customer-input" placeholder="거래처명"
+                   oninput="document.getElementById('edit-customerName').value=this.value;syncInfo()">
+            <input type="text" class="picker-input" id="picker-manager-input" placeholder="담당자"
+                   oninput="document.getElementById('edit-managerName').value=this.value;syncInfo()">
+        </div>
+        <!-- 카테고리 칩 -->
+        <div class="picker-cats">
+            <button class="picker-cat active" onclick="filterPickerCat(this,'all')">전체</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'우유')">🥛 우유/크림</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'오트')">🌾 오트/두유</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'치즈')">🧀 치즈</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'테너')">🫙 테너</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'소프트')">🍦 소프트믹스</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'연유')">🍯 연유</button>
+        </div>
+        <!-- 상품 카드 그리드 -->
+        <div class="picker-grid" id="picker-grid">
+            <div style="grid-column:1/-1;text-align:center;padding:30px;color:#aaa;font-size:13px;">
+                ⏳ 제품 목록 로딩 중...
+            </div>
+        </div>
+        <!-- 선택 항목 표시 바 -->
+        <div id="picker-selected-bar" class="picker-selected-bar" style="display:none;">
+            <div class="picker-selected-title">선택된 상품 <span id="picker-count">0</span>개</div>
+            <div id="picker-selected-list" class="picker-selected-list"></div>
+        </div>
+        <!-- 하단 FAB 영역 -->
+        <div class="picker-fab-area">
+            <div class="picker-fab-total">합계 <strong id="picker-total-amount">0원</strong></div>
+            <button class="picker-fab-btn" onclick="pickerGenerate()">📄 견적서 생성</button>
+        </div>
+    </div>
+
     <!-- 인쇄 전용 컨테이너 (화면에는 숨김, 인쇄 시에만 표시) -->
     <div id="print-container"></div>
 
@@ -783,40 +1012,36 @@
 
             wrap.innerHTML = `
                 <div class="paper" style="transform:none!important;zoom:1!important;" id="_mPaper">
-                    <div class="paper-header" id="_mHdr">
-                        <div class="paper-title">매일유업 견적서</div>
-                        <div style="font-size:14px;margin-top:8px;color:#666;">Maeil Food Service</div>
+                    <div class="catalog-header" id="_mHdr">
+                        <div class="catalog-main-title">제품 제안서</div>
+                        <div class="catalog-recipient"><span>수신 <strong>고객명</strong></span></div>
                     </div>
-                    <table class="info-table" id="_mInfo">
-                        <tr><td class="info-label">수신</td><td colspan="3" style="font-size:14px;font-weight:600;">고객명</td></tr>
-                        <tr><td class="info-label">담당자</td><td>담당자</td><td class="info-label">연락처</td><td>연락처</td></tr>
-                    </table>
-                    <table class="quote-table" id="_mTable">
-                        <colgroup>
-                            <col style="width:4%"><col style="width:28%"><col style="width:9%">
-                            <col style="width:25%"><col style="width:16%"><col style="width:18%">
-                        </colgroup>
-                        <thead id="_mThead">
-                            <tr><th>No</th><th>품명</th><th>규격</th><th>내용</th><th>판매가</th><th>사진</th></tr>
-                        </thead>
-                        <tbody id="_mTbody"></tbody>
-                    </table>
+                    <div class="catalog-col-header">
+                        <div class="ch-num">#</div><div class="ch-img">사진</div>
+                        <div class="ch-body">품명</div><div class="ch-price">판매가</div>
+                    </div>
+                    <div class="catalog-body" id="_mBody"></div>
                 </div>
             `;
             document.body.appendChild(wrap);
 
-            const tbody = document.getElementById('_mTbody');
+            const body = document.getElementById('_mBody');
             editorRows.forEach((editorRow, i) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td style="text-align:center;color:#888;">${i + 1}</td>
-                    <td style="text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${editorRow.querySelector('.project-name').value}</td>
-                    <td style="text-align:center;">${editorRow.querySelector('.p-spec-input').value}</td>
-                    <td style="text-align:center;padding:4px 8px;font-size:11px;color:#666;word-break:keep-all;overflow-wrap:break-word;line-height:1.6;">${editorRow.querySelector('.p-description').value}</td>
-                    <td style="text-align:right;padding:0 6px;font-weight:600;">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value) || 0).toLocaleString()}</td>
-                    <td style="text-align:center;padding:4px;"><div style="width:60px;height:40px;background:#f0f0f0;border-radius:4px;margin:0 auto;"></div></td>
+                const item = document.createElement('div');
+                item.className = 'catalog-item';
+                item.innerHTML = `
+                    <div class="catalog-item-num">${i + 1}</div>
+                    <div class="catalog-item-img" style="width:72px;height:56px;flex-shrink:0;"></div>
+                    <div class="catalog-item-body">
+                        <div class="catalog-item-name">${editorRow.querySelector('.project-name').value}</div>
+                        <div class="catalog-item-spec">${editorRow.querySelector('.p-spec-input').value}</div>
+                        <div class="catalog-item-desc">${editorRow.querySelector('.p-description').value}</div>
+                    </div>
+                    <div class="catalog-item-price">
+                        <div class="catalog-price-value">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value)||0).toLocaleString()}</div>
+                    </div>
                 `;
-                tbody.appendChild(tr);
+                body.appendChild(item);
             });
 
             // 레이아웃 강제 계산
@@ -828,24 +1053,20 @@
             const contentH = (297 - 40) * mmPx; // A4 높이 - 상하 패딩(20mm*2)
 
             const paperRect = paper.getBoundingClientRect();
-            const theadRect = document.getElementById('_mThead').getBoundingClientRect();
-            const infoRect = document.getElementById('_mInfo').getBoundingClientRect();
+            const hdrRect = document.getElementById('_mHdr').getBoundingClientRect();
 
-            const trs = Array.from(tbody.querySelectorAll('tr'));
-            const firstRowTop = trs.length > 0 ? trs[0].getBoundingClientRect().top : theadRect.bottom;
+            const items = Array.from(body.querySelectorAll('.catalog-item'));
+            const firstItemTop = items.length > 0 ? items[0].getBoundingClientRect().top : hdrRect.bottom;
 
-            // 페이지1 고정 영역: 헤더 + 정보테이블 + 테이블헤더 (contentH 기준 상단 오버헤드)
-            const topOverhead = firstRowTop - paperRect.top - (20 * mmPx);
-            // 하단 여유 공간 (합계/주석 제거로 최소 버퍼만)
-            const footerH = 20;
-            // 페이지1 행 수용 가능 높이
-            const p1Available = contentH - topOverhead - footerH;
-            // 이후 페이지: 정보테이블 없는 대신 페이지표시 라인(약 28px)
-            const infoH = infoRect.height + 20;
-            const pNAvailable = p1Available + infoH - 28;
+            // 페이지1: 헤더 + 컬럼헤더 오버헤드, 하단 summary+sign 예약
+            const topOverhead = firstItemTop - paperRect.top - (20 * mmPx);
+            const summaryH = 130; // catalog-summary + catalog-sign 추정
+            const p1Available = contentH - topOverhead - summaryH;
+            // 이후 페이지: page indicator만 (약 24px)
+            const pNAvailable = contentH - 24;
 
             // 각 행의 실제 렌더링 높이 측정
-            const rowHeights = trs.map(tr => tr.getBoundingClientRect().height);
+            const rowHeights = items.map(item => item.getBoundingClientRect().height);
 
             document.body.removeChild(wrap);
 
@@ -1027,6 +1248,7 @@
                     };
                 });
                 updateDatalist();
+                initMobilePicker(); // DB 로드 완료 후 모바일 피커 초기화
             } catch (e) {
                 console.warn('제품 DB 로드 실패:', e.message);
                 // 로드 실패 시 분석 버튼 옆에 경고 표시
@@ -1104,59 +1326,52 @@
             updateTotal();
         }
 
-        // ===== 개별 페이퍼 렌더링 =====
+        // ===== 개별 페이퍼 렌더링 (카탈로그형) =====
         function renderPaper(paper, pageIndex, totalPages, editorRows, startGlobalIndex, customerName, managerName, managerPhone, quoteMode) {
             const isFirst = pageIndex === 0;
             const isLast = pageIndex === totalPages - 1;
+            const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
-            let html = `
-                <div class="paper-header">
-                    <div class="paper-title">매일유업 견적서</div>
-                    <div style="font-size: 14px; margin-top: 8px; color: #666;">Maeil Food Service</div>
-                </div>
-            `;
+            let html = '';
 
             if (isFirst) {
+                const showRecipient = quoteMode !== 'general';
                 html += `
-                <table class="info-table">
-                    <tr id="preview-recipientRow"${quoteMode === 'general' ? ' style="display:none"' : ''}>
-                        <td class="info-label">수신</td>
-                        <td colspan="3" id="preview-customerName" style="font-size: 14px; font-weight: 600;">${esc(customerName)}</td>
-                    </tr>
-                    <tr>
-                        <td class="info-label">담당자</td>
-                        <td id="preview-managerName">${esc(managerName)}</td>
-                        <td class="info-label">연락처</td>
-                        <td id="preview-managerPhone">${esc(managerPhone)}</td>
-                    </tr>
-                </table>
-                `;
+                <div class="catalog-header">
+                    <div class="catalog-header-top">
+                        <div class="catalog-brand">Maeil Food Service · 경기북부 FS</div>
+                        <div class="catalog-date-text">${today}</div>
+                    </div>
+                    <div class="catalog-main-title">제품 제안서</div>
+                    ${showRecipient && customerName ? `<div class="catalog-sub">Proposal for ${esc(customerName)}</div>` : ''}
+                    ${showRecipient ? `
+                    <div class="catalog-recipient">
+                        <span>수신 <strong><span id="preview-customerName">${esc(customerName) || '—'}</span></strong></span>
+                        <span>담당 <strong><span id="preview-managerName">${esc(managerName) || '—'}</span></strong></span>
+                        <span>연락처 <strong><span id="preview-managerPhone">${esc(managerPhone) || '—'}</span></strong></span>
+                    </div>` : `
+                    <div style="display:none;">
+                        <span id="preview-customerName"></span>
+                        <span id="preview-managerName"></span>
+                        <span id="preview-managerPhone"></span>
+                    </div>`}
+                </div>`;
             } else {
-                html += `<div style="text-align:right;font-size:11px;color:#bbb;margin-bottom:8px;">(${pageIndex + 1} / ${totalPages} 페이지)</div>`;
+                html += `
+                <div class="catalog-page-cont">
+                    <div class="catalog-brand-mini">매일유업 Food Service</div>
+                    <div>${pageIndex + 1} / ${totalPages}</div>
+                </div>`;
             }
 
             html += `
-            <table class="quote-table">
-                <colgroup>
-                    <col style="width: 4%">
-                    <col style="width: 28%">
-                    <col style="width: 9%">
-                    <col style="width: 25%">
-                    <col style="width: 16%">
-                    <col style="width: 18%">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th>No</th>
-                        <th>품명</th>
-                        <th>규격</th>
-                        <th>내용</th>
-                        <th>판매가</th>
-                        <th>사진</th>
-                    </tr>
-                </thead>
-                <tbody>
-            `;
+            <div class="catalog-col-header">
+                <div class="ch-num">#</div>
+                <div class="ch-img">제품 사진</div>
+                <div class="ch-body">품명 / 규격 / 내용</div>
+                <div class="ch-price">판매가</div>
+            </div>
+            <div class="catalog-body">`;
 
             editorRows.forEach((editorRow, idx) => {
                 const globalRowNum = startGlobalIndex + idx + 1;
@@ -1167,29 +1382,52 @@
                 const sales = parseFloat(editorRow.querySelector('.sales-price').value) || 0;
 
                 const _imgUrl = findProductImage(name);
-                const imgHTML = _imgUrl
-                    ? `<img src="${_imgUrl}" onerror="this.parentElement.innerHTML='<div style=\\'width:90px;height:60px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;\\'>NO IMG</div>';" style="width:110px;height:auto;max-height:70px;object-fit:contain;border-radius:4px;">`
-                    : `<div style="width:90px;height:60px;background:#f0f0f0;border-radius:4px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:10px;color:#ccc;">NO IMG</div>`;
+                const imgContent = _imgUrl
+                    ? `<img src="${_imgUrl}" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:contain;">`
+                    : `<div class="catalog-no-img">📦</div>`;
 
                 html += `
-                <tr id="preview-${rowId}">
-                    <td style="text-align:center;color:#888;">${globalRowNum}</td>
-                    <td class="p-name" style="text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(name)}</td>
-                    <td class="p-spec" style="text-align:center;">${esc(spec)}</td>
-                    <td class="p-desc" style="text-align:center;padding:4px 8px;font-size:11px;color:#666;word-break:keep-all;overflow-wrap:break-word;line-height:1.6;">${esc(desc)}</td>
-                    <td class="p-sales" style="text-align:right;padding:0 6px;font-weight:600;">${Math.floor(sales).toLocaleString()}</td>
-                    <td class="p-img" style="text-align:center;padding:4px;">${imgHTML}</td>
-                </tr>`;
+                <div class="catalog-item" id="preview-${rowId}">
+                    <div class="catalog-item-num">${globalRowNum}</div>
+                    <div class="catalog-item-img p-img">${imgContent}</div>
+                    <div class="catalog-item-body">
+                        <div class="catalog-item-name p-name">${esc(name)}</div>
+                        <div class="catalog-item-spec p-spec">${esc(spec)}</div>
+                        <div class="catalog-item-desc p-desc">${esc(desc)}</div>
+                    </div>
+                    <div class="catalog-item-price">
+                        <div class="catalog-price-label">판매가</div>
+                        <div class="catalog-price-value p-sales">${Math.floor(sales).toLocaleString()}</div>
+                        <div class="catalog-price-unit">원</div>
+                    </div>
+                </div>`;
             });
 
-            html += '</tbody>';
+            html += `</div>`; // catalog-body
 
-
-            html += '</table>';
-
-
-            if (totalPages > 1) {
-                html += `<div style="text-align:center;font-size:11px;color:#ccc;position:absolute;bottom:10mm;left:0;width:100%;">${pageIndex + 1} / ${totalPages}</div>`;
+            if (isLast) {
+                html += `
+                <div class="catalog-summary">
+                    <div class="catalog-summary-label">총 합계 금액</div>
+                    <div class="catalog-summary-right">
+                        <span class="catalog-summary-value" id="preview-totalAmount">0</span>
+                        <span class="catalog-summary-unit"> 원</span>
+                    </div>
+                </div>
+                <div class="catalog-sign">
+                    <div class="catalog-sign-box">
+                        <div class="catalog-sign-label">공급자</div>
+                        <div class="catalog-sign-content">매일유업 경기북부 FS팀</div>
+                        <div class="catalog-sign-date">${today}</div>
+                    </div>
+                    <div class="catalog-sign-box">
+                        <div class="catalog-sign-label">수신자 확인</div>
+                        <div class="catalog-sign-content">&nbsp;</div>
+                        <div class="catalog-sign-date">&nbsp;</div>
+                    </div>
+                </div>`;
+            } else if (totalPages > 1) {
+                html += `<div style="text-align:center;font-size:10px;color:#ccc;position:absolute;bottom:8mm;left:0;width:100%;">${pageIndex + 1} / ${totalPages}</div>`;
             }
 
             paper.innerHTML = html;
@@ -1423,6 +1661,8 @@
             const marginLabel = document.getElementById('edit-totalMargin');
             marginLabel.innerText = totalMarginRate.toFixed(1) + '%';
             marginLabel.style.color = totalMarginRate >= 15 ? '#34c759' : (totalMarginRate >= 5 ? '#ff9500' : '#ff3b30');
+
+            updatePickerTotal();
         }
 
         // 3. AI 분석 (네이버 리뷰 + Gemini) - 캐싱 및 Rate Limiting 적용
@@ -1861,6 +2101,142 @@
                 .eq('business_unit', businessUnit);  // ← 내 지점 견적서만 삭제 가능
             if (error) { alert('삭제 실패: ' + error.message); btn.disabled = false; return; }
             loadSavedQuotes();
+        }
+
+        // ===== 모바일 카드 피커 =====
+        let _pickerCurrentCat = 'all';
+        let _pickerSelectedMap = {}; // rowId → name
+
+        function initMobilePicker() {
+            renderPickerCards(_pickerCurrentCat);
+        }
+
+        function renderPickerCards(cat) {
+            _pickerCurrentCat = cat;
+            const grid = document.getElementById('picker-grid');
+            if (!grid) return;
+
+            let products = cat === 'all'
+                ? productDB
+                : productDB.filter(p => p.name.includes(cat));
+
+            if (products.length === 0) {
+                grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px;color:#aaa;font-size:13px;">해당 카테고리 상품 없음</div>`;
+                return;
+            }
+
+            const selectedNames = Object.values(_pickerSelectedMap);
+            grid.innerHTML = products.map(p => {
+                const imgUrl = findProductImage(p.name);
+                const count = selectedNames.filter(n => n === p.name).length;
+                return `
+                    <div class="picker-card${count > 0 ? ' selected' : ''}"
+                         onclick="pickerCardTapEl(this)"
+                         data-pname="${esc(p.name)}"
+                         data-spec="${esc(p.spec||'')}"
+                         data-price="${p.price||0}"
+                         data-taxfree="${p.taxFree||false}"
+                         data-maxdc="${p.maxDc||0}">
+                        ${count > 0 ? `<div class="picker-card-badge">${count}</div>` : ''}
+                        <div class="picker-card-img">
+                            ${imgUrl
+                                ? `<img src="${imgUrl}" loading="lazy" onerror="this.parentNode.innerHTML='<span style=\\'font-size:22px;\\'>📦</span>'">`
+                                : '<span style="font-size:22px;">📦</span>'}
+                        </div>
+                        <div class="picker-card-name">${p.name}</div>
+                        ${p.spec ? `<div class="picker-card-spec">${p.spec}</div>` : ''}
+                    </div>`;
+            }).join('');
+        }
+
+        function filterPickerCat(btn, cat) {
+            document.querySelectorAll('.picker-cat').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderPickerCards(cat);
+        }
+
+        function pickerCardTapEl(el) {
+            const card = el.closest('.picker-card');
+            pickerCardTap(
+                card.dataset.pname,
+                card.dataset.spec,
+                parseFloat(card.dataset.price) || 0,
+                card.dataset.taxfree === 'true',
+                parseFloat(card.dataset.maxdc) || 0
+            );
+        }
+
+        function pickerCardTap(name, spec, price, taxFree, maxDc) {
+            addRow({ name, spec, price, taxFree, maxDc });
+            const lastRow = document.querySelector('#editor-items-container > div:last-child');
+            const rowId = lastRow ? lastRow.querySelector('.row-id')?.value : null;
+            if (rowId) _pickerSelectedMap[rowId] = name;
+            _refreshPickerUI();
+        }
+
+        function pickerRemoveItem(rowId) {
+            removeRow(rowId);
+            delete _pickerSelectedMap[rowId];
+            _refreshPickerUI();
+        }
+
+        function _refreshPickerUI() {
+            // 카드 배지 업데이트
+            const selectedNames = Object.values(_pickerSelectedMap);
+            document.querySelectorAll('.picker-card').forEach(card => {
+                const pname = card.dataset.pname;
+                const count = selectedNames.filter(n => n === pname).length;
+                card.classList.toggle('selected', count > 0);
+                const existing = card.querySelector('.picker-card-badge');
+                if (existing) existing.remove();
+                if (count > 0) {
+                    const badge = document.createElement('div');
+                    badge.className = 'picker-card-badge';
+                    badge.textContent = count;
+                    card.prepend(badge);
+                }
+            });
+            // 선택 항목 바 업데이트
+            const bar = document.getElementById('picker-selected-bar');
+            const list = document.getElementById('picker-selected-list');
+            const countEl = document.getElementById('picker-count');
+            const entries = Object.entries(_pickerSelectedMap);
+            if (!bar || !list) return;
+            if (entries.length === 0) { bar.style.display = 'none'; return; }
+            bar.style.display = 'block';
+            if (countEl) countEl.textContent = entries.length;
+            list.innerHTML = entries.map(([rowId, name]) => `
+                <div class="picker-sel-item">
+                    <span class="picker-sel-name">${name}</span>
+                    <button class="picker-sel-remove" onclick="pickerRemoveItem('${rowId}')">✕</button>
+                </div>`).join('');
+            updatePickerTotal();
+        }
+
+        function updatePickerTotal() {
+            const el = document.getElementById('picker-total-amount');
+            if (!el) return;
+            const editorRows = document.querySelectorAll('#editor-items-container > div');
+            let total = 0;
+            editorRows.forEach(row => { total += parseFloat(row.querySelector('.sales-price').value) || 0; });
+            el.textContent = Math.floor(total).toLocaleString() + '원';
+        }
+
+        function togglePickerInfo() {
+            const panel = document.getElementById('picker-info-panel');
+            if (!panel) return;
+            panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function pickerGenerate() {
+            // 수신처 정보 동기화
+            const custInput = document.getElementById('picker-customer-input');
+            const mgrInput = document.getElementById('picker-manager-input');
+            if (custInput) document.getElementById('edit-customerName').value = custInput.value;
+            if (mgrInput) document.getElementById('edit-managerName').value = mgrInput.value;
+            syncInfo();
+            rebuildPreview();
+            generatePDF();
         }
     </script>
     <script src="js/auth.js"></script>
