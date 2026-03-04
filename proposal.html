@@ -458,14 +458,20 @@
         .catalog-header {
             background: linear-gradient(135deg, #00205c 0%, #0071e3 65%, #3da5ff 100%);
             color: white;
-            padding: 16px 22px 14px;
+            padding: 14px 22px 14px;
             border-radius: 6px 6px 0 0;
         }
         .catalog-header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
+            margin-bottom: 7px;
+        }
+        .catalog-logo {
+            height: 32px;
+            width: auto;
+            object-fit: contain;
+            filter: brightness(0) invert(1); /* 흰색으로 */
         }
         .catalog-brand { font-size: 10px; font-weight: 700; opacity: 0.75; letter-spacing: 1.5px; text-transform: uppercase; }
         .catalog-date-text { font-size: 10px; opacity: 0.65; }
@@ -1339,7 +1345,7 @@
                 html += `
                 <div class="catalog-header">
                     <div class="catalog-header-top">
-                        <div class="catalog-brand">Maeil Food Service · 경기북부 FS</div>
+                        <img src="assets/images/logo.png" class="catalog-logo" alt="매일유업">
                         <div class="catalog-date-text">${today}</div>
                     </div>
                     <div class="catalog-main-title">제품 제안서</div>
