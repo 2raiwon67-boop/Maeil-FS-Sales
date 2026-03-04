@@ -417,10 +417,25 @@
             transition: background 0.1s;
         }
 
-        .ac-item:last-child { border-bottom: none; }
-        .ac-item:hover { background: #f0f4ff; }
-        .ac-item .ac-name { font-weight: 600; font-size: 13px; color: #1d1d1f; }
-        .ac-item .ac-spec { font-size: 11px; color: #999; margin-top: 1px; }
+        .ac-item:last-child {
+            border-bottom: none;
+        }
+
+        .ac-item:hover {
+            background: #f0f4ff;
+        }
+
+        .ac-item .ac-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #1d1d1f;
+        }
+
+        .ac-item .ac-spec {
+            font-size: 11px;
+            color: #999;
+            margin-top: 1px;
+        }
 
         /* 컴팩트 에디터 행 */
         .editor-row-prices {
@@ -428,7 +443,7 @@
             gap: 6px;
         }
 
-        .editor-row-prices > div {
+        .editor-row-prices>div {
             flex: 1;
             min-width: 0;
         }
@@ -452,7 +467,9 @@
             transition: border-color 0.15s;
         }
 
-        .price-input:focus { border-color: #0071e3; }
+        .price-input:focus {
+            border-color: #0071e3;
+        }
 
         /* ===== 카탈로그형 견적서 스타일 ===== */
         .catalog-header {
@@ -462,38 +479,67 @@
             border-bottom: 2.5px solid #1B3F82;
             margin-bottom: 10px;
         }
+
         .catalog-header-top {
             display: flex;
             align-items: flex-start;
             margin-bottom: 8px;
         }
+
         .catalog-logo {
             height: 42px;
             width: auto;
             object-fit: contain;
             /* 흰 배경이므로 필터 없이 원본 로고 색상 */
         }
+
         .catalog-hdr-title {
-            font-size: 28px; font-weight: 800;
-            color: #1B3F82; letter-spacing: 2px; margin-bottom: 4px;
+            font-size: 28px;
+            font-weight: 800;
+            color: #1B3F82;
+            letter-spacing: 2px;
+            margin-bottom: 4px;
         }
+
         .catalog-hdr-subtitle {
-            font-size: 15px; font-weight: 600;
-            color: #1B3F82; letter-spacing: 1px;
+            font-size: 15px;
+            font-weight: 600;
+            color: #1B3F82;
+            letter-spacing: 1px;
         }
+
         .catalog-recipient {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 5px 18px;
-            font-size: 13px; color: #333;
-            padding: 7px 0 0; margin-top: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px 18px;
+            font-size: 13px;
+            color: #333;
+            padding: 7px 0 0;
+            margin-top: 6px;
             border-top: 1px solid #e8eef8;
         }
-        .catalog-recipient strong { color: #1B3F82; font-weight: 700; }
-        .catalog-page-cont {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 4px 0; border-bottom: 1px solid #eee; margin-bottom: 8px;
-            font-size: 10px; color: #bbb;
+
+        .catalog-recipient strong {
+            color: #1B3F82;
+            font-weight: 700;
         }
-        .catalog-brand-mini { font-weight: 700; color: #aaa; }
+
+        .catalog-page-cont {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 8px;
+            font-size: 10px;
+            color: #bbb;
+        }
+
+        .catalog-brand-mini {
+            font-weight: 700;
+            color: #aaa;
+        }
 
         /* 2열 카드 그리드 — 가로형 카드 */
         .catalog-grid {
@@ -502,47 +548,86 @@
             gap: 8px;
             padding: 4px 0;
         }
+
         .catalog-card {
             border: 1px solid #e0e0e0;
             border-radius: 6px;
             overflow: hidden;
             background: white;
             display: flex;
-            flex-direction: row;   /* 이미지 좌 / 텍스트 우 */
+            flex-direction: row;
+            /* 이미지 좌 / 텍스트 우 */
             break-inside: avoid;
         }
+
         .catalog-card-img {
             width: 130px;
             flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             background: white;
             border-right: 1px solid #f0f0f0;
             padding: 8px 6px;
         }
+
         .catalog-card-img img {
-            max-width: 100%; max-height: 116px; object-fit: contain;
+            max-width: 100%;
+            max-height: 116px;
+            object-fit: contain;
         }
-        .catalog-card-no-img { font-size: 32px; opacity: 0.3; }
+
+        .catalog-card-no-img {
+            font-size: 32px;
+            opacity: 0.3;
+        }
+
         .catalog-card-body {
-            flex: 1; min-width: 0;
+            flex: 1;
+            min-width: 0;
             padding: 9px 10px 8px;
-            display: flex; flex-direction: column; gap: 3px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
         }
+
         .catalog-card-name {
-            font-size: 12px; font-weight: 700; color: #1d1d1f;
-            line-height: 1.35; word-break: keep-all;
-            display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 12px;
+            font-weight: 700;
+            color: #1d1d1f;
+            line-height: 1.35;
+            word-break: keep-all;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        .catalog-card-spec { font-size: 11px; color: #555; margin-top: 1px; font-weight: 500; }
+
+        .catalog-card-spec {
+            font-size: 11px;
+            color: #555;
+            margin-top: 1px;
+            font-weight: 500;
+        }
+
         .catalog-card-desc {
-            font-size: 10.5px; color: #444; line-height: 1.5; flex: 1;
-            display: -webkit-box; -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 10.5px;
+            color: #444;
+            line-height: 1.5;
+            flex: 1;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
+
         .catalog-card-price {
-            font-size: 13px; font-weight: 800; color: #1B3F82;
-            border-top: 1px solid #f0f0f0; padding-top: 5px; margin-top: 4px;
+            font-size: 13px;
+            font-weight: 800;
+            color: #1B3F82;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 5px;
+            margin-top: 4px;
         }
 
         /* ===== 모바일 카드 피커 ===== */
@@ -553,136 +638,350 @@
             background: white;
             overflow: hidden;
         }
+
         .picker-topbar {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 16px; background: white; border-bottom: 1px solid #e5e5ea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: white;
+            border-bottom: 1px solid #e5e5ea;
             flex-shrink: 0;
         }
-        .picker-topbar-title { font-size: 15px; font-weight: 700; color: #1d1d1f; }
+
+        .picker-topbar-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+
         .picker-info-btn {
-            padding: 5px 12px; background: #f0f4ff; color: #0071e3;
-            border: 1.5px solid #c7d9ff; border-radius: 15px;
-            font-size: 12px; font-weight: 600; cursor: pointer;
+            padding: 5px 12px;
+            background: #f0f4ff;
+            color: #0071e3;
+            border: 1.5px solid #c7d9ff;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
         }
+
         .picker-info-panel {
-            padding: 10px 16px; background: #f8f9ff; border-bottom: 1px solid #e5e5ea;
-            display: none; gap: 8px; flex-shrink: 0;
+            padding: 10px 16px;
+            background: #f8f9ff;
+            border-bottom: 1px solid #e5e5ea;
+            display: none;
+            gap: 8px;
+            flex-shrink: 0;
         }
+
         .picker-input {
-            flex: 1; padding: 8px 12px; border: 1px solid #d2d2d7;
-            border-radius: 8px; font-size: 13px; outline: none; background: white;
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 13px;
+            outline: none;
+            background: white;
         }
-        .picker-input:focus { border-color: #0071e3; }
+
+        .picker-input:focus {
+            border-color: #0071e3;
+        }
+
         .picker-cats {
-            display: flex; gap: 6px; padding: 10px 16px;
-            overflow-x: auto; background: white; border-bottom: 1px solid #e5e5ea;
-            flex-shrink: 0; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+            display: flex;
+            gap: 6px;
+            padding: 10px 16px;
+            overflow-x: auto;
+            background: white;
+            border-bottom: 1px solid #e5e5ea;
+            flex-shrink: 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
         }
-        .picker-cats::-webkit-scrollbar { display: none; }
+
+        .picker-cats::-webkit-scrollbar {
+            display: none;
+        }
+
         .picker-cat {
-            flex-shrink: 0; padding: 5px 13px; border: 1.5px solid #d2d2d7;
-            border-radius: 20px; background: white; color: #86868b;
-            font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;
+            flex-shrink: 0;
+            padding: 5px 13px;
+            border: 1.5px solid #d2d2d7;
+            border-radius: 20px;
+            background: white;
+            color: #86868b;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
             transition: all 0.15s;
         }
-        .picker-cat.active { border-color: #0071e3; background: #0071e3; color: white; }
+
+        .picker-cat.active {
+            border-color: #0071e3;
+            background: #0071e3;
+            color: white;
+        }
+
         .picker-grid {
-            flex: 1; overflow-y: auto; padding: 12px 16px;
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
-            -webkit-overflow-scrolling: touch; background: white;
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            -webkit-overflow-scrolling: touch;
+            background: white;
         }
+
         .picker-card {
-            background: white; border-radius: 12px; border: 2px solid transparent;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08); padding: 10px;
-            cursor: pointer; transition: all 0.15s; position: relative;
-            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            background: white;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
         }
-        .picker-card.selected { border-color: #0071e3; background: #f0f7ff; }
+
+        .picker-card.selected {
+            border-color: #0071e3;
+            background: #f0f7ff;
+        }
+
         .picker-card-img {
-            width: 100%; height: 90px; display: flex; align-items: center;
-            justify-content: center; background: #f5f5f7; border-radius: 8px; overflow: hidden;
+            width: 100%;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
             flex-shrink: 0;
         }
-        .picker-card-img img { width: 100%; height: 100%; object-fit: contain; }
+
+        .picker-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .picker-card-name {
-            font-size: 11px; font-weight: 700; color: #1d1d1f; text-align: center;
-            line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 11px;
+            font-weight: 700;
+            color: #1d1d1f;
+            text-align: center;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        .picker-card-spec { font-size: 10px; color: #aaa; text-align: center; }
+
+        .picker-card-spec {
+            font-size: 10px;
+            color: #aaa;
+            text-align: center;
+        }
+
         .picker-card-badge {
-            position: absolute; top: 6px; right: 6px; width: 20px; height: 20px;
-            background: #0071e3; color: white; border-radius: 50%;
-            font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 20px;
+            height: 20px;
+            background: #0071e3;
+            color: white;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
         .picker-selected-bar {
-            background: white; border-top: 1px solid #e5e5ea;
-            padding: 8px 16px; max-height: 110px; overflow-y: auto; flex-shrink: 0;
+            background: white;
+            border-top: 1px solid #e5e5ea;
+            padding: 8px 16px;
+            max-height: 110px;
+            overflow-y: auto;
+            flex-shrink: 0;
         }
-        .picker-selected-title { font-size: 11px; font-weight: 700; color: #888; margin-bottom: 5px; }
+
+        .picker-selected-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
         .picker-sel-item {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 12px; padding: 3px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            padding: 3px 0;
         }
-        .picker-sel-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1d1d1f; }
-        .picker-sel-remove { color: #ff3b30; background: none; border: none; font-size: 14px; cursor: pointer; padding: 0; flex-shrink: 0; }
+
+        .picker-sel-name {
+            flex: 1;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #1d1d1f;
+        }
+
+        .picker-sel-remove {
+            color: #ff3b30;
+            background: none;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
         .picker-fab-area {
-            padding: 12px 16px; background: white; border-top: 2px solid #e5e5ea;
-            display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+            padding: 12px 16px;
+            background: white;
+            border-top: 2px solid #e5e5ea;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
             padding-bottom: calc(12px + env(safe-area-inset-bottom));
         }
-        .picker-fab-total { flex: 1; font-size: 13px; color: #666; }
-        .picker-fab-total strong { color: #0071e3; font-size: 16px; font-weight: 800; }
-        .picker-fab-btn {
-            padding: 13px 22px; background: #0071e3; color: white; border: none;
-            border-radius: 25px; font-size: 15px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 4px 14px rgba(0,113,227,0.4); white-space: nowrap;
+
+        .picker-fab-total {
+            flex: 1;
+            font-size: 13px;
+            color: #666;
         }
-        .picker-fab-btn:active { background: #005cc5; transform: scale(0.97); }
+
+        .picker-fab-total strong {
+            color: #0071e3;
+            font-size: 16px;
+            font-weight: 800;
+        }
+
+        .picker-fab-btn {
+            padding: 13px 22px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(0, 113, 227, 0.4);
+            white-space: nowrap;
+        }
+
+        .picker-fab-btn:active {
+            background: #005cc5;
+            transform: scale(0.97);
+        }
 
         /* ===== 모바일 견적서 미리보기 오버레이 ===== */
         #mobile-preview-overlay {
             display: none;
-            position: fixed; inset: 0; z-index: 9999;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
             background: #1a1a2e;
             flex-direction: column;
         }
-        #mobile-preview-overlay.visible { display: flex; }
+
+        #mobile-preview-overlay.visible {
+            display: flex;
+        }
+
         .mpo-topbar {
-            display: flex; align-items: center; gap: 10px;
-            padding: 12px 16px; background: #0d0d1a;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            background: #0d0d1a;
             flex-shrink: 0;
             padding-top: calc(12px + env(safe-area-inset-top));
         }
+
         .mpo-back {
-            padding: 7px 14px; background: rgba(255,255,255,0.1); color: white;
-            border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer;
+            padding: 7px 14px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
         }
-        .mpo-title { flex: 1; font-size: 14px; font-weight: 700; color: white; text-align: center; }
+
+        .mpo-title {
+            flex: 1;
+            font-size: 14px;
+            font-weight: 700;
+            color: white;
+            text-align: center;
+        }
+
         .mpo-print {
-            padding: 7px 16px; background: #0071e3; color: white;
-            border: none; border-radius: 20px; font-size: 13px; font-weight: 700; cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,113,227,0.5);
+            padding: 7px 16px;
+            background: #0071e3;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 113, 227, 0.5);
         }
+
         .mpo-scroll {
-            flex: 1; overflow-y: auto; padding: 16px 8px;
-            display: flex; flex-direction: column; align-items: center; gap: 16px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
             -webkit-overflow-scrolling: touch;
         }
+
         .mpo-paper-wrap {
-            width: 100%; max-width: 500px;
+            width: 100%;
+            max-width: 500px;
             transform-origin: top center;
         }
+
         .mpo-hint {
-            font-size: 11px; color: rgba(255,255,255,0.4);
-            text-align: center; padding-bottom: 20px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            text-align: center;
+            padding-bottom: 20px;
         }
 
         /* ===== 모바일 최적화 ===== */
         @media (max-width: 768px) {
+
             /* PC 컨테이너 숨기고 모바일 피커 표시 */
-            .container { display: none !important; }
-            .mobile-picker { display: flex !important; }
+            .container {
+                display: none !important;
+            }
+
+            .mobile-picker {
+                display: flex !important;
+            }
 
             body {
                 overflow: auto;
@@ -800,63 +1099,184 @@
             }
 
             /* 모바일: AI분석 오버레이 */
-            .container.mobile-analysis-open { display: flex !important; }
-            .container.mobile-analysis-open .workspace { display: none !important; }
+            .container.mobile-analysis-open {
+                display: flex !important;
+            }
+
+            .container.mobile-analysis-open .workspace {
+                display: none !important;
+            }
+
             .container.mobile-analysis-open .analysis-panel {
                 display: flex !important;
-                position: fixed; inset: 0; z-index: 9000;
-                background: white; flex-direction: column; overflow: hidden;
-                padding: 0; border-right: none; border-bottom: none; box-shadow: none;
-                max-height: none; width: 100%;
+                position: fixed;
+                inset: 0;
+                z-index: 9000;
+                background: white;
+                flex-direction: column;
+                overflow: hidden;
+                padding: 0;
+                border-right: none;
+                border-bottom: none;
+                box-shadow: none;
+                max-height: none;
+                width: 100%;
             }
-            .mobile-analysis-back-btn { display: none; }
+
+            .mobile-analysis-back-btn {
+                display: none;
+            }
+
             .container.mobile-analysis-open .mobile-analysis-back-btn {
-                display: flex !important; align-items: center; justify-content: space-between;
-                padding: 12px 16px; background: white; border-bottom: 1px solid #e5e5ea;
-                flex-shrink: 0; padding-top: calc(12px + env(safe-area-inset-top));
+                display: flex !important;
+                align-items: center;
+                justify-content: space-between;
+                padding: 12px 16px;
+                background: white;
+                border-bottom: 1px solid #e5e5ea;
+                flex-shrink: 0;
+                padding-top: calc(12px + env(safe-area-inset-top));
             }
-            .container.mobile-analysis-open .analysis-panel .panel-header { display: none; }
-            .container.mobile-analysis-open .analysis-panel .panel-toggle-btn { display: none; }
+
+            .container.mobile-analysis-open .analysis-panel .panel-header {
+                display: none;
+            }
+
+            .container.mobile-analysis-open .analysis-panel .panel-toggle-btn {
+                display: none;
+            }
+
             .container.mobile-analysis-open .analysis-panel #analysisResult {
-                flex: 1; overflow-y: auto; min-height: 0;
+                flex: 1;
+                overflow-y: auto;
+                min-height: 0;
             }
+
             .container.mobile-analysis-open .analysis-panel .input-group,
             .container.mobile-analysis-open .analysis-panel .analyze-btn {
-                padding-left: 16px; padding-right: 16px;
+                padding-left: 16px;
+                padding-right: 16px;
             }
         }
 
         /* ===== 가격 입력 바텀시트 ===== */
         #picker-price-sheet {
-            display: none; position: fixed; inset: 0; z-index: 10000;
-            background: rgba(0,0,0,0.5); align-items: flex-end;
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: flex-end;
         }
-        #picker-price-sheet.visible { display: flex; }
+
+        #picker-price-sheet.visible {
+            display: flex;
+        }
+
         .pps-body {
-            background: white; width: 100%; border-radius: 20px 20px 0 0;
+            background: white;
+            width: 100%;
+            border-radius: 20px 20px 0 0;
             padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
         }
-        .pps-handle { width: 36px; height: 4px; background: #e5e5ea; border-radius: 2px; margin: 0 auto 16px; }
-        .pps-img-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-        .pps-img { width: 56px; height: 56px; background: #f5f5f7; border-radius: 10px; overflow: hidden; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .pps-img img { width: 100%; height: 100%; object-fit: contain; }
-        .pps-title { font-size: 14px; font-weight: 700; color: #1d1d1f; margin-bottom: 2px; }
-        .pps-spec { font-size: 12px; color: #888; }
-        .pps-label { font-size: 12px; font-weight: 600; color: #666; margin-bottom: 6px; }
+
+        .pps-handle {
+            width: 36px;
+            height: 4px;
+            background: #e5e5ea;
+            border-radius: 2px;
+            margin: 0 auto 16px;
+        }
+
+        .pps-img-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .pps-img {
+            width: 56px;
+            height: 56px;
+            background: #f5f5f7;
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .pps-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .pps-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1d1d1f;
+            margin-bottom: 2px;
+        }
+
+        .pps-spec {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .pps-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
         .pps-price-input {
-            width: 100%; padding: 14px 16px; border: 2px solid #e5e5ea;
-            border-radius: 12px; font-size: 22px; font-weight: 700; text-align: right;
-            box-sizing: border-box; outline: none; color: #1d1d1f;
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e5ea;
+            border-radius: 12px;
+            font-size: 22px;
+            font-weight: 700;
+            text-align: right;
+            box-sizing: border-box;
+            outline: none;
+            color: #1d1d1f;
         }
-        .pps-price-input:focus { border-color: #0071e3; }
-        .pps-buttons { display: flex; gap: 10px; margin-top: 14px; }
+
+        .pps-price-input:focus {
+            border-color: #0071e3;
+        }
+
+        .pps-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
         .pps-cancel {
-            flex: 1; padding: 14px; background: #f5f5f7; border: none;
-            border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; color: #1d1d1f;
+            flex: 1;
+            padding: 14px;
+            background: #f5f5f7;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #1d1d1f;
         }
+
         .pps-confirm {
-            flex: 2; padding: 14px; background: #0071e3; border: none;
-            border-radius: 12px; font-size: 15px; font-weight: 700; color: white; cursor: pointer;
+            flex: 2;
+            padding: 14px;
+            background: #0071e3;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
         }
 
         /* ===== 인쇄 전용 스타일 ===== */
@@ -915,7 +1335,8 @@
             <!-- 모바일 오버레이 모드에서 표시되는 뒤로가기 헤더 -->
             <div class="mobile-analysis-back-btn">
                 <span style="font-size:15px;font-weight:700;">🛍️ 매장 맞춤 분석</span>
-                <button onclick="closeMobileAnalysis()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;padding:4px 6px;line-height:1;">✕</button>
+                <button onclick="closeMobileAnalysis()"
+                    style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;padding:4px 6px;line-height:1;">✕</button>
             </div>
             <div class="panel-header" onclick="togglePanelMobile()">🛍️ 매장 맞춤 분석</div>
 
@@ -1061,16 +1482,17 @@
             <div class="picker-topbar-title">📋 제품 제안서 작성</div>
             <div style="display:flex;gap:6px;flex-shrink:0;">
                 <button class="picker-info-btn" onclick="showMobileAnalysis()">🔍 AI분석</button>
-                <button class="picker-info-btn" onclick="pickerSave()" style="background:#f0fff4;color:#34c759;border-color:#b3efca;">💾 저장</button>
+                <button class="picker-info-btn" onclick="pickerSave()"
+                    style="background:#f0fff4;color:#34c759;border-color:#b3efca;">💾 저장</button>
                 <button class="picker-info-btn" onclick="togglePickerInfo()">수신처</button>
             </div>
         </div>
         <!-- 수신처 입력 패널 (토글) -->
         <div id="picker-info-panel" class="picker-info-panel">
             <input type="text" class="picker-input" id="picker-customer-input" placeholder="거래처명"
-                   oninput="document.getElementById('edit-customerName').value=this.value;syncInfo()">
+                oninput="document.getElementById('edit-customerName').value=this.value;syncInfo()">
             <input type="text" class="picker-input" id="picker-manager-input" placeholder="담당자"
-                   oninput="document.getElementById('edit-managerName').value=this.value;syncInfo()">
+                oninput="document.getElementById('edit-managerName').value=this.value;syncInfo()">
         </div>
         <!-- 카테고리 칩 -->
         <div class="picker-cats">
@@ -1172,7 +1594,7 @@
                         <div class="catalog-card-name">${editorRow.querySelector('.project-name').value}</div>
                         <div class="catalog-card-spec">${editorRow.querySelector('.p-spec-input').value}</div>
                         <div class="catalog-card-desc">${editorRow.querySelector('.p-description').value}</div>
-                        <div class="catalog-card-price">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value)||0).toLocaleString()}원</div>
+                        <div class="catalog-card-price">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value) || 0).toLocaleString()}원</div>
                     </div>
                 `;
                 grid.appendChild(card);
@@ -1202,7 +1624,7 @@
             let prevTop = null;
             cards.forEach((card, i) => {
                 const top = Math.round(card.getBoundingClientRect().top);
-                const h   = card.getBoundingClientRect().height;
+                const h = card.getBoundingClientRect().height;
                 if (prevTop === null || Math.abs(top - prevTop) > 4) {
                     rowGroups.push({ startIdx: i, height: h });
                     prevTop = top;
@@ -1511,9 +1933,9 @@
 
             editorRows.forEach((editorRow) => {
                 const rowId = editorRow.querySelector('.row-id').value;
-                const name  = editorRow.querySelector('.project-name').value;
-                const spec  = editorRow.querySelector('.p-spec-input').value;
-                const desc  = editorRow.querySelector('.p-description').value;
+                const name = editorRow.querySelector('.project-name').value;
+                const spec = editorRow.querySelector('.p-spec-input').value;
+                const desc = editorRow.querySelector('.p-description').value;
                 const sales = parseFloat(editorRow.querySelector('.sales-price').value) || 0;
 
                 const _imgUrl = findProductImage(name);
@@ -1566,6 +1988,7 @@
             const name = data ? data.name : '';
             const spec = data ? data.spec : '';
             const price = data ? data.price : 0;
+            const salesPrice = data?.salesPrice ?? price; // 판매가 별도 전달 시 우선, 없으면 출고가 기본값
             const isTaxFree = data ? data.taxFree : false;
             const maxDc = data ? data.maxDc : 0;
 
@@ -1600,7 +2023,7 @@
                     </div>
                     <div>
                         <div class="price-label">판매가</div>
-                        <input type="number" class="price-input sales-price" value="${price}" oninput="calculateRow(this)">
+                        <input type="number" class="price-input sales-price" value="${salesPrice}" oninput="calculateRow(this)">
                     </div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:11px;">
@@ -1798,12 +2221,12 @@
                 return (data || [])
                     .filter(r => r.manager)
                     .map(r => ({
-                        '작성자':        r.manager       ?? '',
+                        '작성자': r.manager ?? '',
                         '방문처(거래처)': r.business_name ?? '',
-                        '작성일':        r.visit_date    ?? '',
-                        '일정기간':      r.visit_date    ?? '',
-                        '내용':          r.content       ?? '',
-                        '방문처(대리점)': r.dealer_name   ?? ''
+                        '작성일': r.visit_date ?? '',
+                        '일정기간': r.visit_date ?? '',
+                        '내용': r.content ?? '',
+                        '방문처(대리점)': r.dealer_name ?? ''
                     }))
                     .filter(log => {
                         const rawName = (log['방문처(거래처)'] || '').trim();
@@ -2201,11 +2624,12 @@
             const container = document.getElementById('editor-items-container');
             container.innerHTML = '';
             (data.items || []).forEach(item => {
-                addRow({ name: item.name, spec: item.spec, price: item.factoryPrice || 0, taxFree: false, maxDc: 0 });
+                addRow({ name: item.name, spec: item.spec, price: item.factoryPrice || 0, salesPrice: item.salesPrice || 0, taxFree: false, maxDc: 0 });
                 const row = container.lastElementChild;
                 if (row) {
                     row.querySelector('.dc-rate').value = item.dcRate || 0;
-                    row.querySelector('.sales-price').value = item.salesPrice || 0;
+                    // salesPrice는 addRow에서 이미 세팅, calculateRow 덮어쓰기 방지를 위해 data-last-matched 유지
+                    if (item.salesPrice) row.querySelector('.sales-price').value = item.salesPrice;
                     if (item.desc) row.querySelector('.p-description').value = item.desc;
                     calculateRow(row.querySelector('.factory-price'));
                 }
@@ -2259,15 +2683,15 @@
                     <div class="picker-card${count > 0 ? ' selected' : ''}"
                          onclick="pickerCardTapEl(this)"
                          data-pname="${esc(p.name)}"
-                         data-spec="${esc(p.spec||'')}"
-                         data-price="${p.price||0}"
-                         data-taxfree="${p.taxFree||false}"
-                         data-maxdc="${p.maxDc||0}">
+                         data-spec="${esc(p.spec || '')}"
+                         data-price="${p.price || 0}"
+                         data-taxfree="${p.taxFree || false}"
+                         data-maxdc="${p.maxDc || 0}">
                         ${count > 0 ? `<div class="picker-card-badge">${count}</div>` : ''}
                         <div class="picker-card-img">
                             ${imgUrl
-                                ? `<img src="${imgUrl}" loading="lazy" onerror="this.parentNode.innerHTML='<span style=\\'font-size:22px;\\'>📦</span>'">`
-                                : '<span style="font-size:22px;">📦</span>'}
+                        ? `<img src="${imgUrl}" loading="lazy" onerror="this.parentNode.innerHTML='<span style=\\'font-size:22px;\\'>📦</span>'">`
+                        : '<span style="font-size:22px;">📦</span>'}
                         </div>
                         <div class="picker-card-name">${p.name}</div>
                         ${p.spec ? `<div class="picker-card-spec">${p.spec}</div>` : ''}
