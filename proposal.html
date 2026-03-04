@@ -456,98 +456,82 @@
 
         /* ===== 카탈로그형 견적서 스타일 ===== */
         .catalog-header {
-            background: linear-gradient(135deg, #00205c 0%, #0071e3 65%, #3da5ff 100%);
+            background: #1565C0;   /* 단색 중간 블루 — 그라데이션 제거 */
             color: white;
-            padding: 14px 22px 14px;
+            padding: 12px 20px 12px;
             border-radius: 6px 6px 0 0;
         }
         .catalog-header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 7px;
+            margin-bottom: 6px;
         }
         .catalog-logo {
-            height: 32px;
+            height: 30px;
             width: auto;
             object-fit: contain;
-            filter: brightness(0) invert(1); /* 흰색으로 */
+            filter: brightness(0) invert(1);
         }
-        .catalog-brand { font-size: 10px; font-weight: 700; opacity: 0.75; letter-spacing: 1.5px; text-transform: uppercase; }
-        .catalog-date-text { font-size: 10px; opacity: 0.65; }
-        .catalog-main-title { font-size: 20px; font-weight: 800; letter-spacing: 4px; margin-bottom: 2px; }
-        .catalog-sub { font-size: 11px; opacity: 0.75; margin-bottom: 6px; }
+        .catalog-main-title { font-size: 18px; font-weight: 800; letter-spacing: 3px; }
+        .catalog-sub { font-size: 10px; opacity: 0.75; margin-top: 2px; }
         .catalog-recipient {
-            display: flex; flex-wrap: wrap; gap: 4px 12px;
-            font-size: 10.5px; background: rgba(255,255,255,0.14);
+            display: flex; flex-wrap: wrap; gap: 4px 14px;
+            font-size: 10px; background: rgba(255,255,255,0.15);
             padding: 5px 12px; border-radius: 4px; margin-top: 6px;
         }
         .catalog-recipient span { opacity: 0.9; }
         .catalog-recipient strong { opacity: 1; font-weight: 700; }
         .catalog-page-cont {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 5px 0; border-bottom: 1px solid #eee; margin-bottom: 8px;
+            padding: 4px 0; border-bottom: 1px solid #eee; margin-bottom: 8px;
             font-size: 10px; color: #bbb;
         }
         .catalog-brand-mini { font-weight: 700; color: #aaa; }
-        .catalog-col-header {
-            display: flex; gap: 8px; padding: 5px 8px;
-            background: #f0f4ff; border-bottom: 2px solid #0071e3;
-            font-size: 9px; font-weight: 700; color: #5c7cfa; text-transform: uppercase; letter-spacing: 0.5px;
+
+        /* 2열 카드 그리드 */
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            padding: 8px 4px;
         }
-        .catalog-col-header .ch-num  { width: 16px; flex-shrink: 0; }
-        .catalog-col-header .ch-img  { width: 72px; flex-shrink: 0; }
-        .catalog-col-header .ch-body { flex: 1; }
-        .catalog-col-header .ch-price{ width: 76px; text-align: right; flex-shrink: 0; }
-        .catalog-body { display: flex; flex-direction: column; }
-        .catalog-item {
-            display: flex; align-items: center; gap: 8px;
-            padding: 8px 8px; border-bottom: 1px solid #f0f0f2;
+        .catalog-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            overflow: hidden;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            break-inside: avoid;
         }
-        .catalog-item:nth-child(even) { background: #fafbff; }
-        .catalog-item-num { font-size: 9px; color: #ccc; font-weight: 700; width: 16px; text-align: center; flex-shrink: 0; }
-        .catalog-item-img {
-            width: 72px; height: 56px; flex-shrink: 0;
+        .catalog-card-img {
+            height: 90px;
             display: flex; align-items: center; justify-content: center;
-            background: #f5f5f7; border-radius: 5px; overflow: hidden;
+            background: white;          /* 흰색 배경으로 깔끔하게 */
+            border-bottom: 1px solid #f0f0f0;
+            padding: 6px;
         }
-        .catalog-item-img img { width: 100%; height: 100%; object-fit: contain; }
-        .catalog-no-img { font-size: 22px; opacity: 0.4; }
-        .catalog-item-body { flex: 1; min-width: 0; }
-        .catalog-item-name {
-            font-size: 11.5px; font-weight: 700; color: #1d1d1f;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px;
+        .catalog-card-img img {
+            max-width: 100%; max-height: 100%; object-fit: contain;
         }
-        .catalog-item-spec { font-size: 9.5px; color: #888; margin-bottom: 2px; }
-        .catalog-item-desc {
-            font-size: 9px; color: #aaa;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-            overflow: hidden; line-height: 1.4;
+        .catalog-card-no-img { font-size: 28px; opacity: 0.3; }
+        .catalog-card-body { padding: 7px 8px 8px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .catalog-card-name {
+            font-size: 10.5px; font-weight: 700; color: #1d1d1f;
+            line-height: 1.35; word-break: keep-all;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
         }
-        .catalog-item-price { text-align: right; flex-shrink: 0; min-width: 76px; }
-        .catalog-price-label { font-size: 8.5px; color: #aaa; margin-bottom: 1px; }
-        .catalog-price-value { font-size: 13px; font-weight: 800; color: #0071e3; white-space: nowrap; }
-        .catalog-price-unit { font-size: 8px; color: #bbb; }
-        .catalog-summary {
-            margin-top: 14px; background: linear-gradient(135deg, #00205c, #0071e3);
-            border-radius: 6px; padding: 12px 20px; color: white;
-            display: flex; justify-content: space-between; align-items: center;
+        .catalog-card-spec { font-size: 9px; color: #888; }
+        .catalog-card-desc {
+            font-size: 8.5px; color: #aaa; line-height: 1.4;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            margin-top: 1px;
         }
-        .catalog-summary-label { font-size: 11px; opacity: 0.85; }
-        .catalog-summary-right { text-align: right; }
-        .catalog-summary-value { font-size: 22px; font-weight: 800; }
-        .catalog-summary-unit { font-size: 11px; opacity: 0.75; }
-        .catalog-sign { display: flex; gap: 10px; margin-top: 12px; }
-        .catalog-sign-box {
-            flex: 1; border: 1px solid #e5e5e5; border-radius: 6px;
-            padding: 8px 14px; background: #fafafa;
+        .catalog-card-price {
+            margin-top: 5px; font-size: 12px; font-weight: 800;
+            color: #1565C0; border-top: 1px solid #f0f0f0; padding-top: 4px;
         }
-        .catalog-sign-label { font-size: 9px; color: #888; font-weight: 700; margin-bottom: 6px; }
-        .catalog-sign-content {
-            font-size: 11px; font-weight: 600; color: #1d1d1f;
-            border-bottom: 1px solid #e5e5e5; min-height: 22px; padding-bottom: 3px; margin-bottom: 3px;
-        }
-        .catalog-sign-date { font-size: 9px; color: #bbb; }
 
         /* ===== 모바일 카드 피커 ===== */
         .mobile-picker {
@@ -1071,34 +1055,25 @@
                 <div class="paper" style="transform:none!important;zoom:1!important;" id="_mPaper">
                     <div class="catalog-header" id="_mHdr">
                         <div class="catalog-main-title">제품 제안서</div>
-                        <div class="catalog-recipient"><span>수신 <strong>고객명</strong></span></div>
                     </div>
-                    <div class="catalog-col-header">
-                        <div class="ch-num">#</div><div class="ch-img">사진</div>
-                        <div class="ch-body">품명</div><div class="ch-price">판매가</div>
-                    </div>
-                    <div class="catalog-body" id="_mBody"></div>
+                    <div class="catalog-grid" id="_mGrid"></div>
                 </div>
             `;
             document.body.appendChild(wrap);
 
-            const body = document.getElementById('_mBody');
+            const grid = document.getElementById('_mGrid');
             editorRows.forEach((editorRow, i) => {
-                const item = document.createElement('div');
-                item.className = 'catalog-item';
-                item.innerHTML = `
-                    <div class="catalog-item-num">${i + 1}</div>
-                    <div class="catalog-item-img" style="width:72px;height:56px;flex-shrink:0;"></div>
-                    <div class="catalog-item-body">
-                        <div class="catalog-item-name">${editorRow.querySelector('.project-name').value}</div>
-                        <div class="catalog-item-spec">${editorRow.querySelector('.p-spec-input').value}</div>
-                        <div class="catalog-item-desc">${editorRow.querySelector('.p-description').value}</div>
-                    </div>
-                    <div class="catalog-item-price">
-                        <div class="catalog-price-value">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value)||0).toLocaleString()}</div>
+                const card = document.createElement('div');
+                card.className = 'catalog-card';
+                card.innerHTML = `
+                    <div class="catalog-card-img" style="height:90px;"></div>
+                    <div class="catalog-card-body">
+                        <div class="catalog-card-name">${editorRow.querySelector('.project-name').value}</div>
+                        <div class="catalog-card-spec">${editorRow.querySelector('.p-spec-input').value}</div>
+                        <div class="catalog-card-price">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value)||0).toLocaleString()}원</div>
                     </div>
                 `;
-                body.appendChild(item);
+                grid.appendChild(card);
             });
 
             // 레이아웃 강제 계산
@@ -1112,37 +1087,48 @@
             const paperRect = paper.getBoundingClientRect();
             const hdrRect = document.getElementById('_mHdr').getBoundingClientRect();
 
-            const items = Array.from(body.querySelectorAll('.catalog-item'));
-            const firstItemTop = items.length > 0 ? items[0].getBoundingClientRect().top : hdrRect.bottom;
+            const cards = Array.from(grid.querySelectorAll('.catalog-card'));
+            const firstCardTop = cards.length > 0 ? cards[0].getBoundingClientRect().top : hdrRect.bottom;
 
-            // 페이지1: 헤더 + 컬럼헤더 오버헤드, 하단 summary+sign 예약
-            const topOverhead = firstItemTop - paperRect.top - (20 * mmPx);
-            const summaryH = 130; // catalog-summary + catalog-sign 추정
-            const p1Available = contentH - topOverhead - summaryH;
-            // 이후 페이지: page indicator만 (약 24px)
-            const pNAvailable = contentH - 24;
+            // 페이지1: 헤더 오버헤드 + 그리드 패딩
+            const topOverhead = firstCardTop - paperRect.top - (20 * mmPx);
+            const p1Available = contentH - topOverhead;
+            const pNAvailable = contentH - 24; // 이후 페이지 (page indicator 24px)
 
-            // 각 행의 실제 렌더링 높이 측정
-            const rowHeights = items.map(item => item.getBoundingClientRect().height);
+            // 2열 그리드: 같은 top을 가진 카드들이 한 "행" → 행 단위로 높이 측정
+            const rowGroups = []; // [{ startIdx, height }]
+            let prevTop = null;
+            cards.forEach((card, i) => {
+                const top = Math.round(card.getBoundingClientRect().top);
+                const h   = card.getBoundingClientRect().height;
+                if (prevTop === null || Math.abs(top - prevTop) > 4) {
+                    rowGroups.push({ startIdx: i, height: h });
+                    prevTop = top;
+                } else {
+                    rowGroups[rowGroups.length - 1].height = Math.max(rowGroups[rowGroups.length - 1].height, h);
+                }
+            });
 
             document.body.removeChild(wrap);
 
-            // 페이지 분할 계산
+            // 페이지 분할 — 행 단위로 잘라야 2열이 짝 맞게 넘어감
+            const GAP = 8;
             const breaks = [0];
             let acc = 0;
             let avail = p1Available;
 
-            for (let i = 0; i < rowHeights.length; i++) {
-                if (acc + rowHeights[i] > avail && i > 0) {
-                    breaks.push(i);
-                    acc = rowHeights[i];
+            for (const rg of rowGroups) {
+                const rowH = rg.height + GAP;
+                if (acc + rowH > avail && rg.startIdx > 0) {
+                    breaks.push(rg.startIdx);
+                    acc = rowH;
                     avail = pNAvailable;
                 } else {
-                    acc += rowHeights[i];
+                    acc += rowH;
                 }
             }
 
-            return breaks; // 각 페이지의 시작 행 인덱스 배열
+            return breaks;
         }
 
         // 제품 DB (Google Sheets에서 자동 로드됨)
@@ -1383,11 +1369,9 @@
             updateTotal();
         }
 
-        // ===== 개별 페이퍼 렌더링 (카탈로그형) =====
+        // ===== 개별 페이퍼 렌더링 (2열 카탈로그형) =====
         function renderPaper(paper, pageIndex, totalPages, editorRows, startGlobalIndex, customerName, managerName, managerPhone, quoteMode) {
             const isFirst = pageIndex === 0;
-            const isLast = pageIndex === totalPages - 1;
-            const today = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
 
             let html = '';
 
@@ -1397,10 +1381,8 @@
                 <div class="catalog-header">
                     <div class="catalog-header-top">
                         <img src="assets/images/logo.png" class="catalog-logo" alt="매일유업">
-                        <div class="catalog-date-text">${today}</div>
+                        <div class="catalog-main-title">제품 제안서</div>
                     </div>
-                    <div class="catalog-main-title">제품 제안서</div>
-                    ${showRecipient && customerName ? `<div class="catalog-sub">Proposal for ${esc(customerName)}</div>` : ''}
                     ${showRecipient ? `
                     <div class="catalog-recipient">
                         <span>수신 <strong><span id="preview-customerName">${esc(customerName) || '—'}</span></strong></span>
@@ -1421,70 +1403,37 @@
                 </div>`;
             }
 
-            html += `
-            <div class="catalog-col-header">
-                <div class="ch-num">#</div>
-                <div class="ch-img">제품 사진</div>
-                <div class="ch-body">품명 / 규격 / 내용</div>
-                <div class="ch-price">판매가</div>
-            </div>
-            <div class="catalog-body">`;
+            // 2열 카드 그리드
+            html += `<div class="catalog-grid">`;
 
-            editorRows.forEach((editorRow, idx) => {
-                const globalRowNum = startGlobalIndex + idx + 1;
+            editorRows.forEach((editorRow) => {
                 const rowId = editorRow.querySelector('.row-id').value;
-                const name = editorRow.querySelector('.project-name').value;
-                const spec = editorRow.querySelector('.p-spec-input').value;
-                const desc = editorRow.querySelector('.p-description').value;
+                const name  = editorRow.querySelector('.project-name').value;
+                const spec  = editorRow.querySelector('.p-spec-input').value;
+                const desc  = editorRow.querySelector('.p-description').value;
                 const sales = parseFloat(editorRow.querySelector('.sales-price').value) || 0;
 
                 const _imgUrl = findProductImage(name);
                 const imgContent = _imgUrl
-                    ? `<img src="${_imgUrl}" onerror="this.style.display='none'" style="width:100%;height:100%;object-fit:contain;">`
-                    : `<div class="catalog-no-img">📦</div>`;
+                    ? `<img src="${_imgUrl}" onerror="this.style.display='none'">`
+                    : `<div class="catalog-card-no-img">📦</div>`;
 
                 html += `
-                <div class="catalog-item" id="preview-${rowId}">
-                    <div class="catalog-item-num">${globalRowNum}</div>
-                    <div class="catalog-item-img p-img">${imgContent}</div>
-                    <div class="catalog-item-body">
-                        <div class="catalog-item-name p-name">${esc(name)}</div>
-                        <div class="catalog-item-spec p-spec">${esc(spec)}</div>
-                        <div class="catalog-item-desc p-desc">${esc(desc)}</div>
-                    </div>
-                    <div class="catalog-item-price">
-                        <div class="catalog-price-label">판매가</div>
-                        <div class="catalog-price-value p-sales">${Math.floor(sales).toLocaleString()}</div>
-                        <div class="catalog-price-unit">원</div>
+                <div class="catalog-card" id="preview-${rowId}">
+                    <div class="catalog-card-img p-img">${imgContent}</div>
+                    <div class="catalog-card-body">
+                        <div class="catalog-card-name p-name">${esc(name)}</div>
+                        <div class="catalog-card-spec p-spec">${esc(spec)}</div>
+                        <div class="catalog-card-desc p-desc">${esc(desc)}</div>
+                        <div class="catalog-card-price p-sales">${Math.floor(sales).toLocaleString()}원</div>
                     </div>
                 </div>`;
             });
 
-            html += `</div>`; // catalog-body
+            html += `</div>`; // catalog-grid
 
-            if (isLast) {
-                html += `
-                <div class="catalog-summary">
-                    <div class="catalog-summary-label">총 합계 금액</div>
-                    <div class="catalog-summary-right">
-                        <span class="catalog-summary-value" id="preview-totalAmount">0</span>
-                        <span class="catalog-summary-unit"> 원</span>
-                    </div>
-                </div>
-                <div class="catalog-sign">
-                    <div class="catalog-sign-box">
-                        <div class="catalog-sign-label">공급자</div>
-                        <div class="catalog-sign-content">매일유업 경기북부 FS팀</div>
-                        <div class="catalog-sign-date">${today}</div>
-                    </div>
-                    <div class="catalog-sign-box">
-                        <div class="catalog-sign-label">수신자 확인</div>
-                        <div class="catalog-sign-content">&nbsp;</div>
-                        <div class="catalog-sign-date">&nbsp;</div>
-                    </div>
-                </div>`;
-            } else if (totalPages > 1) {
-                html += `<div style="text-align:center;font-size:10px;color:#ccc;position:absolute;bottom:8mm;left:0;width:100%;">${pageIndex + 1} / ${totalPages}</div>`;
+            if (totalPages > 1) {
+                html += `<div style="text-align:center;font-size:9px;color:#ccc;padding-top:4px;">${pageIndex + 1} / ${totalPages}</div>`;
             }
 
             paper.innerHTML = html;
@@ -1679,15 +1628,15 @@
                 previewRow.querySelector('.p-name').innerText = name;
                 previewRow.querySelector('.p-spec').innerText = spec;
                 previewRow.querySelector('.p-desc').innerText = desc;
-                previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString();
+                previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString() + '원';
 
-                // 사진 자동 로드
+                // 사진 자동 로드 — 흰 배경 카드 구조에 맞게
                 const imgCell = previewRow.querySelector('.p-img');
                 const _liveImgUrl = findProductImage(name);
                 if (_liveImgUrl) {
-                    imgCell.innerHTML = `<img src="${_liveImgUrl}" onerror="this.parentElement.innerHTML='<div style=\\'width: 90px; height: 60px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;\\'>NO IMG</div>';" style="width: 110px; height: auto; max-height: 70px; object-fit: contain; border-radius: 4px;">`;
+                    imgCell.innerHTML = `<img src="${_liveImgUrl}" onerror="this.style.display='none'">`;
                 } else {
-                    imgCell.innerHTML = '<div style="width: 60px; height: 40px; background: #f0f0f0; border-radius: 4px; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #ccc;">NO IMG</div>';
+                    imgCell.innerHTML = '<div class="catalog-card-no-img">📦</div>';
                 }
             }
 
