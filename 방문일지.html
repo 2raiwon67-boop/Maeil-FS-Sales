@@ -900,44 +900,53 @@
         .todo-card-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
+            gap: 8px;
+            min-height: 24px;
         }
 
         .todo-account {
-            font-size: 15px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 700;
             color: #1d1d1f;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
         }
 
         .todo-dday-badge {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            flex-shrink: 0;
             font-size: 11px;
-            font-weight: 700;
+            font-weight: 600;
             padding: 3px 8px;
-            border-radius: 8px;
-            background: #e0f2fe;
-            color: #0369a1;
-        }
-
-        .todo-dday-badge.urgent {
-            background: #ffe5e5;
-            color: #d93025;
-        }
-
-        .todo-dday-badge.past {
-            background: #e8e8ed;
-            color: #6e6e73;
+            border-radius: 20px;
+            background: #e8f0fe;
+            color: #1a73e8;
         }
 
         .todo-content {
             font-size: 13px;
             color: #424245;
-            line-height: 1.5;
+            line-height: 1.6;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
-            line-clamp: 3;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .todo-content-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
+            letter-spacing: 0.02em;
+            margin-bottom: 3px;
         }
 
         .todo-footer {
@@ -945,8 +954,10 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
-            color: #86868b;
+            font-size: 11px;
+            color: #aaaaaf;
+            padding-top: 6px;
+            border-top: 1px solid #e8e8ed;
         }
 
         .todo-manager {
@@ -1869,11 +1880,12 @@
                     if (!visit.dateObj) return;
                     const d = new Date(visit.dateObj);
                     if (d.getFullYear() !== thisYear || d.getMonth() !== thisMonth) return;
-                    if (!visit.fullData?.['내용']?.trim()) return;
+                    const content = (visit.fullData?.['내용'] || '').trim();
+                    if (!content) return;
                     allVisits.push({
                         accountName: account.accountName,
                         manager: visit.manager || '',
-                        content: visit.fullData['내용'] || '',
+                        content: content.substring(0, 200), // 토큰 절감: 200자 제한
                         visitDate: visit.date || ''
                     });
                 });
@@ -1887,35 +1899,23 @@
             // ── 로딩 표시 ──
             todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">🤖 AI가 이번 달 방문일지를 분석 중입니다...</div>`;
 
-            // ── Gemini 배치 요약 요청 ──
+            // ── Gemini 배치 요약 요청 (토큰 절감형 프롬프트) ──
             try {
+                // 핵심 내용만 압축하여 전달
                 const visitLines = allVisits.map((v, i) =>
-                    `[${i + 1}] 거래처: ${v.accountName} | 담당: ${v.manager} | 방문일: ${v.visitDate}\n내용: ${v.content}`
-                ).join('\n\n');
+                    `${i + 1}.${v.accountName}(${v.manager},${v.visitDate}):${v.content}`
+                ).join('\n');
 
-                const prompt = `당신은 영업 비서입니다. 아래는 이번 달(${thisYear}년 ${thisMonth + 1}월) 방문일지 목록입니다.
-각 방문일지를 분석하여 "아직 완료되지 않은 할 일(TO-DO)"과 "다음 방문 예정일"을 추출해 주세요.
-
-규칙:
-- 내용에서 할 일(후속 조치, 재방문 필요, 정보 전달, 추가 확인 등)이 명확히 있는 경우만 추출합니다.
-- 특별한 후속 조치가 없는 단순 방문 기록은 result 배열에서 제외하세요.
-- 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
-
-응답 형식:
-{"result": [
-  {"idx": 1, "todoSummary": "할 일 요약 (1~2문장)", "nextVisit": "다음 방문 예정 (날짜 혹은 '미정')"},
-  ...
-]}
-
-방문일지 목록:
-${visitLines}`;
+                const prompt = `영업일지에서 후속조치가 필요한 건만 JSON으로 추출하라. 단순방문·완료건은 제외.
+형식:{"r":[{"i":번호,"t":"할일 한 문장","d":"다음방문일 또는 미정"}]}
+일지:\n${visitLines}`;
 
                 const response = await fetch('/api/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt,
-                        generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
+                        generationConfig: { temperature: 0, maxOutputTokens: 1024 }
                     })
                 });
 
@@ -1924,27 +1924,28 @@ ${visitLines}`;
                 const data = await response.json();
                 const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-                // JSON 파싱
+                // JSON 파싱 (약식 키 r, i, t, d 지원)
                 const jsonMatch = rawText.match(/\{[\s\S]*\}/);
                 if (!jsonMatch) throw new Error('AI 응답 파싱 실패');
                 const parsed = JSON.parse(jsonMatch[0]);
-                const aiResults = parsed.result || [];
+                const aiResults = parsed.r || parsed.result || [];
 
                 // AI 결과를 원본 방문일지와 매핑
                 cachedTodoItems = [];
                 cachedTodoItemsAll = [];
 
                 aiResults.forEach(r => {
-                    const idx = (r.idx || 0) - 1;
+                    const idx = ((r.i || r.idx) || 0) - 1;
                     const visit = allVisits[idx];
                     if (!visit) return;
-                    if (!r.todoSummary?.trim()) return;
+                    const summary = (r.t || r.todoSummary || '').trim();
+                    if (!summary) return;
 
                     const item = {
                         accountName: visit.accountName,
                         manager: visit.manager,
-                        todoSummary: r.todoSummary,
-                        nextVisit: r.nextVisit || '미정',
+                        todoSummary: summary,
+                        nextVisit: (r.d || r.nextVisit || '미정').trim(),
                         visitDate: visit.visitDate
                     };
                     cachedTodoItemsAll.push(item);
@@ -1965,7 +1966,13 @@ ${visitLines}`;
             currentTodoMode = mode;
             document.getElementById('btnTodoMine').classList.toggle('active', mode === 'mine');
             document.getElementById('btnTodoAll').classList.toggle('active', mode === 'all');
-            renderTodos();
+            // 캐시가 비어있으면 AI 재분석, 있으면 즉시 렌더만
+            const hasCache = cachedTodoItemsAll.length > 0 || cachedTodoItems.length > 0;
+            if (!hasCache) {
+                extractTodos();
+            } else {
+                renderTodos();
+            }
         }
 
         function renderTodos() {
@@ -1989,15 +1996,14 @@ ${visitLines}`;
             todoList.innerHTML = items.map(item => `
                 <div class="todo-card">
                     <div class="todo-card-header">
-                        <span class="todo-account">${item.accountName}</span>
-                        <span class="todo-dday-badge" style="background:#e8f0fe;color:#1a73e8;">📅 ${item.nextVisit}</span>
+                        <span class="todo-account" title="${item.accountName}">${item.accountName}</span>
+                        <span class="todo-dday-badge">📅 ${item.nextVisit}</span>
                     </div>
-                    <div class="todo-content">
-                        <strong>AI 요약 TO-DO:</strong> ${item.todoSummary}
-                    </div>
+                    <div class="todo-content-label">내용</div>
+                    <div class="todo-content">${item.todoSummary}</div>
                     <div class="todo-footer">
                         <span class="todo-manager"><i class="fas fa-user"></i> ${item.manager}</span>
-                        <span>방문일: ${item.visitDate}</span>
+                        <span>${item.visitDate}</span>
                     </div>
                 </div>
             `).join('');
