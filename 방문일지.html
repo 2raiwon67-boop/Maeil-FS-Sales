@@ -1845,15 +1845,120 @@
 
         let currentTodoMode = 'mine';
         let currentUserFullName = '';
+        let cachedTodoItems = [];       // AI 추출 결과 캐시 (mine 전용)
+        let cachedTodoItemsAll = [];    // AI 추출 결과 캐시 (all 전용)
 
         async function extractTodos() {
+            const todoList = document.getElementById('todoList');
+            if (!todoList) return;
+
             // 사용자 이름 셋팅
             if (!currentUserFullName) {
                 const user = await getUser();
                 currentUserFullName = user?.user_metadata?.full_name || '';
             }
 
-            renderTodos();
+            // ── 당월 방문일지만 추출 ──
+            const now = new Date();
+            const thisYear = now.getFullYear();
+            const thisMonth = now.getMonth(); // 0-indexed
+
+            const allVisits = [];
+            groupedAccounts.forEach(account => {
+                account.visits.forEach(visit => {
+                    if (!visit.dateObj) return;
+                    const d = new Date(visit.dateObj);
+                    if (d.getFullYear() !== thisYear || d.getMonth() !== thisMonth) return;
+                    if (!visit.fullData?.['내용']?.trim()) return;
+                    allVisits.push({
+                        accountName: account.accountName,
+                        manager: visit.manager || '',
+                        content: visit.fullData['내용'] || '',
+                        visitDate: visit.date || ''
+                    });
+                });
+            });
+
+            if (allVisits.length === 0) {
+                todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">이번 달 방문일지가 없습니다.</div>`;
+                return;
+            }
+
+            // ── 로딩 표시 ──
+            todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">🤖 AI가 이번 달 방문일지를 분석 중입니다...</div>`;
+
+            // ── Gemini 배치 요약 요청 ──
+            try {
+                const visitLines = allVisits.map((v, i) =>
+                    `[${i + 1}] 거래처: ${v.accountName} | 담당: ${v.manager} | 방문일: ${v.visitDate}\n내용: ${v.content}`
+                ).join('\n\n');
+
+                const prompt = `당신은 영업 비서입니다. 아래는 이번 달(${thisYear}년 ${thisMonth + 1}월) 방문일지 목록입니다.
+각 방문일지를 분석하여 "아직 완료되지 않은 할 일(TO-DO)"과 "다음 방문 예정일"을 추출해 주세요.
+
+규칙:
+- 내용에서 할 일(후속 조치, 재방문 필요, 정보 전달, 추가 확인 등)이 명확히 있는 경우만 추출합니다.
+- 특별한 후속 조치가 없는 단순 방문 기록은 result 배열에서 제외하세요.
+- 반드시 아래 JSON 형식으로만 응답하세요. 다른 텍스트는 절대 포함하지 마세요.
+
+응답 형식:
+{"result": [
+  {"idx": 1, "todoSummary": "할 일 요약 (1~2문장)", "nextVisit": "다음 방문 예정 (날짜 혹은 '미정')"},
+  ...
+]}
+
+방문일지 목록:
+${visitLines}`;
+
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
+                    })
+                });
+
+                if (!response.ok) throw new Error('AI 분석 실패');
+
+                const data = await response.json();
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+                // JSON 파싱
+                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) throw new Error('AI 응답 파싱 실패');
+                const parsed = JSON.parse(jsonMatch[0]);
+                const aiResults = parsed.result || [];
+
+                // AI 결과를 원본 방문일지와 매핑
+                cachedTodoItems = [];
+                cachedTodoItemsAll = [];
+
+                aiResults.forEach(r => {
+                    const idx = (r.idx || 0) - 1;
+                    const visit = allVisits[idx];
+                    if (!visit) return;
+                    if (!r.todoSummary?.trim()) return;
+
+                    const item = {
+                        accountName: visit.accountName,
+                        manager: visit.manager,
+                        todoSummary: r.todoSummary,
+                        nextVisit: r.nextVisit || '미정',
+                        visitDate: visit.visitDate
+                    };
+                    cachedTodoItemsAll.push(item);
+                    if (visit.manager === currentUserFullName) {
+                        cachedTodoItems.push(item);
+                    }
+                });
+
+                renderTodos();
+
+            } catch (e) {
+                console.error('[TO-DO AI]', e);
+                todoList.innerHTML = `<div style="padding:24px;color:#ff3b30;text-align:center;width:100%;font-size:14px;">⚠️ AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>`;
+            }
         }
 
         function toggleTodoView(mode) {
@@ -1863,137 +1968,40 @@
             renderTodos();
         }
 
-        function parsePredictedDate(dateStr) {
-            if (!dateStr) return null;
-            // "2026-03-15", "03/15", "3월 15일" 등 대응
-            const matchYMD = dateStr.match(/(20\d{2})[-./년]\s*(\d{1,2})[-./월]\s*(\d{1,2})/);
-            if (matchYMD) return new Date(matchYMD[1], matchYMD[2] - 1, matchYMD[3]);
-
-            const matchMD = dateStr.match(/(\d{1,2})[-./월]\s*(\d{1,2})/);
-            if (matchMD) {
-                const now = new Date();
-                return new Date(now.getFullYear(), matchMD[1] - 1, matchMD[2]);
-            }
-            return null;
-        }
-
         function renderTodos() {
             const todoList = document.getElementById('todoList');
             if (!todoList) return;
 
-            let extractedList = [];
+            const now = new Date();
+            const thisYear = now.getFullYear();
+            const thisMonth = now.getMonth() + 1;
 
-            // 모든 거래처 -> 모든 방문 기록 중 TO-DO나 다음방문일이 존재하는 것
-            groupedAccounts.forEach(account => {
-                // 한 거래처 당 최신 방문기록 1개의 TO-DO만 쳐줄 것인지 등 고민이 있을 수 있으나,
-                // 방문기록 전체에서 완료되지 않은 TO-DO를 찾습니다. (과거 방문의 다음방문일이 지났다면 기한지남으로 표시)
-                account.visits.forEach(visit => {
-                    const todoText = visit.fullData['TO-DO'] || '';
-                    const nextVisitText = visit.fullData['다음방문일'] || '';
+            const items = currentTodoMode === 'mine' ? cachedTodoItems : cachedTodoItemsAll;
 
-                    if (!todoText.trim() && !nextVisitText.trim()) return;
-
-                    // 내 알림 모드면 본인 담당만 추출
-                    if (currentTodoMode === 'mine' && visit.manager !== currentUserFullName) {
-                        return;
-                    }
-
-                    // D-Day 계산
-                    let dDayStr = '';
-                    let dDayClass = '';
-                    let sortWeight = 99999;
-
-                    let targetDate = parsePredictedDate(nextVisitText);
-
-                    // 만약 '다음방문일'에서 날짜를 파싱하지 못했다면 정렬을 위해 방문일 기준 대충 7일 뒤를 예상해봄
-                    if (!targetDate && visit.dateObj) {
-                        targetDate = new Date(visit.dateObj);
-                        targetDate.setDate(targetDate.getDate() + 7); // 가상 디데이 +7일
-                    }
-
-                    if (targetDate) {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        targetDate.setHours(0, 0, 0, 0);
-
-                        const diffTime = targetDate - today;
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                        sortWeight = diffDays;
-
-                        if (diffDays < 0) {
-                            dDayStr = '기한지남';
-                            dDayClass = 'past';
-                        } else if (diffDays === 0) {
-                            dDayStr = 'D-Day';
-                            dDayClass = 'urgent';
-                        } else if (diffDays <= 3) {
-                            dDayStr = `D-${diffDays}`;
-                            dDayClass = 'urgent';
-                        } else {
-                            dDayStr = `D-${diffDays}`;
-                            dDayClass = '';
-                        }
-                    } else {
-                        dDayStr = '일정미상';
-                    }
-
-                    // 과거 방문 기록이 너무 오래되었으면(예: 3개월 이상) 기한지남이더라도 무시
-                    if (sortWeight < -90) return;
-
-                    extractedList.push({
-                        accountName: account.accountName,
-                        manager: visit.manager,
-                        todoText: todoText,
-                        nextVisitText: nextVisitText,
-                        dDayStr: dDayStr,
-                        dDayClass: dDayClass,
-                        sortWeight: sortWeight,
-                        visitDateLabel: formatPeriod(visit.date)
-                    });
-                });
-            });
-
-            // 임박순 정렬 (기한지남 -> D-Day -> D-1 ...)
-            extractedList.sort((a, b) => a.sortWeight - b.sortWeight);
-
-            // 지점 전체는 최대 15개, 내 알림은 최대 20개 노출
-            const limit = currentTodoMode === 'mine' ? 20 : 15;
-            extractedList = extractedList.slice(0, limit);
-
-            if (extractedList.length === 0) {
-                todoList.innerHTML = `
-                    <div style="padding: 24px; color: #86868b; text-align: center; width: 100%; font-size: 14px;">
-                        진행 중인 주요 액션(TO-DO)이 없습니다.
-                    </div>
-                `;
+            if (items.length === 0) {
+                const msg = currentTodoMode === 'mine'
+                    ? `이번 달(${thisYear}.${String(thisMonth).padStart(2, '0')}) 내 담당 거래처의 후속 조치가 없습니다.`
+                    : `이번 달(${thisYear}.${String(thisMonth).padStart(2, '0')}) 지점 전체 후속 조치가 없습니다.`;
+                todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">${msg}</div>`;
                 return;
             }
 
-            todoList.innerHTML = extractedList.map(item => {
-                let cardClass = 'todo-card';
-                if (item.dDayClass === 'urgent') cardClass += ' d-day';
-                if (item.dDayClass === 'past') cardClass += ' past';
-
-                return `
-                    <div class="${cardClass}">
-                        <div class="todo-card-header">
-                            <span class="todo-account">${item.accountName}</span>
-                            <span class="todo-dday-badge ${item.dDayClass}">${item.dDayStr}</span>
-                        </div>
-                        <div class="todo-content">
-                            ${item.todoText ? `<strong>TO-DO:</strong> ${item.todoText}<br>` : ''}
-                            ${item.nextVisitText ? `<span style="color:#0071e3; font-weight:500;">📅 다음: ${item.nextVisitText}</span>` : ''}
-                        </div>
-                        <div class="todo-footer">
-                            <span class="todo-manager"><i class="fas fa-user"></i> ${item.manager}</span>
-                            <span>작성: ${item.visitDateLabel}</span>
-                        </div>
+            todoList.innerHTML = items.map(item => `
+                <div class="todo-card">
+                    <div class="todo-card-header">
+                        <span class="todo-account">${item.accountName}</span>
+                        <span class="todo-dday-badge" style="background:#e8f0fe;color:#1a73e8;">📅 ${item.nextVisit}</span>
                     </div>
-                `;
-            }).join('');
+                    <div class="todo-content">
+                        <strong>AI 요약 TO-DO:</strong> ${item.todoSummary}
+                    </div>
+                    <div class="todo-footer">
+                        <span class="todo-manager"><i class="fas fa-user"></i> ${item.manager}</span>
+                        <span>방문일: ${item.visitDate}</span>
+                    </div>
+                </div>
+            `).join('');
         }
-
 
     </script>
     <script src="js/auth.js"></script>
