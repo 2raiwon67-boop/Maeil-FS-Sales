@@ -456,32 +456,38 @@
 
         /* ===== 카탈로그형 견적서 스타일 ===== */
         .catalog-header {
-            background: #1565C0;   /* 단색 중간 블루 — 그라데이션 제거 */
-            color: white;
-            padding: 12px 20px 12px;
-            border-radius: 6px 6px 0 0;
+            background: white;
+            padding: 6px 0 10px;
+            text-align: center;
+            border-bottom: 2.5px solid #1565C0;
+            margin-bottom: 8px;
         }
         .catalog-header-top {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             margin-bottom: 6px;
         }
         .catalog-logo {
-            height: 30px;
+            height: 28px;
             width: auto;
             object-fit: contain;
-            filter: brightness(0) invert(1);
+            /* 흰 배경이므로 필터 없이 원본 로고 색상 */
         }
-        .catalog-main-title { font-size: 18px; font-weight: 800; letter-spacing: 3px; }
-        .catalog-sub { font-size: 10px; opacity: 0.75; margin-top: 2px; }
+        .catalog-hdr-title {
+            font-size: 21px; font-weight: 800;
+            color: #1565C0; letter-spacing: 2px; margin-bottom: 3px;
+        }
+        .catalog-hdr-subtitle {
+            font-size: 12px; font-weight: 600;
+            color: #1565C0; letter-spacing: 1px;
+        }
         .catalog-recipient {
-            display: flex; flex-wrap: wrap; gap: 4px 14px;
-            font-size: 10px; background: rgba(255,255,255,0.15);
-            padding: 5px 12px; border-radius: 4px; margin-top: 6px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px;
+            font-size: 10px; color: #444;
+            padding: 5px 0 0; margin-top: 4px;
+            border-top: 1px solid #e8eef8;
         }
-        .catalog-recipient span { opacity: 0.9; }
-        .catalog-recipient strong { opacity: 1; font-weight: 700; }
+        .catalog-recipient strong { color: #1565C0; font-weight: 700; }
         .catalog-page-cont {
             display: flex; justify-content: space-between; align-items: center;
             padding: 4px 0; border-bottom: 1px solid #eee; margin-bottom: 8px;
@@ -489,12 +495,12 @@
         }
         .catalog-brand-mini { font-weight: 700; color: #aaa; }
 
-        /* 2열 카드 그리드 */
+        /* 2열 카드 그리드 — 가로형 카드 */
         .catalog-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
-            padding: 8px 4px;
+            padding: 4px 0;
         }
         .catalog-card {
             border: 1px solid #e0e0e0;
@@ -502,35 +508,41 @@
             overflow: hidden;
             background: white;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;   /* 이미지 좌 / 텍스트 우 */
             break-inside: avoid;
         }
         .catalog-card-img {
-            height: 90px;
+            width: 88px;
+            flex-shrink: 0;
             display: flex; align-items: center; justify-content: center;
-            background: white;          /* 흰색 배경으로 깔끔하게 */
-            border-bottom: 1px solid #f0f0f0;
-            padding: 6px;
+            background: white;
+            border-right: 1px solid #f0f0f0;
+            padding: 6px 5px;
         }
         .catalog-card-img img {
-            max-width: 100%; max-height: 100%; object-fit: contain;
+            max-width: 100%; max-height: 80px; object-fit: contain;
         }
-        .catalog-card-no-img { font-size: 28px; opacity: 0.3; }
-        .catalog-card-body { padding: 7px 8px 8px; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+        .catalog-card-no-img { font-size: 24px; opacity: 0.3; }
+        .catalog-card-body {
+            flex: 1; min-width: 0;
+            padding: 7px 8px 6px;
+            display: flex; flex-direction: column; gap: 2px;
+        }
         .catalog-card-name {
-            font-size: 10.5px; font-weight: 700; color: #1d1d1f;
-            line-height: 1.35; word-break: keep-all;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            font-size: 10px; font-weight: 700; color: #1d1d1f;
+            line-height: 1.3; word-break: keep-all;
+            display: -webkit-box; -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; overflow: hidden;
         }
-        .catalog-card-spec { font-size: 9px; color: #888; }
+        .catalog-card-spec { font-size: 9px; color: #666; margin-top: 1px; }
         .catalog-card-desc {
-            font-size: 8.5px; color: #aaa; line-height: 1.4;
-            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-            margin-top: 1px;
+            font-size: 8.5px; color: #999; line-height: 1.4; flex: 1;
+            display: -webkit-box; -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical; overflow: hidden;
         }
         .catalog-card-price {
-            margin-top: 5px; font-size: 12px; font-weight: 800;
-            color: #1565C0; border-top: 1px solid #f0f0f0; padding-top: 4px;
+            font-size: 11.5px; font-weight: 800; color: #1565C0;
+            border-top: 1px solid #f0f0f0; padding-top: 4px; margin-top: 3px;
         }
 
         /* ===== 모바일 카드 피커 ===== */
@@ -1066,10 +1078,11 @@
                 const card = document.createElement('div');
                 card.className = 'catalog-card';
                 card.innerHTML = `
-                    <div class="catalog-card-img" style="height:90px;"></div>
+                    <div style="width:88px;flex-shrink:0;min-height:70px;background:white;"></div>
                     <div class="catalog-card-body">
                         <div class="catalog-card-name">${editorRow.querySelector('.project-name').value}</div>
                         <div class="catalog-card-spec">${editorRow.querySelector('.p-spec-input').value}</div>
+                        <div class="catalog-card-desc">${editorRow.querySelector('.p-description').value}</div>
                         <div class="catalog-card-price">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value)||0).toLocaleString()}원</div>
                     </div>
                 `;
@@ -1381,8 +1394,9 @@
                 <div class="catalog-header">
                     <div class="catalog-header-top">
                         <img src="assets/images/logo.png" class="catalog-logo" alt="매일유업">
-                        <div class="catalog-main-title">제품 제안서</div>
                     </div>
+                    <div class="catalog-hdr-title">매일유업 푸드 서비스</div>
+                    <div class="catalog-hdr-subtitle">Maeil Food service</div>
                     ${showRecipient ? `
                     <div class="catalog-recipient">
                         <span>수신 <strong><span id="preview-customerName">${esc(customerName) || '—'}</span></strong></span>
