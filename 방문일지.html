@@ -1903,12 +1903,14 @@
             try {
                 // 핵심 내용만 압축하여 전달
                 const visitLines = allVisits.map((v, i) =>
-                    `${i + 1}.${v.accountName}(${v.manager},${v.visitDate}):${v.content}`
+                    `[${i + 1}] ${v.accountName} (${v.manager}, ${v.visitDate}) - ${v.content}`
                 ).join('\n');
 
-                const prompt = `영업일지에서 후속조치가 필요한 건만 JSON으로 추출하라. 단순방문·완료건은 제외.
-형식:{"r":[{"i":번호,"t":"할일 한 문장","d":"다음방문일 또는 미정"}]}
-일지:\n${visitLines}`;
+                const prompt = `영업 방문일지를 분석해서 후속 조치가 필요한 항목만 추출하라. 단순 방문 완료·특이사항 없는 기록은 제외.
+반드시 **순수 JSON만** 출력 (마크다운 코드블럭, 부가설명 절대 불가).
+형식: {"items":[{"n":항목번호,"todo":"할일 한 문장","next":"다음방문일 또는 미정"}]}
+일지:
+${visitLines}`;
 
                 const response = await fetch('/api/gemini', {
                     method: 'POST',
@@ -1924,28 +1926,37 @@
                 const data = await response.json();
                 const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-                // JSON 파싱 (약식 키 r, i, t, d 지원)
-                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) throw new Error('AI 응답 파싱 실패');
-                const parsed = JSON.parse(jsonMatch[0]);
-                const aiResults = parsed.r || parsed.result || [];
+                // JSON 파싱: 마크다운 코드블낅 제거 후 추출
+                const stripped = rawText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+                const jsonMatch = stripped.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    console.error('[TO-DO AI] raw response:', rawText);
+                    throw new Error('AI 응답 파싱 실패');
+                }
+                let parsed;
+                try { parsed = JSON.parse(jsonMatch[0]); }
+                catch (pe) {
+                    console.error('[TO-DO AI] JSON.parse 실패:', jsonMatch[0]);
+                    throw new Error('AI JSON 파싱 실패');
+                }
+                const aiResults = parsed.items || parsed.r || parsed.result || [];
 
                 // AI 결과를 원본 방문일지와 매핑
                 cachedTodoItems = [];
                 cachedTodoItemsAll = [];
 
                 aiResults.forEach(r => {
-                    const idx = ((r.i || r.idx) || 0) - 1;
+                    const idx = ((r.n || r.i || r.idx) || 0) - 1;
                     const visit = allVisits[idx];
                     if (!visit) return;
-                    const summary = (r.t || r.todoSummary || '').trim();
+                    const summary = (r.todo || r.t || r.todoSummary || '').trim();
                     if (!summary) return;
 
                     const item = {
                         accountName: visit.accountName,
                         manager: visit.manager,
                         todoSummary: summary,
-                        nextVisit: (r.d || r.nextVisit || '미정').trim(),
+                        nextVisit: (r.next || r.d || r.nextVisit || '미정').trim(),
                         visitDate: visit.visitDate
                     };
                     cachedTodoItemsAll.push(item);
