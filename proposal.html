@@ -146,6 +146,11 @@
             gap: 8px;
         }
 
+        .mobile-analysis-back-btn {
+            display: none;
+            /* PC에서는 숨김 */
+        }
+
         .input-group {
             margin-bottom: 20px;
         }
@@ -614,7 +619,6 @@
         .catalog-card-expiry {
             font-size: 11px;
             color: #0071e3;
-            font-weight: 600;
             margin-bottom: 4px;
         }
 
@@ -807,7 +811,6 @@
             font-size: 10px;
             color: #0071e3;
             text-align: center;
-            font-weight: 600;
         }
 
         .picker-card-badge {
@@ -1593,9 +1596,18 @@
             wrap.style.cssText = 'position:fixed;top:-30000px;left:0;visibility:hidden;pointer-events:none;z-index:-9999;';
 
             wrap.innerHTML = `
-                <div class="paper" style="transform:none!important;zoom:1!important;" id="_mPaper">
+                <div class="paper" style="transform:none!important;zoom:1!important;width:210mm;" id="_mPaper">
                     <div class="catalog-header" id="_mHdr">
-                        <div class="catalog-main-title">제품 제안서</div>
+                        <div class="catalog-header-top">
+                            <img src="assets/images/logo.png" style="height:42px;">
+                        </div>
+                        <div class="catalog-hdr-title">매일유업 푸드 서비스</div>
+                        <div class="catalog-hdr-subtitle">Maeil Food service</div>
+                        <div class="catalog-recipient" style="padding: 7px 0 0; margin-top: 6px; border-top: 1px solid #e8eef8;">
+                            <span>수신 <strong>고객명</strong></span>
+                            <span>담당 <strong>담당자</strong></span>
+                            <span>연락처 <strong>연락처</strong></span>
+                        </div>
                     </div>
                     <div class="catalog-grid" id="_mGrid"></div>
                 </div>
@@ -1607,12 +1619,14 @@
                 const card = document.createElement('div');
                 card.className = 'catalog-card';
                 card.innerHTML = `
-                    <div style="width:130px;flex-shrink:0;min-height:110px;background:white;"></div>
+                    <div class="catalog-card-img">
+                        <div style="width:116px; height:116px; background:#f0f0f0;"></div>
+                    </div>
                     <div class="catalog-card-body">
-                        <div class="catalog-card-name">${editorRow.querySelector('.project-name').value}</div>
-                        <div class="catalog-card-spec">${editorRow.querySelector('.p-spec-input').value}</div>
-                        <div class="catalog-card-expiry">${editorRow.querySelector('.p-expiry').value}</div>
-                        <div class="catalog-card-desc">${editorRow.querySelector('.p-description').value}</div>
+                        <div class="catalog-card-name">${editorRow.querySelector('.project-name').value || '상품명'}</div>
+                        <div class="catalog-card-spec">${editorRow.querySelector('.p-spec-input').value || '규격'}</div>
+                        <div class="catalog-card-expiry">${editorRow.querySelector('.p-expiry').value ? '소비기한: 2028.12.31' : ''}</div>
+                        <div class="catalog-card-desc">${editorRow.querySelector('.p-description').value || '상세설명'}</div>
                         <div class="catalog-card-price">${Math.floor(parseFloat(editorRow.querySelector('.sales-price').value) || 0).toLocaleString()}원</div>
                     </div>
                 `;
@@ -1633,9 +1647,10 @@
             const cards = Array.from(grid.querySelectorAll('.catalog-card'));
             const firstCardTop = cards.length > 0 ? cards[0].getBoundingClientRect().top : hdrRect.bottom;
 
-            // 페이지1: 헤더 오버헤드 + 그리드 패딩
-            const topOverhead = firstCardTop - paperRect.top - (10 * mmPx);
-            const p1Available = contentH - topOverhead;
+            // 페이지1: 헤더 + 기본 여백 고려한 보정된 남은 여백 공간
+            // hdrRect.height + 약간의 패딩(약 20mm)을 제외한 나머지 부분을 페이지 1에 할당합니다.
+            const p1HeaderHeight = hdrRect.height || (60 * mmPx);
+            const p1Available = contentH - p1HeaderHeight - (12 * mmPx);
             const pNAvailable = contentH - 24; // 이후 페이지 (page indicator 24px)
 
             // 2열 그리드: 같은 top을 가진 카드들이 한 "행" → 행 단위로 높이 측정
@@ -1971,7 +1986,7 @@
                     <div class="catalog-card-body">
                         <div class="catalog-card-name p-name">${esc(name)}</div>
                         <div class="catalog-card-spec p-spec">${esc(spec)}</div>
-                        ${expiryDate ? `<div class="catalog-card-expiry p-expiry-display">📅 소비기한: ${esc(expiryDate)}</div>` : ''}
+                        ${expiryDate ? `<div class="catalog-card-expiry p-expiry-display">소비기한: ${esc(expiryDate)}</div>` : ''}
                         <div class="catalog-card-desc p-desc">${esc(desc)}</div>
                         <div class="catalog-card-price p-sales">${Math.floor(sales).toLocaleString()}원</div>
                     </div>
@@ -2186,7 +2201,7 @@
 
                 const expiryEl = previewRow.querySelector('.p-expiry-display');
                 if (expiryEl) {
-                    expiryEl.textContent = expiryDate ? `📅 소비기한: ${esc(expiryDate)}` : '';
+                    expiryEl.textContent = expiryDate ? `소비기한: ${esc(expiryDate)}` : '';
                 }
 
                 // 사진 자동 로드 — 흰 배경 카드 구조에 맞게
