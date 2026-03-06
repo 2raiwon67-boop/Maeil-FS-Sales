@@ -2315,7 +2315,7 @@
             _recipeDBPromise = (async () => {
                 try {
                     const { data, error } = await client.from('recipes')
-                        .select('name, name_en, category, main_products, tags').limit(200);
+                        .select('name, name_en, category, main_products, tags, pdf_url').limit(200);
                     _recipeDB = (error || !data) ? [] : data;
                 } catch (e) {
                     _recipeDB = [];
@@ -2333,21 +2333,28 @@
 
             // 분석 태그와 레시피 태그/카테고리/제품명 매칭
             const lowerTags = analysisTags.map(t => t.toLowerCase());
+            const toStr = v => (Array.isArray(v) ? v.join(' ') : (v || '')).toLowerCase();
             let matched = recipes.filter(r => {
-                const rTags = (r.tags || '').toLowerCase();
-                const rCat = (r.category || '').toLowerCase();
-                const rProd = (r.main_products || '').toLowerCase();
+                const rTags = toStr(r.tags);
+                const rCat  = toStr(r.category);
+                const rProd = toStr(r.main_products);
                 return lowerTags.some(t => rTags.includes(t) || rCat.includes(t) || rProd.includes(t));
             });
             // 매칭 없으면 전체 중 최신 6개
             if (!matched.length) matched = recipes.slice(0, 6);
             const show = matched.slice(0, 6);
 
-            sigList.innerHTML = show.map(r => `
-                <div style="padding:10px 12px;background:white;border-radius:8px;border-left:3px solid #ff9500;">
-                    <div style="font-weight:700;font-size:13px;color:#1d1d1f;margin-bottom:3px;">🍽️ ${r.name}${r.name_en ? ` <span style="font-size:11px;color:#aaa;font-weight:400;">${r.name_en}</span>` : ''}</div>
-                    ${r.category ? `<div style="font-size:11px;color:#888;margin-bottom:2px;">카테고리: ${r.category}</div>` : ''}
-                    ${r.main_products ? `<div style="font-size:12px;color:#0071e3;font-weight:600;">💡 ${r.main_products}</div>` : ''}
+            const fmtArr = v => Array.isArray(v) ? v.join(', ') : (v || '');
+            sigList.innerHTML = show.map((r, i) => `
+                <div style="padding:10px 12px;background:white;border-radius:8px;border-left:3px solid #ff9500;${r.pdf_url ? 'cursor:pointer;' : ''}" ${r.pdf_url ? `onclick="openRecipePdf('${encodeURIComponent(r.pdf_url)}','${r.name.replace(/'/g,'&#39;')}')"` : ''}>
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:700;font-size:13px;color:#1d1d1f;margin-bottom:3px;">🍽️ ${r.name}${r.name_en ? ` <span style="font-size:11px;color:#aaa;font-weight:400;">${r.name_en}</span>` : ''}</div>
+                            ${r.category ? `<div style="font-size:11px;color:#888;margin-bottom:2px;">카테고리: ${fmtArr(r.category)}</div>` : ''}
+                            ${r.main_products && r.main_products.length ? `<div style="font-size:12px;color:#0071e3;font-weight:600;">💡 ${fmtArr(r.main_products)}</div>` : ''}
+                        </div>
+                        ${r.pdf_url ? `<span style="flex-shrink:0;font-size:11px;color:#ff9500;font-weight:600;white-space:nowrap;">📄 레시피 보기</span>` : ''}
+                    </div>
                 </div>
             `).join('');
             sigResult.style.display = 'block';
@@ -3081,6 +3088,34 @@
             // 창 크기 변경 시에도 재조정
             window.addEventListener('resize', scalePapers);
         })();
+    </script>
+
+    <!-- PDF 레시피 뷰어 모달 -->
+    <div id="recipePdfModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+        <div style="background:white;border-radius:16px;width:90vw;max-width:960px;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e0e0e5;flex-shrink:0;">
+                <span id="recipePdfTitle" style="font-weight:700;font-size:15px;color:#1d1d1f;"></span>
+                <button onclick="closeRecipePdf()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;">&times;</button>
+            </div>
+            <iframe id="recipePdfFrame" src="" style="flex:1;border:none;width:100%;"></iframe>
+        </div>
+    </div>
+
+    <script>
+        function openRecipePdf(encodedUrl, name) {
+            const url = decodeURIComponent(encodedUrl);
+            document.getElementById('recipePdfTitle').textContent = '🍽️ ' + name;
+            document.getElementById('recipePdfFrame').src = url;
+            const modal = document.getElementById('recipePdfModal');
+            modal.style.display = 'flex';
+        }
+        function closeRecipePdf() {
+            document.getElementById('recipePdfModal').style.display = 'none';
+            document.getElementById('recipePdfFrame').src = '';
+        }
+        document.getElementById('recipePdfModal').addEventListener('click', function(e) {
+            if (e.target === this) closeRecipePdf();
+        });
     </script>
 </body>
 
