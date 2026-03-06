@@ -2775,14 +2775,27 @@
             renderPickerCards(_pickerCurrentCat);
         }
 
+        const PICKER_CAT_KEYWORDS = {
+            '우유': ['우유', '크림', '생크림', '휘핑', '버터'],
+            '오트': ['오트', '두유', '아몬드', '귀리'],
+            '치즈': ['치즈'],
+            '테너': ['테너'],
+            '소프트': ['소프트믹스', '소프트 믹스', '초콜릿믹스', '초콜릿 믹스'],
+            '연유': ['연유'],
+        };
+
         function renderPickerCards(cat) {
             _pickerCurrentCat = cat;
             const grid = document.getElementById('picker-grid');
             if (!grid) return;
 
-            let products = cat === 'all'
-                ? productDB
-                : productDB.filter(p => p.name.includes(cat));
+            let products;
+            if (cat === 'all') {
+                products = productDB;
+            } else {
+                const keywords = PICKER_CAT_KEYWORDS[cat] || [cat];
+                products = productDB.filter(p => keywords.some(kw => p.name.includes(kw)));
+            }
 
             if (products.length === 0) {
                 grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:30px;color:#aaa;font-size:13px;">해당 카테고리 상품 없음</div>`;
