@@ -1054,6 +1054,52 @@
             animation: myLocationPulse 2s ease-in-out infinite;
         }
 
+        /* =============== 장바구니 경유지 =============== */
+        .cart-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 8px;
+            background: #f5f5f7;
+            border-radius: 7px;
+            margin-bottom: 5px;
+            font-size: 12px;
+            gap: 6px;
+        }
+        .cart-item-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+        .cart-remove-btn {
+            background: none;
+            border: none;
+            color: #86868b;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 0 2px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .cart-remove-btn:hover { color: #ff3b30; }
+        .cart-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #ff3b30;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            font-weight: 700;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
         /* =============== 루트 최적화 패널 =============== */
         .route-panel {
             position: absolute;
@@ -1837,7 +1883,17 @@
                     </div>
                     <div id="routeStartInfo" style="font-size:11px;color:#86868b;margin-top:6px;min-height:16px;"></div>
 
-                    <div class="route-section-label">자동 포함 대상</div>
+                    <div class="route-section-label" style="display:flex;justify-content:space-between;align-items:center;">
+                        <span>🛒 경유지 목록 <span id="cartBadge" style="display:none;" class="cart-badge">0</span></span>
+                        <button id="cartClearBtn" onclick="clearCart()" style="display:none;background:none;border:none;color:#ff3b30;font-size:11px;font-weight:600;cursor:pointer;padding:0;">전체 삭제</button>
+                    </div>
+                    <div id="cartList">
+                        <div id="cartEmpty" style="font-size:12px;color:#86868b;background:#f5f5f7;border-radius:8px;padding:10px;text-align:center;">
+                            마커를 클릭해 경유지를 담으세요
+                        </div>
+                    </div>
+
+                    <div class="route-section-label" id="autoTargetLabel">자동 포함 대상</div>
                     <div id="routeTargetSummary"
                         style="font-size:12px;color:#1d1d1f;background:#f5f5f7;border-radius:8px;padding:10px;">
                         <span style="color:#86868b;">데이터 로딩 후 자동 계산됩니다</span>
@@ -3386,6 +3442,7 @@
                                         </div>
                                         <div class="info-footer">
                                             <button class="naver-map-btn" onclick="openNaverMapApp(${coords.lat}, ${coords.lng}, '${escapedAccName}')">🗺️ 네이버 지도 앱 열기</button>
+                                            <button class="naver-map-btn" style="background:#5856d6;margin-top:6px;" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')">🛒 경유지 담기</button>
                                             <button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')">🗺️ 동선 최적화</button>
                                         </div>
                                     </div>`,
@@ -3949,6 +4006,7 @@
                     </div>
                     <div class="info-footer">
                         ${mapBtn}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#5856d6;margin-top:6px;" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')">🛒 경유지 담기</button>` : ''}
                         ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🗺️ 동선 최적화</button>` : ''}
                     </div>
                 </div>
@@ -4162,6 +4220,7 @@
                         </div>
                     </div>
                     <button class="naver-map-btn" style="margin-top:12px;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">🗺️ 네이버 지도 앱 열기</button>
+                    ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;margin-top:6px;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${name}', '${address}', 'license', 'sheetCartBtn')">🛒 경유지 담기</button>` : ''}
                     ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
                 `;
             }
@@ -4189,6 +4248,80 @@
         let routeStartCoord = null;
         let forcedFirstStop = null;       // 마커 클릭으로 선택된 1번 목적지
         let currentLocationMarker = null; // 현재 위치 붉은 원 마커
+        let routeCart = [];               // 장바구니 경유지 목록
+
+        function addToCart(lat, lng, name, address, type, btnId) {
+            const key = `${parseFloat(lat).toFixed(5)},${parseFloat(lng).toFixed(5)}`;
+            if (routeCart.some(c => c._key === key)) {
+                showCartToast(`이미 담겨있습니다: ${name}`);
+                return;
+            }
+            routeCart.push({ lat: parseFloat(lat), lng: parseFloat(lng), name, address, type: type || 'license', _key: key });
+            renderCartUI();
+            showCartToast(`🛒 담겼습니다: ${name}`);
+            // 버튼 피드백
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✓ 담겼음';
+                btn.style.background = '#34C759';
+                setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#5856d6'; }, 1500);
+            }
+        }
+
+        function removeFromCart(idx) {
+            routeCart.splice(idx, 1);
+            renderCartUI();
+        }
+
+        function clearCart() {
+            routeCart = [];
+            renderCartUI();
+        }
+
+        function renderCartUI() {
+            const listEl = document.getElementById('cartList');
+            const badge = document.getElementById('cartBadge');
+            const clearBtn = document.getElementById('cartClearBtn');
+            const autoLabel = document.getElementById('autoTargetLabel');
+            const autoSummary = document.getElementById('routeTargetSummary');
+            if (!listEl) return;
+
+            if (routeCart.length === 0) {
+                listEl.innerHTML = '<div id="cartEmpty" style="font-size:12px;color:#86868b;background:#f5f5f7;border-radius:8px;padding:10px;text-align:center;">마커를 클릭해 경유지를 담으세요</div>';
+                badge.style.display = 'none';
+                clearBtn.style.display = 'none';
+                if (autoLabel) autoLabel.style.display = '';
+                if (autoSummary) autoSummary.style.display = '';
+            } else {
+                badge.textContent = routeCart.length;
+                badge.style.display = 'inline-flex';
+                clearBtn.style.display = 'block';
+                if (autoLabel) autoLabel.style.display = 'none';
+                if (autoSummary) autoSummary.style.display = 'none';
+                listEl.innerHTML = routeCart.map((c, i) => `
+                    <div class="cart-item">
+                        <span style="color:#5856d6;font-size:11px;font-weight:700;flex-shrink:0;">${i + 1}</span>
+                        <span class="cart-item-name">${c.name}</span>
+                        <button class="cart-remove-btn" onclick="removeFromCart(${i})">×</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function showCartToast(msg) {
+            let toast = document.getElementById('cartToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'cartToast';
+                toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:white;padding:10px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none;transition:opacity 0.3s;white-space:nowrap;';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = msg;
+            toast.style.opacity = '1';
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+        }
 
         function openRoutePanel() {
             document.getElementById('routePanel').classList.add('active');
@@ -4370,6 +4503,20 @@
 
         async function startRouteOptimization() {
             if (!routeStartCoord) { alert('출발지를 먼저 설정해주세요.\n(현재 위치 또는 주소 입력)'); return; }
+
+            // ── 장바구니 모드: 담긴 목적지만 사용 ──
+            if (routeCart.length > 0) {
+                const myLocationStop = {
+                    name: '내 위치', address: '현재 출발지',
+                    lat: routeStartCoord.lat, lng: routeStartCoord.lng,
+                    type: 'primary', _dist: 0
+                };
+                const orderedStops = nearestNeighborTSP(routeCart.map(c => ({ ...c })), routeStartCoord);
+                routeStops = [myLocationStop, ...orderedStops];
+                await drawRoute();
+                renderRouteResult();
+                return;
+            }
 
             const RADIUS_KM = 3;
 
