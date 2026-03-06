@@ -2296,17 +2296,24 @@
         }
 
         // ===== 자사 레시피 DB =====
-        let _recipeDB = null; // null = 미로드, [] = 로드됐으나 빈 배열
+        let _recipeDB = null;      // null = 미로드, [] = 빈 배열
+        let _recipeDBPromise = null; // 중복 요청 방지
 
         async function loadRecipeDB() {
             if (_recipeDB !== null) return _recipeDB;
-            try {
-                const { data, error } = await client.from('recipes').select('name, name_en, category, main_products, tags').limit(200);
-                _recipeDB = (error || !data) ? [] : data;
-            } catch (e) {
-                _recipeDB = [];
-            }
-            return _recipeDB;
+            if (_recipeDBPromise) return _recipeDBPromise;
+            _recipeDBPromise = (async () => {
+                try {
+                    const { data, error } = await client.from('recipes')
+                        .select('name, name_en, category, main_products, tags').limit(200);
+                    _recipeDB = (error || !data) ? [] : data;
+                } catch (e) {
+                    _recipeDB = [];
+                }
+                _recipeDBPromise = null;
+                return _recipeDB;
+            })();
+            return _recipeDBPromise;
         }
 
         async function renderRecipeSignatures(analysisTags, sigResult, sigList) {

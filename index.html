@@ -4283,6 +4283,10 @@
             renderCartUI();
         }
 
+        function _cartEsc(s) {
+            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
         function renderCartUI() {
             const listEl = document.getElementById('cartList');
             const badge = document.getElementById('cartBadge');
@@ -4292,7 +4296,7 @@
             if (!listEl) return;
 
             if (routeCart.length === 0) {
-                listEl.innerHTML = '<div id="cartEmpty" style="font-size:12px;color:#86868b;background:#f5f5f7;border-radius:8px;padding:10px;text-align:center;">마커를 클릭해 경유지를 담으세요</div>';
+                listEl.innerHTML = '<div style="font-size:12px;color:#86868b;background:#f5f5f7;border-radius:8px;padding:10px;text-align:center;">마커를 클릭해 경유지를 담으세요</div>';
                 badge.style.display = 'none';
                 clearBtn.style.display = 'none';
                 if (autoLabel) autoLabel.style.display = '';
@@ -4306,13 +4310,14 @@
                 listEl.innerHTML = routeCart.map((c, i) => `
                     <div class="cart-item">
                         <span style="color:#5856d6;font-size:11px;font-weight:700;flex-shrink:0;">${i + 1}</span>
-                        <span class="cart-item-name">${c.name}</span>
+                        <span class="cart-item-name">${_cartEsc(c.name)}</span>
                         <button class="cart-remove-btn" onclick="removeFromCart(${i})">×</button>
                     </div>
                 `).join('');
             }
         }
 
+        let _cartToastTimer = null;
         function showCartToast(msg) {
             let toast = document.getElementById('cartToast');
             if (!toast) {
@@ -4323,13 +4328,14 @@
             }
             toast.textContent = msg;
             toast.style.opacity = '1';
-            clearTimeout(toast._timer);
-            toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+            clearTimeout(_cartToastTimer);
+            _cartToastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
         }
 
         function openRoutePanel() {
             document.getElementById('routePanel').classList.add('active');
             updateRouteTargetSummary();
+            renderCartUI();
             // 모바일: FAB 숨기고 딤처리 표시
             const fab = document.getElementById('routeMobileFab');
             const backdrop = document.getElementById('routePanelBackdrop');
@@ -4441,6 +4447,7 @@
             if (fab2) fab2.classList.add('panel-open');
             if (backdrop2) backdrop2.classList.add('active');
             updateRouteTargetSummary();
+            renderCartUI();
             closeCurrentInfoWindow();
 
             const infoEl = document.getElementById('routeStartInfo');
