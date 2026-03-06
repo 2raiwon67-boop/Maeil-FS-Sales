@@ -1393,11 +1393,11 @@
                     <!-- 추천 아이템들이 여기에 동적으로 추가됨 -->
                 </div>
 
-                <div id="savedQuotesSection" style="margin-top:16px; display:none;">
+                <div id="savedQuotesSection" style="margin-top:16px;">
                     <hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 12px;">
                     <div style="font-size:13px;font-weight:700;margin-bottom:8px;">📁 저장된 견적</div>
                     <div id="savedQuotesList"
-                        style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"></div>
+                        style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"><div style="font-size:12px;color:#aaa;text-align:center;padding:10px;">로딩 중...</div></div>
                 </div>
             </div>
         </div>
@@ -2295,6 +2295,47 @@
             }
         }
 
+        // ===== 자사 레시피 DB =====
+        let _recipeDB = null; // null = 미로드, [] = 로드됐으나 빈 배열
+
+        async function loadRecipeDB() {
+            if (_recipeDB !== null) return _recipeDB;
+            try {
+                const { data, error } = await client.from('recipes').select('name, name_en, category, main_products, tags').limit(200);
+                _recipeDB = (error || !data) ? [] : data;
+            } catch (e) {
+                _recipeDB = [];
+            }
+            return _recipeDB;
+        }
+
+        async function renderRecipeSignatures(analysisTags, sigResult, sigList) {
+            sigResult.style.display = 'none';
+            const recipes = await loadRecipeDB();
+            if (!recipes.length) return;
+
+            // 분석 태그와 레시피 태그/카테고리/제품명 매칭
+            const lowerTags = analysisTags.map(t => t.toLowerCase());
+            let matched = recipes.filter(r => {
+                const rTags = (r.tags || '').toLowerCase();
+                const rCat = (r.category || '').toLowerCase();
+                const rProd = (r.main_products || '').toLowerCase();
+                return lowerTags.some(t => rTags.includes(t) || rCat.includes(t) || rProd.includes(t));
+            });
+            // 매칭 없으면 전체 중 최신 6개
+            if (!matched.length) matched = recipes.slice(0, 6);
+            const show = matched.slice(0, 6);
+
+            sigList.innerHTML = show.map(r => `
+                <div style="padding:10px 12px;background:white;border-radius:8px;border-left:3px solid #ff9500;">
+                    <div style="font-weight:700;font-size:13px;color:#1d1d1f;margin-bottom:3px;">🍽️ ${r.name}${r.name_en ? ` <span style="font-size:11px;color:#aaa;font-weight:400;">${r.name_en}</span>` : ''}</div>
+                    ${r.category ? `<div style="font-size:11px;color:#888;margin-bottom:2px;">카테고리: ${r.category}</div>` : ''}
+                    ${r.main_products ? `<div style="font-size:12px;color:#0071e3;font-weight:600;">💡 ${r.main_products}</div>` : ''}
+                </div>
+            `).join('');
+            sigResult.style.display = 'block';
+        }
+
         async function analyzeStore() {
             const keyword = document.getElementById('storeInput').value.trim();
             const card = document.getElementById('analysisResult');
@@ -2473,19 +2514,8 @@
             tags.innerHTML = data.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
             text.innerHTML = data.description + cacheIndicator + updateIndicator;
 
-            // 시그니처 메뉴 렌더링
-            if (data.signatureMenus && data.signatureMenus.length > 0) {
-                sigList.innerHTML = data.signatureMenus.map(m => `
-                    <div style="padding: 10px 12px; background: white; border-radius: 8px; border-left: 3px solid #ff9500;">
-                        <div style="font-weight: 700; font-size: 13px; color: #1d1d1f; margin-bottom: 4px;">🍵 ${m.menu}</div>
-                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">원료 추정: ${m.ingredients}</div>
-                        <div style="font-size: 12px; color: #0071e3; font-weight: 600;">💡 ${m.maeilSolution}</div>
-                    </div>
-                `).join('');
-                sigResult.style.display = 'block';
-            } else {
-                sigResult.style.display = 'none';
-            }
+            // 시그니처 메뉴 — 자사 레시피 DB 기반 렌더링
+            renderRecipeSignatures(data.tags || [], sigResult, sigList);
 
             list.innerHTML = '';
             data.items.forEach(item => {
@@ -2632,11 +2662,9 @@
                 .limit(20);
 
             if (error || !data?.length) {
-                document.getElementById('savedQuotesSection').style.display = 'none';
+                document.getElementById('savedQuotesList').innerHTML = '<div style="font-size:12px;color:#aaa;text-align:center;padding:10px;">저장된 견적이 없습니다</div>';
                 return;
             }
-
-            document.getElementById('savedQuotesSection').style.display = 'block';
             document.getElementById('savedQuotesList').innerHTML = data.map(q => `
                 <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f9f9fb;border-radius:8px;border:1px solid #e5e5e5;">
                     <div style="flex:1;min-width:0;">

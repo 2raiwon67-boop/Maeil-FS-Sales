@@ -28,9 +28,36 @@
         }
 
         .container {
-            max-width: 860px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 36px 24px 80px;
+            padding: 20px 32px 60px;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        .grid-left, .grid-right {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .grid-right {
+            position: sticky;
+            top: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .grid-right {
+                position: static;
+            }
         }
 
         .page-title {
@@ -611,127 +638,129 @@
         <h1 class="page-title">데이터 관리</h1>
         <p class="page-sub">지점 데이터를 확인하고 관리합니다. 담당자·거래처는 직접 편집, 인허가·방문일지는 엑셀 업로드로 교체합니다.</p>
 
-        <div class="upload-section">
+        <div class="main-grid">
 
-            <!-- 1. 유형 선택 -->
-            <div class="card">
-                <div class="card-header">1 — 업로드할 데이터 유형</div>
-                <div class="card-body">
-                    <div class="type-grid" id="typeGrid">
-                        <button class="type-btn active" onclick="selectType('licenses')">
-                            <span class="type-icon">📋</span>인허가 데이터
-                        </button>
-                        <button class="type-btn" onclick="selectType('accounts')">
-                            <span class="type-icon">🏪</span>주요거래처
-                        </button>
-                        <button class="type-btn" onclick="selectType('visit_logs')">
-                            <span class="type-icon">🗒️</span>방문일지
-                        </button>
-                        <button class="type-btn" id="recipeTypeBtn" onclick="selectType('recipes')"
-                            style="display:none;">
-                            <span class="type-icon">📖</span>레시피 데이터
-                        </button>
-                        <button class="type-btn" onclick="selectType('managers')">
-                            <span class="type-icon">👥</span>담당자관리
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <!-- 왼쪽: 유형 선택 + DB 현황 + 공공인허가 조회 -->
+            <div class="grid-left">
 
-            <!-- 2. 현재 DB 현황 -->
-            <div class="card">
-                <div class="card-header">
-                    <div class="card-header-row">
-                        <span>2 — 현재 DB 현황 (<span id="dbCurrentCount">—</span>)</span>
-                        <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
-                    </div>
-                </div>
-                <div class="card-body" id="dbCurrentBody">
-                    <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
-                </div>
-            </div>
-
-            <!-- 2-1. 공공인허가 데이터 조회 (인허가 탭 전용) -->
-            <div class="card" id="publicSearchCard">
-                <div class="card-header">공공인허가 데이터 조회 (data.go.kr)</div>
-                <div class="card-body">
-
-                    <!-- 날짜 -->
-                    <div class="search-divider">조회 기간</div>
-                    <div class="search-row">
-                        <div class="search-field">
-                            <label>시작일</label>
-                            <input type="date" id="srchStartDate">
+                <!-- 1. 유형 선택 -->
+                <div class="card">
+                    <div class="card-header">1 — 업로드할 데이터 유형</div>
+                    <div class="card-body">
+                        <div class="type-grid" id="typeGrid">
+                            <button class="type-btn active" onclick="selectType('licenses')">
+                                <span class="type-icon">📋</span>인허가 데이터
+                            </button>
+                            <button class="type-btn" onclick="selectType('accounts')">
+                                <span class="type-icon">🏪</span>주요거래처
+                            </button>
+                            <button class="type-btn" onclick="selectType('visit_logs')">
+                                <span class="type-icon">🗒️</span>방문일지
+                            </button>
+                            <button class="type-btn" id="recipeTypeBtn" onclick="selectType('recipes')"
+                                style="display:none;">
+                                <span class="type-icon">📖</span>레시피 데이터
+                            </button>
+                            <button class="type-btn" onclick="selectType('managers')">
+                                <span class="type-icon">👥</span>담당자관리
+                            </button>
                         </div>
-                        <div class="search-field">
-                            <label>종료일</label>
-                            <input type="date" id="srchEndDate">
-                        </div>
-                        <button class="btn-search" id="btnSearch" onclick="searchPublicLicense()">조회</button>
                     </div>
-
-                    <!-- 업종 -->
-                    <div class="search-divider">업종</div>
-                    <div class="chip-group" id="typeChips">
-                        <span class="chip active" data-code="general_restaurants">일반음식점</span>
-                        <span class="chip active" data-code="rest_cafes">휴게음식점</span>
-                        <span class="chip active" data-code="bakeries">제과점영업</span>
-                    </div>
-
-                    <!-- 지역 -->
-                    <div class="search-divider">지역</div>
-                    <div class="chip-group" id="regionChips">
-                        <span class="chip active" data-region="의정부">의정부</span>
-                        <span class="chip active" data-region="양주">양주</span>
-                        <span class="chip active" data-region="동두천">동두천</span>
-                        <span class="chip active" data-region="포천">포천</span>
-                        <span class="chip active" data-region="연천">연천</span>
-                        <span class="chip active" data-region="파주">파주</span>
-                        <span class="chip active" data-region="고양">고양</span>
-                        <span class="chip active" data-region="남양주">남양주</span>
-                        <span class="chip active" data-region="구리">구리</span>
-                        <span class="chip active" data-region="가평">가평</span>
-                        <span class="chip active" data-region="김포">김포</span>
-                        <span class="chip active" data-region="부천">부천</span>
-                        <span class="chip active" data-region="인천">인천</span>
-                    </div>
-
-                    <!-- 결과 -->
-                    <div id="searchResultArea"></div>
                 </div>
+
+                <!-- 2. 현재 DB 현황 -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-header-row">
+                            <span>2 — 현재 DB 현황 (<span id="dbCurrentCount">—</span>)</span>
+                            <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
+                        </div>
+                    </div>
+                    <div class="card-body" id="dbCurrentBody">
+                        <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
+                    </div>
+                </div>
+
+                <!-- 2-1. 공공인허가 데이터 조회 (인허가 탭 전용) -->
+                <div class="card" id="publicSearchCard">
+                    <div class="card-header">공공인허가 데이터 조회 (data.go.kr)</div>
+                    <div class="card-body">
+                        <div class="search-divider">조회 기간</div>
+                        <div class="search-row">
+                            <div class="search-field">
+                                <label>시작일</label>
+                                <input type="date" id="srchStartDate">
+                            </div>
+                            <div class="search-field">
+                                <label>종료일</label>
+                                <input type="date" id="srchEndDate">
+                            </div>
+                            <button class="btn-search" id="btnSearch" onclick="searchPublicLicense()">조회</button>
+                        </div>
+                        <div class="search-divider">업종</div>
+                        <div class="chip-group" id="typeChips">
+                            <span class="chip active" data-code="general_restaurants">일반음식점</span>
+                            <span class="chip active" data-code="rest_cafes">휴게음식점</span>
+                            <span class="chip active" data-code="bakeries">제과점영업</span>
+                        </div>
+                        <div class="search-divider">지역</div>
+                        <div class="chip-group" id="regionChips">
+                            <span class="chip active" data-region="의정부">의정부</span>
+                            <span class="chip active" data-region="양주">양주</span>
+                            <span class="chip active" data-region="동두천">동두천</span>
+                            <span class="chip active" data-region="포천">포천</span>
+                            <span class="chip active" data-region="연천">연천</span>
+                            <span class="chip active" data-region="파주">파주</span>
+                            <span class="chip active" data-region="고양">고양</span>
+                            <span class="chip active" data-region="남양주">남양주</span>
+                            <span class="chip active" data-region="구리">구리</span>
+                            <span class="chip active" data-region="가평">가평</span>
+                            <span class="chip active" data-region="김포">김포</span>
+                            <span class="chip active" data-region="부천">부천</span>
+                            <span class="chip active" data-region="인천">인천</span>
+                        </div>
+                        <div id="searchResultArea"></div>
+                    </div>
+                </div>
+
             </div>
 
-            <!-- 3. 템플릿 + 파일 업로드 -->
-            <div class="card" id="uploadCard">
-                <div class="card-header">3 — 엑셀 업로드 (대용량 일괄 교체용)</div>
-                <div class="card-body">
-                    <button class="btn-template" onclick="downloadTemplate()">
-                        ⬇️ 템플릿 다운로드 (.xlsx)
+            <!-- 오른쪽: 엑셀 업로드 + 미리보기 -->
+            <div class="grid-right">
+
+                <!-- 3. 템플릿 + 파일 업로드 -->
+                <div class="card" id="uploadCard">
+                    <div class="card-header">엑셀 업로드 (대용량 일괄 교체용)</div>
+                    <div class="card-body">
+                        <button class="btn-template" onclick="downloadTemplate()">
+                            ⬇️ 템플릿 다운로드 (.xlsx)
+                        </button>
+                        <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
+                            ondragover="event.preventDefault(); this.classList.add('drag')"
+                            ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+                            <div class="dz-icon">📁</div>
+                            <div id="dropzoneText">파일을 여기에 드롭하거나 클릭하세요</div>
+                            <div class="dz-hint">.xlsx, .xls 파일 지원</div>
+                        </div>
+                        <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none"
+                            onchange="handleFile(event)">
+                    </div>
+                </div>
+
+                <!-- 4. 미리보기 + 확인 버튼 -->
+                <div id="previewSection" style="display:none;">
+                    <div class="card" style="margin-bottom:12px;">
+                        <div class="card-header">데이터 미리보기 (상위 5행)</div>
+                        <div class="card-body" style="overflow-x:auto;">
+                            <div id="previewContent"></div>
+                        </div>
+                    </div>
+                    <div id="uploadBanner" class="banner banner-warn"></div>
+                    <button class="btn-upload" id="btnUpload" onclick="confirmUpload()">
+                        업로드 확인 (기존 데이터 교체)
                     </button>
-                    <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
-                        ondragover="event.preventDefault(); this.classList.add('drag')"
-                        ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
-                        <div class="dz-icon">📁</div>
-                        <div id="dropzoneText">파일을 여기에 드롭하거나 클릭하세요</div>
-                        <div class="dz-hint">.xlsx, .xls 파일 지원</div>
-                    </div>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none"
-                        onchange="handleFile(event)">
                 </div>
-            </div>
 
-            <!-- 4. 미리보기 + 확인 버튼 -->
-            <div id="previewSection" style="display:none;">
-                <div class="card" style="margin-bottom:12px;">
-                    <div class="card-header">4 — 데이터 미리보기 (상위 5행)</div>
-                    <div class="card-body" style="overflow-x:auto;">
-                        <div id="previewContent"></div>
-                    </div>
-                </div>
-                <div id="uploadBanner" class="banner banner-warn"></div>
-                <button class="btn-upload" id="btnUpload" onclick="confirmUpload()">
-                    업로드 확인 (기존 데이터 교체)
-                </button>
             </div>
 
         </div>

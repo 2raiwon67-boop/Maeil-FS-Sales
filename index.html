@@ -4256,6 +4256,10 @@
                 showCartToast(`이미 담겨있습니다: ${name}`);
                 return;
             }
+            if (routeCart.length >= 4) {
+                showCartToast('경유지는 최대 4곳까지 담을 수 있습니다.');
+                return;
+            }
             routeCart.push({ lat: parseFloat(lat), lng: parseFloat(lng), name, address, type: type || 'license', _key: key });
             renderCartUI();
             showCartToast(`🛒 담겼습니다: ${name}`);
