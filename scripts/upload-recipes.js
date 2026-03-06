@@ -9,8 +9,12 @@
  *   GEMINI_API_KEY=... SUPABASE_URL=https://xxxx.supabase.co SUPABASE_SERVICE_ROLE_KEY=... \
  *     node scripts/upload-recipes.js
  *
+ *   전체 재업로드 (main_products 등 변경 후):
+ *     node scripts/upload-recipes.js --force
+ *
  * 특징:
  *   - 이미 업로드된 filename은 건너뜀 (중단 후 재개 가능)
+ *   - --force 플래그 시 전체 upsert (기존 데이터 덮어쓰기)
  *   - upsert 방식으로 중복 실행 안전
  */
 
@@ -106,10 +110,18 @@ async function upsertRecipe(row) {
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function main() {
-    const existing = await getExistingFilenames();
-    console.log(`📌 이미 업로드된 레시피: ${existing.size}개`);
+    const isForce = process.argv.includes('--force');
 
-    const pending = recipes.filter(r => !existing.has(r.filename));
+    let pending;
+    if (isForce) {
+        console.log('⚡ --force 모드: 전체 레시피 재업로드 (기존 데이터 덮어쓰기)');
+        pending = recipes;
+    } else {
+        const existing = await getExistingFilenames();
+        console.log(`📌 이미 업로드된 레시피: ${existing.size}개`);
+        pending = recipes.filter(r => !existing.has(r.filename));
+    }
+
     console.log(`📋 업로드 예정: ${pending.length}개\n`);
 
     if (pending.length === 0) {
