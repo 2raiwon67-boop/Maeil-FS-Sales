@@ -1524,7 +1524,8 @@
         <!-- 카테고리 칩 -->
         <div class="picker-cats">
             <button class="picker-cat active" onclick="filterPickerCat(this,'all')">전체</button>
-            <button class="picker-cat" onclick="filterPickerCat(this,'우유')">🥛 우유/크림</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'우유')">🥛 우유</button>
+            <button class="picker-cat" onclick="filterPickerCat(this,'크림')">🫐 크림/버터</button>
             <button class="picker-cat" onclick="filterPickerCat(this,'오트')">🌾 오트/두유</button>
             <button class="picker-cat" onclick="filterPickerCat(this,'치즈')">🧀 치즈</button>
             <button class="picker-cat" onclick="filterPickerCat(this,'테너')">🫙 테너</button>
@@ -2776,7 +2777,8 @@
         }
 
         const PICKER_CAT_KEYWORDS = {
-            '우유': ['우유', '크림', '생크림', '휘핑', '버터'],
+            '우유': ['우유'],
+            '크림': ['크림', '생크림', '휘핑', '버터'],
             '오트': ['오트', '두유', '아몬드', '귀리'],
             '치즈': ['치즈'],
             '테너': ['테너'],
