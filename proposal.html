@@ -2342,9 +2342,9 @@
                 const rProd = toStr(r.main_products);
                 return lowerTags.some(t => rTags.includes(t) || rCat.includes(t) || rProd.includes(t));
             });
-            // 매칭 없으면 전체 중 최신 6개
-            if (!matched.length) matched = recipes.slice(0, 6);
-            const show = matched.slice(0, 6);
+            // 매칭 없으면 전체 중 최신 2개
+            if (!matched.length) matched = recipes.slice(0, 2);
+            const show = matched.slice(0, 2);
 
             const fmtArr = v => Array.isArray(v) ? v.join(', ') : (v || '');
             sigList.innerHTML = show.map((r, i) => `
@@ -3118,8 +3118,18 @@
     </div>
 
     <script>
-        function openRecipePdf(encodedUrl, name) {
+        async function openRecipePdf(encodedUrl, name) {
             const url = decodeURIComponent(encodedUrl);
+            try {
+                const res = await fetch(url, { method: 'HEAD' });
+                if (!res.ok) {
+                    alert('레시피 파일을 불러올 수 없습니다.\n(준비 중이거나 파일이 존재하지 않습니다)');
+                    return;
+                }
+            } catch (e) {
+                alert('레시피 파일에 접근할 수 없습니다.\n네트워크 상태를 확인해주세요.');
+                return;
+            }
             document.getElementById('recipePdfTitle').textContent = '🍽️ ' + name;
             document.getElementById('recipePdfFrame').src = url;
             const modal = document.getElementById('recipePdfModal');
