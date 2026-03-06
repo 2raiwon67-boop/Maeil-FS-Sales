@@ -976,37 +976,37 @@
         }
 
         .info-footer {
-            padding: 10px 16px;
+            padding: 10px 12px;
             background: #f5f5f7;
             border-top: 1px solid #e8e8ed;
+            display: flex;
+            gap: 6px;
         }
 
         .naver-map-btn {
-            width: 100%;
-            padding: 10px 16px;
+            flex: 1;
+            min-width: 0;
+            width: auto;
+            padding: 9px 4px;
             background: #0071e3;
             color: white;
             border: none;
             border-radius: 8px;
-            font-size: 13px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-        }
-
-        .naver-map-btn::before {
-            content: '📍';
-            font-size: 14px;
+            gap: 3px;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .naver-map-btn:hover {
-            background: #0077ed;
+            filter: brightness(1.1);
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
         }
 
         .naver-map-btn:active {
@@ -1859,6 +1859,11 @@
 
             <!-- 모바일 배경 딤처리 -->
             <div class="route-panel-backdrop" id="routePanelBackdrop" onclick="closeRoutePanel()"></div>
+
+            <!-- 플로팅 카트 뱃지 -->
+            <div id="cartFloatBadge" onclick="openRoutePanel()" style="display:none;position:absolute;bottom:80px;right:16px;z-index:200;background:#5856d6;color:white;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,86,214,0.45);align-items:center;gap:6px;user-select:none;">
+                🛒 <span id="cartFloatCount">0</span>개 담김
+            </div>
 
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
@@ -3441,9 +3446,9 @@
                                             </div>
                                         </div>
                                         <div class="info-footer">
-                                            <button class="naver-map-btn" onclick="openNaverMapApp(${coords.lat}, ${coords.lng}, '${escapedAccName}')">🗺️ 네이버 지도 앱 열기</button>
-                                            <button class="naver-map-btn" style="background:#5856d6;margin-top:6px;" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')">🛒 경유지 담기</button>
-                                            <button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')">🗺️ 동선 최적화</button>
+                                            <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${coords.lat}, ${coords.lng}, '${escapedAccName}')">📍 네이버</button>
+                                            <button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')">🛒 경유지</button>
+                                            <button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')">🗺️ 동선최적화</button>
                                         </div>
                                     </div>`,
                                 backgroundColor: 'transparent',
@@ -3954,7 +3959,7 @@
 
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
             const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const mapBtn = `<button class="naver-map-btn" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">🗺️ 네이버 지도 앱 열기</button>`;
+            const mapBtn = `<button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">📍 네이버</button>`;
 
             // 메모 (localStorage)
             const memoKey = 'maeil_memo_' + name;
@@ -4006,8 +4011,8 @@
                     </div>
                     <div class="info-footer">
                         ${mapBtn}
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#5856d6;margin-top:6px;" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')">🛒 경유지 담기</button>` : ''}
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🗺️ 동선 최적화</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')">🛒 경유지</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🗺️ 동선최적화</button>` : ''}
                     </div>
                 </div>
             `;
@@ -4219,9 +4224,11 @@
                             <button id="del_${sheetMemoUid}" onclick="deleteMemo('${sheetMemoUid}')" style="display:${sheetSavedMemo ? 'block' : 'none'};padding:10px 16px;background:#ff3b30;color:white;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">삭제</button>
                         </div>
                     </div>
-                    <button class="naver-map-btn" style="margin-top:12px;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">🗺️ 네이버 지도 앱 열기</button>
-                    ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;margin-top:6px;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${name}', '${address}', 'license', 'sheetCartBtn')">🛒 경유지 담기</button>` : ''}
-                    ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;margin-top:6px;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선 최적화</button>` : ''}
+                    <div style="display:flex;gap:6px;margin-top:12px;">
+                        <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">📍 네이버</button>
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${name}', '${address}', 'license', 'sheetCartBtn')">🛒 경유지</button>` : ''}
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선최적화</button>` : ''}
+                    </div>
                 `;
             }
 
@@ -4293,6 +4300,19 @@
             const clearBtn = document.getElementById('cartClearBtn');
             const autoLabel = document.getElementById('autoTargetLabel');
             const autoSummary = document.getElementById('routeTargetSummary');
+            const floatBadge = document.getElementById('cartFloatBadge');
+            const floatCount = document.getElementById('cartFloatCount');
+
+            // 플로팅 뱃지 업데이트 (루트 패널 외부에 항상 표시)
+            if (floatBadge) {
+                if (routeCart.length > 0) {
+                    floatBadge.style.display = 'flex';
+                    if (floatCount) floatCount.textContent = routeCart.length;
+                } else {
+                    floatBadge.style.display = 'none';
+                }
+            }
+
             if (!listEl) return;
 
             if (routeCart.length === 0) {
