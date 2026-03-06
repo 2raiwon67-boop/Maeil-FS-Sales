@@ -3158,18 +3158,8 @@
     </div>
 
     <script>
-        async function openRecipePdf(encodedUrl, name) {
+        function openRecipePdf(encodedUrl, name) {
             const url = decodeURIComponent(encodedUrl);
-            try {
-                const res = await fetch(url, { method: 'HEAD' });
-                if (!res.ok) {
-                    alert('레시피 파일을 불러올 수 없습니다.\n(준비 중이거나 파일이 존재하지 않습니다)');
-                    return;
-                }
-            } catch (e) {
-                alert('레시피 파일에 접근할 수 없습니다.\n네트워크 상태를 확인해주세요.');
-                return;
-            }
             document.getElementById('recipePdfTitle').textContent = '🍽️ ' + name;
             document.getElementById('recipePdfFrame').src = url;
             const modal = document.getElementById('recipePdfModal');
