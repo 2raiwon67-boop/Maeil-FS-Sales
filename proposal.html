@@ -1393,11 +1393,18 @@
                     <!-- 추천 아이템들이 여기에 동적으로 추가됨 -->
                 </div>
 
-                <div id="savedQuotesSection" style="margin-top:16px;">
-                    <hr style="border:none;border-top:1px solid #e5e5e5;margin:0 0 12px;">
-                    <div style="font-size:13px;font-weight:700;margin-bottom:8px;">📁 저장된 견적</div>
-                    <div id="savedQuotesList"
-                        style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;"><div style="font-size:12px;color:#aaa;text-align:center;padding:10px;">로딩 중...</div></div>
+            </div>
+        </div>
+
+        <!-- 견적 불러오기 모달 -->
+        <div id="quotePickerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
+            <div style="background:#fff;border-radius:16px;width:90%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,0.18);overflow:hidden;">
+                <div style="padding:18px 20px 14px;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;">
+                    <span style="font-size:16px;font-weight:700;">📁 저장된 견적 불러오기</span>
+                    <button onclick="closeQuotePickerModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#888;line-height:1;">✕</button>
+                </div>
+                <div id="savedQuotesList" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;">
+                    <div style="font-size:12px;color:#aaa;text-align:center;padding:20px;">로딩 중...</div>
                 </div>
             </div>
         </div>
@@ -1418,6 +1425,9 @@
                 <div class="panel-header" style="justify-content: space-between;">
                     <span>📝 견적 설정</span>
                     <div style="display:flex;gap:8px;">
+                        <button onclick="openQuotePickerModal()"
+                            style="padding: 7px 16px; background: #ff9500; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📂
+                            불러오기</button>
                         <button onclick="saveQuote()"
                             style="padding: 7px 16px; background: #34c759; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">💾
                             저장</button>
@@ -2654,8 +2664,22 @@
 
             if (error) { alert('저장 실패: ' + error.message); return; }
             alert('견적서가 저장되었습니다.');
+        }
+
+        function openQuotePickerModal() {
+            const modal = document.getElementById('quotePickerModal');
+            modal.style.display = 'flex';
             loadSavedQuotes();
         }
+
+        function closeQuotePickerModal() {
+            document.getElementById('quotePickerModal').style.display = 'none';
+        }
+
+        // 모달 배경 클릭 시 닫기
+        document.getElementById('quotePickerModal').addEventListener('click', function(e) {
+            if (e.target === this) closeQuotePickerModal();
+        });
 
         async function loadSavedQuotes() {
             const user = await getUser();
@@ -2716,6 +2740,7 @@
                 }
             });
             syncInfo();
+            closeQuotePickerModal();
             alert(`"${data.customer_name}" 견적서를 불러왔습니다.`);
         }
 
@@ -3003,8 +3028,6 @@
                 }
             }
 
-            // 저장된 견적 목록 로드
-            if (typeof loadSavedQuotes === 'function') loadSavedQuotes();
         });
     </script>
 
