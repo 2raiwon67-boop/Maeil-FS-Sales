@@ -91,7 +91,7 @@ async function getEmbedding(text) {
 // ── Supabase upsert (filename 충돌 시 업데이트) ──
 async function upsertRecipe(row) {
     const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/recipes`,
+        `${SUPABASE_URL}/rest/v1/recipes?on_conflict=filename`,
         {
             method: 'POST',
             headers: {
