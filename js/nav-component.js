@@ -78,7 +78,11 @@
 
         var tabs = MOB_TABS.map(function (tab) {
             var active = currentPage === tab.href ? ' active' : '';
-            return '<a href="' + tab.href + '" class="mob-tab-item' + active + '">'
+            // 클릭 즉시 active 추가로 체감 반응속도 개선
+            var onClick = currentPage !== tab.href
+                ? ' onclick="document.querySelectorAll(\'.mob-tab-item\').forEach(function(el){el.classList.remove(\'active\')});this.classList.add(\'active\')"'
+                : '';
+            return '<a href="' + tab.href + '" class="mob-tab-item' + active + '"' + onClick + '>'
                 + '<span class="mob-tab-icon">' + tab.icon + '</span>'
                 + '<span class="mob-tab-label">' + tab.label + '</span>'
                 + '</a>';

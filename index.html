@@ -17,6 +17,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="MISO">
 
+    <!-- 다른 탭 페이지 미리 로드 (탭 전환 속도 개선) -->
+    <link rel="prefetch" href="방문일지.html">
+    <link rel="prefetch" href="proposal.html">
+
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 
@@ -3446,9 +3450,11 @@
                     // 캐시 확인
                     const cacheKey = `geocode_${address || name}`;
                     let coords = null;
+                    let fromCache = false;
                     const cached = localStorage.getItem(cacheKey);
                     if (cached) {
                         coords = JSON.parse(cached);
+                        fromCache = true;
                     } else {
                         coords = await geocodeAddress(address || name);
                         if (coords) {
@@ -3588,7 +3594,7 @@
                     // 모바일 초기 필터링 수동 처리를 제거하고, 
                     // 로드 완료 후 filterAccountMarkers() 로 일괄 처리합니다.
 
-                    await new Promise(r => setTimeout(r, 20)); // 지오코딩 API 부하 방지
+                    if (!fromCache) await new Promise(r => setTimeout(r, 20)); // API 호출 시에만 부하 방지
                 } catch (e) {
                     console.warn('주요거래처 마커 생성 실패:', name, e);
                 }
