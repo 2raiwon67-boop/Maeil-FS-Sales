@@ -150,8 +150,10 @@ body.loaded {
     }
 }
 
-/* ── 하단 탭 바 (모바일 전용) ── */
-.mob-tab-bar {
+/* ── 하단 탭 바 / 프로필 팝업 (모바일 전용 — 기본 숨김) ── */
+.mob-tab-bar,
+.mob-profile-popup,
+.mob-profile-backdrop {
     display: none;
 }
 

@@ -610,6 +610,31 @@
         }
 
 
+        /* ── 거래 상태 셀렉트 드롭다운 ── */
+        .status-select {
+            width: 100%;
+            padding: 9px 32px 9px 12px;
+            border-radius: 10px;
+            border: 2px solid #e8e8ed;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23fff'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 10px;
+            color: white;
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            transition: opacity 0.2s;
+            box-sizing: border-box;
+        }
+        .status-select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* =============== 모바일 전용 UI (Mobile Field Mode) =============== */
         @media (max-width: 768px) {
 
@@ -641,15 +666,11 @@
                 z-index: 10;
             }
 
-            /* 모바일 바텀 시트 내 버튼 크기 확대 (Thumb-friendly) */
-            .bottom-sheet .status-btn {
-                padding: 16px 0;
+            /* 모바일 바텀 시트 내 셀렉트 크기 확대 (Thumb-friendly) */
+            .bottom-sheet .status-select {
+                padding: 14px 36px 14px 14px;
                 font-size: 15px;
-                font-weight: 600;
-            }
-
-            .bottom-sheet .status-button-group {
-                gap: 10px;
+                border-radius: 12px;
             }
 
             /* 3. 바텀 시트 (Bottom Sheet) */
@@ -4076,14 +4097,16 @@
                         </div>
                         <div style="margin-top: 15px;">
                             <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">상태 변경</span>
-                            <div class="status-button-group">
-                                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s => `
-                                    <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}"
-                                            onclick="updateDealStatus('${name.replace(/'/g, "\\'")}', '${address.replace(/'/g, "\\'")}', '${s}', this)">
-                                        ${s}
-                                    </button>
-                                `).join('')}
-                            </div>
+                            <select class="status-select"
+                                    style="background:${_STATUS_COLORS[dealStatus]||'#8e8e93'};border-color:${_STATUS_COLORS[dealStatus]||'#8e8e93'};"
+                                    data-name="${name.replace(/"/g,'&quot;')}"
+                                    data-address="${address.replace(/"/g,'&quot;')}"
+                                    data-prev="${dealStatus}"
+                                    onchange="updateDealStatusSelect(this)">
+                                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
+                                    `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
+                                ).join('')}
+                            </select>
                         </div>
                         <div class="info-row" style="margin-top: 12px;">
                             <span class="info-label">허가일:</span>
@@ -4133,6 +4156,89 @@
             ta.value = '';
             const delBtn = document.getElementById('del_' + memoUid);
             if (delBtn) delBtn.style.display = 'none';
+        }
+
+        // ── 상태 색상 매핑 (InfoWindow & BottomSheet select 공용) ──
+        const _STATUS_COLORS = {
+            '인허가': '#34C759', '공사중': '#FF9500', '거래': '#007AFF', '미거래': '#FF9595', 'DROP': '#8E8E93'
+        };
+
+        function _applyStatusSelectColor(sel, status) {
+            const color = _STATUS_COLORS[status] || '#8E8E93';
+            sel.style.background = color;
+            sel.style.color = 'white';
+            sel.style.borderColor = color;
+        }
+
+        // InfoWindow 용 (data-name / data-address 속성에서 읽음)
+        async function updateDealStatusSelect(selectElement) {
+            const name      = selectElement.dataset.name;
+            const address   = selectElement.dataset.address;
+            const newStatus = selectElement.value;
+            const prevStatus = selectElement.dataset.prev || newStatus;
+            selectElement.disabled = true;
+            try {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
+                const { error } = await client
+                    .from('licenses')
+                    .update({ trade_status: newStatus })
+                    .eq('business_name', name)
+                    .eq('road_address', address)
+                    .eq('business_unit', businessUnit);
+                if (error) throw new Error(error.message);
+                const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
+                if (item) item['거래여부(기입예정)'] = newStatus;
+                selectElement.dataset.prev = newStatus;
+                _applyStatusSelectColor(selectElement, newStatus);
+                updateDashboard();
+                if (item) refreshMarkerForItem(item); else initAllMarkers();
+            } catch (err) {
+                console.error('업데이트 실패:', err);
+                selectElement.value = prevStatus;
+                _applyStatusSelectColor(selectElement, prevStatus);
+                alert(`❌ 상태 변경 실패\n\n${err.message}`);
+            } finally {
+                selectElement.disabled = false;
+            }
+        }
+
+        // BottomSheet 용 (_sheetCurrentItem 에서 이름/주소 읽음)
+        let _sheetCurrentItem = null;
+        async function updateDealStatusSelectSheet(selectElement) {
+            if (!_sheetCurrentItem) return;
+            const name      = _sheetCurrentItem['사업장명'];
+            const address   = _sheetCurrentItem['도로명전체주소'];
+            const newStatus = selectElement.value;
+            const prevStatus = selectElement.dataset.prev || newStatus;
+            selectElement.disabled = true;
+            try {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
+                const { error } = await client
+                    .from('licenses')
+                    .update({ trade_status: newStatus })
+                    .eq('business_name', name)
+                    .eq('road_address', address)
+                    .eq('business_unit', businessUnit);
+                if (error) throw new Error(error.message);
+                const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
+                if (item) {
+                    item['거래여부(기입예정)'] = newStatus;
+                    _sheetCurrentItem['거래여부(기입예정)'] = newStatus;
+                }
+                selectElement.dataset.prev = newStatus;
+                _applyStatusSelectColor(selectElement, newStatus);
+                updateDashboard();
+                if (item) refreshMarkerForItem(item); else initAllMarkers();
+            } catch (err) {
+                console.error('업데이트 실패:', err);
+                selectElement.value = prevStatus;
+                _applyStatusSelectColor(selectElement, prevStatus);
+                alert(`❌ 상태 변경 실패\n\n${err.message}`);
+            } finally {
+                selectElement.disabled = false;
+            }
         }
 
         async function updateDealStatus(name, address, newStatus, btnElement) {
@@ -4236,10 +4342,8 @@
                 <span class="info-value" id="sheetManager">-</span>
             </div>
             <div style="margin-top: 20px;">
-                <span class="info-label" style="display:block; margin-bottom:8px;">상태 변경 (퀵 액션)</span>
-                <div class="status-button-group" id="sheetStatusGroup">
-                    <!-- JS로 버튼 생성 -->
-                </div>
+                <span class="info-label" style="display:block; margin-bottom:8px;">상태 변경</span>
+                <div id="sheetStatusGroup"></div>
             </div>
             <div id="sheetActionBtns"></div>
             <button class="btn btn-secondary" style="width:100%; margin-top:10px;"
@@ -4275,6 +4379,7 @@
 
         // 바텀 시트 로직
         function openBottomSheet(item) {
+            _sheetCurrentItem = item;
             const sheet = document.getElementById('bottomSheet');
 
             // 데이터 채우기
@@ -4282,18 +4387,19 @@
             document.getElementById('sheetAddr').innerText = item['도로명전체주소'];
             document.getElementById('sheetManager').innerText = item['담당자'] || '미지정';
 
-            // 상태 버튼 생성
+            // 상태 셀렉트 생성
             const statusGroup = document.getElementById('sheetStatusGroup');
             const dealStatus = item['거래여부(기입예정)'] || '인허가';
-            const name = item['사업장명'].replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const address = item['도로명전체주소'].replace(/'/g, "\\'").replace(/"/g, '&quot;');
+            const initColor = _STATUS_COLORS[dealStatus] || '#8e8e93';
 
-            statusGroup.innerHTML = ['인허가', '공사중', '거래', '미거래', 'DROP'].map(s => `
-                <button class="status-btn ${dealStatus === s ? 'active' : ''} status-${s}" 
-                        onclick="updateDealStatus('${name}', '${address}', '${s}', this)">
-                    ${s}
-                </button>
-            `).join('');
+            statusGroup.innerHTML = `<select class="status-select"
+                style="background:${initColor};border-color:${initColor};"
+                data-prev="${dealStatus}"
+                onchange="updateDealStatusSelectSheet(this)">
+                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
+                    `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
+                ).join('')}
+            </select>`;
 
             // 네이버 지도 / 동선 최적화 버튼
             const sheetActionBtns = document.getElementById('sheetActionBtns');
