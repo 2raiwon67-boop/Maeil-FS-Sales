@@ -19,8 +19,8 @@
         { href: 'index.html',    label: '인허가' },
         { href: '방문일지.html', label: '방문일지' },
         { href: 'proposal.html', label: '견적서' },
-        { href: 'report.html',   label: '월별 보고서' },
-        { href: 'upload.html',   label: '데이터 관리' },
+        { href: 'report.html',   label: '월별 보고서', mobileHide: true },
+        { href: 'upload.html',   label: '데이터 관리', mobileHide: true },
     ];
 
     function getCurrentPage() {
@@ -37,7 +37,8 @@
 
         const links = NAV_ITEMS.map(function (item) {
             const active = currentPage === item.href ? ' active' : '';
-            return '<a href="' + item.href + '" class="nav-link' + active + '">' + item.label + '</a>';
+            const hideClass = item.mobileHide ? ' nav-hide-mobile' : '';
+            return '<a href="' + item.href + '" class="nav-link' + active + hideClass + '">' + item.label + '</a>';
         }).join('');
 
         const extraActions = opts.extraActions || '';
@@ -64,6 +65,78 @@
     if (placeholder) {
         placeholder.outerHTML = buildNav();
     }
+
+    // ── 모바일 하단 탭 바 ──
+    var MOB_TABS = [
+        { href: 'index.html',    label: '인허가',  icon: '🏠' },
+        { href: '방문일지.html', label: '방문일지', icon: '📋' },
+        { href: 'proposal.html', label: '견적서',  icon: '📄' },
+    ];
+
+    function buildMobTabBar() {
+        var currentPage = getCurrentPage();
+
+        var tabs = MOB_TABS.map(function (tab) {
+            var active = currentPage === tab.href ? ' active' : '';
+            return '<a href="' + tab.href + '" class="mob-tab-item' + active + '">'
+                + '<span class="mob-tab-icon">' + tab.icon + '</span>'
+                + '<span class="mob-tab-label">' + tab.label + '</span>'
+                + '</a>';
+        }).join('');
+
+        var profileActive = '';  // 프로필은 탭 페이지가 아니므로 active 없음
+
+        var profileTab = '<button class="mob-tab-item' + profileActive + '" id="mobProfileTab" onclick="window._mobToggleProfile()">'
+            + '<span class="mob-tab-icon">👤</span>'
+            + '<span class="mob-tab-label">프로필</span>'
+            + '</button>';
+
+        var tabBar = '<div class="mob-tab-bar" id="mobTabBar">' + tabs + profileTab + '</div>';
+
+        var popup = '<div class="mob-profile-backdrop" id="mobProfileBackdrop" onclick="window._mobCloseProfile()"></div>'
+            + '<div class="mob-profile-popup" id="mobProfilePopup">'
+            + '<div class="mob-profile-name" id="mobProfileName">로딩 중...</div>'
+            + '<button class="mob-profile-logout-btn" onclick="window._mobDoLogout()">로그아웃</button>'
+            + '</div>';
+
+        return tabBar + popup;
+    }
+
+    document.body.insertAdjacentHTML('beforeend', buildMobTabBar());
+
+    // 프로필 팝업 토글 함수
+    window._mobToggleProfile = function () {
+        var popup = document.getElementById('mobProfilePopup');
+        var backdrop = document.getElementById('mobProfileBackdrop');
+        if (!popup) return;
+        var isOpen = popup.classList.contains('open');
+        if (isOpen) {
+            popup.classList.remove('open');
+            backdrop.classList.remove('open');
+        } else {
+            // 사용자 이름 동기화 (nav-bar의 #userNameDisplay 값 활용)
+            var nameEl = document.getElementById('userNameDisplay');
+            var mobName = document.getElementById('mobProfileName');
+            if (mobName && nameEl && nameEl.innerText) {
+                mobName.textContent = nameEl.innerText;
+            }
+            popup.classList.add('open');
+            backdrop.classList.add('open');
+        }
+    };
+
+    window._mobCloseProfile = function () {
+        var popup = document.getElementById('mobProfilePopup');
+        var backdrop = document.getElementById('mobProfileBackdrop');
+        if (popup) popup.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+    };
+
+    window._mobDoLogout = function () {
+        window._mobCloseProfile();
+        var btn = document.getElementById('logoutBtn');
+        if (btn) btn.click();
+    };
 })();
 
 /* ============================================================

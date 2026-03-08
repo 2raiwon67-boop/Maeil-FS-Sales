@@ -323,14 +323,46 @@
             margin-bottom: 0;
         }
 
+        .dropdown-item {
+            cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+            background: #e8e8ed;
+        }
+
+        .dropdown-item.active {
+            background: #e3f2fd;
+        }
+
         .dropdown-item-name {
             color: #1d1d1f;
             font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .dropdown-item-count {
             color: #0071e3;
             font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        #ddStatusCard.open .dropdown-content,
+        #ddMilkCard.open .dropdown-content {
+            max-height: 260px;
+        }
+
+        #ddAccountCard.open .dropdown-content {
+            max-height: 120px;
         }
 
         /* ── 통합 필터 패널 ── */
@@ -581,20 +613,26 @@
         /* =============== 모바일 전용 UI (Mobile Field Mode) =============== */
         @media (max-width: 768px) {
 
+            /* 목록 보기 버튼 숨김 — 하단 탭 바로 대체 */
+            .view-toggle-btn {
+                display: none !important;
+            }
 
+            /* 메인 레이아웃 — 상단 nav 없으므로 전체 높이, 하단 탭 바 공간 확보 */
+            .main-layout {
+                height: calc(100vh - 60px - env(safe-area-inset-bottom));
+            }
 
             /* 기본엔 숨김 (지도 모드) */
             .sidebar {
                 width: 100%;
-                height: calc(100vh - 52px - 60px);
-                /* 하단 탭 공간 등 고려 */
+                height: calc(100vh - 60px - env(safe-area-inset-bottom));
                 position: absolute;
                 top: 0;
                 left: 0;
                 z-index: 50;
                 background: #f5f5f7;
                 display: none;
-                /* 추가: 모바일에서 명확히 숨김 제어 */
             }
 
             .map-area {
@@ -780,6 +818,10 @@
         @media (min-width: 769px) {
             .view-toggle-btn {
                 display: none;
+            }
+            /* 모바일 하단 탭 바 관련 요소 PC에서 숨김 */
+            .mob-tab-bar, .mob-profile-popup, .mob-profile-backdrop {
+                display: none !important;
             }
 
             .bottom-sheet {
@@ -1291,6 +1333,15 @@
             display: none;
         }
 
+        /* 카트 뱃지 모바일 위치 고정 (inline style override) */
+        @media (max-width: 768px) {
+            #cartFloatBadge {
+                position: fixed !important;
+                bottom: calc(80px + 60px + env(safe-area-inset-bottom)) !important;
+                right: 16px !important;
+            }
+        }
+
         @media (max-width: 768px) {
 
             /* 모바일: 패널을 하단 슬라이드 시트로 */
@@ -1299,7 +1350,7 @@
                 top: auto;
                 left: 0;
                 right: 0;
-                bottom: 0;
+                bottom: calc(60px + env(safe-area-inset-bottom));
                 width: 100%;
                 max-height: 55vh;
                 border-radius: 16px 16px 0 0;
@@ -1336,7 +1387,7 @@
             .route-mobile-fab {
                 display: flex;
                 position: fixed;
-                bottom: 76px;
+                bottom: calc(76px + 60px + env(safe-area-inset-bottom));
                 left: 16px;
                 width: 48px;
                 height: 48px;
@@ -1384,7 +1435,7 @@
                 align-items: center;
                 gap: 5px;
                 position: fixed;
-                top: 60px;
+                top: 16px;
                 right: 12px;
                 padding: 7px 12px;
                 background: rgba(28, 28, 30, 0.82);
@@ -1415,7 +1466,7 @@
             .layer-dropdown {
                 display: none;
                 position: fixed;
-                top: 100px;
+                top: 60px;
                 right: 12px;
                 background: rgba(30, 30, 32, 0.95);
                 backdrop-filter: blur(16px);
@@ -1662,55 +1713,41 @@
         <div class="sidebar">
             <h1 class="sidebar-title">거래처 현황</h1>
 
-            <!-- 방문 현황 -->
+            <!-- 거래 현황 드롭다운 -->
             <div class="section">
-                <div class="section-header">📍 방문 현황</div>
-                <div class="status-grid">
-                    <div class="status-card deal" style="cursor:pointer;" onclick="filterByStatus('거래')" title="거래 필터">
-                        <div class="label">거래</div>
-                        <div class="value" id="dealCount">0</div>
+                <div class="dropdown-card open" id="ddStatusCard">
+                    <div class="dropdown-header" onclick="toggleDropdown('ddStatusCard')">
+                        <h4>📍 거래 현황</h4>
+                        <span class="dropdown-arrow">▼</span>
                     </div>
-                    <div class="status-card no-deal" style="cursor:pointer;" onclick="filterByStatus('미거래')"
-                        title="미거래 필터">
-                        <div class="label">미거래</div>
-                        <div class="value" id="noDealCount">0</div>
-                    </div>
-                    <div class="status-card licensed" style="cursor:pointer;" onclick="filterByStatus('인허가')"
-                        title="인허가 필터">
-                        <div class="label">인허가</div>
-                        <div class="value" id="licensedCount">0</div>
-                    </div>
-                    <div class="status-card drop" style="cursor:pointer;" onclick="filterByStatus('DROP')"
-                        title="DROP 필터">
-                        <div class="label">DROP</div>
-                        <div class="value" id="dropCount">0</div>
-                    </div>
-                    <div class="status-card construction" style="cursor:pointer;" onclick="filterByStatus('공사중')"
-                        title="공사중 필터">
-                        <div class="label">공사중</div>
-                        <div class="value" id="constructionCount">0</div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-list" id="statusDropdownList"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 순위별 현황 -->
+            <!-- 주요거래처 드롭다운 -->
             <div class="section">
-                <div class="section-header">🎯 순위별 현황</div>
-                <div class="priority-grid" style="grid-template-columns: repeat(3, 1fr);">
-                    <div class="priority-card rank1" style="cursor:pointer;" onclick="filterByRank('1')"
-                        title="인허가 1순위 필터">
-                        <div class="label">인허가 1순위</div>
-                        <div class="value" id="rank1Count">0</div>
+                <div class="dropdown-card open" id="ddAccountCard">
+                    <div class="dropdown-header" onclick="toggleDropdown('ddAccountCard')">
+                        <h4>⭐ 주요거래처</h4>
+                        <span class="dropdown-arrow">▼</span>
                     </div>
-                    <div class="priority-card rank-account-deal" style="cursor:pointer;"
-                        onclick="filterAccountsByStatus('거래')" title="주요 기거래처 필터">
-                        <div class="label">주요 기거래처</div>
-                        <div class="value" id="accountDealCount">0</div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-list" id="accountDropdownList"></div>
                     </div>
-                    <div class="priority-card rank-account-nodeal" style="cursor:pointer;"
-                        onclick="filterAccountsByStatus('미거래')" title="주요 미거래처 필터">
-                        <div class="label">주요 미거래처</div>
-                        <div class="value" id="accountNoDealCount">0</div>
+                </div>
+            </div>
+
+            <!-- 사용우유 필터 드롭다운 -->
+            <div class="section">
+                <div class="dropdown-card open" id="ddMilkCard">
+                    <div class="dropdown-header" onclick="toggleDropdown('ddMilkCard')">
+                        <h4>🥛 사용우유 필터</h4>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content">
+                        <div class="dropdown-list" id="milkDropdownList"></div>
                     </div>
                 </div>
             </div>
@@ -2506,6 +2543,10 @@
         function clearAllFilters() {
             currentManager = null;
             currentRegion = null;
+            currentMilkFilter = null;
+            window.currentDealStatusFilter = null;
+            currentAccountFilter = null;
+            currentFilter = 'all';
             updateDashboard();
             updateMap();
         }
@@ -2517,6 +2558,7 @@
             } else {
                 window.currentDealStatusFilter = status;
             }
+            updateDashboard();
             updateMapByStatus();
         }
 
@@ -2543,6 +2585,19 @@
             } else {
                 currentAccountFilter = status;
             }
+            updateDashboard();
+            updateMap();
+        }
+
+        // 사용우유 필터
+        let currentMilkFilter = null;
+        function filterByMilk(milk) {
+            if (currentMilkFilter === milk) {
+                currentMilkFilter = null;
+            } else {
+                currentMilkFilter = milk;
+            }
+            updateDashboard();
             updateMap();
         }
 
@@ -2917,27 +2972,74 @@
                 filteredData = filteredData.filter(d => (d['담당자'] || '미지정') === currentManager);
             }
 
-            // 실제 Google Sheets 컨럼명 사용
-            document.getElementById('dealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '거래').length || 0;
-            document.getElementById('noDealCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '미거래').length || 0;
-            document.getElementById('licensedCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '인허가').length || 0;
-            document.getElementById('dropCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === 'DROP').length || 0;
-            document.getElementById('constructionCount').textContent = filteredData.filter(d => d['거래여부(기입예정)'] === '공사중').length || 0;
+            // ── 거래 현황 드롭다운 렌더링 ──
+            const _statusItems = [
+                { key: '거래',  label: '거래',      color: '#0050FF' },
+                { key: '미거래', label: '미거래',    color: '#FF1A1A' },
+                { key: '인허가', label: '인허가',    color: '#00B33C' },
+                { key: '공사중', label: '공사중',    color: '#FF7700' },
+                { key: 'DROP',  label: 'DROP',      color: '#8e8e93' },
+            ];
+            const statusEl = document.getElementById('statusDropdownList');
+            if (statusEl) {
+                const rank1Count = filteredData.filter(d => d['순위'] === '1').length;
+                statusEl.innerHTML = [
+                    ..._statusItems.map(item => {
+                        const cnt = filteredData.filter(d => d['거래여부(기입예정)'] === item.key).length;
+                        const active = window.currentDealStatusFilter === item.key ? ' active' : '';
+                        return `<div class="dropdown-item${active}" onclick="filterByStatus('${item.key}')">
+                            <span class="dropdown-item-name"><span class="status-dot" style="background:${item.color};"></span>${item.label}</span>
+                            <span class="dropdown-item-count">${cnt}</span>
+                        </div>`;
+                    }),
+                    (() => {
+                        const active = currentFilter === '1' ? ' active' : '';
+                        return `<div class="dropdown-item${active}" onclick="filterByRank('1')">
+                            <span class="dropdown-item-name"><span class="status-dot" style="background:#ff3b30;"></span>인허가 1순위</span>
+                            <span class="dropdown-item-count">${rank1Count}</span>
+                        </div>`;
+                    })()
+                ].join('');
+            }
 
-            // 순위는 "1", "2", "3" 형식으로 저장됨
-            document.getElementById('rank1Count').textContent = filteredData.filter(d => d['순위'] === '1').length || 0;
-
-            // 주요거래처 카운트 업데이트 (현재 담당자/지역 필터 반영)
-            if (accountsData.length > 0) {
+            // ── 주요거래처 드롭다운 렌더링 ──
+            const accountEl = document.getElementById('accountDropdownList');
+            if (accountEl) {
                 let filteredAccounts = accountsData;
-                if (currentManager) {
-                    filteredAccounts = filteredAccounts.filter(a => (a['담당자명'] || '').trim() === currentManager);
-                }
-                if (currentRegion) {
-                    filteredAccounts = filteredAccounts.filter(a => (a['주소'] || '').includes(currentRegion));
-                }
-                document.getElementById('accountDealCount').textContent = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === '거래').length || 0;
-                document.getElementById('accountNoDealCount').textContent = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === '미거래').length || 0;
+                if (currentManager) filteredAccounts = filteredAccounts.filter(a => (a['담당자명'] || '').trim() === currentManager);
+                if (currentRegion) filteredAccounts = filteredAccounts.filter(a => (a['주소'] || '').includes(currentRegion));
+                const _acctItems = [
+                    { key: '거래',  label: '주요 기거래처', color: '#c8a000' },
+                    { key: '미거래', label: '주요 미거래처', color: '#8e8e93' },
+                ];
+                accountEl.innerHTML = _acctItems.map(item => {
+                    const cnt = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === item.key).length;
+                    const active = currentAccountFilter === item.key ? ' active' : '';
+                    return `<div class="dropdown-item${active}" onclick="filterAccountsByStatus('${item.key}')">
+                        <span class="dropdown-item-name"><span class="status-dot" style="background:${item.color};"></span>${item.label}</span>
+                        <span class="dropdown-item-count">${cnt}</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // ── 사용우유 드롭다운 렌더링 ──
+            const milkEl = document.getElementById('milkDropdownList');
+            if (milkEl) {
+                const _milkTypes  = ['매일', '서울', '남양', '연세', '기타'];
+                const _milkColors = { '매일': '#0071e3', '서울': '#ff3b30', '남양': '#ff9500', '연세': '#34c759', '기타': '#8e8e93' };
+                const milkCounts  = {};
+                filteredData.forEach(d => {
+                    const m = (d['사용우유'] || '').trim();
+                    if (m) milkCounts[m] = (milkCounts[m] || 0) + 1;
+                });
+                milkEl.innerHTML = _milkTypes.map(milk => {
+                    const cnt    = milkCounts[milk] || 0;
+                    const active = currentMilkFilter === milk ? ' active' : '';
+                    return `<div class="dropdown-item${active}" onclick="filterByMilk('${milk}')">
+                        <span class="dropdown-item-name"><span class="status-dot" style="background:${_milkColors[milk]};"></span>${milk}</span>
+                        <span class="dropdown-item-count">${cnt}</span>
+                    </div>`;
+                }).join('');
             }
 
             const regionCounts = {};
@@ -3042,6 +3144,7 @@
                 marker._rank    = item['순위'] || '';
                 marker._region  = (item['주소2'] || '기타').trim();
                 marker._manager = (item['담당자'] || '미지정').trim();
+                marker._milk    = (item['사용우유'] || '').trim();
                 return marker;
             } catch (e) { return null; }
         }
@@ -3128,6 +3231,14 @@
                 // 담당자 필터
                 if (currentManager && marker._manager !== currentManager) {
                     marker.setMap(null); return;
+                }
+                // 사용우유 필터
+                if (currentMilkFilter) {
+                    const markerMilk = marker._milk || '';
+                    const matchMilk = currentMilkFilter === '기타'
+                        ? (!markerMilk || !['매일','서울','남양','연세'].includes(markerMilk))
+                        : markerMilk === currentMilkFilter;
+                    if (!matchMilk) { marker.setMap(null); return; }
                 }
                 // 모바일 레이어 필터
                 if (isMobile() && !mobileVisibleLayers.has(s)) {
