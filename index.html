@@ -4396,6 +4396,42 @@
             }
         }
 
+        // 모바일 바텀시트용 거래처 상태 변경 (Supabase accounts 테이블)
+        async function updateAccountStatusSheet(name, newStatus, btnElement) {
+            const group = btnElement.closest('.account-status-group');
+            if (!group) return;
+            group.style.opacity = '0.5';
+            group.style.pointerEvents = 'none';
+            try {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
+                const { error } = await client
+                    .from('accounts')
+                    .update({ trade_status: newStatus })
+                    .eq('business_name', name)
+                    .eq('business_unit', businessUnit);
+                if (error) throw new Error(error.message);
+                // 로컬 데이터 즉시 반영
+                const acc = accountsData.find(a => (a['거래처명'] || '').trim() === name);
+                if (acc) acc['거래상태'] = newStatus;
+                if (_sheetCurrentItem) _sheetCurrentItem['거래상태'] = newStatus;
+                // 버튼 UI 갱신
+                group.querySelectorAll('.status-btn').forEach(b => {
+                    b.classList.remove('active', 'status-거래', 'status-미거래');
+                    if (b.textContent.trim() === newStatus) b.classList.add('active', 'status-' + newStatus);
+                });
+                updateDashboard();
+                await updateAccountMarkers();
+                showToast('거래상태가 변경되었습니다.', 'success');
+            } catch (err) {
+                console.error('주요거래처 상태 변경 실패:', err);
+                alert('❌ 상태 변경 실패: ' + err.message);
+            } finally {
+                group.style.opacity = '';
+                group.style.pointerEvents = '';
+            }
+        }
+
         function showAlert(id, type, msg) {
             document.getElementById(id).innerHTML = '<div class="alert alert-' + type + '">' + msg + '</div>';
             setTimeout(() => { document.getElementById(id).innerHTML = ''; }, 5000);
@@ -4469,10 +4505,19 @@
             const sheetMilkType = item['사용우유'] || '';
 
             if (isAccount) {
-                // 거래처 아이템: 상태/우유 셀렉트 숨김 (별도 거래상태 버튼 사용)
+                // 거래처 아이템: 거래/미거래 버튼으로 상태 변경 (Supabase accounts 테이블 연동)
+                const accName = item['거래처명'] || '';
+                const accStatus = item['거래상태'] || '';
                 statusGroup.innerHTML = `
-                    <div style="font-size:12px;color:#86868b;">
-                        거래상태: <strong style="color:${item['거래상태'] === '거래' ? '#007AFF' : '#8E8E93'}">${item['거래상태'] || '-'}</strong>
+                    <div>
+                        <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:6px;">거래상태 변경</span>
+                        <div class="account-status-group" style="display:flex;gap:6px;">
+                            ${['거래', '미거래'].map(s =>
+                                `<button class="status-btn ${accStatus === s ? 'active status-' + s : ''}"
+                                    onclick="updateAccountStatusSheet('${accName.replace(/'/g, "\\'")}', '${s}', this)"
+                                    style="flex:1;padding:12px;font-size:14px;">${s}</button>`
+                            ).join('')}
+                        </div>
                     </div>`;
             } else {
                 statusGroup.innerHTML = `
