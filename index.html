@@ -3458,18 +3458,18 @@
 
                     const pos = new naver.maps.LatLng(coords.lat, coords.lng);
 
-                    // 별 모양 SVG 마커
-                    const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24">
+                    // 별 모양 SVG 마커 (모바일 터치 타깃 확대: 32×32 래퍼 + pointer-events:all)
+                    const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style="pointer-events:all;display:block;">
                         <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                            fill="${starColor}" stroke="${starBorder}" stroke-width="1.5"/>
+                            fill="${starColor}" stroke="${starBorder}" stroke-width="1.5" style="pointer-events:all;"/>
                     </svg>`;
 
                     const marker = new naver.maps.Marker({
                         position: pos,
                         map: naverMap,
                         icon: {
-                            content: `<div style="cursor:pointer;">${starSVG}</div>`,
-                            anchor: new naver.maps.Point(8, 8)
+                            content: `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">${starSVG}</div>`,
+                            anchor: new naver.maps.Point(16, 16)
                         },
                         zIndex: 5  // 인허가 마커보다 위에 표시
                     });
@@ -3486,7 +3486,7 @@
                                     '거래처명': name,
                                     '주소': address,
                                     '데이터출처': 'account',
-                                    '원문데이터': account
+                                    '원문데이터': { ...account, lat: coords.lat, lng: coords.lng }
                                 };
                                 openBottomSheet(accItem);
                                 naverMap.panTo(e.coord);
@@ -4455,51 +4455,63 @@
             _sheetCurrentItem = item;
             const sheet = document.getElementById('bottomSheet');
 
-            // 데이터 채우기
-            document.getElementById('sheetTitle').innerText = item['사업장명'];
-            document.getElementById('sheetAddr').innerText = item['도로명전체주소'];
+            // 데이터 채우기 (거래처 아이템은 키가 다름: '거래처명', '주소')
+            const isAccount = item['데이터출처'] === 'account';
+            document.getElementById('sheetTitle').innerText = isAccount ? (item['거래처명'] || '-') : (item['사업장명'] || '-');
+            document.getElementById('sheetAddr').innerText = isAccount ? (item['주소'] || '-') : (item['도로명전체주소'] || '-');
             document.getElementById('sheetManager').innerText = item['담당자'] || '미지정';
 
             // 상태 셀렉트 생성
             const statusGroup = document.getElementById('sheetStatusGroup');
-            const dealStatus = item['거래여부(기입예정)'] || '인허가';
+            const dealStatus = isAccount ? (item['거래상태'] || '미거래') : (item['거래여부(기입예정)'] || '인허가');
             const initColor = _STATUS_COLORS[dealStatus] || '#8e8e93';
             const sheetMilkType = item['사용우유'] || '';
 
-            statusGroup.innerHTML = `
-                <div style="display:flex;gap:8px;align-items:flex-end;">
-                    <div style="flex:1;">
-                        <select class="status-select"
-                            style="background:${initColor};border-color:${initColor};"
-                            data-prev="${dealStatus}"
-                            onchange="updateDealStatusSelectSheet(this)">
-                            ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
-                                `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div style="flex:1;">
-                        <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:6px;">사용우유</span>
-                        <select class="status-select"
-                            style="background:#5856d6;border-color:#5856d6;"
-                            onchange="updateMilkTypeSelectSheet(this)">
-                            <option value="" ${!sheetMilkType ? 'selected' : ''}>미입력</option>
-                            ${['매일', '서울', '남양', '연세', '동원', '빙그레', '기타'].map(m =>
-                                `<option value="${m}" ${sheetMilkType === m ? 'selected' : ''}>${m}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                </div>`;
+            if (isAccount) {
+                // 거래처 아이템: 상태/우유 셀렉트 숨김 (별도 거래상태 버튼 사용)
+                statusGroup.innerHTML = `
+                    <div style="font-size:12px;color:#86868b;">
+                        거래상태: <strong style="color:${item['거래상태'] === '거래' ? '#007AFF' : '#8E8E93'}">${item['거래상태'] || '-'}</strong>
+                    </div>`;
+            } else {
+                statusGroup.innerHTML = `
+                    <div style="display:flex;gap:8px;align-items:flex-end;">
+                        <div style="flex:1;">
+                            <select class="status-select"
+                                style="background:${initColor};border-color:${initColor};"
+                                data-prev="${dealStatus}"
+                                onchange="updateDealStatusSelectSheet(this)">
+                                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
+                                    `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        <div style="flex:1;">
+                            <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:6px;">사용우유</span>
+                            <select class="status-select"
+                                style="background:#5856d6;border-color:#5856d6;"
+                                onchange="updateMilkTypeSelectSheet(this)">
+                                <option value="" ${!sheetMilkType ? 'selected' : ''}>미입력</option>
+                                ${['매일', '서울', '남양', '연세', '동원', '빙그레', '기타'].map(m =>
+                                    `<option value="${m}" ${sheetMilkType === m ? 'selected' : ''}>${m}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    </div>`;
+            }
 
             // 네이버 지도 / 동선 최적화 버튼
             const sheetActionBtns = document.getElementById('sheetActionBtns');
             if (sheetActionBtns) {
-                const itemLat = parseFloat(item['위도']) || 0;
-                const itemLng = parseFloat(item['경도']) || 0;
-                const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(item['사업장명'] || '')}`;
-                const sheetMemoKey = 'maeil_memo_' + item['사업장명'];
+                const sheetName = isAccount ? (item['거래처명'] || '') : (item['사업장명'] || '');
+                const sheetAddr = isAccount ? (item['주소'] || '') : (item['도로명전체주소'] || '');
+                const itemLat = isAccount ? (parseFloat(item['원문데이터']?.['위도'] || item['원문데이터']?.lat) || 0) : (parseFloat(item['위도']) || 0);
+                const itemLng = isAccount ? (parseFloat(item['원문데이터']?.['경도'] || item['원문데이터']?.lng) || 0) : (parseFloat(item['경도']) || 0);
+                const sheetMemoKey = 'maeil_memo_' + sheetName;
                 const sheetMemoUid = 'sheetMemo_' + Math.random().toString(36).substr(2, 8);
                 const sheetSavedMemo = localStorage.getItem(sheetMemoKey) || '';
+                const safeSheetName = sheetName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeSheetAddr = sheetAddr.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 sheetActionBtns.innerHTML = `
                     <div style="margin-top:16px;">
                         <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
@@ -4510,9 +4522,9 @@
                         </div>
                     </div>
                     <div style="display:flex;gap:6px;margin-top:12px;">
-                        <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${name.replace(/'/g, "'").replace(/"/g, '\"')}')">📍 네이버</button>
-                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${name}', '${address}', 'license', 'sheetCartBtn')">🛒 경유지</button>` : ''}
-                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${name}', '${address}'); closeBottomSheet();">🗺️ 동선최적화</button>` : ''}
+                        <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${safeSheetName}')">📍 네이버</button>
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn')">🛒 경유지</button>` : ''}
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}'); closeBottomSheet();">🗺️ 동선최적화</button>` : ''}
                     </div>
                 `;
             }
