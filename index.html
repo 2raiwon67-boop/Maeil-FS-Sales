@@ -643,15 +643,20 @@
                 display: none !important;
             }
 
-            /* 메인 레이아웃 — 상단 nav 없으므로 전체 높이, 하단 탭 바 공간 확보 */
+            /* 메인 레이아웃 — position:fixed 로 상단 빈 공간 제거, 하단 탭 바 공간 확보 */
             .main-layout {
-                height: calc(100vh - 60px - env(safe-area-inset-bottom));
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: calc(60px + env(safe-area-inset-bottom));
+                height: auto;
             }
 
             /* 기본엔 숨김 (지도 모드) */
             .sidebar {
                 width: 100%;
-                height: calc(100vh - 60px - env(safe-area-inset-bottom));
+                height: 100%;
                 position: absolute;
                 top: 0;
                 left: 0;
@@ -2632,9 +2637,9 @@
                 const options = {
                     center: new naver.maps.LatLng(37.5, 127.3),
                     zoom: 11,
-                    zoomControl: true, // 줌 컨트롤 표시
+                    zoomControl: !isMobile(), // 모바일에서는 줌 버튼 숨김
                     zoomControlOptions: {
-                        position: naver.maps.Position.RIGHT_CENTER // 우측 중앙 배치 (챗봇/필터 회피)
+                        position: naver.maps.Position.RIGHT_CENTER
                     },
                     scrollWheel: true // 마우스 스크롤 줌 활성화 (사용자 요청)
                 };
@@ -4465,6 +4470,8 @@
             routeCart.push({ lat: parseFloat(lat), lng: parseFloat(lng), name, address, type: type || 'license', _key: key });
             renderCartUI();
             showCartToast(`🛒 담겼습니다: ${name}`);
+            // 모바일: 바텀시트 자동 닫기
+            if (isMobile() && typeof closeBottomSheet === 'function') closeBottomSheet();
             // 버튼 피드백
             const btn = document.getElementById(btnId);
             if (btn) {
@@ -4560,8 +4567,7 @@
 
         function closeRoutePanel() {
             document.getElementById('routePanel').classList.remove('active');
-            clearRoute();
-            // 모바일: FAB 다시 표시, 딤처리 제거
+            // 경로는 지도에 유지 — clearRoute()는 '루트 초기화' 버튼으로만 호출
             const fab = document.getElementById('routeMobileFab');
             const backdrop = document.getElementById('routePanelBackdrop');
             if (fab) fab.classList.remove('panel-open');
