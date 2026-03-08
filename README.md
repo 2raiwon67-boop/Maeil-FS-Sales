@@ -24,5 +24,4 @@ cd Maeil-FS-Sales
 - `server.js`: 로컬 테스트용 서버 파일
 - `start_server.bat`: 서버 실행 스크립트
 
-## ⚠️ 주의사항
-- 카카오맵이 안 보인다면 `http://localhost:8000` 도메인이 카카오 개발자 사이트에 등록되어 있는지 확인하세요.
+

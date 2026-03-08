@@ -6,6 +6,8 @@
     "description": "샷 오트 슈페너 크림 150g 100g 35g 1 Shot 55g 14oz 기준 ICE 깊은 쑥 향이 가득 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "테너 소스 카라멜",
+      "매일 휘핑크림 비건오트",
       "매일 우유"
     ],
     "ingredients": [],
@@ -29,6 +31,7 @@
     "nameEn": "Sweet Potato",
     "description": "고구마 크림 230g 2 샷 40g 제공 잔에 스팀한 우유 , 에스프레소 , 고구마 크림을 올려 완성한다 .",
     "mainProducts": [
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -47,7 +50,9 @@
     "name": "고구마 크림 라떼",
     "nameEn": "Sweet Potato",
     "description": "et Potato cream Latte 우유 얼음 에스프레소 고구마 크림 180g 160g 2 샷 40g 1.",
-    "mainProducts": [],
+    "mainProducts": [
+      "매일 휘핑크림"
+    ],
     "ingredients": [],
     "steps": [],
     "category": "라떼",
@@ -81,6 +86,7 @@
     "description": "쌀 튀밥 130g 15g 150g 70g 1 shot As needed 1.",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "매일 휘핑크림",
       "연유"
     ],
     "ingredients": [],
@@ -102,7 +108,7 @@
     "nameEn": "Golden Amber",
     "description": "O R 테너베이스 클레멘타인 C L E M E N T I N E 만다린과 오렌지의 달콤함을 담은 클레멘타인 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인"
     ],
     "ingredients": [],
     "steps": [],
@@ -120,7 +126,7 @@
     "nameEn": "Strawberry Ade",
     "description": "es As needed tip 생 딸기와 애플 민트를 음료에 더해 맛을 더욱 풍성하게 베리에이션 해 보세요 !",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -144,7 +150,7 @@
     "nameEn": null,
     "description": "제공 잔에 테너베이스 과육플러스 블루베리를 계량하여 담는다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -161,8 +167,8 @@
     "nameEn": "Strawberry Milk Shake",
     "description": "e 161 Freezer 매일 소프트믹스 M8 얼음 테너베이스 과육플러스 딸기 170ml 220g 50g 1.",
     "mainProducts": [
-      "소프트믹스",
-      "테너 베이스",
+      "소프트믹스 M8",
+      "테너 베이스 과육플러스 딸기",
       "매일 우유"
     ],
     "ingredients": [],
@@ -182,7 +188,7 @@
     "description": "블렌디드 음료 Proposal product Total Amount Recipe 과육 딸기 초코 블렌디드 1.",
     "mainProducts": [
       "상하목장 초콜릿믹스",
-      "테너 베이스"
+      "테너 베이스 과육플러스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -204,7 +210,8 @@
     "nameEn": "Mango Cup Ice Flake",
     "description": "0 달콤한 과육이 씹히는 망고 베이스와 부드럽고 시원한 밀크와 잘 이울어진 과육플러스 망고 컵 빙수 .",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
       "테너 베이스"
     ],
     "ingredients": [],
@@ -225,7 +232,8 @@
     "nameEn": "Honey Grapefruit",
     "description": "tea ade 제안 원료 소개 메뉴 제조 소개 상큼한 자몽과 향긋한 홍차를 같이 즐길 수 있는 티 에이드 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자몽",
+      "테너 베이스 홍차"
     ],
     "ingredients": [],
     "steps": [],
@@ -242,7 +250,8 @@
     "nameEn": "Nutty Caramel Blended",
     "description": "냉장 7 개월 테너소스 카라멜 향긋한 카라멜의 달콤함이 진하게 느껴지는 진짜 카라멜 소스 !",
     "mainProducts": [
-      "소프트믹스"
+      "소프트믹스",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -261,7 +270,9 @@
     "name": "넛티 프로틴 라떼",
     "nameEn": "Nutty Protein Latte",
     "description": "달달하고 진한 카라멜의 풍미와 유당이 없이 건강한 프로틴의 맛이 느껴지는 넛티 프로틴 라떼 .",
-    "mainProducts": [],
+    "mainProducts": [
+      "테너 소스 카라멜"
+    ],
     "ingredients": [],
     "steps": [],
     "category": "라떼",
@@ -302,6 +313,7 @@
     "description": ", 저지방 코코아파우더 7.",
     "mainProducts": [
       "상하목장 소프트믹스",
+      "상하목장 유기농 우유",
       "연유"
     ],
     "ingredients": [],
@@ -323,8 +335,9 @@
     "nameEn": "Nutella Choco Blended",
     "description": "L E N D E D 누텔라 헤이즐넛 코코아크림을 추가 토핑하여 보다 먹음직스러운 비주얼의 블렌디드 메뉴 !",
     "mainProducts": [
-      "상하목장",
-      "소프트믹스"
+      "상하목장 유기농 우유",
+      "소프트믹스",
+      "테너 소스"
     ],
     "ingredients": [],
     "steps": [],
@@ -345,7 +358,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "준 Ingredient Recipe 어메이징 오트 바리스타 블랙카카오 소스 얼음 160g 90g 140g 1.",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스"
     ],
     "ingredients": [],
     "steps": [],
@@ -367,7 +381,9 @@
     "nameEn": "FS Solution Center",
     "description": "블 렌 더 볼에 소프트믹스 , 달고나 , 테너소스 카라멜 , 얼음을 넣고 곱게 갈아준다 . 2.",
     "mainProducts": [
-      "상하목장 소프트믹스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -387,7 +403,8 @@
     "nameEn": "Dalgona Oat Blended FS Solution Center",
     "description": "maeil.com 달콤한 달고나와 향긋한 카라멜이 어우러진 오트 블렌디드와 산뜻한 콜드브루의 만남 !",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -407,7 +424,8 @@
     "nameEn": "FS Solution Center",
     "description": "7 가지의 베리와 리치과즙이 더해진 상큼한 발효풍미 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -426,7 +444,8 @@
     "nameEn": "FS Solution Center",
     "description": "7 가지의 베리와 리치과즙이 더해진 상큼한 발효풍미 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -446,7 +465,7 @@
     "description": "우바홍차추출분말 0.",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스"
+      "테너 베이스 홍차"
     ],
     "ingredients": [],
     "steps": [],
@@ -464,7 +483,8 @@
     "nameEn": "Double Citrus Ade",
     "description": "1. 제공 잔에 테너베이스 자몽 1pump 를 넣은 뒤 분량의 얼음을 채운다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 오렌지",
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -480,7 +500,9 @@
     "name": "두바이 초코 블렌디드",
     "nameEn": "Dubai Choco Blended",
     "description": "메뉴 제조 소개 벨기에산 초콜렛으로 만들어 진한 테너소스 초콜렛과 매력적인 피스타치오 베이스의 달콤한 조합 !",
-    "mainProducts": [],
+    "mainProducts": [
+      "테너 소스"
+    ],
     "ingredients": [],
     "steps": [],
     "category": "블렌디드",
@@ -519,6 +541,7 @@
     "nameEn": "Soymilk Caramel Macchiato",
     "description": "성한 마끼아또 제안 원료 소개 메뉴 제조 소개 14oz 기준 HOT S O Y M I L K 매일 두유 99.",
     "mainProducts": [
+      "테너 소스 카라멜",
       "매일 두유"
     ],
     "ingredients": [],
@@ -537,7 +560,7 @@
     "nameEn": "Deep Ocean Mud Cream Latte",
     "description": "Cream Latte 은은하게 번지는 피스타치오 베이스가 시원한 바다를 떠오르게 하는 여름철 시그니처 메뉴 .",
     "mainProducts": [
-      "아몬드브리즈"
+      "아몬드 브리즈"
     ],
     "ingredients": [],
     "steps": [],
@@ -560,7 +583,8 @@
     "nameEn": "Deep Ocean Lamon Sour",
     "description": "on Sour 깊고 푸른 바다의 시원함을 상큼한 레몬샤벳과 함께 한잔의 음료에 담은 블렌디드 시그니처 메뉴 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 블루베리",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -578,7 +602,7 @@
     "nameEn": "Strawberry Latte",
     "description": "매일 소프트믹스 딸기 매일 우유 오리지널 얼음 딸기 쿠키 분태 70g 210g 150g As needed 1.",
     "mainProducts": [
-      "소프트믹스",
+      "소프트믹스 딸기",
       "매일 우유"
     ],
     "ingredients": [],
@@ -597,7 +621,8 @@
     "nameEn": "Strawberry Lemon Ade",
     "description": "Z 딸기 레몬 에이드 Strawberry Lemon Ade 달콤한 향긋함의 딸기와 상큼한 레몬의 베리에이션 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -616,7 +641,7 @@
     "nameEn": "Strawberry Mangosteen Ade",
     "description": "크랜베리 70g 90g 180g 90g As need 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -638,9 +663,9 @@
     "nameEn": "Strawberry Milk Soda",
     "description": "로 깊고 풍부한 맛 상하목장 유기농우유로 만든 프리미엄믹스 액상 믹스 업계 최장 유통기한 16 주 !!",
     "mainProducts": [
-      "상하목장",
+      "상하목장 유기농 우유",
       "소프트믹스",
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -659,7 +684,7 @@
     "nameEn": "Strawberry Milk Shake",
     "description": "0 딸기 밀크 쉐이크 Strawberry Milk Shake 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -676,7 +701,7 @@
     "nameEn": "Strawberry Banana Blended",
     "description": "1. 블렌더에 딸기 , 바나나 , 테너베이스 딸기 , 얼음과 우유를 넣고 부드러운 상태로 갈아 완성 한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -694,7 +719,8 @@
     "nameEn": "PB Bottle",
     "description": "FAT, 정통 북유럽 STYLE BUTTER!",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -714,7 +740,7 @@
     "nameEn": "Strawberry Blended",
     "description": "맛과 풍미를 그대로 구현한 테너베이스를 생과일과 함께 활용하면 보다 균일한 맛의 음료를 제조할 수 있습니다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -735,7 +761,8 @@
     "nameEn": "Strawberry Slush",
     "description": "시 Strawberry Slush 제안 원료 소개 메뉴 제조 소개 상큼한 테너베이스 딸기를 시원한 슬러시로 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -756,8 +783,10 @@
     "nameEn": "FS Solution Center",
     "description": "향긋 달콤한 애플망고의 variation 이 돋보이는 음료로 언더라인의 그라데이션이 매력적인 블렌디드 메뉴 .",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 애플망고",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -778,7 +807,7 @@
     "nameEn": "PB Bottle",
     "description": "N N O R 테너베이스 V A R I A T I O N A D E 16oz 기준 상큼한 딸기베이스가 가득 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -821,9 +850,9 @@
     "nameEn": "Strawberry Yogurt",
     "description": "M E N U 상하목장 요거트 믹스 연유 얼음 테너베이스 과육플러스 딸기 190g 20g 230g 50g 1.",
     "mainProducts": [
-      "상하목장 요거트",
+      "상하목장",
       "소프트믹스",
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "연유"
     ],
     "ingredients": [],
@@ -842,7 +871,7 @@
     "nameEn": "Ice Cream",
     "description": "erry milk Ice Cream 설향 딸기가 가득한 과육플러스 딸기와 , 딸기 소프트믹스로 더욱 진하게 !",
     "mainProducts": [
-      "소프트믹스",
+      "소프트믹스 딸기",
       "테너 과육플러스",
       "매일 우유"
     ],
@@ -863,8 +892,9 @@
     "nameEn": "Strawberry Green",
     "description": "31Z 테너 과육플러스 딸기의 향긋한 달콤함에 테너베이스 청포도의 싱그러운 달콤함을 더한 모히또 .",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 딸기",
+      "테너 과육플러스",
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -884,9 +914,9 @@
     "nameEn": "FS Solution Center",
     "description": "45Z 1. 블렌더에 소프트믹스 , 얼음 , 연유를 넣고 부드럽게 갈아준다 . 2. 1.",
     "mainProducts": [
-      "상하목장",
+      "상하목장 유기농 우유",
       "소프트믹스",
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스",
       "연유"
     ],
@@ -910,9 +940,10 @@
     "description": "크림치즈와 풍부한 유풍미의 소프트믹스 , 달콤 향긋한 딸기의 어우러짐이 조화로운 딸기 블렌디드 메뉴 입니다 .",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스",
-      "매일 우유",
-      "알라 크림"
+      "테너 베이스 딸기",
+      "매일 휘핑크림",
+      "알라 크림치즈",
+      "매일 우유"
     ],
     "ingredients": [],
     "steps": [],
@@ -933,8 +964,9 @@
     "nameEn": "Strawberry Tropical Ade",
     "description": "플러스 딸기와 향긋한 테너 애플망고 , 달콤한 망고스틴 주스를 블랜딩해 풍부한 열대과일 맛이 특징인 에이드 .",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 딸기",
+      "테너 과육플러스",
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -953,7 +985,8 @@
     "nameEn": "ICE Proposal Product",
     "description": "국산 설향 딸기가 그대로 들어간 테너베이스 ! 맛있게 씹히는 신선한 딸기 과육이 통째로 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 딸기",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -976,7 +1009,7 @@
     "nameEn": "Strawberry Summer Ice Tea",
     "description": "0 딸기 썸머 아이스티 Strawberry Summer Ice Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -994,7 +1027,7 @@
     "nameEn": "Strawberry Passionfruit Ade",
     "description": "1. 계량컵에 테너 과육플러스 딸기 , 탄산수를 섞어 미리 준비한다 .. 2.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -1014,7 +1047,7 @@
     "nameEn": "Strawberry Hibiscus Tea",
     "description": "스커스 티 물 테너 과육플러스 딸기 얼음 물 히비스커스티 1ea 100g 80g 170g 140g 30g 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -1036,7 +1069,7 @@
     "description": "국내산 설향 딸기로 만든 테너 과육플러스 딸기를 가장 부드럽게 즐길 수 있는 라떼 메뉴 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -1058,7 +1091,8 @@
     "nameEn": "HOW TO MAKE PROPOSE PRODUCT",
     "description": "PROPOSE PRODUCT M a e i l B e v e r a g e B a s e 딸기 크림 라떼 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -1078,6 +1112,7 @@
     "nameEn": "Peanut Cream Einspanner",
     "description": "nspanner 고소하고 달콤한 땅콩 크림 , 향긋한 커피가 조화로운 땅콩 크림 슈페너 12 OZ ICE 1.",
     "mainProducts": [
+      "매일 휘핑크림",
       "매일 우유",
       "연유"
     ],
@@ -1097,7 +1132,7 @@
     "nameEn": "Lime Oolong Ice",
     "description": "제조 소개 청량한 라임의 새콤달콤함이 고소한 우롱차가 어우러져 시원하고 깔끔하게 즐길 수 있는 아이스 티 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -1117,7 +1152,7 @@
     "nameEn": "Lime Green Tangerine Sherbet Ade",
     "description": "z 기준 ICE 제안 원료 소개 메뉴 제조 소개 청량한 라임의 맛과 상큼한 청귤이 만난 시원한 셔벗 에이드 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -1136,7 +1171,8 @@
     "nameEn": "Lime Greengrape Mint Tea",
     "description": "소개 메뉴 제조 소개 바다의 색감을 닮은 음료 , 정원의 생기를 담은 시원하게 즐길 수 있는 박하 아이스티 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -1158,7 +1194,7 @@
     "description": "1. 블렌더에 어메이징 오트 바리스타와 바나나 , 얼음을 넣고 곱게 갈아준다 . 2.",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -1176,8 +1212,10 @@
     "nameEn": "Raspberry Chocolat Bailey",
     "description": "상하목장 유기농 우유로 만든 프리미엄 소프트믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 소스",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -1198,7 +1236,7 @@
     "mainProducts": [
       "상하목장 초콜릿믹스",
       "소프트믹스",
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -1219,7 +1257,8 @@
     "nameEn": "Lemon Muscat Mojito",
     "description": "테너베이스 레몬 썬업 사과 바칼디 보드카 5g 35g 250g 35g 4.5oz 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -1239,7 +1278,7 @@
     "nameEn": "Lemon Berry Mojito Fit",
     "description": "제공 잔에 테너베이스 라임을 넣고 , 얼음을 담아준다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -1258,7 +1297,8 @@
     "description": "M P L E R E C I P E 테너베이스 블루베리 테너베이스 레몬 얼음 우유 ICE 14oz 기준 1.",
     "mainProducts": [
       "상하목장",
-      "테너 베이스"
+      "테너 베이스 블루베리",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -1276,7 +1316,7 @@
     "nameEn": "Lemon Ade",
     "description": "를 넣는다 . 2. 분량의 얼음을 넣은 뒤 탄산수를 채워 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -1294,7 +1334,8 @@
     "nameEn": "ICE Recipe",
     "description": "ry Peach Jelly 테너베이스 청포도 테너베이스 레몬 탄산수 얼음 35g 35g 140g 160g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -1314,7 +1355,8 @@
     "nameEn": "Almond Latte",
     "description": "maeil.com 테너소스 카라멜 향긋한 카라멜 풍미가 풍부하게 느껴지는 진짜 카라멜 소스 !!",
     "mainProducts": [
-      "아몬드브리즈"
+      "테너 소스 카라멜",
+      "아몬드 브리즈"
     ],
     "ingredients": [],
     "steps": [],
@@ -1336,8 +1378,8 @@
     "nameEn": null,
     "description": "Strawberry cheese foam latte 상큼 달콤한 과육플러스 딸기가 콕콕 씹혀 즐거움이 두배 !",
     "mainProducts": [
-      "소프트믹스",
-      "테너 베이스",
+      "소프트믹스 딸기",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스",
       "매일 우유"
     ],
@@ -1360,8 +1402,8 @@
     "description": "맛의 풍성함 Up! 조화로운 Taste Balance!",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스",
-      "알라 크림",
+      "테너 베이스 레몬",
+      "알라 크림치즈",
       "연유"
     ],
     "ingredients": [],
@@ -1404,7 +1446,9 @@
     "nameEn": null,
     "description": "g 20g 70g 고소한 비건오트와 테너소스 카라멜이 만난 부드러운 크림 제안 원료 소개 메뉴 제조 소개 1.",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스 카라멜",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -1425,7 +1469,7 @@
     "nameEn": "Matcha Citron Tea",
     "description": "제공잔에 얼음을 담아준 후 , 미리 만들어 둔 레몬 녹차 베이스를 부어준다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -1511,7 +1555,7 @@
     "description": "제조일로부터 6 개월 식이섬유와 베타글루칸이 풍부한 오트를 베이스로한 식물성밀크 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -1532,7 +1576,8 @@
     "nameEn": "Mango Blueberry Ade",
     "description": "제공잔에 테너베이스 과육플러스 블루베리 , 애플망고를 넣고 얼음을 채운 뒤 탄산수를 부어준다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 애플망고",
+      "테너 베이스 과육플러스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -1551,7 +1596,8 @@
     "description": "1. 블렌더에 어메이징 오트 바리스타와 바나나 , 얼음을 넣고 곱게 갈아준다 . 2.",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 애플망고",
+      "테너 베이스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -1570,7 +1616,8 @@
     "nameEn": "Mango Blueberry Coconut Blended",
     "description": "안 원료 소개 메뉴 제조 소개 부드러운 코코넛 베이스에 망고와 블루베리가 더해져 상큼하고 이국적인 블렌디드 !",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 애플망고",
+      "테너 베이스 과육플러스 블루베리",
       "매일 우유"
     ],
     "ingredients": [],
@@ -1589,7 +1636,8 @@
     "nameEn": "Mango Cinamon Ade",
     "description": "0 망고 시나몬 아이스티 Mango Cinamon Ade 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -1610,7 +1658,8 @@
     "nameEn": "Mango Passion Fruits Summer Ade",
     "description": "1. 제공잔에 패션후르츠 퓨레 35g 과 테너 애플망고 1pump 를 넣는다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고",
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -1630,7 +1679,7 @@
     "nameEn": "Mango Banana Fit",
     "description": "육과 뼈 건강은 기본 , 정상적인 면역기능과 활력에너지까지 11 대 기능성 영양설계 셀렉스 프로틴 두유 99.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 애플망고",
       "매일 두유"
     ],
     "ingredients": [],
@@ -1669,8 +1718,9 @@
     "nameEn": "HOW TO MAKE",
     "description": "톡톡히 발산하는 멜론의 달콤함이 부드러운 밀크 아이스크림과 만나 더욱 풍성한 맛으로 즐기는 멜론 아이스크림 .",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 애플망고",
       "연유"
     ],
     "ingredients": [],
@@ -1690,7 +1740,8 @@
     "nameEn": "Melon Greengrape Slush",
     "description": "00g As needed 14oz 기준 ICE 테너베이스 멜론 테너베이스 청포도 물 600ml 600ml 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 멜론"
     ],
     "ingredients": [],
     "steps": [],
@@ -1710,7 +1761,8 @@
     "nameEn": "Melon Greengrape Ade",
     "description": "에이드 테너베이스 멜론 테너베이스 청포도 알로에베라 얼음 탄산수 35g 35g 50g 190g 190g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 멜론"
     ],
     "ingredients": [],
     "steps": [],
@@ -1729,7 +1781,7 @@
     "nameEn": "Melon Latte",
     "description": "제안 원료 소개 메뉴 제조 소개 달콤한 맛의 멜론과 부드러운 우유가 들어가 상큼하고 크리미한 풍미의 메뉴 .",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 멜론",
       "매일 우유"
     ],
     "ingredients": [],
@@ -1747,7 +1799,7 @@
     "nameEn": "Melon Ade",
     "description": "얼음 스프라이트 35g 50g 180g 200g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 멜론"
     ],
     "ingredients": [],
     "steps": [],
@@ -1802,7 +1854,8 @@
     "nameEn": "Midnight Berry Ade",
     "description": ", 천도복숭아퓨레 T E N N O R 테너베이스 체리 C H E R R Y 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자두",
+      "테너 베이스 체리"
     ],
     "ingredients": [],
     "steps": [],
@@ -1859,7 +1912,8 @@
     "nameEn": "FS Solution Center",
     "description": "라떼 민트 초코 오트 라떼 Mint Choco Oat Latte ingredient ICE 14oz 기준 1.",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스"
     ],
     "ingredients": [],
     "steps": [],
@@ -1878,7 +1932,8 @@
     "nameEn": "FS Solution Center",
     "description": "로 깊고 풍부한 맛 상하목장 유기농우유로 만든 프리미엄 아이스크림 믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
       "연유"
     ],
     "ingredients": [],
@@ -1898,7 +1953,8 @@
     "nameEn": "FS Solution Center",
     "description": "로 깊고 풍부한 맛 상하목장 유기농우유로 만든 프리미엄 아이스크림 믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
       "연유"
     ],
     "ingredients": [],
@@ -1918,7 +1974,7 @@
     "nameEn": "Milk Ice",
     "description": "M8 매일 우유 오리지널 얼음 아이스크림 에스프레소 80ml 80ml 190g 1 회 분량 2 shots 1.",
     "mainProducts": [
-      "소프트믹스",
+      "소프트믹스 M8",
       "매일 우유"
     ],
     "ingredients": [],
@@ -1939,7 +1995,7 @@
     "nameEn": "Milk Shake",
     "description": "Recipe 161 Freezer 매일 소프트믹스 M8 매일 연유 스위트 얼음 180ml 30g 230g 1.",
     "mainProducts": [
-      "소프트믹스",
+      "소프트믹스 M8",
       "매일 우유",
       "연유"
     ],
@@ -2097,7 +2153,7 @@
     "nameEn": "Strawberry Violet Latte",
     "description": "향긋하고 달콤한 딸기에 은은한 얼그레이 향을 머금은 바이올렛 베이스를 더한 우유를 베리에이션 한 라떼 메뉴 .",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -2117,8 +2173,9 @@
     "nameEn": "Strawberry Violet Ade",
     "description": "얼그레이의 향을 머금은 바이올렛 베이스에 청량함이 살아있는 탄산수와 상큼 달콤한 딸기를 더한 에이드 메뉴 .",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 딸기",
+      "테너 과육플러스",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -2139,6 +2196,7 @@
     "description": "매일 우유 오리지널 설탕 100g 400ml 400ml 10g 1.",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2160,6 +2218,7 @@
     "nameEn": "Chestnut Latte",
     "description": "매일 우유 오리지널 설탕 100g 400g 400g 70g 1.",
     "mainProducts": [
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2179,7 +2238,8 @@
     "nameEn": "Elderflower Slush",
     "description": "ush 105g 220g 50ml 14oz 기준 달콤한 배와 은은한 엘더플라워를 시원한 슬러시로 즐겨보세요 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워",
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -2198,7 +2258,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "엘더플라워에 얼음과 물만 넣고 갈아 시원하게 즐기는 블렌디드 메뉴 . 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워",
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -2218,7 +2279,7 @@
     "nameEn": "PB Bottle",
     "description": "er Apple Tea Ade 달콤한 배와 은은하게 퍼지는 엘더플라워의 향미가 조화로운 Floral 에이드 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워"
     ],
     "ingredients": [],
     "steps": [],
@@ -2239,7 +2300,7 @@
     "nameEn": "Elderflower Ade",
     "description": "Elderflower Ade 달콤한 배와 은은하게 퍼지는 엘더플라워의 향미가 조화로운 Floral 에이드 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워"
     ],
     "ingredients": [],
     "steps": [],
@@ -2259,7 +2320,7 @@
     "description": ". 아일레스 티 애플 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워"
     ],
     "ingredients": [],
     "steps": [],
@@ -2282,7 +2343,8 @@
     "nameEn": "Cherry Sherbet Ade",
     "description": "엘더플라워 얼음 스프라이트 20g 10g 50g 200g 50g 70g 70g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -2341,7 +2403,7 @@
     "nameEn": "Very Berry Almond Smoothie",
     "description": "7 개월 아몬드브리즈 14oz 기준 ICED 아몬드브리즈 딸기 라즈베리 블루베리 설탕시럽 얼음 1.",
     "mainProducts": [
-      "아몬드브리즈"
+      "아몬드 브리즈"
     ],
     "ingredients": [],
     "steps": [],
@@ -2360,8 +2422,9 @@
     "nameEn": "White Frappe",
     "description": "동 라즈베리 상하목장 소프트믹스 OM 10 매일 우유 얼음 15g 80g 40g 60g 100g 200g 1.",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 과육플러스 딸기",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2381,7 +2444,7 @@
     "nameEn": "Peach Latte",
     "description": "라떼 Peach Latte 테너베이스 과육플러스 복숭아 얼음 매일 우유 오리지널 70g 150g 200g 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "테너 과육플러스",
       "매일 우유"
     ],
@@ -2401,8 +2464,9 @@
     "nameEn": "Peach Milk Tea",
     "description": "a 테너베이스 과육플러스 복숭아 테너베이스 홍차 얼음 매일 우유 오리지널 30g 25g 150g 200g 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "테너 과육플러스",
+      "테너 베이스 홍차",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2420,7 +2484,8 @@
     "nameEn": "Peach Slush",
     "description": "0 복숭아 슬러시 Peach Slush 향긋한 복숭아의 향기와 달달한 맛이 조화로운 여름메뉴 복숭아 슬러시 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -2442,7 +2507,7 @@
     "nameEn": "Peach Earl",
     "description": "개 복숭아 과육이 들어있는 복숭아 베이스와 , 은은하고 향긋한 얼그레이 티가 만난 달콤하고 시원한 아이스티 !",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -2463,7 +2528,7 @@
     "nameEn": "Peach Ade",
     "description": "를 넣는다 . 2. 분량의 얼음을 넣은 뒤 탄산수를 채워 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -2481,7 +2546,7 @@
     "nameEn": "Peach Pine Summer Ice Tea",
     "description": "0 복숭아 파인 썸머 아이스티 Peach Pine Summer Ice Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -2541,7 +2606,8 @@
     "nameEn": "Taste Balance",
     "description": "맛의 풍성함 Up! 조화로운 Taste Balance!",
     "mainProducts": [
-      "소프트믹스"
+      "소프트믹스",
+      "테너 소스"
     ],
     "ingredients": [],
     "steps": [],
@@ -2563,7 +2629,9 @@
     "nameEn": "Black Tea Cream Moca Latte",
     "description": "제안 원료 소개 은은한 홍차크림과 진한 모카라떼가 만난 블랙티 모카라떼 !",
     "mainProducts": [
-      "테너 베이스",
+      "테너 소스",
+      "테너 베이스 홍차",
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2583,7 +2651,7 @@
     "nameEn": "Blue Lemon Ade",
     "description": "E M O N 14oz 기준 ICE 더운 여름 , 시원한 바다를 연상시키는 상큼하고 달콤한 블루레몬 에이드 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -2601,7 +2669,7 @@
     "nameEn": "Blueberry Strawberry Iced Tea",
     "description": "계량컵에 스트로베리 앤 바닐라티와 뜨거운 물을 넣고 약 5 분간 우린 뒤 식혀준다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -2620,7 +2688,7 @@
     "nameEn": "Blueberry Mint Tea Ade",
     "description": "제조 소개 상큼한 테너베이스 과육플러스 블루베리 와 시원한 페퍼민트 티의 조화 , 봄을 닮은 특별한 에이드 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -2637,7 +2705,7 @@
     "nameEn": "Blueberry Mint Soda",
     "description": "페퍼민트 티 물 테너베이스 블루베리 탄산수 얼음 페퍼민트티 1ea 50g 70g 150g 140g 50g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -2658,7 +2726,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "A R I A T I O N A D E Proposal Product 14oz 기준 ingredient 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -2675,7 +2743,7 @@
     "nameEn": "Blueberry Yogurt Cream Smoothie",
     "description": "설탕 테너베이스 블루베리 우유 얼음 100g 10g 80g 30ml 270g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -2692,7 +2760,7 @@
     "nameEn": "Blueberry Yuja Tea Ade",
     "description": "E C I P E 당침유자청 얼음 테너베이스 블루베리 레몬 버베나 티 12oz 기준 ingredient 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 블루베리"
     ],
     "ingredients": [],
     "steps": [],
@@ -2711,7 +2779,8 @@
     "nameEn": "FS Solution Center",
     "description": "렌디드 메뉴 소프트믹스 매일 연유 얼음 블루소다시럽 식물성휘핑크림 160g 20g 230g 30g 10g 1.",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
       "연유"
     ],
     "ingredients": [],
@@ -2732,7 +2801,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "4oz 기준 진한 카카오의 맛 블랙 카카오를 베이스로 테너소스 초콜렛의 깊고 풍부한 맛이 더해진 오트 라떼 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스"
     ],
     "ingredients": [],
     "steps": [],
@@ -2755,8 +2825,9 @@
     "description": "핀란드산 귀리의 고소하고 담백한 풍미를 담은 프리미엄 크림 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 딸기",
+      "테너 과육플러스",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -2779,7 +2850,8 @@
     "nameEn": "Vegan Rich Oat Latte",
     "description": "핀란드산 귀리의 고소하고 담백한 풍미를 담은 프리미엄 크림 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -2802,7 +2874,8 @@
     "nameEn": "Vegan Mellow Oat Latte",
     "description": "뉴 제안 오트 바리스타와 로스티드 헤이즐넛 시럽 , 에스프레소와 부드럽고 고소한 오트 피넛 크림 베리에이션 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -2826,6 +2899,8 @@
     "description": "핀란드산 귀리의 고소하고 담백한 풍미를 담은 프리미엄 크림 .",
     "mainProducts": [
       "상하목장 소프트믹스",
+      "상하목장 유기농 우유",
+      "매일 휘핑크림 비건오트",
       "연유"
     ],
     "ingredients": [],
@@ -2867,7 +2942,8 @@
     "nameEn": "Barley Grass Soft Latte",
     "description": "상하목장 유기농 우유로 만든 프리미엄 소프트믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유"
     ],
     "ingredients": [],
     "steps": [],
@@ -2887,9 +2963,10 @@
     "nameEn": "HOW TO MAKE",
     "description": "리 우유 얼음 타피오카펄 레몬크림치즈폼 60g 2g 100g 160g 50g 20g ICE 14oz 기준 1.",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스",
-      "알라 크림",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 레몬",
+      "알라 크림치즈",
       "연유"
     ],
     "ingredients": [],
@@ -2931,8 +3008,9 @@
     "nameEn": "Soft Peach",
     "description": "1 비율로 섞어 소프트 우유 베이스를 만들어 준다 . 2.",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 복숭아",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2953,7 +3031,8 @@
     "nameEn": "Barley Grass Soft Latte",
     "description": "상하목장 유기농 우유로 만든 프리미엄 소프트믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
       "매일 우유"
     ],
     "ingredients": [],
@@ -2975,9 +3054,10 @@
     "filename": "소프트크림 콜드브루 라떼",
     "name": "소프트크림 콜드브루 라떼",
     "nameEn": "HOW TO MAKE",
-    "description": "부드럽고 풍부한 유풍미와 은은한 달콤함이 매력적인 소프트크림이 어우러진 라떼 추천하는 콜드브루 데이스팅 노트 !",
+    "description": "럽고 풍부한 유 풍미와 은은한 달콤함이 매력적인 소프트크림이 어우러진 라떼 추천하는 콜드브루 데이스팅 노트 !",
     "mainProducts": [
-      "상하목장 소프트믹스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유"
     ],
     "ingredients": [],
     "steps": [],
@@ -3017,6 +3097,7 @@
     "nameEn": "Total Amount Recipe",
     "description": "매일 우유 오리지널 바닐라 시럽 1.",
     "mainProducts": [
+      "매일 휘핑크림",
       "매일 우유",
       "연유"
     ],
@@ -3040,7 +3121,7 @@
     "description": "크럼블 140g 160g 50g 10g ICE 14oz 기준 S O F T M I X L A T T E 1.",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -3064,7 +3145,7 @@
     "description": "믹스베이스 얼음 70g 140g 160g ICE 14oz 기준 S O F T M I X L A T T E 1.",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -3125,7 +3206,8 @@
     "nameEn": "ICE Recipe",
     "description": "으로 제조할 수 있습니다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -3146,9 +3228,10 @@
     "description": "크림치즈와 풍부한 유풍미의 소프트믹스 , 달콤 향긋한 딸기의 어우러짐이 조화로운 딸기 블렌디드 메뉴 입니다 .",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스",
-      "매일 우유",
-      "알라 크림"
+      "테너 베이스 딸기",
+      "매일 휘핑크림",
+      "알라 크림치즈",
+      "매일 우유"
     ],
     "ingredients": [],
     "steps": [],
@@ -3169,7 +3252,7 @@
     "nameEn": "Strawberry Orange Punch",
     "description": "1oz 250g 1ea 1. 제공잔에 테너베이스 딸기 1pump 를 넣는다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -3207,7 +3290,8 @@
     "nameEn": "Cinnamon Black Milktea",
     "description": "한 홍차향이 매력적인 밀크티 제안 원료 소개 메뉴 제조 소개 테너베이스 홍차 스팀 우유 35g 390g 1 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 소스 카라멜",
+      "테너 베이스 홍차"
     ],
     "ingredients": [],
     "steps": [],
@@ -3226,7 +3310,8 @@
     "nameEn": "PB Bottle",
     "description": "O R 테너베이스 클레멘타인 C L E M E N T I N E 만다린과 오렌지의 달콤함을 담은 클레멘타인 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인",
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3243,7 +3328,8 @@
     "nameEn": "Citrus Glacier Ade",
     "description": "의 반짝이는 빛을 한 잔에 담은 , 시원하고 상큼한 시트러스 빙하 에이드 메뉴 제조 소개 제안 원료 소개 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 라임",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -3261,7 +3347,7 @@
     "nameEn": "Citrus Chamomile Crush",
     "description": "블렌더 볼에 테너베이스 레몬 , 얼음을 넣고 곱게 갈아준다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -3278,7 +3364,7 @@
     "nameEn": "FS Solution Center",
     "description": "K P O W D E R S L U S H 자연의 맛으로 담은 우리쌀 식혜 , 시원한 슬러시로 즐겨보세요 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3297,7 +3383,7 @@
     "nameEn": "Silk Soymilk Peach",
     "description": "맛을 완성한 상쾌한 음료 메뉴 제조 소개 1 6 oz 기준 ICE S O Y M I L K 매일 두유 99.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "매일 두유"
     ],
     "ingredients": [],
@@ -3318,7 +3404,8 @@
     "nameEn": "Summer Pink Ade",
     "description": "Pink Ade 제안 원료 소개 메뉴 제조 소개 상큼하고 향긋한 자두와 톡 쏘는 레몬을 한 잔의 에이드로 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자두",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -3337,7 +3424,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "A N D S I M P L E R E C I P E 80g 80g 140g 65g ICE 14oz 기준 1.",
     "mainProducts": [
-      "상하목장 소프트믹스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유"
     ],
     "ingredients": [],
     "steps": [],
@@ -3358,6 +3446,8 @@
     "description": "카라멜페이스트 4.",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "테너 소스 카라멜",
+      "매일 휘핑크림",
       "매일 우유",
       "연유"
     ],
@@ -3382,7 +3472,8 @@
     "description": "제조한 베이스는 냉장 보관하여 사용한다 ingredient ICE 14oz 기준 1.",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "소프트믹스"
+      "소프트믹스",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -3421,7 +3512,7 @@
     "nameEn": "Iced Lemon Mallow Kombu Tea",
     "description": "을 넣은 뒤 얼음을 넣는다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -3478,7 +3569,8 @@
     "nameEn": "Organic Milk",
     "description": "유기농 우유의 농후한 맛에 진한 초콜릿이 더해져 더욱 부드럽고 풍부한 초콜릿 맛 구현 .",
     "mainProducts": [
-      "상하목장 초콜릿믹스"
+      "상하목장 초콜릿믹스",
+      "상하목장 유기농 우유"
     ],
     "ingredients": [],
     "steps": [],
@@ -3499,7 +3591,7 @@
     "nameEn": "Iced Peach Mallow Kombu Tea",
     "description": "E Recipe 16oz 기준 블루멜로우 티 베이스는 1 일 사용량만큼 제조 한 뒤 냉장 보관하여 사용한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -3541,7 +3633,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "믹스와 우유를 베이스로 한 믹스베이스와 당근퓨레 , 에스프레소의 어우러짐이 좋은 메뉴 ingredient 1.",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
       "매일 우유"
     ],
     "ingredients": [],
@@ -3562,7 +3655,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "N D S I M P L E R E C I P E 14oz 기준 T E N N O R L A T T E 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -3582,7 +3675,9 @@
     "name": "아인슈페너 라떼",
     "nameEn": "Einspanner Latte",
     "description": "nspanner Latte 풍부한 유풍미를 가진 부드럽고 달콤한 크림이 풍성하게 플로팅 된 아인슈페너 라떼 .",
-    "mainProducts": [],
+    "mainProducts": [
+      "매일 휘핑크림"
+    ],
     "ingredients": [],
     "steps": [],
     "category": "라떼",
@@ -3602,7 +3697,7 @@
     "nameEn": "Apple Mango Cinnamon Iced Tea",
     "description": "여 향이 좋고 달콤한 풍미의 베이스 애플시나몬 티를 뜨거운 물 200g 에 5 분간 우린 뒤 식혀 사용한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3621,7 +3716,7 @@
     "nameEn": "Apple Soymilk Peach",
     "description": "맛을 완성한 상쾌한 음료 메뉴 제조 소개 1 6 oz 기준 ICE S O Y M I L K 매일 두유 99.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "매일 두유"
     ],
     "ingredients": [],
@@ -3669,7 +3764,7 @@
     "description": "P L E R E C I P E ICE 14oz 기준 M A E I L M I L K L A T T E 1.",
     "mainProducts": [
       "상하목장",
-      "테너 베이스",
+      "테너 베이스 애플망고",
       "매일 우유"
     ],
     "ingredients": [],
@@ -3688,8 +3783,9 @@
     "nameEn": "Apple Mango Blended",
     "description": "애플망고 블렌디드 Apple Mango Blended 애플망고의 향긋한 달콤함이 입안 가득 퍼치는 !",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3709,7 +3805,7 @@
     "nameEn": "Apple Mango Sherbet Ade",
     "description": "제안 원료 소개 메뉴 제조 소개 달콤한 애플망고 에이드위에 , 시원한 망고 셔벗 아이스크림이 올라간 음료 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3729,8 +3825,8 @@
     "nameEn": "Total Amount Recipe",
     "description": "40g 블렌더에 테너베이스 애플망고 , 소프트믹스 , 얼음을 넣고 부드러운 상태가 되도록 갈아주어 완성한다 .",
     "mainProducts": [
-      "소프트믹스",
-      "테너 베이스",
+      "소프트믹스 M8",
+      "테너 베이스 애플망고",
       "매일 우유"
     ],
     "ingredients": [],
@@ -3749,7 +3845,7 @@
     "nameEn": "Apple Mango Ade",
     "description": "o Ade 톡톡 쏘는 청량한 탄산수와 부드럽고 달콤한 애플 망고를 더해 상큼함이 배가되는 애플 망고 에이드 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3768,7 +3864,7 @@
     "description": "a 제안 원료 소개 메뉴 제조 소개 달콤한 애플망고 와 깊은 말차 , 부드러운 어메이징 오트의 완벽한 조화 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 과육플러스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3788,7 +3884,7 @@
     "nameEn": "Apple Mango Yogurt Latte",
     "description": "제공 잔에 테너베이스 과육플러스 애플망고를 계량하여 담는다 .",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 애플망고",
       "매일 바이오",
       "매일 우유"
     ],
@@ -3808,7 +3904,7 @@
     "nameEn": "ICE Recipe",
     "description": "0g, 소금 1g 블렌더 볼에 생크림 , 연유 , 까망베르 스프레더블 치즈 , 소금을 넣은 뒤 돌려 줍니다 .",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 애플망고",
       "연유"
     ],
     "ingredients": [],
@@ -3829,7 +3925,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "ICE Recipe 14oz 기준 애플망고 젤리 아이스 티 Apple Mango Jelly Icetea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3849,7 +3945,7 @@
     "nameEn": "Apple Mango Jucie HOW TO MAKE",
     "description": "O R 테너베이스 V A R I A T I O N A D E 테너베이스 애플망고 얼음 물 16oz 기준 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -3889,6 +3985,7 @@
     "description": "유기농 우유의 농후한 맛에 진한 초콜릿이 더해져 더욱 부드럽고 풍부한 초콜릿 맛 구현 .",
     "mainProducts": [
       "상하목장 초콜릿믹스",
+      "상하목장 유기농 우유",
       "연유"
     ],
     "ingredients": [],
@@ -3912,6 +4009,7 @@
     "nameEn": "Earl Grey Iced Choco",
     "description": "스로 얼그레이 티의 고풍스러운 향이 은은하게 퍼지는 부드러운 크림 폼이 조화롭게 어우러진 크림 플로팅 라떼 .",
     "mainProducts": [
+      "테너 소스",
       "매일 우유"
     ],
     "ingredients": [],
@@ -3934,7 +4032,8 @@
     "nameEn": "Fruit Cocktail",
     "description": "레드커런트 30g 30g 125ml 140g As needed 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -3955,6 +4054,7 @@
     "description": "고 진한 풍미와 달콤 쌉싸름한 향미의 에스프레소가 어우러져 입안 가득히 풍성한 바디감을 느낄 수 있는 라떼 .",
     "mainProducts": [
       "상하목장 초콜릿믹스",
+      "매일 휘핑크림",
       "라크림"
     ],
     "ingredients": [],
@@ -3978,7 +4078,8 @@
     "nameEn": "PB Bottle",
     "description": "료 소개 메뉴 제조 소개 테너베이스 배 엘더플라워와 애플망고 , 그라데이션을 주어 더욱 신비롭게 즐겨보세요 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워",
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -4041,8 +4142,11 @@
     "nameEn": "FS Solution Center",
     "description": "원과를 그대로 ! 풍부한 과즙과 과육 , 엄선 된 원재료를 사용해서 만 든 음료베이스 TENNOR. .",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 복숭아",
+      "테너 베이스 오렌지",
+      "테너 베이스 레몬",
       "연유"
     ],
     "ingredients": [],
@@ -4065,7 +4169,9 @@
     "nameEn": "FS Solution Center",
     "description": "오 쿠키 밀크쉐이크 Oreo Cookie Milkshake 상하목장 유기농 우유로 만든 프리미엄 소프트믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 소스",
       "매일 우유"
     ],
     "ingredients": [],
@@ -4085,8 +4191,9 @@
     "nameEn": "Orange Lemon Ade",
     "description": "삭하게 씹히는 달콤 상큼한 오렌지와 레몬의 향긋한 향미가 풍성하게 느껴지는 시원하게 즐기는 시트러스 에이드 !",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 과육플러스",
+      "테너 베이스 오렌지",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -4104,7 +4211,8 @@
     "nameEn": "Orange Lemon Black Tea Ade",
     "description": "0 오렌지 레몬 홍차 에이드 Orange Lemon Black Tea Ade 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -4124,7 +4232,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "S I M P L E R E C I P E ICE 14oz 기준 T E N N O R L A T T E 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 오렌지",
       "연유"
     ],
     "ingredients": [],
@@ -4144,7 +4252,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "P L E R E C I P E ICE 14oz 기준 M A E I L M I L K L A T T E 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 소스",
+      "테너 베이스 오렌지",
       "연유"
     ],
     "ingredients": [],
@@ -4163,7 +4272,7 @@
     "nameEn": "Orange Ade",
     "description": "를 넣는다 . 2. 분량의 얼음을 넣은 뒤 탄산수를 채워 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 오렌지"
     ],
     "ingredients": [],
     "steps": [],
@@ -4180,7 +4289,8 @@
     "nameEn": "Orange Crush Peach Ade",
     "description": "상큼한 오렌지 크러쉬 사이로 달콤한 복숭아의 향긋한 향미가 풍성하게 느껴지는 시원하게 즐기는 크러쉬 에이드 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 오렌지"
     ],
     "ingredients": [],
     "steps": [],
@@ -4239,6 +4349,8 @@
     "description": "고소한 비건오트와 테너소스 카라멜이 만난 부드러운 크림의 에스프레소 음료 제안 원료 소개 메뉴 제조 소개 1.",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "테너 소스 카라멜",
+      "매일 휘핑크림 비건오트",
       "매일 우유"
     ],
     "ingredients": [],
@@ -4282,7 +4394,8 @@
     "nameEn": null,
     "description": "떼 Oat einspanner latte 오트 향이 기분 좋게 느껴지는 오트 크림이 올라간 아인슈페너 라떼 !",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -4366,7 +4479,8 @@
     "description": "제조일로부터 6 개월 식이섬유와 베타글루칸이 풍부한 오트를 베이스로한 식물성밀크 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "상하목장 초콜릿믹스"
+      "상하목장 초콜릿믹스",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -4389,7 +4503,8 @@
     "nameEn": "FS Solution Center",
     "description": "제공 잔에 테너소스 카라멜 2pumps 를 넣는다 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -4408,7 +4523,8 @@
     "nameEn": "FS Solution Center",
     "description": "제공 잔에 테너소스 카라멜 2pumps 를 넣는다 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -4427,7 +4543,8 @@
     "nameEn": "Oat Caramel Cream Latte",
     "description": "제조일로부터 6 개월 식이섬유와 베타글루칸이 풍부한 오트를 베이스로한 식물성밀크 !",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -4451,7 +4568,7 @@
     "description": "A M A Z I N G O A T 어메이징 오트 바리스타 M E N U 진한 오트와 향긋한 홍차의 만남 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 홍차"
     ],
     "ingredients": [],
     "steps": [],
@@ -4470,8 +4587,9 @@
     "nameEn": "Yogurt Strawberry",
     "description": "15Z 부드럽고 달콤한 딸기 라떼에 요거트를 더해 진한 바디감으로 상큼하게 즐길 수 있는 요거트 라떼 .",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 딸기",
       "테너 과육플러스",
+      "테너 베이스 딸기",
       "매일 우유"
     ],
     "ingredients": [],
@@ -4491,7 +4609,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "바이오 스위트 플레인 35g 100g 200g 100g ICE 16oz 기준 HOW TO MAKE 세계 No.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -4510,7 +4628,7 @@
     "nameEn": "Yuzu Lime Matcha Spalking Ade",
     "description": "베이스 라임 L I M E 14oz 기준 ICE 청량한 라임과 달콤한 유자 , 쌉쌀한 말차의 조화로운 만남 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -4533,7 +4651,7 @@
     "nameEn": "Yuja Sherbet Peach Ade",
     "description": "테너베이스 복숭아 얼음 탄산수 top Bottom 100g 50g 100g 1 pump 120g 120g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -4555,7 +4673,8 @@
     "nameEn": "Yuzu Oat Cream Latte",
     "description": "230ml 20g 100g 10g 1. 어메이징 오트 바리스타를 스티밍 하여 준비한다 . 2.",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -4578,7 +4697,7 @@
     "nameEn": "Plum Slush",
     "description": "달콤한 맛이 풍성하게 느껴지는 자두 슬러시 자두 슬러시 400g 14oz 기준 ICE 테너베이스 자두 물 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자두"
     ],
     "ingredients": [],
     "steps": [],
@@ -4597,7 +4716,8 @@
     "nameEn": "Plum Ade",
     "description": "0 자두 에이드 Plum Ade 제안 원료 소개 메뉴 제조 소개 상큼하고 향긋한 자두를 에이드로 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자두",
+      "테너 베이스 체리"
     ],
     "ingredients": [],
     "steps": [],
@@ -4615,7 +4735,8 @@
     "nameEn": "Grape Fruit Apple Mango",
     "description": "0 자몽 망고 코코넛 블렌디드 Grape Fruit Apple Mango coconut Blended 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고",
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -4633,7 +4754,7 @@
     "nameEn": "Grapefruit Slush",
     "description": "CE 제안 원료 소개 메뉴 제조 소개 상큼한 자몽의 맛과 신선한 펄프가 그대로 들어있는 시원한 자몽 슬러시 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -4653,7 +4774,9 @@
     "description": "함이 느껴지는 블렌디드에 상큼 쌉싸롬한 자몽이 은은하게 어우러져 이색적인 맛과 청량감을 선사하는 믹스쉐이크 !",
     "mainProducts": [
       "소프트믹스",
-      "테너 베이스"
+      "테너 베이스 애플망고",
+      "테너 베이스 자몽",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -4674,7 +4797,7 @@
     "nameEn": "Grapefruit Ade",
     "description": "를 넣는다 . 2. 분량의 얼음을 넣은 뒤 탄산수를 채워 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -4691,7 +4814,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "nt ICE Recipe 14oz 기준 자몽 젤리 아이스 티 Grapefruit Jelly Ice tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -4710,7 +4833,7 @@
     "nameEn": "Grapefruite Juice",
     "description": "0 자몽 주스 Grapefruite Juice 테너베이스 자몽 얼음 물 7 0g 18 0 g 150g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -4726,7 +4849,8 @@
     "nameEn": "Gingerbread Cream Oat Latte FS Solution",
     "description": "식이섬유와 베타글루칸이 풍부한 오트를 베이스로한 식물성밀크 ! 오트의 은은한 단맛과 부드러운 texture!",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -4749,7 +4873,9 @@
     "nameEn": "Gingerbread Bailey",
     "description": "상하목장 유기농 우유로 만든 프리미엄 소프트믹스 !",
     "mainProducts": [
-      "상하목장 소프트믹스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -4825,7 +4951,7 @@
     "nameEn": "Strawberry Lemon Fit",
     "description": "뉴 제조 소개 달콤한 딸기 티의 은은한 향과 청포도의 산뜻한 과즙감 , 레몬 프로틴의 상쾌함이 조화된 음료 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -4845,7 +4971,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "P L E R E C I P E ICE 14oz 기준 M A E I L M I L K L A T T E 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 청포도",
       "매일 우유"
     ],
     "ingredients": [],
@@ -4865,7 +4991,8 @@
     "nameEn": "Lime Blended",
     "description": "me Blended 14oz 기준 달콤한 청포도 베이스에 청량하고 상큼한 라임을 넣은 시원한 블렌디드 메뉴 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -4886,7 +5013,8 @@
     "nameEn": "Muscat Lemon Vera Ade",
     "description": "이스 청포도 테너베이스 레몬 테너베이스 청포도 알로에 베라 얼음 탄산수 12oz 기준 ingredient 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -4906,7 +5034,8 @@
     "nameEn": "ICE Recipe",
     "description": "청포도를 각 1pump 씩 넣는다 . 2. 분량의 얼음을 넣은 뒤 탄산수를 채워 완성한다 . 3.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -4926,7 +5055,8 @@
     "nameEn": "Peach Lemon Granita",
     "description": ", 생수 110g, 얼음 200g 을 넣고 부드러운 상태가 되도록 갈아 준다 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -4944,7 +5074,8 @@
     "nameEn": "Vera Summer Ade",
     "description": "1. 제공잔에 테너베이스 청포도 , 알로에베라를 넣은 뒤 얼음을 채운다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -4965,7 +5096,8 @@
     "nameEn": "Green Grape Peach Ice Tea",
     "description": "0 청포도 복숭아 아이스티 Green Grape Peach Ice Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -4986,7 +5118,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "청포도과즙농축액 9.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -5005,8 +5137,9 @@
     "nameEn": "GreenGrape Slush",
     "description": "ape Slush 1 3 oz 기준 ICE 제안 원료 소개 메뉴 제조 소개 청포도의 시원한 청량함이 그대로 !",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 딸기",
+      "테너 과육플러스",
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -5027,7 +5160,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "를 넣는다 . 2. 분량의 얼음을 넣은 뒤 탄산수를 채워 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -5046,7 +5179,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "ecipe 14oz 기준 청포도 자스민 그린 아이스 티 Grape Jasmine Green Ice Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -5068,7 +5201,8 @@
     "description": "달콤함의 청포도를 베이스로 코코넛 밀크의 부드러운 청량감과 고소한 오트 바리스타가 어우러진 블렌디드 음료 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -5090,7 +5224,7 @@
     "nameEn": "ICE Recipe",
     "description": "Non 알콜 칵테일 제조 시에는 화이트와인 대신 토닉워터를 넣어 줍니다 . 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -5109,7 +5243,7 @@
     "description": "소개 메뉴 제조 소개 달콤 한 체리향에 향긋한 우롱차와 고소한 오트가 어우러진 부드럽고 달콤한 오트 메뉴 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 체리"
     ],
     "ingredients": [],
     "steps": [],
@@ -5127,7 +5261,8 @@
     "nameEn": "Cherry Plum Slush",
     "description": "Slush 제안 원료 소개 메뉴 제조 소개 달콤한 테너베이스 체리와 상큼하고 향긋한 자두를 하나의 슬러시로 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자두",
+      "테너 베이스 체리"
     ],
     "ingredients": [],
     "steps": [],
@@ -5146,7 +5281,7 @@
     "nameEn": "Cherry Coke",
     "description": "스 체리 얼음 콜라 70 g 180 g 190 g 제공 잔에 테너베이스 체리 , 얼음 콜라를 부어 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 체리"
     ],
     "ingredients": [],
     "steps": [],
@@ -5162,6 +5297,7 @@
     "nameEn": "Super Sweet Corn Cream Base",
     "description": "에스프레소 라떼 Super Sweet Corn Cream Base 달콤하고 고소한 초당 옥수수가 크림으로 !",
     "mainProducts": [
+      "매일 휘핑크림",
       "매일 우유",
       "연유"
     ],
@@ -5183,6 +5319,7 @@
     "description": "초당옥수수에 풍부한 유풍미 , 부드러운 크림을 더해 만든 초당옥수수 크림을 variation 한 오트 라떼 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "매일 휘핑크림",
       "연유"
     ],
     "ingredients": [],
@@ -5204,6 +5341,7 @@
     "description": "초당옥수수에 풍부한 유풍미 , 부드러운 크림을 더해 만든 초당옥수수 크림을 variation 한 오트 라떼 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "매일 휘핑크림",
       "연유"
     ],
     "ingredients": [],
@@ -5224,6 +5362,8 @@
     "nameEn": "Choco Match Latte",
     "description": "g 14oz 기준 ICE 쌉사름한 말차와 판단시럽 , 그리고 달콤한 테너소스 초콜릿 이 만난 부드러운 라떼 !",
     "mainProducts": [
+      "테너 소스",
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5267,7 +5407,7 @@
     "nameEn": "Chocolate Slush",
     "description": "길 수 있는 슬러시 초코 슬러시 Chocolate Slush 아이스트로 용량 제조법 초코 슬러시 260g 1.",
     "mainProducts": [
-      "소프트믹스"
+      "소프트믹스 다크초콜릿"
     ],
     "ingredients": [],
     "steps": [],
@@ -5306,7 +5446,8 @@
     "nameEn": "Nutty Caramel Blended",
     "description": "냉장 7 개월 테너소스 카라멜 향긋한 카라멜의 달콤함이 진하게 느껴지는 진짜 카라멜 소스 !",
     "mainProducts": [
-      "소프트믹스"
+      "소프트믹스",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -5326,7 +5467,9 @@
     "nameEn": "Caramel Cinnamon Bubbletea",
     "description": "1 비율로 넣고 전동 거품기로 폼을 제조한다 . 1. 제공 잔에 타피오카 펄 , 얼음 , 우유를 넣어준다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 소스 카라멜",
+      "테너 베이스 홍차",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -5347,6 +5490,8 @@
     "nameEn": "Total Amount Recipe",
     "description": "매일 우유 오리지널 테너 카라멜 소스 소금 1.",
     "mainProducts": [
+      "테너 소스 카라멜",
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5367,7 +5512,8 @@
     "nameEn": "FS Solution Center",
     "description": "P L E R E C I P E ICE 16oz 기준 테너소스 카라멜 8 시간 끓여 만든 진짜 카라멜소스 !",
     "mainProducts": [
-      "소프트믹스"
+      "소프트믹스",
+      "테너 소스 카라멜"
     ],
     "ingredients": [],
     "steps": [],
@@ -5386,6 +5532,7 @@
     "nameEn": "Caramel Cream Brulee Macciato",
     "description": "maeil.com ingredient 1. 아이스 포머를 활용 해 부드러운 밀크 폼을 제조한다 . 2.",
     "mainProducts": [
+      "테너 소스 카라멜",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5465,7 +5612,7 @@
     "description": "우더 어메이징 오트 바리스타 얼음 테너베이스 애플망고 ingredient 80g 140g 250g 70g 1.",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -5488,7 +5635,8 @@
     "description": "리에이션 코코넛 오트 블렌디드 Coconut Oat Blended 고소한 오트와 코코넛의 놀라운 맛의 조화 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -5509,7 +5657,8 @@
     "description": "리에이션 코코넛 오트 블렌디드 Coconut Oat Blended 고소한 오트와 코코넛의 놀라운 맛의 조화 !",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -5529,7 +5678,7 @@
     "nameEn": "Coke Lemon Sour",
     "description": "1. 제공잔에 블랜더로 거칠게 갈은 크러쉬드 얼음 180g 을 담는다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -5546,7 +5695,9 @@
     "nameEn": "HOW TO MAKE",
     "description": "얼음을 넣고 부드러운 상태로 갈아 완성한다 .",
     "mainProducts": [
-      "상하목장 소프트믹스",
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 소스 카라멜",
       "연유"
     ],
     "ingredients": [],
@@ -5588,7 +5739,8 @@
     "nameEn": "Cream Float Vegan Latte",
     "description": "고소하고 담백한 풍미의 비건 오트 크림과 어메이징 오트 바리스타가 잘 어우러진 비건 라떼 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -5609,7 +5761,9 @@
     "name": "크림모카라떼",
     "nameEn": "HOW TO MAKE",
     "description": "needed 쌉싸름한 에스프레소와 초콜렛이 어우러진 모카 라떼 부드러운 크림이 플로팅 된 크림 라떼 입니다 .",
-    "mainProducts": [],
+    "mainProducts": [
+      "테너 소스"
+    ],
     "ingredients": [],
     "steps": [],
     "category": "라떼",
@@ -5629,6 +5783,7 @@
     "nameEn": "Chesse Foam",
     "description": "슈크림 파우더 설탕 1.",
     "mainProducts": [
+      "매일 휘핑크림",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5648,7 +5803,7 @@
     "nameEn": "Crimson Punch Strawberry Iced Tea",
     "description": "플러스 딸기 크림슨 펀치 티 얼음 나타드 코코 애플민트 50g 170g 140g 30g As needed 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 과육플러스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -5667,7 +5822,8 @@
     "nameEn": "Crimson Punch Peach Ade",
     "description": "로즈마리 1. 제공잔에 나타드코코와 테너베이스 복숭아를 계량한다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -5688,7 +5844,7 @@
     "nameEn": "Clementine Berry Tea",
     "description": "상큼한 클레멘타인과 향기로운 베리티가 어우러져 청량하고 시원한 여름 음료 제안 원료 소개 메뉴 제조 소개 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인"
     ],
     "ingredients": [],
     "steps": [],
@@ -5705,7 +5861,7 @@
     "nameEn": "Clementine Bianco",
     "description": "o 달콤하고 상큼한 클레멘타인 베이스에 부드러운 우유 , 그리고 깊은 풍미의 커피가 조화롭게 어우러진 메뉴 .",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 클레멘타인",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5725,7 +5881,7 @@
     "nameEn": "Clementine Spiced Tea Ade",
     "description": "O R 테너베이스 클레멘타인 C L E M E N T I N E 만다린과 오렌지의 달콤함을 담은 클레멘타인 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인"
     ],
     "ingredients": [],
     "steps": [],
@@ -5743,7 +5899,7 @@
     "nameEn": "Clementine Slush",
     "description": "ne Slush 제안 원료 소개 메뉴 제조 소개 새콤달콤한 클레멘타인 베이스로 만든 시원하고 달콤한 슬러시 !",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 클레멘타인",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5762,7 +5918,7 @@
     "nameEn": "Clementine Apple Mango Tea",
     "description": "일 테너베이스 애플망고 클레멘타인 베이스 얼음 엑스퓨레 애딕트 티 베이스 35g 35g 170g 180g 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고"
     ],
     "ingredients": [],
     "steps": [],
@@ -5779,7 +5935,7 @@
     "nameEn": "Citrus Earl Grey Milk Tea",
     "description": "O R 테너베이스 클레멘타인 C L E M E N T I N E 만다린과 오렌지의 달콤함을 담은 클레멘타인 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인"
     ],
     "ingredients": [],
     "steps": [],
@@ -5798,7 +5954,7 @@
     "nameEn": "Clementine Ade",
     "description": "O R 테너베이스 클레멘타인 C L E M E N T I N E 만다린과 오렌지의 달콤함을 담은 클레멘타인 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인"
     ],
     "ingredients": [],
     "steps": [],
@@ -5838,7 +5994,8 @@
     "nameEn": "PB Bottle",
     "description": "O R 테너베이스 클레멘타인 C L E M E N T I N E 만다린과 오렌지의 달콤함을 담은 클레멘타인 !",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 클레멘타인",
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -5854,7 +6011,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "유 얼음 70g 200g 160g ICE 14oz 기준 M A E I L M I L K L A T T E 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 딸기",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5872,6 +6029,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "유 얼음 30g 200g 160g ICE 14oz 기준 M A E I L M I L K L A T T E 1.",
     "mainProducts": [
+      "테너 소스",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5889,6 +6047,7 @@
     "nameEn": "Tennor Choco Caf",
     "description": "제안 원료 소개 T E N N O R 테너소스 E S P .",
     "mainProducts": [
+      "테너 소스",
       "매일 우유"
     ],
     "ingredients": [],
@@ -5948,8 +6107,9 @@
     "nameEn": "Tiramisu Latte",
     "description": "매일 우유 오리지널 알라 크림치즈 바닐라 시럽 1.",
     "mainProducts": [
+      "매일 휘핑크림",
+      "알라 크림치즈",
       "매일 우유",
-      "알라 크림",
       "연유"
     ],
     "ingredients": [],
@@ -5971,7 +6131,7 @@
     "nameEn": "Pine Sunrise",
     "description": "ne Sunrise 달콤한 테너베이스 청포도에 향긋한 소나무향과 박하차가 더해져 깔끔하게 즐기는 티 에이드 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도"
     ],
     "ingredients": [],
     "steps": [],
@@ -5989,7 +6149,8 @@
     "nameEn": "Pine Mango Berry Blossom",
     "description": "과일주스 테너베이스 애플망고 패션후르츠 청 썬업 파인애플 크랜베리 주스 말리부 얼음 35g 50g 3oz 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 애플망고",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -6046,7 +6207,7 @@
     "nameEn": "Pear Veil Tea",
     "description": "제공잔에 얼음을 담아준 후 , 미리 만들어 둔 배 엘더 시나몬 베이스를 부어준다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 배&엘더플라워"
     ],
     "ingredients": [],
     "steps": [],
@@ -6086,8 +6247,9 @@
     "nameEn": "Flower Garden Ade",
     "description": "라데이션 베이스 얼음 식용 꽃 100g 500g 50g 70g 150g 70g 150g As needed 1.",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 복숭아",
+      "테너 과육플러스",
+      "테너 베이스 라임"
     ],
     "ingredients": [],
     "steps": [],
@@ -6108,7 +6270,7 @@
     "nameEn": "Plum Rooibos Tea",
     "description": "소개 테너베이스 자두 얼음 나타드 코코 70g 180ml 180g 30g 14oz 기준 ICE 사전 제조 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 자두"
     ],
     "ingredients": [],
     "steps": [],
@@ -6125,7 +6287,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "블렌더에 모든 재료를 넣고 갈아준다 .",
     "mainProducts": [
-      "상하목장 초콜릿믹스"
+      "상하목장 초콜릿믹스",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -6148,7 +6311,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "식이섬유와 베타글루칸이 풍부한 오트를 베이스로한 식물성밀크 ! 오트의 은은한 단맛과 부드러운 texture!",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -6171,7 +6335,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "식이섬유와 베타글루칸이 풍부한 오트를 베이스로한 식물성밀크 ! 오트의 은은한 단맛과 부드러운 texture!",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림"
     ],
     "ingredients": [],
     "steps": [],
@@ -6193,7 +6358,9 @@
     "name": "피넛버터 블렌디드",
     "nameEn": "Peanut Butter Blended",
     "description": "테너 카라멜 40g 220g 100g 70g 20g 1.",
-    "mainProducts": [],
+    "mainProducts": [
+      "테너 소스 카라멜"
+    ],
     "ingredients": [],
     "steps": [],
     "category": "블렌디드",
@@ -6231,7 +6398,8 @@
     "nameEn": "Peach Lemon Granita",
     "description": "더 볼에 얼음 , 테너베이스 레몬을 넣고 부드럽게 갈아준 다음 스텐 밀폐 용기에 담아 냉동보관하여 준비한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -6250,8 +6418,9 @@
     "nameEn": "Peach Lemon Blended",
     "description": "1ea 톡 쏘는 레몬과 풍부한 복숭아 과육이 조화로운 이색조합의 블렌디드 제안 원료 소개 메뉴 제조 소개 1.",
     "mainProducts": [
-      "테너 베이스",
-      "테너 과육플러스"
+      "테너 베이스 과육플러스 복숭아",
+      "테너 과육플러스",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -6271,7 +6440,8 @@
     "nameEn": "Peach Lemon Apple Sour",
     "description": "1. 제공잔에 테너베이스 복숭아 1pump 를 넣는다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -6291,7 +6461,9 @@
     "nameEn": "HOW TO MAKE",
     "description": "매력적인 테너 복숭아 베이스와 청량한 상큼함이 느껴지는 시트러스 과일 베이스를 베리에이션 한 에이드 메뉴 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 자몽",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -6311,7 +6483,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "dient ICE Recipe 14oz 기준 피치 머스켓 민트 티 Peach Muscat Mint Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -6331,7 +6504,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "Recipe 14oz 기준 피치 머스 켓 페퍼민트 티 Peach Muscat Peppermint Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -6351,7 +6525,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "gredient ICE Recipe 14oz 기준 피치 베리 로즈힙 Peach Berry Rose hip 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -6374,7 +6549,8 @@
     "nameEn": "Peach Berry Ice",
     "description": "달콤함이 매력적인 테너 복숭아 베이스와 청량한 상큼함이 느껴지는 딸기 베이스를 베리에이션 한 에이드 메뉴 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -6395,8 +6571,10 @@
     "nameEn": "Peach Berry Yogurt Blended",
     "description": "블렌디드 Peach Berry Yogurt Blended 상큼한 요거트와 달콤한 복숭아와 딸기의 베리에이션 .",
     "mainProducts": [
-      "상하목장 소프트믹스",
-      "테너 베이스"
+      "상하목장 소프트믹스 OM10",
+      "상하목장 유기농 우유",
+      "테너 베이스 복숭아",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -6418,7 +6596,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "ICE Recipe 14oz 기준 피치 베리 페퍼민트 티 Peach Berry Peppermint Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -6437,7 +6616,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "CE Recipe 14oz 기준 피치 셔벗 페퍼민트 티 Peach Sorbet Peppermint Tea 1.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 청포도",
+      "테너 베이스 복숭아"
     ],
     "ingredients": [],
     "steps": [],
@@ -6457,7 +6637,8 @@
     "nameEn": "Peach Orange Blossom",
     "description": "20g 15g 250g 1ea 1. 블렌더로 거칠게 갈은 크러쉬드 얼음 250g 을 제공 잔에 담는다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -6476,7 +6657,8 @@
     "nameEn": "Yogurt Peach Blended",
     "description": "렌더에 테너베이스 복숭아 , 바이오 스위트 플레인 , 바나나 , 얼음을 넣고 부드러운 상태로 갈아 완성한다 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 딸기"
     ],
     "ingredients": [],
     "steps": [],
@@ -6497,8 +6679,9 @@
     "nameEn": "HOW TO MAKE",
     "description": "dient ICE Recipe 14oz 기준 피치 우롱티 블렌드 Peach Oolong Tea Blend 1.",
     "mainProducts": [
-      "테너 베이스",
-      "알라 크림",
+      "테너 베이스 복숭아",
+      "테너 베이스 레몬",
+      "알라 크림치즈",
       "연유"
     ],
     "ingredients": [],
@@ -6521,7 +6704,7 @@
     "nameEn": "Peach Plum Ade",
     "description": "베이스 과육플러스 복숭아 자두베이스 탄산수 얼음 타임 30g 30g 125ml 140g As needed 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -6541,7 +6724,9 @@
     "nameEn": "HOW TO MAKE",
     "description": "매력적인 테너 복숭아 베이스와 청량한 상큼함이 느껴지는 시트러스 과일 베이스를 베리에이션 한 에이드 메뉴 .",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 자몽",
+      "테너 베이스 레몬"
     ],
     "ingredients": [],
     "steps": [],
@@ -6561,7 +6746,7 @@
     "nameEn": "Peach Hibiscus Tea Blended",
     "description": "이스 과육플러스 복숭아 물 얼음 히비스커스 티 타임 80g 150ml 250g 20ml As needed 1.",
     "mainProducts": [
-      "테너 베이스",
+      "테너 베이스 과육플러스 복숭아",
       "테너 과육플러스"
     ],
     "ingredients": [],
@@ -6582,7 +6767,8 @@
     "nameEn": "HOW TO MAKE",
     "description": "자몽 각 1pump 와 시럽 6g 을 넣는다 . 2.",
     "mainProducts": [
-      "테너 베이스"
+      "테너 베이스 복숭아",
+      "테너 베이스 자몽"
     ],
     "ingredients": [],
     "steps": [],
@@ -6656,7 +6842,7 @@
     "nameEn": "HOW TO MAKE",
     "description": "믹스 우유 호지차 파우더 얼음 에스프레소 80g 8 0g 25g 140g 2shot ICE 14oz 기준 1.",
     "mainProducts": [
-      "상하목장",
+      "상하목장 유기농 우유",
       "소프트믹스"
     ],
     "ingredients": [],
@@ -6678,7 +6864,7 @@
     "description": "어메이징 오트 바리스타 호지차 파우더 100g 25g 제안 제품 . R.",
     "mainProducts": [
       "어메이징 오트 바리스타",
-      "상하목장",
+      "상하목장 유기농 우유",
       "소프트믹스"
     ],
     "ingredients": [],
@@ -6743,6 +6929,8 @@
     "nameEn": "Sesame Black Latte",
     "description": "임자의 고소함에 카카오소스의 쌉쌀한 풍미를 더해 깊고 진한맛을 느낄 수 있는 흑임자라떼 16 OZ ICE 1.",
     "mainProducts": [
+      "테너 소스",
+      "매일 휘핑크림",
       "매일 우유",
       "연유"
     ],
@@ -6764,7 +6952,8 @@
     "nameEn": "Black Sesame Oat Cream Float",
     "description": "핀란드산 귀리의 고소하고 담백한 풍미를 담은 프리미엄 크림 .",
     "mainProducts": [
-      "어메이징 오트 바리스타"
+      "어메이징 오트 바리스타",
+      "매일 휘핑크림 비건오트"
     ],
     "ingredients": [],
     "steps": [],
@@ -6788,6 +6977,7 @@
     "description": "오트베이스에 부드럽게 휩을 올린 적당한 단맛의 흑임자 크림을 올린 뒤 쌉싸름한 에스프레소로 마무리 한 음료 .",
     "mainProducts": [
       "어메이징 오트 바리스타",
+      "매일 휘핑크림",
       "연유"
     ],
     "ingredients": [],
