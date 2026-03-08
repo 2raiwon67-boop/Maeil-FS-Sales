@@ -2643,6 +2643,7 @@
 
                 // 지도 배경 클릭 시 정보창 닫기
                 naver.maps.Event.addListener(naverMap, 'click', function (e) {
+                    if (window._markerClickedAt && Date.now() - window._markerClickedAt < 300) return;
                     if (currentInfoWindow) {
                         closeCurrentInfoWindow();
                     }
@@ -3136,6 +3137,7 @@
                 });
 
                 naver.maps.Event.addListener(marker, 'click', function (e) {
+                    window._markerClickedAt = Date.now();
                     if (window.innerWidth <= 768) {
                         if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
                     } else {
@@ -3474,6 +3476,7 @@
 
                     // 클릭 시 미니 CRM 및 InfoWindow 연동 (모바일은 바텀시트)
                     naver.maps.Event.addListener(marker, 'click', function (e) {
+                        window._markerClickedAt = Date.now();
                         if (window.innerWidth <= 768) {
                             if (typeof openBottomSheet === 'function') {
                                 // 거래처용 아이템 객체 생성 (기존 InfoWindow 표시용 데이터를 모아 전달)

@@ -243,6 +243,7 @@ body.loaded {
     }
 
     .mob-profile-popup.open {
+        display: block;
         transform: translateY(0) scale(1);
         opacity: 1;
         pointer-events: auto;
