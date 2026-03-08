@@ -1971,7 +1971,6 @@
         let currentFilter = 'all';
         let currentRegion = null;
         let currentManager = null;
-        let currentAITag = null;       // AI 태그 필터 (Proposal 3)
         let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
 
         // ── 주요거래처 전용 ──
@@ -2967,50 +2966,85 @@
                     return `<div class="filter-item${active}" onclick="setManagerFilter('${m}')"><span class="filter-item-name">${m}</span><span class="filter-item-count">${c}</span></div>`;
                 }).join('');
 
-            // AI 태그 리스트 조립 (항목 분리 및 빈도수 계산)
-            const aiTagCounts = {};
-            filteredData.forEach(item => {
-                const tagsRaw = item['AI_핵심태그'] || '';
-                if (tagsRaw.trim() !== '') {
-                    // 콤마로 분리하고 양옆 공백 제거
-                    const tags = tagsRaw.split(',').map(t => t.trim()).filter(t => t.length > 0);
-                    tags.forEach(t => {
-                        aiTagCounts[t] = (aiTagCounts[t] || 0) + 1;
-                    });
-                }
-            });
-
-            // "전체 보기" 옵션을 맨 위에 고정
-            let aiTagHtml = `<div class="dropdown-item" onclick="setAITagFilter(null)" style="${!currentAITag ? 'background: #e3f2fd; font-weight: 600;' : ''}"><span class="dropdown-item-name">전체 보기</span></div>`;
-
-            aiTagHtml += Object.entries(aiTagCounts)
-                .sort((a, b) => b[1] - a[1]) // 빈도수 높은 순
-                .map(([tag, count]) => {
-                    const isActive = currentAITag === tag ? ' style="background: #e3f2fd; font-weight: 600;"' : '';
-                    return `<div class="dropdown-item" onclick="setAITagFilter('${tag}')"${isActive}><span class="dropdown-item-name">#${tag}</span><span class="dropdown-item-count">${count}건</span></div>`;
-                }).join('');
-
-            // DOM 요소가 존재할 경우에만 업데이트
-            const aiTagListElem = document.getElementById('aiTagList');
-            if (aiTagListElem) {
-                aiTagListElem.innerHTML = aiTagHtml;
-            }
             updateDashboardCharts();
-        }
-
-        function setAITagFilter(tag) {
-            if (currentAITag === tag) {
-                currentAITag = null; // 같은 태그 클릭 시 해제
-            } else {
-                currentAITag = tag;
-            }
-            updateDashboard();
-            updateMap(); // 마커 필터링 및 지도 업데이트
         }
 
         // ============================================================
         // 지도 업데이트 — 마커 재사용
         // ============================================================
+
+        const _markerColorMap = {
+            '거래': '#007AFF',
+            '미거래': '#FF3B30',
+            '인허가': '#34C759',
+            '공사중': '#FF9500'
+            // DROP은 마커 없음
+        };
+
+        /** 상태와 item 기반으로 마커 아이콘 객체를 생성합니다. */
+        function _buildMarkerIcon(status, item) {
+            const color = _markerColorMap[status];
+            if (!color) return null;
+            let isOldPermit = false;
+            if (status === '인허가' || status === '') {
+                const dateStr = (item['영업 허가일'] || '').replace(/-/g, '');
+                if (dateStr.length === 8) {
+                    const permitDate = new Date(
+                        parseInt(dateStr.substring(0, 4)),
+                        parseInt(dateStr.substring(4, 6)) - 1,
+                        parseInt(dateStr.substring(6, 8))
+                    );
+                    if (Math.ceil(Math.abs(new Date() - permitDate) / 86400000) >= 14) isOldPermit = true;
+                }
+            }
+            const glowClass = isOldPermit ? 'marker-glow' : '';
+            return {
+                content: `<div class="${glowClass}" style="width:16px;height:16px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+                anchor: new naver.maps.Point(8, 8)
+            };
+        }
+
+        /** item 하나에 대한 마커를 생성해 반환합니다. allMarkers에는 추가하지 않습니다. */
+        function _createSingleMarker(item) {
+            if (!item['위도'] || !item['경도']) return null;
+            try {
+                const lat = parseFloat(item['위도']);
+                const lng = parseFloat(item['경도']);
+                if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return null;
+
+                const status = (item['거래여부(기입예정)'] || '').toString().trim();
+                const icon = _buildMarkerIcon(status, item);
+                if (!icon) return null; // DROP 등
+
+                const marker = new naver.maps.Marker({
+                    position: new naver.maps.LatLng(lat, lng),
+                    map: null,
+                    icon
+                });
+
+                naver.maps.Event.addListener(marker, 'click', function (e) {
+                    if (window.innerWidth <= 768) {
+                        if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
+                    } else {
+                        if (currentInfoWindow) currentInfoWindow.close();
+                        const iw = new naver.maps.InfoWindow({
+                            content: createInfoWindowContent(item),
+                            backgroundColor: 'transparent', borderColor: 'transparent',
+                            anchorSkew: true, pixelOffset: new naver.maps.Point(0, -10)
+                        });
+                        iw.open(naverMap, marker);
+                        currentInfoWindow = iw;
+                    }
+                });
+
+                marker._item    = item;
+                marker._status  = status;
+                marker._rank    = item['순위'] || '';
+                marker._region  = (item['주소2'] || '기타').trim();
+                marker._manager = (item['담당자'] || '미지정').trim();
+                return marker;
+            } catch (e) { return null; }
+        }
 
         /**
          * initAllMarkers() — 전체 allData 마커를 최초 1회 생성합니다.
@@ -3019,81 +3053,44 @@
         function initAllMarkers() {
             if (!naverMap) return;
 
-            // 기존 마커 전수 제거
             allMarkers.forEach(m => m.setMap(null));
             allMarkers = [];
             markers = [];
 
-            const colorMap = {
-                '거래': '#007AFF',
-                '미거래': '#FF3B30',
-                '인허가': '#34C759',
-                '공사중': '#FF9500',
-                'DROP': null // DROP은 수집만, 무조건 표시 안 함
-            };
-
             allData.forEach(item => {
-                if (!item['위도'] || !item['경도']) return;
-                try {
-                    const lat = parseFloat(item['위도']);
-                    const lng = parseFloat(item['경도']);
-                    if (isNaN(lat) || isNaN(lng) || lat === 0 || lng === 0) return;
-
-                    const status = (item['거래여부(기입예정)'] || '').toString().trim();
-                    const color = colorMap[status];
-                    if (!color) return; // DROP 등 컴러가 없으면 스킵
-
-                    // 14일 경과 인허가 글로우
-                    let isOldPermit = false;
-                    if (status === '인허가' || status === '') {
-                        const dateStr = (item['영업 허가일'] || '').replace(/-/g, '');
-                        if (dateStr.length === 8) {
-                            const permitDate = new Date(
-                                parseInt(dateStr.substring(0, 4)),
-                                parseInt(dateStr.substring(4, 6)) - 1,
-                                parseInt(dateStr.substring(6, 8))
-                            );
-                            if (Math.ceil(Math.abs(new Date() - permitDate) / 86400000) >= 14) isOldPermit = true;
-                        }
-                    }
-
-                    const pos = new naver.maps.LatLng(lat, lng);
-                    const glowClass = isOldPermit ? 'marker-glow' : '';
-                    const marker = new naver.maps.Marker({
-                        position: pos,
-                        map: null, // 초기에는 숨김; filterMarkers가 표시 결정
-                        icon: {
-                            content: `<div class="${glowClass}" style="width:16px;height:16px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
-                            anchor: new naver.maps.Point(8, 8)
-                        }
-                    });
-
-                    // 클릭 이벤트 (item 클로저 유지)
-                    naver.maps.Event.addListener(marker, 'click', function (e) {
-                        if (window.innerWidth <= 768) {
-                            if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
-                        } else {
-                            if (currentInfoWindow) currentInfoWindow.close();
-                            const iw = new naver.maps.InfoWindow({
-                                content: createInfoWindowContent(item),
-                                backgroundColor: 'transparent', borderColor: 'transparent',
-                                anchorSkew: true, pixelOffset: new naver.maps.Point(0, -10)
-                            });
-                            iw.open(naverMap, marker);
-                            currentInfoWindow = iw;
-                        }
-                    });
-
-                    // 필터용 메타 데이터 저장
-                    marker._status = status;
-                    marker._rank = item['순위'] || '';
-                    marker._region = (item['주소2'] || '기타').trim();
-                    marker._manager = (item['담당자'] || '미지정').trim();
-                    marker._aiTags = item['AI_핵심태그'] || '';
-
-                    allMarkers.push(marker);
-                } catch (e) { }
+                const marker = _createSingleMarker(item);
+                if (marker) allMarkers.push(marker);
             });
+
+            filterMarkers();
+        }
+
+        /**
+         * refreshMarkerForItem() — 거래상태 변경 시 해당 마커만 갱신합니다.
+         * - DROP 전환: 기존 마커 제거
+         * - DROP → 활성: 신규 마커 생성
+         * - 활성 간 전환: 아이콘 색상 및 _status 업데이트
+         */
+        function refreshMarkerForItem(item) {
+            const newStatus = (item['거래여부(기입예정)'] || '').toString().trim();
+            const newIcon = _buildMarkerIcon(newStatus, item);
+            const idx = allMarkers.findIndex(m => m._item === item);
+
+            if (!newIcon) {
+                // DROP → 마커 제거
+                if (idx !== -1) {
+                    allMarkers[idx].setMap(null);
+                    allMarkers.splice(idx, 1);
+                }
+            } else if (idx !== -1) {
+                // 기존 마커 갱신
+                allMarkers[idx]._status = newStatus;
+                allMarkers[idx].setIcon(newIcon);
+            } else {
+                // DROP → 활성 전환: 신규 마커 생성
+                const marker = _createSingleMarker(item);
+                if (marker) allMarkers.push(marker);
+            }
 
             filterMarkers();
         }
@@ -3130,10 +3127,6 @@
                 }
                 // 담당자 필터
                 if (currentManager && marker._manager !== currentManager) {
-                    marker.setMap(null); return;
-                }
-                // AI 태그 필터
-                if (currentAITag && !marker._aiTags.includes(currentAITag)) {
                     marker.setMap(null); return;
                 }
                 // 모바일 레이어 필터
@@ -3175,10 +3168,6 @@
                 }
                 // 공통 담당자 필터
                 if (currentManager && (marker._managerName || '').trim() !== currentManager) {
-                    marker.setMap(null); return;
-                }
-                // 공통 AI 태그 필터
-                if (currentAITag && !(marker._aiTags || '').includes(currentAITag)) {
                     marker.setMap(null); return;
                 }
                 // 모바일 레이어 필터
@@ -3464,7 +3453,6 @@
                     marker._dealStatus = dealStatus; // 필터용 상태 저장
                     marker._region = (account['주소2'] || '').trim(); // 지역별 필터용
                     marker._managerName = account['담당자명'] || account['담당자'] || '미지정'; // 담당자별 필터용
-                    marker._aiTags = account['AI_핵심태그'] || ''; // AI 태그 필터용
                     marker._name = name; // 루트 최적화용
                     marker._address = address; // 루트 최적화용
                     marker._lat = coords.lat; // 루트 최적화용
@@ -4078,7 +4066,7 @@
 
                 // UI 및 대시보드 새로고침
                 updateDashboard();
-                initAllMarkers();
+                if (item) refreshMarkerForItem(item); else initAllMarkers();
 
             } catch (err) {
                 console.error('업데이트 실패:', err);
