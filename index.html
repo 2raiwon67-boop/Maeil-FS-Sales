@@ -643,14 +643,9 @@
                 display: none !important;
             }
 
-            /* 메인 레이아웃 — position:fixed 로 상단 빈 공간 제거, 하단 탭 바 공간 확보 */
+            /* 메인 레이아웃 — 하단 탭 바 공간 확보 (position:fixed 제거 → iOS 터치 이벤트 호환) */
             .main-layout {
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: calc(60px + env(safe-area-inset-bottom));
-                height: auto;
+                height: calc(100vh - 60px - env(safe-area-inset-bottom));
             }
 
             /* 기본엔 숨김 (지도 모드) */
