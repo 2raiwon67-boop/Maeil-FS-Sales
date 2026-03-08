@@ -4069,6 +4069,7 @@
             const address = item['도로명전체주소'] || '-';
             const dealStatus = item['거래여부(기입예정)'] || '인허가';
             const permitDate = item['영업 허가일'] || '-';
+            const milkType = item['사용우유'] || '';
             const lat = parseFloat(item['위도']) || 0;
             const lng = parseFloat(item['경도']) || 0;
 
@@ -4100,18 +4101,33 @@
                             <span class="info-label">담당자:</span>
                             <span class="info-value" style="font-weight: 600; color: #555;">${item['담당자'] || '-'}</span>
                         </div>
-                        <div style="margin-top: 15px;">
-                            <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">상태 변경</span>
-                            <select class="status-select"
-                                    style="background:${_STATUS_COLORS[dealStatus]||'#8e8e93'};border-color:${_STATUS_COLORS[dealStatus]||'#8e8e93'};"
-                                    data-name="${name.replace(/"/g,'&quot;')}"
-                                    data-address="${address.replace(/"/g,'&quot;')}"
-                                    data-prev="${dealStatus}"
-                                    onchange="updateDealStatusSelect(this)">
-                                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
-                                    `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
-                                ).join('')}
-                            </select>
+                        <div style="margin-top: 15px; display:flex; gap:8px; align-items:flex-end;">
+                            <div style="flex:1;">
+                                <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">상태 변경</span>
+                                <select class="status-select"
+                                        style="background:${_STATUS_COLORS[dealStatus]||'#8e8e93'};border-color:${_STATUS_COLORS[dealStatus]||'#8e8e93'};"
+                                        data-name="${name.replace(/"/g,'&quot;')}"
+                                        data-address="${address.replace(/"/g,'&quot;')}"
+                                        data-prev="${dealStatus}"
+                                        onchange="updateDealStatusSelect(this)">
+                                    ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
+                                        `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
+                            <div style="flex:1;">
+                                <span style="font-size: 11px; color: #86868b; margin-bottom: 6px; display: block; font-weight: 600;">사용우유</span>
+                                <select class="status-select"
+                                        style="background:#5856d6;border-color:#5856d6;"
+                                        data-name="${name.replace(/"/g,'&quot;')}"
+                                        data-address="${address.replace(/"/g,'&quot;')}"
+                                        onchange="updateMilkTypeSelect(this)">
+                                    <option value="" ${!milkType ? 'selected' : ''}>미입력</option>
+                                    ${['매일', '서울', '남양', '연세', '동원', '빙그레', '기타'].map(m =>
+                                        `<option value="${m}" ${milkType === m ? 'selected' : ''}>${m}</option>`
+                                    ).join('')}
+                                </select>
+                            </div>
                         </div>
                         <div class="info-row" style="margin-top: 12px;">
                             <span class="info-label">허가일:</span>
@@ -4208,6 +4224,32 @@
             }
         }
 
+        // InfoWindow 용 사용우유 업데이트
+        async function updateMilkTypeSelect(selectElement) {
+            const name    = selectElement.dataset.name;
+            const address = selectElement.dataset.address;
+            const newMilk = selectElement.value;
+            selectElement.disabled = true;
+            try {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
+                const { error } = await client
+                    .from('licenses')
+                    .update({ milk_type: newMilk || null })
+                    .eq('business_name', name)
+                    .eq('road_address', address)
+                    .eq('business_unit', businessUnit);
+                if (error) throw new Error(error.message);
+                const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
+                if (item) item['사용우유'] = newMilk;
+            } catch (err) {
+                console.error('사용우유 업데이트 실패:', err);
+                alert(`❌ 사용우유 변경 실패\n\n${err.message}`);
+            } finally {
+                selectElement.disabled = false;
+            }
+        }
+
         // BottomSheet 용 (_sheetCurrentItem 에서 이름/주소 읽음)
         let _sheetCurrentItem = null;
         async function updateDealStatusSelectSheet(selectElement) {
@@ -4241,6 +4283,34 @@
                 selectElement.value = prevStatus;
                 _applyStatusSelectColor(selectElement, prevStatus);
                 alert(`❌ 상태 변경 실패\n\n${err.message}`);
+            } finally {
+                selectElement.disabled = false;
+            }
+        }
+
+        // BottomSheet 용 사용우유 업데이트
+        async function updateMilkTypeSelectSheet(selectElement) {
+            if (!_sheetCurrentItem) return;
+            const name    = _sheetCurrentItem['사업장명'];
+            const address = _sheetCurrentItem['도로명전체주소'];
+            const newMilk = selectElement.value;
+            selectElement.disabled = true;
+            try {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
+                const { error } = await client
+                    .from('licenses')
+                    .update({ milk_type: newMilk || null })
+                    .eq('business_name', name)
+                    .eq('road_address', address)
+                    .eq('business_unit', businessUnit);
+                if (error) throw new Error(error.message);
+                const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
+                if (item) item['사용우유'] = newMilk;
+                if (_sheetCurrentItem) _sheetCurrentItem['사용우유'] = newMilk;
+            } catch (err) {
+                console.error('사용우유 업데이트 실패:', err);
+                alert(`❌ 사용우유 변경 실패\n\n${err.message}`);
             } finally {
                 selectElement.disabled = false;
             }
@@ -4348,7 +4418,7 @@
             </div>
             <div style="margin-top: 20px;">
                 <span class="info-label" style="display:block; margin-bottom:8px;">상태 변경</span>
-                <div id="sheetStatusGroup"></div>
+                <div id="sheetStatusGroup" style="margin-bottom:0;"></div>
             </div>
             <div id="sheetActionBtns"></div>
             <button class="btn btn-secondary" style="width:100%; margin-top:10px;"
@@ -4396,15 +4466,32 @@
             const statusGroup = document.getElementById('sheetStatusGroup');
             const dealStatus = item['거래여부(기입예정)'] || '인허가';
             const initColor = _STATUS_COLORS[dealStatus] || '#8e8e93';
+            const sheetMilkType = item['사용우유'] || '';
 
-            statusGroup.innerHTML = `<select class="status-select"
-                style="background:${initColor};border-color:${initColor};"
-                data-prev="${dealStatus}"
-                onchange="updateDealStatusSelectSheet(this)">
-                ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
-                    `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
-                ).join('')}
-            </select>`;
+            statusGroup.innerHTML = `
+                <div style="display:flex;gap:8px;align-items:flex-end;">
+                    <div style="flex:1;">
+                        <select class="status-select"
+                            style="background:${initColor};border-color:${initColor};"
+                            data-prev="${dealStatus}"
+                            onchange="updateDealStatusSelectSheet(this)">
+                            ${['인허가', '공사중', '거래', '미거래', 'DROP'].map(s =>
+                                `<option value="${s}" ${dealStatus === s ? 'selected' : ''}>${s}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div style="flex:1;">
+                        <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:6px;">사용우유</span>
+                        <select class="status-select"
+                            style="background:#5856d6;border-color:#5856d6;"
+                            onchange="updateMilkTypeSelectSheet(this)">
+                            <option value="" ${!sheetMilkType ? 'selected' : ''}>미입력</option>
+                            ${['매일', '서울', '남양', '연세', '동원', '빙그레', '기타'].map(m =>
+                                `<option value="${m}" ${sheetMilkType === m ? 'selected' : ''}>${m}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                </div>`;
 
             // 네이버 지도 / 동선 최적화 버튼
             const sheetActionBtns = document.getElementById('sheetActionBtns');
