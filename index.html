@@ -2982,24 +2982,14 @@
             ];
             const statusEl = document.getElementById('statusDropdownList');
             if (statusEl) {
-                const rank1Count = filteredData.filter(d => d['순위'] === '1').length;
-                statusEl.innerHTML = [
-                    ..._statusItems.map(item => {
-                        const cnt = filteredData.filter(d => d['거래여부(기입예정)'] === item.key).length;
-                        const active = window.currentDealStatusFilter === item.key ? ' active' : '';
-                        return `<div class="dropdown-item${active}" onclick="filterByStatus('${item.key}')">
-                            <span class="dropdown-item-name"><span class="status-dot" style="background:${item.color};"></span>${item.label}</span>
-                            <span class="dropdown-item-count">${cnt}</span>
-                        </div>`;
-                    }),
-                    (() => {
-                        const active = currentFilter === '1' ? ' active' : '';
-                        return `<div class="dropdown-item${active}" onclick="filterByRank('1')">
-                            <span class="dropdown-item-name"><span class="status-dot" style="background:#ff3b30;"></span>인허가 1순위</span>
-                            <span class="dropdown-item-count">${rank1Count}</span>
-                        </div>`;
-                    })()
-                ].join('');
+                statusEl.innerHTML = _statusItems.map(item => {
+                    const cnt = filteredData.filter(d => d['거래여부(기입예정)'] === item.key).length;
+                    const active = window.currentDealStatusFilter === item.key ? ' active' : '';
+                    return `<div class="dropdown-item${active}" onclick="filterByStatus('${item.key}')">
+                        <span class="dropdown-item-name"><span class="status-dot" style="background:${item.color};"></span>${item.label}</span>
+                        <span class="dropdown-item-count">${cnt}</span>
+                    </div>`;
+                }).join('');
             }
 
             // ── 주요거래처 드롭다운 렌더링 ──
