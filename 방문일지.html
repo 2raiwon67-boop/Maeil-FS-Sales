@@ -24,9 +24,14 @@
 
     <link rel="stylesheet" href="common.css">
     <style>
+        /* AI 브리핑 스켈레톤 (다크 배경용) */
+        #aiBriefingLoading .skeleton {
+            background: linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%);
+            background-size: 200% 100%;
+            animation: miso-shimmer 1.4s ease infinite;
+        }
+
         /* 로딩 오버레이 */
-
-
         .loading-spinner {
             width: 48px;
             height: 48px;
@@ -1133,6 +1138,22 @@
                 <h2 id="timelineTitle">방문 타임라인</h2>
                 <button class="close-btn" onclick="closeTimelineModal()">&times;</button>
             </div>
+            <!-- AI 브리핑 섹션 -->
+            <div id="aiBriefingSection" style="display:none; margin: 0 0 20px 0; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.3);">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                    <span style="font-size: 13px; font-weight: 700; color: #4da3ff; letter-spacing: 0.5px;">✦ AI 브리핑</span>
+                    <span id="aiBriefingBadge" style="display:none; font-size: 10px; color: #4da3ff; background: rgba(77,163,255,0.12); padding: 2px 8px; border-radius: 20px; border: 1px solid rgba(77,163,255,0.2);">캐시됨</span>
+                </div>
+                <div id="aiBriefingContent" style="font-size: 14px; color: #e8f0fe; line-height: 1.7; white-space: pre-wrap;"></div>
+            </div>
+            <div id="aiBriefingLoading" style="display:none; margin: 0 0 20px 0; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.2);">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
+                    <span style="font-size: 13px; font-weight: 700; color: #4da3ff;">✦ AI 브리핑 생성 중...</span>
+                </div>
+                <div class="skeleton" style="height: 14px; border-radius: 6px; margin-bottom: 8px; width: 90%;"></div>
+                <div class="skeleton" style="height: 14px; border-radius: 6px; margin-bottom: 8px; width: 75%;"></div>
+                <div class="skeleton" style="height: 14px; border-radius: 6px; width: 82%;"></div>
+            </div>
             <div id="timelineContent"></div>
         </div>
     </div>
@@ -1706,6 +1727,12 @@
 
             title.textContent = `${account.accountName} - 방문 타임라인`;
 
+            // AI 브리핑 초기화 & 로딩 시작
+            document.getElementById('aiBriefingSection').style.display = 'none';
+            document.getElementById('aiBriefingLoading').style.display = 'block';
+            document.getElementById('aiBriefingBadge').style.display = 'none';
+            loadAiBriefing(account);
+
             // 타임라인 HTML 생성
             const timelineHTML = `
                 <div class="timeline">
@@ -1761,6 +1788,42 @@
 
             content.innerHTML = timelineHTML;
             modal.classList.add('active');
+        }
+
+        async function loadAiBriefing(account) {
+            try {
+                const visits = account.visits.map(v => ({
+                    date: v.date || '',
+                    content: v.fullData?.['내용'] || '',
+                    manager: v.manager || '',
+                    status: v.status || ''
+                }));
+
+                const businessUnit = await getBusinessUnitForVisit();
+
+                const res = await fetch('/api/generate-briefing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        accountName: account.accountName,
+                        businessUnit: businessUnit || null,
+                        visits
+                    })
+                });
+
+                if (!res.ok) throw new Error('브리핑 API 오류');
+                const data = await res.json();
+
+                document.getElementById('aiBriefingLoading').style.display = 'none';
+                document.getElementById('aiBriefingContent').textContent = data.briefing || '';
+                document.getElementById('aiBriefingSection').style.display = 'block';
+                if (data.cached) {
+                    document.getElementById('aiBriefingBadge').style.display = 'inline';
+                }
+            } catch (e) {
+                // 실패 시 조용히 숨김 (타임라인은 정상 표시)
+                document.getElementById('aiBriefingLoading').style.display = 'none';
+            }
         }
 
         function closeTimelineModal() {
