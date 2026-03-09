@@ -52,13 +52,17 @@ export default async function handler(req, res) {
 
     // ── 3. 기존 캐시 확인 ──
     const cacheRes = await fetch(
-        `${SUPABASE_URL}/rest/v1/ai_briefings?select=account_name,business_unit,last_visit_date`,
+        `${SUPABASE_URL}/rest/v1/ai_briefings?select=account_name,business_unit,last_visit_date,visit_count,generated_at`,
         { headers: sbHeaders }
     );
     const cacheData = await cacheRes.json();
     const cacheMap = new Map(
         (Array.isArray(cacheData) ? cacheData : [])
-            .map(c => [`${c.account_name}__${c.business_unit || ''}`, c.last_visit_date])
+            .map(c => [`${c.account_name}__${c.business_unit || ''}`, {
+                last_visit_date: c.last_visit_date,
+                visit_count: c.visit_count || 0,
+                generated_at: c.generated_at
+            }])
     );
 
     // ── 4. 각 거래처의 전체 방문 기록 조회 & 갱신 필요 여부 판단 ──
@@ -82,10 +86,18 @@ export default async function handler(req, res) {
         if (!Array.isArray(allLogs) || allLogs.length === 0) continue;
 
         const lastVisitDate = allLogs[0].visit_date;
-        const cachedDate = cacheMap.get(key);
+        const cache = cacheMap.get(key);
 
-        // 캐시가 없거나 최신 방문일이 다르면 처리 대상
-        if (lastVisitDate !== cachedDate) {
+        // 캐시 없음 → 처리
+        if (!cache) {
+            toProcess.push({ accountName, businessUnit: businessUnit || null, visits: allLogs, lastVisitDate });
+            continue;
+        }
+
+        // 새 방문 2건 이상 OR 마지막 생성 7일 이상 경과 → 재생성
+        const newVisits = allLogs.length - cache.visit_count;
+        const daysSince = (Date.now() - new Date(cache.generated_at).getTime()) / 86400000;
+        if (newVisits >= 2 || daysSince >= 7) {
             toProcess.push({ accountName, businessUnit: businessUnit || null, visits: allLogs, lastVisitDate });
         }
     }

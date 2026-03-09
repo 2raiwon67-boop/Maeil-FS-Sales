@@ -57,14 +57,19 @@ export default async function handler(req, res) {
 
     try {
         const cacheRes = await fetch(
-            `${SUPABASE_URL}/rest/v1/ai_briefings?account_name=eq.${encodeURIComponent(accountName)}${buFilter}&select=briefing,last_visit_date&limit=1`,
+            `${SUPABASE_URL}/rest/v1/ai_briefings?account_name=eq.${encodeURIComponent(accountName)}${buFilter}&select=briefing,last_visit_date,visit_count,generated_at&limit=1`,
             { headers: sbHeaders }
         );
         const cacheData = await cacheRes.json();
         const cached = Array.isArray(cacheData) ? cacheData[0] : null;
 
-        if (cached && cached.last_visit_date === lastVisitDate) {
-            return res.status(200).json({ briefing: cached.briefing, cached: true });
+        if (cached) {
+            const newVisits = visits.length - (cached.visit_count || 0);
+            const daysSince = (Date.now() - new Date(cached.generated_at).getTime()) / 86400000;
+            // 새 방문 2건 미만이고 7일 이내면 캐시 반환
+            if (newVisits < 2 && daysSince < 7) {
+                return res.status(200).json({ briefing: cached.briefing, cached: true });
+            }
         }
 
         // ── 2. Gemini 호출 (최근 10회) ──

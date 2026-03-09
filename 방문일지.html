@@ -1952,7 +1952,7 @@
                     allVisits.push({
                         accountName: account.accountName,
                         manager: visit.manager || '',
-                        content: content.substring(0, 200), // 토큰 절감: 200자 제한
+                        content: content,
                         visitDate: visit.date || ''
                     });
                 });
@@ -1962,6 +1962,20 @@
                 todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">이번 달 방문일지가 없습니다.</div>`;
                 return;
             }
+
+            // ── localStorage 당일 캐시 확인 ──
+            const _todayStr = `${thisYear}-${String(thisMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const _buTag = (await getBusinessUnitForVisit()) || 'default';
+            const _cacheKey = `miso_todo_${_buTag}_${_todayStr}`;
+            try {
+                const _cached = JSON.parse(localStorage.getItem(_cacheKey) || 'null');
+                if (_cached && Array.isArray(_cached.all)) {
+                    cachedTodoItemsAll = _cached.all;
+                    cachedTodoItems = _cached.all.filter(item => item.manager === currentUserFullName);
+                    renderTodos();
+                    return;
+                }
+            } catch (_e) {}
 
             // ── 로딩 표시 ──
             todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">🤖 AI가 이번 달 방문일지를 분석 중입니다...</div>`;
@@ -2040,6 +2054,18 @@ ${visitLines}`;
                 });
 
                 renderTodos();
+
+                // ── localStorage 저장 (당일 캐시) ──
+                try {
+                    localStorage.setItem(_cacheKey, JSON.stringify({ date: _todayStr, all: cachedTodoItemsAll }));
+                    // 7일 이상 된 캐시 자동 정리
+                    const _cutoff = new Date(now);
+                    _cutoff.setDate(_cutoff.getDate() - 7);
+                    const _cutoffStr = _cutoff.toISOString().split('T')[0];
+                    Object.keys(localStorage)
+                        .filter(k => k.startsWith('miso_todo_'))
+                        .forEach(k => { if (k.split('_').slice(-1)[0] < _cutoffStr) localStorage.removeItem(k); });
+                } catch (_e) {}
 
             } catch (e) {
                 console.error('[TO-DO AI]', e);

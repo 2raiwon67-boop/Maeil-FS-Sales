@@ -152,6 +152,61 @@ export default async function handler(req, res) {
             }
         }
 
+        // ── Gemini 분석 결과 캐시 확인 (7일, 새 리뷰 2건 미만 조건) ──
+        // store_analysis_cache 테이블 생성 SQL (최초 1회):
+        // CREATE TABLE store_analysis_cache (
+        //   id BIGSERIAL PRIMARY KEY,
+        //   store_name TEXT NOT NULL UNIQUE,
+        //   analysis JSONB NOT NULL,
+        //   review_count INT DEFAULT 0,
+        //   cached_at TIMESTAMPTZ DEFAULT NOW()
+        // );
+        let analysisCacheHit = false;
+        let cachedAnalysis = null;
+        const newReviewCount = isIncrementalUpdate ? filteredBlogItems.length : (blogData.items || []).length;
+
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+            try {
+                const acRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/store_analysis_cache?store_name=eq.${encodeURIComponent(storeName.trim())}&select=analysis,review_count,cached_at&limit=1`,
+                    { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` } }
+                );
+                if (acRes.ok) {
+                    const rows = await acRes.json();
+                    if (Array.isArray(rows) && rows.length > 0) {
+                        const row = rows[0];
+                        const ageMs = Date.now() - new Date(row.cached_at).getTime();
+                        const daysSince = ageMs / 86400000;
+                        const reviewDiff = newReviewCount - (row.review_count || 0);
+                        // 7일 이내 AND 새 리뷰 2건 미만이면 캐시 반환
+                        if (daysSince < 7 && reviewDiff < 2) {
+                            cachedAnalysis = row.analysis;
+                            analysisCacheHit = true;
+                        }
+                    }
+                }
+            } catch (_e) {}
+        }
+
+        if (analysisCacheHit && cachedAnalysis) {
+            const products = (productDB || []);
+            const recommendedItems = (cachedAnalysis.recommendedIndices || [])
+                .filter(i => i >= 0 && i < products.length)
+                .map(i => products[i]);
+            return res.status(200).json({
+                success: true,
+                cached: true,
+                tags: cachedAnalysis.tags || [],
+                description: cachedAnalysis.description || '',
+                items: recommendedItems,
+                signatureMenus: cachedAnalysis.signatureMenus || [],
+                reviewLinks: (blogData.items || []).map(i => i.link),
+                isUpdate: isIncrementalUpdate,
+                recipeMatched: 0,
+                naverInfo: { localResults: localSummary?.length || 0, blogResults: newReviewCount, newReviews: newReviewCount }
+            });
+        }
+
         // ── 2. HTML 태그 제거 및 데이터 정리 ──
         const stripHtml = (str) => str ? str.replace(/<[^>]*>/g, '') : '';
 
@@ -404,6 +459,27 @@ ${productList}
             .filter(i => i >= 0 && i < products.length)
             .map(i => products[i]);
 
+        // ── Gemini 분석 결과 캐시 저장 ──
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/store_analysis_cache`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Prefer': 'resolution=merge-duplicates'
+                    },
+                    body: JSON.stringify({
+                        store_name: storeName.trim(),
+                        analysis,
+                        review_count: newReviewCount,
+                        cached_at: new Date().toISOString()
+                    })
+                });
+            } catch (_e) {}
+        }
+
         return res.status(200).json({
             success: true,
             tags: analysis.tags || [],
@@ -412,7 +488,7 @@ ${productList}
             signatureMenus: analysis.signatureMenus || [],
             reviewLinks: currentReviewLinks,
             isUpdate: isIncrementalUpdate,
-            recipeMatched: recipeMatchCount,   // RAG 작동 여부 확인용 (0이면 미작동)
+            recipeMatched: recipeMatchCount,
             naverInfo: {
                 localResults: localSummary.length,
                 blogResults: blogSummary.length,
