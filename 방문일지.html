@@ -1966,7 +1966,7 @@
             // ── localStorage 당일 캐시 확인 ──
             const _todayStr = `${thisYear}-${String(thisMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const _buTag = (await getBusinessUnitForVisit()) || 'default';
-            const _cacheKey = `miso_todo_${_buTag}_${_todayStr}`;
+            const _cacheKey = `miso_todo_${_buTag}_${_todayStr}_v${allVisits.length}`;
             try {
                 const _cached = JSON.parse(localStorage.getItem(_cacheKey) || 'null');
                 if (_cached && Array.isArray(_cached.all)) {
@@ -2064,7 +2064,11 @@ ${visitLines}`;
                     const _cutoffStr = _cutoff.toISOString().split('T')[0];
                     Object.keys(localStorage)
                         .filter(k => k.startsWith('miso_todo_'))
-                        .forEach(k => { if (k.split('_').slice(-1)[0] < _cutoffStr) localStorage.removeItem(k); });
+                        .forEach(k => {
+                            // 키 형식: miso_todo_{bu}_{YYYY-MM-DD}_v{n}
+                            const dateMatch = k.match(/(\d{4}-\d{2}-\d{2})/);
+                            if (dateMatch && dateMatch[1] < _cutoffStr) localStorage.removeItem(k);
+                        });
                 } catch (_e) {}
 
             } catch (e) {

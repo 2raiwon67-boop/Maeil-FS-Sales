@@ -94,10 +94,11 @@ export default async function handler(req, res) {
             continue;
         }
 
-        // 새 방문 2건 이상 OR 마지막 생성 7일 이상 경과 → 재생성
-        const newVisits = allLogs.length - cache.visit_count;
+        // 새 방문일지 있음 OR 마지막 생성 7일 이상 경과 → 재생성
+        // (allLogs가 limit=10이므로 visit_count 숫자 비교는 신뢰 불가 → 날짜 비교)
+        const hasNewVisit = lastVisitDate !== cache.last_visit_date;
         const daysSince = (Date.now() - new Date(cache.generated_at).getTime()) / 86400000;
-        if (newVisits >= 2 || daysSince >= 7) {
+        if (hasNewVisit || daysSince >= 7) {
             toProcess.push({ accountName, businessUnit: businessUnit || null, visits: allLogs, lastVisitDate });
         }
     }
