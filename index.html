@@ -1914,6 +1914,11 @@
                     <span class="layer-label">⭐ 주요거래처</span>
                     <span class="layer-toggle"></span>
                 </div>
+                <div class="layer-divider"></div>
+                <div class="layer-item" id="myTargetToggle" onclick="toggleMyTarget()" style="display:none;">
+                    <span class="layer-label">👤 내 타겟만</span>
+                    <span class="layer-toggle"></span>
+                </div>
             </div>
 
             <!-- 모바일 루트 FAB 버튼 -->
@@ -2042,6 +2047,8 @@
 
         // ── 담당자 설정 (동적 로드) ──
         let managerMap = {};            // 지역명 -> 담당자명 매핑
+        let myManagerName = null;       // 현재 로그인 사용자의 담당자명 (지점장은 null)
+        let isMyTargetOnly = false;     // 내 타겟만 보기 활성화 여부
 
         // ── 대시보드 차트 인스턴스 ──
         let dashRegionChartInstance = null;
@@ -2573,8 +2580,32 @@
             window.currentDealStatusFilter = null;
             currentAccountFilter = null;
             currentFilter = 'all';
+            // 내 타겟 모드도 해제
+            isMyTargetOnly = false;
+            localStorage.setItem('fs_myTargetOnly', 'false');
+            _updateMyTargetToggleUI();
             updateDashboard();
             updateMap();
+        }
+
+        /** 내 타겟만 보기 토글 */
+        function toggleMyTarget() {
+            if (!myManagerName) return;
+            isMyTargetOnly = !isMyTargetOnly;
+            localStorage.setItem('fs_myTargetOnly', isMyTargetOnly);
+            currentManager = isMyTargetOnly ? myManagerName : null;
+            _updateMyTargetToggleUI();
+            updateDashboard();
+            updateMap();
+        }
+
+        /** 내 타겟 토글 UI 동기화 */
+        function _updateMyTargetToggleUI() {
+            const el = document.getElementById('myTargetToggle');
+            if (!el) return;
+            if (!myManagerName) { el.style.display = 'none'; return; }
+            el.style.display = '';
+            el.classList.toggle('active', isMyTargetOnly);
         }
 
         // 방문 현황 카드 클릭 필터 (인허가 데이터)
@@ -2667,15 +2698,19 @@
         // 데이터 로드
         // ============================================================
 
-        // 담당자 설정 로드 (CSV)
+        // 담당자 설정 로드
         async function loadManagerConfig() {
             try {
                 const businessUnit = await getBusinessUnitForIndex();
                 if (!businessUnit) throw new Error('소속 정보 없음');
 
+                // 현재 로그인 사용자 email 조회
+                const { data: userData } = await client.auth.getUser();
+                const myEmail = userData?.user?.email ?? null;
+
                 const { data, error } = await client
                     .from('managers')
-                    .select('region, manager_name')
+                    .select('region, manager_name, email')
                     .eq('business_unit', businessUnit);
                 if (error) throw error;
 
@@ -2685,6 +2720,21 @@
                         managerMap[row.region] = row.manager_name;
                     }
                 });
+
+                // 본인 담당자명 식별 (지점장/전체 제외)
+                if (myEmail) {
+                    const myRow = (data || []).find(r => r.email === myEmail);
+                    if (myRow && myRow.region !== '지점장' && myRow.region !== '전체') {
+                        myManagerName = myRow.manager_name;
+                        // 모바일: localStorage 저장값 우선, 기본값은 내 타겟만
+                        if (isMobile()) {
+                            const saved = localStorage.getItem('fs_myTargetOnly');
+                            isMyTargetOnly = saved !== 'false';
+                            if (isMyTargetOnly) currentManager = myManagerName;
+                        }
+                    }
+                }
+                _updateMyTargetToggleUI();
             } catch (e) {
                 console.warn('담당자 설정 로드 실패 (기본값 사용):', e.message);
                 managerMap = {
@@ -2696,6 +2746,7 @@
                     '고양시 덕양구': '김재찬', '고양시 일산동구': '부대석', '고양시 일산서구': '부대석',
                     '강화군': '김재찬', '김포시': '김재찬'
                 };
+                _updateMyTargetToggleUI();
             }
         }
 
