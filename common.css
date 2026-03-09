@@ -47,7 +47,7 @@
 /* ── 페이드인 애니메이션 ── */
 body {
     opacity: 0;
-    transition: opacity 0.4s ease-in-out;
+    transition: opacity 0.2s ease-in-out;
 }
 
 body.loaded {
@@ -152,7 +152,6 @@ body.loaded {
 
 /* ── 하단 탭 바 / 프로필 팝업 (모바일 전용 — 기본 숨김) ── */
 .mob-tab-bar,
-.mob-profile-popup,
 .mob-profile-backdrop {
     display: none;
 }
@@ -187,7 +186,7 @@ body.loaded {
         text-decoration: none;
         padding: 2px 0;
         min-height: 44px;
-        transition: color 0.15s ease;
+        transition: transform 0.1s ease;
         background: none;
         border: none;
         font-family: 'Pretendard', -apple-system, sans-serif;
@@ -197,13 +196,21 @@ body.loaded {
         color: #ffffff;
     }
 
+    .mob-tab-item.active .mob-tab-icon {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
     .mob-tab-item:active {
         opacity: 0.7;
+        transform: scale(0.88);
     }
 
     .mob-tab-icon {
         font-size: 22px;
         line-height: 1;
+        padding: 3px 16px;
+        border-radius: 8px;
+        transition: background 0.15s ease;
     }
 
     .mob-tab-label {
@@ -224,6 +231,7 @@ body.loaded {
     }
 
     .mob-profile-popup {
+        display: block;
         position: fixed;
         bottom: calc(60px + env(safe-area-inset-bottom) + 8px);
         right: 12px;
@@ -243,7 +251,6 @@ body.loaded {
     }
 
     .mob-profile-popup.open {
-        display: block;
         transform: translateY(0) scale(1);
         opacity: 1;
         pointer-events: auto;
@@ -356,5 +363,9 @@ body.loaded {
 @media (max-width: 768px) {
     button, a, [role="button"], label {
         -webkit-tap-highlight-color: transparent;
+    }
+
+    .miso-toast-container {
+        bottom: calc(60px + env(safe-area-inset-bottom) + 12px);
     }
 }
