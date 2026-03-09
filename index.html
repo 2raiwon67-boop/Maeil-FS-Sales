@@ -3123,6 +3123,41 @@
             };
         }
 
+        /** 장바구니 담김 상태 보라색 아이콘 */
+        function _buildCartMarkerIcon() {
+            return {
+                content: `<div style="width:20px;height:20px;background:#5856d6;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(88,86,214,0.6);"></div>`,
+                anchor: new naver.maps.Point(10, 10)
+            };
+        }
+
+        /** key(lat,lng)로 allMarkers + accountMarkers 에서 마커 탐색 */
+        function _findMarkerByKey(key) {
+            const check = m => {
+                const mLat = m._item ? parseFloat(m._item['위도']) : m._lat;
+                const mLng = m._item ? parseFloat(m._item['경도']) : m._lng;
+                if (!mLat || !mLng) return false;
+                return `${mLat.toFixed(5)},${mLng.toFixed(5)}` === key;
+            };
+            return [...allMarkers, ...accountMarkers].find(check) || null;
+        }
+
+        /** 장바구니 담을 때 마커를 보라색으로 전환 */
+        function _applyCartMarkerColor(key) {
+            const m = _findMarkerByKey(key);
+            if (!m) return;
+            if (!m._origIcon) m._origIcon = m.getIcon();
+            m.setIcon(_buildCartMarkerIcon());
+        }
+
+        /** 장바구니에서 뺄 때 원본 마커 색상 복원 */
+        function _restoreCartMarkerColor(key) {
+            const m = _findMarkerByKey(key);
+            if (!m || !m._origIcon) return;
+            m.setIcon(m._origIcon);
+            delete m._origIcon;
+        }
+
         /** item 하나에 대한 마커를 생성해 반환합니다. allMarkers에는 추가하지 않습니다. */
         function _createSingleMarker(item) {
             if (!item['위도'] || !item['경도']) return null;
@@ -4617,6 +4652,7 @@
                 return;
             }
             routeCart.push({ lat: parseFloat(lat), lng: parseFloat(lng), name, address, type: type || 'license', _key: key });
+            _applyCartMarkerColor(key);
             renderCartUI();
             showCartToast(`🛒 담겼습니다: ${name}`);
             // 모바일: 바텀시트 자동 닫기
@@ -4632,11 +4668,13 @@
         }
 
         function removeFromCart(idx) {
+            _restoreCartMarkerColor(routeCart[idx]._key);
             routeCart.splice(idx, 1);
             renderCartUI();
         }
 
         function clearCart() {
+            routeCart.forEach(c => _restoreCartMarkerColor(c._key));
             routeCart = [];
             renderCartUI();
         }
