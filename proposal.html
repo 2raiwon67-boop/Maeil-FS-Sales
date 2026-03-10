@@ -2261,6 +2261,7 @@
         let lastAnalysisTime = 0;
         const RATE_LIMIT_MS = 3000; // 3초 쿨다운
         const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
+        const BG_UPDATE_SKIP_MS = 10 * 24 * 60 * 60 * 1000; // 백그라운드 업데이트 스킵 기준 (10일)
 
         // ── 방문일지 조회 (Supabase) ────────────────────────────
         async function loadVisitLogsForStore(keyword) {
@@ -2466,7 +2467,8 @@
                         card.classList.add('active');
                         renderAnalysis(cachedData.result, true);
 
-                        // 백그라운드에서 증분 업데이트 시도
+                        // 백그라운드 증분 업데이트 (캐시 10일 미만이면 스킵)
+                        if (cacheAge < BG_UPDATE_SKIP_MS) return;
                         text.innerHTML += '<br><small style="color:#0071e3;">🔄 최신 리뷰 확인 중...</small>';
                         await updateAnalysis(keyword, cachedData);
                         return;
