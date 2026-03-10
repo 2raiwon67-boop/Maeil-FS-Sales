@@ -79,7 +79,7 @@ export default async function handler(req, res) {
         ).join('\n\n');
 
         // ── 개척완료 방문 추출 (성공 패턴 학습) ──
-        const successVisits = visits.filter(v => v.content && /개척\s*완료/.test(v.content));
+        const successVisits = visits.filter(v => v.content && /개척완료|개척 완료/.test(v.content));
         const successSection = successVisits.length > 0
             ? `\n[개척 성공 방문 기록]\n${successVisits.map(v =>
                 `[${v.date}] 담당: ${v.manager || '-'}\n${v.content}`
