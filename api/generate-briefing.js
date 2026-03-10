@@ -38,38 +38,44 @@ export default async function handler(req, res) {
     }
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // SERVICE_KEY 우선, 없으면 ANON_KEY 폴백 (테이블 RLS 비활성화 시)
+    const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-    if (!SUPABASE_URL || !SERVICE_KEY || !GEMINI_API_KEY) {
-        return res.status(500).json({ error: '환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY' });
+    if (!GEMINI_API_KEY) {
+        return res.status(500).json({ error: '환경변수 누락: GEMINI_API_KEY' });
     }
 
-    const sbHeaders = {
+    const sbHeaders = SERVICE_KEY && SUPABASE_URL ? {
         'apikey': SERVICE_KEY,
         'Authorization': `Bearer ${SERVICE_KEY}`,
         'Content-Type': 'application/json'
-    };
+    } : null;
 
     // ── 1. 캐시 확인 ──
     const lastVisitDate = visits[0]?.date || '';
     const buFilter = businessUnit ? `&business_unit=eq.${encodeURIComponent(businessUnit)}` : '&business_unit=is.null';
 
     try {
-        const cacheRes = await fetch(
-            `${SUPABASE_URL}/rest/v1/ai_briefings?account_name=eq.${encodeURIComponent(accountName)}${buFilter}&select=briefing,last_visit_date,visit_count,generated_at&limit=1`,
-            { headers: sbHeaders }
-        );
-        const cacheData = await cacheRes.json();
-        const cached = Array.isArray(cacheData) ? cacheData[0] : null;
-
-        if (cached) {
-            const newVisits = visits.length - (cached.visit_count || 0);
-            const daysSince = (Date.now() - new Date(cached.generated_at).getTime()) / 86400000;
-            // 새 방문 2건 미만이고 7일 이내면 캐시 반환
-            if (newVisits < 2 && daysSince < 7) {
-                return res.status(200).json({ briefing: cached.briefing, cached: true });
-            }
+        // ── 캐시 확인 (Supabase 설정된 경우만) ──
+        if (sbHeaders) {
+            try {
+                const cacheRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/ai_briefings?account_name=eq.${encodeURIComponent(accountName)}${buFilter}&select=briefing,last_visit_date,visit_count,generated_at&limit=1`,
+                    { headers: sbHeaders }
+                );
+                if (cacheRes.ok) {
+                    const cacheData = await cacheRes.json();
+                    const cached = Array.isArray(cacheData) ? cacheData[0] : null;
+                    if (cached) {
+                        const newVisits = visits.length - (cached.visit_count || 0);
+                        const daysSince = (Date.now() - new Date(cached.generated_at).getTime()) / 86400000;
+                        if (newVisits < 2 && daysSince < 7) {
+                            return res.status(200).json({ briefing: cached.briefing, cached: true });
+                        }
+                    }
+                }
+            } catch (_) { /* 캐시 실패 시 무시하고 Gemini 호출 */ }
         }
 
         // ── 2. Gemini 호출 (최근 10회) ──
@@ -109,19 +115,23 @@ ${visitText}
         const briefing = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
         if (!briefing) return res.status(500).json({ error: '브리핑 생성 실패' });
 
-        // ── 3. 캐시 저장 (upsert) ──
-        await fetch(`${SUPABASE_URL}/rest/v1/ai_briefings`, {
-            method: 'POST',
-            headers: { ...sbHeaders, 'Prefer': 'resolution=merge-duplicates' },
-            body: JSON.stringify({
-                account_name: accountName,
-                business_unit: businessUnit || null,
-                briefing,
-                last_visit_date: lastVisitDate,
-                visit_count: visits.length,
-                generated_at: new Date().toISOString()
-            })
-        });
+        // ── 3. 캐시 저장 (upsert, Supabase 설정된 경우만) ──
+        if (sbHeaders) {
+            try {
+                await fetch(`${SUPABASE_URL}/rest/v1/ai_briefings`, {
+                    method: 'POST',
+                    headers: { ...sbHeaders, 'Prefer': 'resolution=merge-duplicates' },
+                    body: JSON.stringify({
+                        account_name: accountName,
+                        business_unit: businessUnit || null,
+                        briefing,
+                        last_visit_date: lastVisitDate,
+                        visit_count: visits.length,
+                        generated_at: new Date().toISOString()
+                    })
+                });
+            } catch (_) { /* 캐시 저장 실패 시 무시 */ }
+        }
 
         return res.status(200).json({ briefing, cached: false });
 

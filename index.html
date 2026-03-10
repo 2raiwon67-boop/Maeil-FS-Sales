@@ -4722,12 +4722,16 @@
             _restoreCartMarkerColor(routeCart[idx]._key);
             routeCart.splice(idx, 1);
             renderCartUI();
+            // 경유지 변경 시 기존 최적화 결과 자동 초기화
+            if (document.getElementById('routeResult').style.display !== 'none') clearRoute();
         }
 
         function clearCart() {
             routeCart.forEach(c => _restoreCartMarkerColor(c._key));
             routeCart = [];
             renderCartUI();
+            // 경유지 전체 삭제 시 루트 자동 초기화
+            clearRoute();
         }
 
         function _cartEsc(s) {

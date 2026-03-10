@@ -1821,8 +1821,10 @@
                     document.getElementById('aiBriefingBadge').style.display = 'inline';
                 }
             } catch (e) {
-                // 실패 시 조용히 숨김 (타임라인은 정상 표시)
                 document.getElementById('aiBriefingLoading').style.display = 'none';
+                // 에러 상태 표시 (타임라인은 정상 표시)
+                document.getElementById('aiBriefingContent').textContent = '브리핑을 불러오지 못했습니다.';
+                document.getElementById('aiBriefingSection').style.display = 'block';
             }
         }
 
