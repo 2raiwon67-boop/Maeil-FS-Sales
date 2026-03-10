@@ -2333,22 +2333,32 @@
             return _recipeDBPromise;
         }
 
-        async function renderRecipeSignatures(analysisTags, sigResult, sigList) {
+        async function renderRecipeSignatures(analysisTags, analysisText, sigResult, sigList) {
             sigResult.style.display = 'none';
             const recipes = await loadRecipeDB();
             if (!recipes.length) return;
 
-            // 분석 태그와 레시피 태그/카테고리/제품명 매칭
-            const lowerTags = analysisTags.map(t => t.toLowerCase());
+            // 태그 + 분석 텍스트 모두에서 키워드 추출
+            const tagWords = analysisTags.map(t => t.toLowerCase());
+            const textWords = (analysisText || '').toLowerCase()
+                .replace(/[^가-힣a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter(w => w.length >= 2);
+            const allKeywords = [...new Set([...tagWords, ...textWords])];
+
             const toStr = v => (Array.isArray(v) ? v.join(' ') : (v || '')).toLowerCase();
             let matched = recipes.filter(r => {
                 const rTags = toStr(r.tags);
                 const rCat  = toStr(r.category);
                 const rProd = toStr(r.main_products);
-                return lowerTags.some(t => rTags.includes(t) || rCat.includes(t) || rProd.includes(t));
+                const rName = toStr(r.name);
+                return allKeywords.some(t => rTags.includes(t) || rCat.includes(t) || rProd.includes(t) || rName.includes(t));
             });
-            // 매칭 없으면 전체 중 최신 2개
-            if (!matched.length) matched = recipes.slice(0, 2);
+            // 매칭 없으면 랜덤 2개 (항상 같은 레시피 고정 방지)
+            if (!matched.length) {
+                const shuffled = [...recipes].sort(() => Math.random() - 0.5);
+                matched = shuffled.slice(0, 2);
+            }
             const show = matched.slice(0, 2);
 
             const fmtArr = v => Array.isArray(v) ? v.join(', ') : (v || '');
@@ -2584,8 +2594,8 @@
             tags.innerHTML = data.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
             text.innerHTML = data.description + cacheIndicator + updateIndicator;
 
-            // 시그니처 메뉴 — 자사 레시피 DB 기반 렌더링
-            renderRecipeSignatures(data.tags || [], sigResult, sigList);
+            // 시그니처 메뉴 — 자사 레시피 DB 기반 렌더링 (태그+분석텍스트 모두 활용)
+            renderRecipeSignatures(data.tags || [], data.description || '', sigResult, sigList);
 
             list.innerHTML = '';
             data.items.forEach(item => {

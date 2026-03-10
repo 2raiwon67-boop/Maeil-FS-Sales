@@ -2074,7 +2074,7 @@ ${accountLines}`;
                         prompt,
                         generationConfig: {
                             temperature: 0.3,
-                            maxOutputTokens: 512,
+                            maxOutputTokens: 1024,
                             responseMimeType: 'application/json',
                             responseSchema: {
                                 type: 'object',
@@ -2102,7 +2102,14 @@ ${accountLines}`;
 
                 const data = await response.json();
                 const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                cachedTimingItems = JSON.parse(rawText).items || [];
+                if (!rawText) throw new Error('AI 응답이 비어있습니다.');
+                let parsed;
+                try { parsed = JSON.parse(rawText); }
+                catch (pe) {
+                    console.error('[Timing AI] JSON 파싱 실패, rawText:', rawText);
+                    throw new Error('AI 응답 파싱 실패');
+                }
+                cachedTimingItems = parsed.items || [];
 
                 renderTimingRecommendation();
 
