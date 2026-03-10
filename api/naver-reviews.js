@@ -335,52 +335,26 @@ ${historyItems.map(h =>
 `;
         }
 
-        const prompt = `당신은 매일유업 FS(Food Service) 영업사원을 위한 매장 분석 AI입니다.
-아래 네이버 검색 결과를 분석하여 매장 특성을 파악하고, 매일유업 제품을 추천해주세요.
-${updateNote}
-## 검색 매장: "${storeName}"
+        const systemInstruction = `매일유업 FS 영업 어시스턴트. 네이버 검색 결과로 매장을 분석하고 JSON만 응답하라.
+분석 대상: 카페·베이커리·브런치·디저트·음식점 우선. 블로그 메뉴 키워드로 실제 업종 판단. 반드시 1개 매장만 분석.
+응답 형식(JSON만, 코드블록 금지): {"tags":["3-5개"],"description":"영업공략 HTML 3-4문장(<strong>·<span style=\\"color:#0071e3;font-weight:700;\\"> 사용)","recommendedIndices":[정확히 3개],"signatureMenus":[{"menu":"","ingredients":"40자이내","maeilSolution":"40자이내"}]}
+signatureMenus 최대 2개. 검색 결과 부족 시 업종 기반 추론.`;
 
-## 📌 분석 대상 특정 지침
-지역 검색 결과에 같은 이름의 여러 매장이 있거나 카테고리가 불명확한 경우:
-- 카페·베이커리·브런치·디저트·음식점 카테고리를 최우선으로 분석 대상을 특정하세요.
-- 매장명만으로 업종 판단이 어렵더라도(예: 한식당처럼 보이는 이름이지만 실제 베이커리 카페인 경우) 블로그 리뷰의 메뉴 키워드를 기반으로 실제 업종을 판단하세요.
-- 분석은 반드시 특정된 1개 매장 기준으로만 수행하세요.
+        const prompt = `${updateNote}검색 매장: "${storeName}"
 
-## 네이버 지역 검색 결과
+[네이버 지역 검색]
 ${JSON.stringify(localSummary, null, 2)}
 
-## 네이버 블로그 리뷰 요약
+[블로그 리뷰]
 ${JSON.stringify(blogSummary, null, 2)}${visitHistorySection}${recipeSection}
-## 매일유업 제품 목록
+[제품 목록]
 ${productList}
 
-## 분석 요청
-1. 매장의 **핵심 키워드 태그** 3~5개 추출 (예: 가성비, 학생층, 프리미엄, 건강, 디저트카페)
-2. **영업 공략 포인트** 3~4문장으로 작성. 아래 두 가지를 반드시 포함하세요:
-   - 블로그 리뷰에서 파악한 **시그니처 메뉴의 원료 분석** → 매일유업 제품으로 대응 가능한 구체적 방안
-   - ${hasVisitHistory ? '**과거 방문 실패/거절 사유를 극복**할 수 있는 접근법 (방문 기록 기반)' : '이 매장 업종/규모에서 자주 발생하는 거절 사유와 극복 전략'}
-   중요한 부분은 <strong> 태그로, 매일유업 제품명은 <span style="color:#0071e3; font-weight:700;"> 태그로 감싸주세요.
-3. 위 두 가지 관점(시그니처 메뉴 대응 + ${hasVisitHistory ? '과거 실패 극복' : '거절 극복'})에서 **가장 효과적인 제품 정확히 3개**를 인덱스 번호로 추천하세요.
-   - 레시피 DB에 유사 메뉴 사례가 있다면 해당 레시피의 자사제품을 **최우선** 고려하세요.
-   - 매장이 일반 카페·음식점인 경우: 음료용 제품(우유, 크림, 베이스류 등)을 **최우선** 추천하세요. 베이커리 전문점·제과점이 아닌 한 치즈·버터 등 베이킹 원료는 추천에서 제외하세요.
-   - 베이커리 카페, 제과점, 브런치 카페임이 리뷰·업종에서 명확히 확인된 경우에만 베이킹 원료를 포함하세요.
-   - 제품 목록의 '용도' 항목을 반드시 참고하여 매장 유형과 맞는 제품을 선택하세요.
-4. 블로그 리뷰 또는 업종 특성 기반으로 **시그니처 메뉴 1~2개** 파악:
-   - 추정 원료
-   - 매일유업 제품으로 대응하는 구체적 방안
-
-## 응답 형식
-아래 JSON 형식으로만 응답하세요. 다른 설명이나 텍스트 없이 순수 JSON만 출력하세요.
-
-{"tags": ["키워드1", "키워드2"], "description": "HTML이 포함된 영업 공략 포인트", "recommendedIndices": [0, 2, 5], "signatureMenus": [{"menu": "시그니처 라떼", "ingredients": "우유, 에스프레소", "maeilSolution": "매일 바리스타 우유로 풍미 차별화 제안"}]}
-
-중요 사항:
-- 반드시 유효한 JSON 객체만 출력 (JSON 이외 텍스트 절대 금지)
-- 코드 블록 마커 사용 금지
-- description은 3~4문장, HTML 태그는 핵심 강조에만 사용
-- recommendedIndices는 정확히 3개
-- signatureMenus는 최대 2개, ingredients·maeilSolution은 각 40자 이내
-- 검색 결과가 부족하면 매장명/업종 기반으로 추론하여 응답`;
+분석:
+1. 태그 3-5개
+2. 영업공략 3-4문장: 시그니처 메뉴 원료→매일유업 대응 방안, ${hasVisitHistory ? '과거 방문 실패/거절 사유 극복 접근법' : '업종별 거절 사유와 극복 전략'}
+3. 효과적 제품 정확히 3개(인덱스): 레시피DB 유사사례 최우선, 카페·음식점은 음료용 위주(베이킹 원료 제외, 베이커리 확인시만 포함), 제품 용도 참고
+4. 시그니처 메뉴 1-2개: 추정 원료 + 매일유업 대응 방안`;
 
         // ── 4. Gemini API 호출 ──
         const geminiRes = await fetch(
@@ -389,6 +363,7 @@ ${productList}
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.7,

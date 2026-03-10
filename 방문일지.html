@@ -1684,6 +1684,8 @@
             modal.classList.add('active');
         }
 
+        if (!window._briefingCache) window._briefingCache = new Map();
+
         async function loadAiBriefing(account) {
             try {
                 const visits = account.visits.map(v => ({
@@ -1694,6 +1696,17 @@
                 }));
 
                 const businessUnit = await getBusinessUnitForVisit();
+                const cacheKey = `${account.accountName}_${businessUnit || ''}`;
+
+                // 세션 캐시 확인 → 즉시 반환
+                if (window._briefingCache.has(cacheKey)) {
+                    const cached = window._briefingCache.get(cacheKey);
+                    document.getElementById('aiBriefingLoading').style.display = 'none';
+                    document.getElementById('aiBriefingContent').textContent = cached.briefing;
+                    document.getElementById('aiBriefingSection').style.display = 'block';
+                    document.getElementById('aiBriefingBadge').style.display = 'inline';
+                    return;
+                }
 
                 const res = await fetch('/api/generate-briefing', {
                     method: 'POST',
@@ -1707,6 +1720,12 @@
 
                 if (!res.ok) throw new Error('브리핑 API 오류');
                 const data = await res.json();
+
+                // 세션 캐시 저장 (LRU: 30개 초과 시 가장 오래된 항목 제거)
+                if (window._briefingCache.size >= 30) {
+                    window._briefingCache.delete(window._briefingCache.keys().next().value);
+                }
+                window._briefingCache.set(cacheKey, { briefing: data.briefing || '' });
 
                 document.getElementById('aiBriefingLoading').style.display = 'none';
                 document.getElementById('aiBriefingContent').textContent = data.briefing || '';
