@@ -112,7 +112,7 @@ export default async function handler(req, res) {
                         headers: { ...sbHeaders },
                         body: JSON.stringify({
                             query_embedding: `[${vector.join(',')}]`,
-                            p_business_unit: businessUnit || '',
+                            p_business_unit: businessUnit ?? null,
                             match_count: 2
                         })
                     });

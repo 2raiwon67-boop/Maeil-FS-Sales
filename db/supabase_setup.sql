@@ -227,7 +227,11 @@ BEGIN
     WHERE
         v.business_unit = p_business_unit
         AND v.embedding IS NOT NULL
-        AND (v.content ILIKE '%개척완료%' OR v.content ILIKE '%개척 완료%')
+        AND (
+            v.content ILIKE '%개척완료%'
+            OR v.content ILIKE '%개척 완료%'
+            OR v.content ILIKE '%연결완료%'
+        )
     ORDER BY v.embedding <=> query_embedding
     LIMIT match_count;
 END;

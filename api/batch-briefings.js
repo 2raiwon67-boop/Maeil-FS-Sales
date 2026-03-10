@@ -165,5 +165,61 @@ ${visitText}
         await new Promise(r => setTimeout(r, 6000));
     }
 
-    return res.status(200).json(results);
+    // ── 6. Mother Brain 임베딩 배치 ──
+    // embedding=null 이면서 개척완료/개척 완료/연결완료 포함 레코드 자동 처리
+    const embedResults = { success: 0, failed: 0 };
+    try {
+        const orFilter = encodeURIComponent('(content.ilike.*개척완료*,content.ilike.*개척 완료*,content.ilike.*연결완료*)');
+        const embedTargetRes = await fetch(
+            `${SUPABASE_URL}/rest/v1/visit_logs?embedding=is.null&or=${orFilter}&select=id,business_name,trade_status,content&order=visit_date.desc&limit=50`,
+            { headers: sbHeaders }
+        );
+        const embedTargets = embedTargetRes.ok ? await embedTargetRes.json() : [];
+
+        for (const row of (Array.isArray(embedTargets) ? embedTargets : [])) {
+            const text = [
+                row.business_name || '',
+                row.trade_status || '',
+                (row.content || '').substring(0, 300)
+            ].filter(Boolean).join(' | ');
+
+            try {
+                const embedRes = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'models/gemini-embedding-001',
+                            content: { parts: [{ text }] },
+                            outputDimensionality: 768
+                        })
+                    }
+                );
+                if (!embedRes.ok) throw new Error(`embed ${embedRes.status}`);
+                const embedData = await embedRes.json();
+                const vector = embedData.embedding?.values;
+                if (!Array.isArray(vector) || vector.length !== 768) throw new Error('차원 오류');
+
+                const patchRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/visit_logs?id=eq.${row.id}`,
+                    {
+                        method: 'PATCH',
+                        headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+                        body: JSON.stringify({ embedding: `[${vector.join(',')}]` })
+                    }
+                );
+                if (!patchRes.ok) throw new Error(`patch ${patchRes.status}`);
+                embedResults.success++;
+            } catch (_e) {
+                embedResults.failed++;
+            }
+
+            await new Promise(r => setTimeout(r, 50));
+        }
+    } catch (_e) {
+        // 임베딩 배치 실패해도 브리핑 결과는 정상 반환
+    }
+
+    return res.status(200).json({ ...results, embed: embedResults });
 }
