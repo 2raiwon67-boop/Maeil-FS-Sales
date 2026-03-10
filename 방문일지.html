@@ -146,40 +146,74 @@
             color: #86868b;
         }
 
-        /* =============== 통계 카드 =============== */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
+        /* =============== 통합 액션 스트립 =============== */
+        .action-strip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
         }
 
-        .stat-card {
-            background: #f5f5f7;
-            border-radius: 12px;
-            padding: 20px;
-            border-left: 4px solid #0071e3;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #86868b;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-size: 36px;
+        .action-strip-title {
+            font-size: 16px;
             font-weight: 700;
             color: #1d1d1f;
         }
 
-        .stat-unit {
-            font-size: 18px;
+        .action-strip {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            margin-bottom: 24px;
+            align-items: stretch;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .action-strip::-webkit-scrollbar { display: none; }
+
+        .strip-sep {
+            width: 1px;
+            min-width: 1px;
+            background: #e8e8ed;
+            flex-shrink: 0;
+            margin: 0 4px;
+            align-self: stretch;
+        }
+
+        .strip-stat-card {
+            min-width: 100px;
+            flex-shrink: 0;
+            background: #f5f5f7;
+            border-radius: 12px;
+            padding: 16px 18px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 6px;
+            border-left: 3px solid #d2d2d7;
+        }
+
+        .strip-stat-label {
+            font-size: 11px;
+            font-weight: 600;
             color: #86868b;
-            margin-left: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .strip-stat-value {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1d1d1f;
+            line-height: 1;
+        }
+
+        .strip-stat-unit {
+            font-size: 13px;
+            color: #86868b;
+            margin-left: 2px;
         }
 
         /* =============== 검색/필터 바 =============== */
@@ -738,20 +772,6 @@
                 font-size: 13px;
             }
 
-            /* ── 통계 카드 ── */
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
-            }
-
-            .stat-card {
-                padding: 14px;
-            }
-
-            .stat-value {
-                font-size: 28px;
-            }
-
             /* ── 필터바 ── */
             .filter-bar {
                 padding: 14px;
@@ -815,29 +835,7 @@
             }
         }
 
-        /* =============== TO-DO 알림판 =============== */
-        .todo-dashboard {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            border: 1px solid #e8e8ed;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .todo-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-
-        .todo-header h2 {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1d1d1f;
-        }
-
+        /* =============== TO-DO 카드 =============== */
         .todo-toggle {
             display: flex;
             background: #f5f5f7;
@@ -863,18 +861,9 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
-        .todo-list {
-            display: flex;
-            gap: 16px;
-            overflow-x: auto;
-            padding-bottom: 8px;
-            /* 스크롤바 숨기기 */
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-
-        .todo-list::-webkit-scrollbar {
-            display: none;
+        /* todoList는 display:contents → 자식이 action-strip flex에 참여 */
+        #todoList {
+            display: contents;
         }
 
         .todo-card {
@@ -992,40 +981,28 @@
             <p class="page-subtitle">주요거래처 및 인허가 1순위 방문 기록 관리</p>
         </div>
 
-        <!-- 통계 카드 -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-label">오늘</div>
-                <div class="stat-value" id="todayCount">0<span class="stat-unit">건</span></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">이번 주</div>
-                <div class="stat-value" id="weekCount">0<span class="stat-unit">건</span></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">이번 달</div>
-                <div class="stat-value" id="monthCount">0<span class="stat-unit">건</span></div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">전체</div>
-                <div class="stat-value" id="totalCount">0<span class="stat-unit">건</span></div>
+        <!-- 통합 액션 스트립 -->
+        <div class="action-strip-header">
+            <span class="action-strip-title">🚀 진행 중인 액션</span>
+            <div class="todo-toggle">
+                <button class="todo-toggle-btn active" id="btnTodoMine" onclick="toggleTodoView('mine')">내 알림</button>
+                <button class="todo-toggle-btn" id="btnTodoAll" onclick="toggleTodoView('all')">지점 전체</button>
             </div>
         </div>
-
-        <!-- 선제적 후속 조치 (TO-DO) 알림판 -->
-        <div class="todo-dashboard">
-            <div class="todo-header">
-                <h2>🚀 진행 중인 주요 액션 (TO-DO)</h2>
-                <div class="todo-toggle">
-                    <button class="todo-toggle-btn active" id="btnTodoMine" onclick="toggleTodoView('mine')">내
-                        알림</button>
-                    <button class="todo-toggle-btn" id="btnTodoAll" onclick="toggleTodoView('all')">지점 전체</button>
-                </div>
-            </div>
-            <div class="todo-list" id="todoList">
-                <div style="padding: 24px; color: #86868b; text-align: center; width: 100%; font-size: 14px;">
+        <div class="action-strip">
+            <div id="todoList">
+                <div style="padding:20px 24px;color:#86868b;text-align:center;font-size:14px;white-space:nowrap;">
                     데이터를 불러오는 중입니다...
                 </div>
+            </div>
+            <div class="strip-sep"></div>
+            <div class="strip-stat-card">
+                <div class="strip-stat-label">이번달</div>
+                <div class="strip-stat-value" id="monthCount">0<span class="strip-stat-unit">건</span></div>
+            </div>
+            <div class="strip-stat-card">
+                <div class="strip-stat-label">전체</div>
+                <div class="strip-stat-value" id="totalCount">0<span class="strip-stat-unit">건</span></div>
             </div>
         </div>
 
@@ -1559,10 +1536,8 @@
                 if (visitDate >= monthStart) monthCount++;
             });
 
-            document.getElementById('todayCount').innerHTML = `${todayCount}<span class="stat-unit">건</span>`;
-            document.getElementById('weekCount').innerHTML = `${weekCount}<span class="stat-unit">건</span>`;
-            document.getElementById('monthCount').innerHTML = `${monthCount}<span class="stat-unit">건</span>`;
-            document.getElementById('totalCount').innerHTML = `${allVisitLogs.length}<span class="stat-unit">건</span>`;
+            document.getElementById('monthCount').innerHTML = `${monthCount}<span class="strip-stat-unit">건</span>`;
+            document.getElementById('totalCount').innerHTML = `${allVisitLogs.length}<span class="strip-stat-unit">건</span>`;
         }
 
         function parseVisitDate(dateStr) {
@@ -1961,7 +1936,7 @@
             });
 
             if (allVisits.length === 0) {
-                todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">이번 달 방문일지가 없습니다.</div>`;
+                todoList.innerHTML = `<div style="padding:20px 24px;color:#86868b;font-size:14px;white-space:nowrap;align-self:center;">이번 달 방문일지가 없습니다.</div>`;
                 return;
             }
 
@@ -1980,7 +1955,7 @@
             } catch (_e) {}
 
             // ── 로딩 표시 ──
-            todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">🤖 AI가 이번 달 방문일지를 분석 중입니다...</div>`;
+            todoList.innerHTML = `<div style="padding:20px 24px;color:#86868b;font-size:14px;white-space:nowrap;align-self:center;">🤖 AI가 이번 달 방문일지를 분석 중입니다...</div>`;
 
             // ── Gemini 배치 요약 요청 (토큰 절감형 프롬프트) ──
             try {
@@ -2075,7 +2050,7 @@ ${visitLines}`;
 
             } catch (e) {
                 console.error('[TO-DO AI]', e);
-                todoList.innerHTML = `<div style="padding:24px;color:#ff3b30;text-align:center;width:100%;font-size:14px;">⚠️ AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>`;
+                todoList.innerHTML = `<div style="padding:20px 24px;color:#ff3b30;font-size:14px;white-space:nowrap;align-self:center;">⚠️ AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</div>`;
             }
         }
 
@@ -2106,7 +2081,7 @@ ${visitLines}`;
                 const msg = currentTodoMode === 'mine'
                     ? `이번 달(${thisYear}.${String(thisMonth).padStart(2, '0')}) 내 담당 거래처의 후속 조치가 없습니다.`
                     : `이번 달(${thisYear}.${String(thisMonth).padStart(2, '0')}) 지점 전체 후속 조치가 없습니다.`;
-                todoList.innerHTML = `<div style="padding:24px;color:#86868b;text-align:center;width:100%;font-size:14px;">${msg}</div>`;
+                todoList.innerHTML = `<div style="padding:20px 24px;color:#86868b;font-size:14px;white-space:nowrap;align-self:center;">${msg}</div>`;
                 return;
             }
 
