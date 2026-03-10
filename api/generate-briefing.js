@@ -91,10 +91,11 @@ export default async function handler(req, res) {
 
 ${visitText}
 ${successSection}
-다음을 4줄 이내로 간결하게 분석하세요:
-• 키맨/결정권자 정보 및 성향
-• 반복되는 허들이나 장벽
-• 오늘 방문 시 추천 접근법`;
+아래 3가지 항목을 각각 1~2문장으로 자연스럽게 작성하세요. 문장을 끊지 말고 완성된 문장으로 써주세요.
+
+① 키맨/결정권자 정보 및 성향
+② 반복되는 허들이나 장벽
+③ 오늘 방문 시 추천 접근법`;
 
         const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -105,7 +106,7 @@ ${successSection}
                     contents: [{ parts: [{ text: prompt }] }],
                     generationConfig: {
                         temperature: 0.4,
-                        maxOutputTokens: 512,
+                        maxOutputTokens: 1024,
                         topP: 0.9,
                         responseMimeType: 'application/json',
                         responseSchema: {

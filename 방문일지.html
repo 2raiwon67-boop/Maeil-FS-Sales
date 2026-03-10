@@ -1064,15 +1064,22 @@
                 <h2 id="timelineTitle">방문 타임라인</h2>
                 <button class="close-btn" onclick="closeTimelineModal()">&times;</button>
             </div>
+            <!-- AI 브리핑 버튼 (온디맨드) -->
+            <div id="aiBriefingTrigger" style="margin: 0 0 16px 0; padding: 0 32px;">
+                <button onclick="requestAiBriefing()" style="width:100%; padding: 10px; background: rgba(77,163,255,0.1); border: 1px solid rgba(77,163,255,0.3); border-radius: 10px; color: #4da3ff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    ✦ AI 브리핑 보기
+                </button>
+            </div>
             <!-- AI 브리핑 섹션 -->
-            <div id="aiBriefingSection" style="display:none; margin: 0 0 20px 0; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.3);">
+            <div id="aiBriefingSection" style="display:none; margin: 0 32px 20px; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.3);">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
                     <span style="font-size: 13px; font-weight: 700; color: #4da3ff; letter-spacing: 0.5px;">✦ AI 브리핑</span>
                     <span id="aiBriefingBadge" style="display:none; font-size: 10px; color: #4da3ff; background: rgba(77,163,255,0.12); padding: 2px 8px; border-radius: 20px; border: 1px solid rgba(77,163,255,0.2);">캐시됨</span>
+                    <button onclick="requestAiBriefing()" id="aiBriefingRetry" style="display:none; margin-left:auto; font-size:11px; color:#4da3ff; background:none; border:none; cursor:pointer; text-decoration:underline;">재시도</button>
                 </div>
                 <div id="aiBriefingContent" style="font-size: 14px; color: #e8f0fe; line-height: 1.7; white-space: pre-wrap;"></div>
             </div>
-            <div id="aiBriefingLoading" style="display:none; margin: 0 0 20px 0; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.2);">
+            <div id="aiBriefingLoading" style="display:none; margin: 0 32px 20px; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.2);">
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
                     <span style="font-size: 13px; font-weight: 700; color: #4da3ff;">✦ AI 브리핑 생성 중...</span>
                 </div>
@@ -1621,11 +1628,13 @@
 
             title.textContent = `${account.accountName} - 방문 타임라인`;
 
-            // AI 브리핑 초기화 & 로딩 시작
+            // AI 브리핑 초기화 (버튼 방식 — 자동 호출 없음)
+            _currentBriefingAccount = account;
+            document.getElementById('aiBriefingTrigger').style.display = 'block';
             document.getElementById('aiBriefingSection').style.display = 'none';
-            document.getElementById('aiBriefingLoading').style.display = 'block';
+            document.getElementById('aiBriefingLoading').style.display = 'none';
             document.getElementById('aiBriefingBadge').style.display = 'none';
-            loadAiBriefing(account);
+            document.getElementById('aiBriefingRetry').style.display = 'none';
 
             // 타임라인 HTML 생성
             const timelineHTML = `
@@ -1685,6 +1694,16 @@
         }
 
         if (!window._briefingCache) window._briefingCache = new Map();
+        let _currentBriefingAccount = null;
+
+        function requestAiBriefing() {
+            if (!_currentBriefingAccount) return;
+            document.getElementById('aiBriefingTrigger').style.display = 'none';
+            document.getElementById('aiBriefingSection').style.display = 'none';
+            document.getElementById('aiBriefingLoading').style.display = 'block';
+            document.getElementById('aiBriefingRetry').style.display = 'none';
+            loadAiBriefing(_currentBriefingAccount);
+        }
 
         async function loadAiBriefing(account) {
             try {
@@ -1735,8 +1754,8 @@
                 }
             } catch (e) {
                 document.getElementById('aiBriefingLoading').style.display = 'none';
-                // 에러 상태 표시 (타임라인은 정상 표시)
                 document.getElementById('aiBriefingContent').textContent = '브리핑을 불러오지 못했습니다.';
+                document.getElementById('aiBriefingRetry').style.display = 'inline';
                 document.getElementById('aiBriefingSection').style.display = 'block';
             }
         }
