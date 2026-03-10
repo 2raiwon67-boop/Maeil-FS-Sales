@@ -46,8 +46,8 @@ export default async function handler(req, res) {
             if (m.manager_name && m.email) emailMap[m.manager_name.trim()] = m.email.trim();
         });
 
-        // ── 3. 내용 있는 방문일지만 필터 ──
-        const validLogs = logs.filter(l => l.content && l.content.trim() && l.manager);
+        // ── 3. 내용 있는 방문일지만 필터 (15자 이상, 최대 50건) ──
+        const validLogs = logs.filter(l => l.content && l.content.trim().length > 15 && l.manager).slice(0, 50);
 
         if (validLogs.length === 0) {
             return res.status(200).json({ items: [], message: '후속 조치 분석 대상 없음' });
@@ -59,8 +59,7 @@ export default async function handler(req, res) {
         ).join('\n');
 
         const prompt = `영업 방문일지를 분석해서 후속 조치가 필요한 항목만 추출하라. 단순 방문 완료·특이사항 없는 기록은 제외.
-반드시 **순수 JSON만** 출력 (마크다운 코드블럭, 부가설명 절대 불가).
-형식: {"items":[{"n":항목번호,"todo":"할일 한 문장","next":"다음방문일 또는 미정"}]}
+n은 일지 번호, todo는 할일 한 문장, next는 다음방문일 또는 "미정".
 일지:
 ${visitLines}`;
 
@@ -71,7 +70,29 @@ ${visitLines}`;
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0, maxOutputTokens: 2048 }
+                    generationConfig: {
+                        temperature: 0,
+                        maxOutputTokens: 1024,
+                        responseMimeType: 'application/json',
+                        responseSchema: {
+                            type: 'object',
+                            properties: {
+                                items: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'object',
+                                        properties: {
+                                            n: { type: 'integer' },
+                                            todo: { type: 'string' },
+                                            next: { type: 'string' }
+                                        },
+                                        required: ['n', 'todo', 'next']
+                                    }
+                                }
+                            },
+                            required: ['items']
+                        }
+                    }
                 })
             }
         );
@@ -79,16 +100,9 @@ ${visitLines}`;
 
         const gemData = await gemRes.json();
         const rawText = gemData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const stripped = rawText.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
-        const jsonMatch = stripped.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) return res.status(500).json({ error: 'AI 응답 파싱 실패' });
-
         let parsed;
-        try { parsed = JSON.parse(jsonMatch[0]); }
-        catch {
-            try { parsed = JSON.parse(jsonMatch[0].trimEnd() + ']}'); }
-            catch { return res.status(500).json({ error: 'JSON 파싱 실패' }); }
-        }
+        try { parsed = JSON.parse(rawText); }
+        catch { return res.status(500).json({ error: 'JSON 파싱 실패' }); }
 
         const aiResults = parsed.items || [];
 

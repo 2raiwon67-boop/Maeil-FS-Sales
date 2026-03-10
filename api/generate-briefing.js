@@ -95,7 +95,17 @@ ${visitText}
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.4, maxOutputTokens: 1024, topP: 0.9 }
+                    generationConfig: {
+                        temperature: 0.4,
+                        maxOutputTokens: 512,
+                        topP: 0.9,
+                        responseMimeType: 'application/json',
+                        responseSchema: {
+                            type: 'object',
+                            properties: { briefing: { type: 'string' } },
+                            required: ['briefing']
+                        }
+                    }
                 })
             }
         );
@@ -106,7 +116,8 @@ ${visitText}
         }
 
         const geminiData = await geminiRes.json();
-        const briefing = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+        const briefing = rawText ? (JSON.parse(rawText).briefing || '') : '';
         if (!briefing) return res.status(500).json({ error: '브리핑 생성 실패' });
 
         // ── 3. 캐시 저장 (upsert) ──
