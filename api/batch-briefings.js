@@ -82,6 +82,7 @@ export default async function handler(req, res) {
             `${SUPABASE_URL}/rest/v1/visit_logs?business_name=eq.${encodeURIComponent(accountName)}${buFilter}&visit_date=gte.${sixMonthCutoff}&select=visit_date,content,manager&order=visit_date.desc&limit=10`,
             { headers: sbHeaders }
         );
+        if (!allLogsRes.ok) { results.failed++; continue; }
         const allLogs = await allLogsRes.json();
         if (!Array.isArray(allLogs) || allLogs.length === 0) continue;
 
