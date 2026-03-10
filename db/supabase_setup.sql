@@ -186,6 +186,53 @@ CREATE INDEX IF NOT EXISTS recipes_embedding_idx
 -- 카테고리 필터용 인덱스
 CREATE INDEX IF NOT EXISTS recipes_category_idx ON recipes (category);
 
+
+-- ─────────────────────────────────────────────────────────────
+-- Mother Brain: visit_logs 임베딩 컬럼 + 벡터 검색 함수
+-- ─────────────────────────────────────────────────────────────
+
+-- 1. embedding 컬럼 추가 (이미 있으면 무시)
+ALTER TABLE visit_logs ADD COLUMN IF NOT EXISTS embedding vector(768);
+
+-- 2. 벡터 인덱스
+CREATE INDEX IF NOT EXISTS visit_logs_embedding_idx
+    ON visit_logs USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
+
+-- 3. 개척완료 성공 사례 유사도 검색 함수
+-- Service Role Key로만 호출 (브리핑 API에서 서버 사이드 호출)
+CREATE OR REPLACE FUNCTION search_success_visits(
+    query_embedding  vector(768),
+    p_business_unit  TEXT,
+    match_count      INT DEFAULT 2
+)
+RETURNS TABLE(
+    business_name  TEXT,
+    visit_date     DATE,
+    manager        TEXT,
+    content        TEXT,
+    similarity     FLOAT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        v.business_name,
+        v.visit_date,
+        v.manager,
+        v.content,
+        1 - (v.embedding <=> query_embedding) AS similarity
+    FROM visit_logs v
+    WHERE
+        v.business_unit = p_business_unit
+        AND v.embedding IS NOT NULL
+        AND v.content ILIKE '%개척%완료%'
+    ORDER BY v.embedding <=> query_embedding
+    LIMIT match_count;
+END;
+$$;
+
 -- ── 벡터 유사도 검색 함수 ──
 -- 사용 예: SELECT * FROM search_recipes('[0.1, 0.2, ...]'::vector, 5, '라떼');
 CREATE OR REPLACE FUNCTION search_recipes(
