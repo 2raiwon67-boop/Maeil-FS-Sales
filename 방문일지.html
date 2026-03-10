@@ -182,17 +182,27 @@
             align-self: stretch;
         }
 
-        .strip-stat-card {
-            min-width: 100px;
+        /* 이번달 + 전체 통합 카드 */
+        .strip-stat-combined {
             flex-shrink: 0;
             background: #f5f5f7;
             border-radius: 12px;
-            padding: 16px 18px;
+            padding: 16px 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            border-left: 3px solid #d2d2d7;
+        }
+
+        .strip-stat-item {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            gap: 6px;
-            border-left: 3px solid #d2d2d7;
+            gap: 5px;
+        }
+
+        .strip-stat-item + .strip-stat-item {
+            padding-left: 20px;
+            border-left: 1px solid #e8e8ed;
         }
 
         .strip-stat-label {
@@ -201,6 +211,7 @@
             color: #86868b;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         .strip-stat-value {
@@ -996,13 +1007,15 @@
                 </div>
             </div>
             <div class="strip-sep"></div>
-            <div class="strip-stat-card">
-                <div class="strip-stat-label">이번달</div>
-                <div class="strip-stat-value" id="monthCount">0<span class="strip-stat-unit">건</span></div>
-            </div>
-            <div class="strip-stat-card">
-                <div class="strip-stat-label">전체</div>
-                <div class="strip-stat-value" id="totalCount">0<span class="strip-stat-unit">건</span></div>
+            <div class="strip-stat-combined">
+                <div class="strip-stat-item">
+                    <div class="strip-stat-label">이번달</div>
+                    <div class="strip-stat-value" id="monthCount">0<span class="strip-stat-unit">건</span></div>
+                </div>
+                <div class="strip-stat-item">
+                    <div class="strip-stat-label">전체</div>
+                    <div class="strip-stat-value" id="totalCount">0<span class="strip-stat-unit">건</span></div>
+                </div>
             </div>
         </div>
 
