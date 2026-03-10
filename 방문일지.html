@@ -945,6 +945,7 @@
             <div class="todo-toggle">
                 <button class="todo-toggle-btn active" id="btnTodoMine" onclick="toggleTodoView('mine')">내 알림</button>
                 <button class="todo-toggle-btn" id="btnTodoAll" onclick="toggleTodoView('all')">지점 전체</button>
+                <button class="todo-toggle-btn" id="btnTiming" onclick="toggleTodoView('timing')">방문 우선순위</button>
             </div>
         </div>
         <div class="action-strip">
@@ -1840,6 +1841,7 @@
         let currentUserFullName = '';
         let cachedTodoItems = [];       // AI 추출 결과 캐시 (mine 전용)
         let cachedTodoItemsAll = [];    // AI 추출 결과 캐시 (all 전용)
+        let cachedTimingItems = [];     // 방문 우선순위 캐시
 
         async function extractTodos() {
             const todoList = document.getElementById('todoList');
@@ -1996,13 +1998,141 @@ ${visitLines}`;
             currentTodoMode = mode;
             document.getElementById('btnTodoMine').classList.toggle('active', mode === 'mine');
             document.getElementById('btnTodoAll').classList.toggle('active', mode === 'all');
-            // 캐시가 비어있으면 AI 재분석, 있으면 즉시 렌더만
-            const hasCache = cachedTodoItemsAll.length > 0 || cachedTodoItems.length > 0;
-            if (!hasCache) {
-                extractTodos();
+            document.getElementById('btnTiming').classList.toggle('active', mode === 'timing');
+
+            if (mode === 'timing') {
+                if (cachedTimingItems.length > 0) {
+                    renderTimingRecommendation();
+                } else {
+                    loadTimingRecommendation();
+                }
             } else {
-                renderTodos();
+                // 캐시가 비어있으면 AI 재분석, 있으면 즉시 렌더만
+                const hasCache = cachedTodoItemsAll.length > 0 || cachedTodoItems.length > 0;
+                if (!hasCache) {
+                    extractTodos();
+                } else {
+                    renderTodos();
+                }
             }
+        }
+
+        async function loadTimingRecommendation() {
+            const todoList = document.getElementById('todoList');
+            if (!todoList) return;
+
+            if (!currentUserFullName) {
+                const user = await getUser();
+                currentUserFullName = user?.user_metadata?.full_name || '';
+            }
+
+            // localStorage 당일 캐시 확인
+            const now = new Date();
+            const todayStr = now.toISOString().split('T')[0];
+            const cacheKey = `miso_timing_${todayStr}`;
+            try {
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+                if (cached && Array.isArray(cached.items)) {
+                    cachedTimingItems = cached.items;
+                    renderTimingRecommendation();
+                    return;
+                }
+            } catch (_e) {}
+
+            todoList.innerHTML = `<div style="padding:20px 24px;color:#86868b;font-size:14px;white-space:nowrap;align-self:center;">🤖 AI가 방문 우선순위를 분석 중입니다...</div>`;
+
+            try {
+                // 본인 담당 거래처만 필터 (폐업·DROP 제외)
+                const myAccounts = groupedAccounts
+                    .filter(a => !['폐업', 'DROP'].includes(a.status))
+                    .filter(a => a.visits.some(v => v.manager === currentUserFullName));
+
+                if (myAccounts.length === 0) {
+                    todoList.innerHTML = `<div style="padding:20px 24px;color:#86868b;font-size:14px;white-space:nowrap;align-self:center;">담당 거래처가 없습니다.</div>`;
+                    return;
+                }
+
+                const accountLines = myAccounts.map(a => {
+                    const lastVisit = a.visits[0];
+                    const daysSince = lastVisit?.dateObj
+                        ? Math.floor((now - new Date(lastVisit.dateObj)) / 86400000)
+                        : 999;
+                    const recentContent = (lastVisit?.fullData?.['내용'] || '').substring(0, 60);
+                    return `${a.accountName} — 마지막 방문: ${daysSince}일 전 / 상태: ${a.status} / 최근내용: "${recentContent}"`;
+                }).join('\n');
+
+                const prompt = `매일유업 FS 영업사원의 담당 거래처 방문 우선순위를 분석하라.
+마지막 방문 경과일, 거래 상태, 최근 방문 내용을 종합해서 이번주 방문 Top 5를 선정하고 이유를 한 줄씩 설명하라.
+n은 순위(1~5), account는 거래처명, reason은 이유 한 줄.
+거래처:
+${accountLines}`;
+
+                const response = await fetch('/api/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prompt,
+                        generationConfig: {
+                            temperature: 0.3,
+                            maxOutputTokens: 512,
+                            responseMimeType: 'application/json',
+                            responseSchema: {
+                                type: 'object',
+                                properties: {
+                                    items: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                n:       { type: 'integer' },
+                                                account: { type: 'string' },
+                                                reason:  { type: 'string' }
+                                            },
+                                            required: ['n', 'account', 'reason']
+                                        }
+                                    }
+                                },
+                                required: ['items']
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) throw new Error('AI 분석 실패');
+
+                const data = await response.json();
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                cachedTimingItems = JSON.parse(rawText).items || [];
+
+                renderTimingRecommendation();
+
+                // 당일 localStorage 캐시 저장
+                try { localStorage.setItem(cacheKey, JSON.stringify({ date: todayStr, items: cachedTimingItems })); } catch (_e) {}
+
+            } catch (e) {
+                console.error('[Timing AI]', e);
+                todoList.innerHTML = `<div style="padding:20px 24px;color:#ff3b30;font-size:14px;white-space:nowrap;align-self:center;">⚠️ AI 분석 중 오류가 발생했습니다.</div>`;
+            }
+        }
+
+        function renderTimingRecommendation() {
+            const todoList = document.getElementById('todoList');
+            if (!todoList) return;
+
+            if (cachedTimingItems.length === 0) {
+                todoList.innerHTML = `<div style="padding:20px 24px;color:#86868b;font-size:14px;white-space:nowrap;align-self:center;">방문 우선순위 데이터가 없습니다.</div>`;
+                return;
+            }
+
+            todoList.innerHTML = cachedTimingItems.map(item => `
+                <div class="todo-card">
+                    <div class="todo-card-header">
+                        <span class="todo-account" title="${item.account}">${item.n}위&nbsp;&nbsp;${item.account}</span>
+                    </div>
+                    <div class="todo-content-label">추천 이유</div>
+                    <div class="todo-content">${item.reason}</div>
+                </div>
+            `).join('');
         }
 
         function renderTodos() {
