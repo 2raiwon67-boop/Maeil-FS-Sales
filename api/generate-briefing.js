@@ -101,7 +101,7 @@ ${visitText}
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: { temperature: 0.4, maxOutputTokens: 512, topP: 0.9 }
+                    generationConfig: { temperature: 0.4, maxOutputTokens: 1024, topP: 0.9 }
                 })
             }
         );
