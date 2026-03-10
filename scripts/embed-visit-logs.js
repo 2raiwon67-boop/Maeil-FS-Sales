@@ -59,9 +59,9 @@ async function getEmbedding(text) {
 }
 
 async function main() {
-    // embedding이 없는 visit_logs 조회 (content 있는 것만)
+    // 개척완료 기록 중 embedding 없는 것만 조회 (Mother Brain 검색 대상)
     const res = await fetch(
-        `${SUPABASE_URL}/rest/v1/visit_logs?select=id,business_name,visit_date,manager,content,trade_status&embedding=is.null&content=not.is.null&order=visit_date.desc&limit=${MAX_PER_RUN}`,
+        `${SUPABASE_URL}/rest/v1/visit_logs?select=id,business_name,visit_date,manager,content,trade_status&embedding=is.null&content=ilike.*개척*완료*&order=visit_date.desc&limit=${MAX_PER_RUN}`,
         { headers: sbHeaders }
     );
     if (!res.ok) throw new Error(`Supabase 조회 실패: ${res.status}`);
