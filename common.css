@@ -152,7 +152,8 @@ body.loaded {
 
 /* ── 하단 탭 바 / 프로필 팝업 (모바일 전용 — 기본 숨김) ── */
 .mob-tab-bar,
-.mob-profile-backdrop {
+.mob-profile-backdrop,
+.mob-profile-popup {
     display: none;
 }
 
