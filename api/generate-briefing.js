@@ -78,11 +78,19 @@ export default async function handler(req, res) {
             `[${i + 1}차 방문 · ${v.date}] 담당: ${v.manager || '-'} / 상태: ${v.status || '-'}\n${v.content || '(내용 없음)'}`
         ).join('\n\n');
 
+        // ── 개척완료 방문 추출 (성공 패턴 학습) ──
+        const successVisits = visits.filter(v => v.content && /개척\s*완료/.test(v.content));
+        const successSection = successVisits.length > 0
+            ? `\n[개척 성공 방문 기록]\n${successVisits.map(v =>
+                `[${v.date}] 담당: ${v.manager || '-'}\n${v.content}`
+              ).join('\n\n')}\n위 성공 패턴을 참고하여 오늘 방문 접근법을 추천하세요.\n`
+            : '';
+
         const prompt = `당신은 식품 FS 영업 전략 어시스턴트입니다.
 아래는 "${accountName}" 거래처의 방문 기록입니다 (최신순):
 
 ${visitText}
-
+${successSection}
 다음을 4줄 이내로 간결하게 분석하세요:
 • 키맨/결정권자 정보 및 성향
 • 반복되는 허들이나 장벽
