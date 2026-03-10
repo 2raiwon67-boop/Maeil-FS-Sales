@@ -86,7 +86,7 @@ export default async function handler(req, res) {
               ).join('\n\n')}\n위 성공 패턴을 참고하여 오늘 방문 접근법을 추천하세요.\n`
             : '';
 
-        const prompt = `당신은 식품 FS 영업 전략 어시스턴트입니다.
+        const prompt = `당신은 매일유업 FS 영업 전략 어시스턴트입니다.
 아래는 "${accountName}" 거래처의 방문 기록입니다 (최신순):
 
 ${visitText}
