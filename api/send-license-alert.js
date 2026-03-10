@@ -17,11 +17,12 @@ export default async function handler(req, res) {
 
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    const RESEND_KEY   = process.env.RESEND_API_KEY;
-    const FROM_EMAIL   = process.env.RESEND_FROM_EMAIL || 'FS MISO <onboarding@resend.dev>';
+    const BREVO_KEY    = process.env.BREVO_API_KEY;
+    const FROM_EMAIL   = process.env.BREVO_FROM_EMAIL || '2raiwon67@gmail.com';
+    const FROM_NAME    = 'FS MISO';
 
-    if (!SUPABASE_URL || !SERVICE_KEY || !RESEND_KEY) {
-        return res.status(500).json({ error: '환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RESEND_API_KEY 확인' });
+    if (!SUPABASE_URL || !SERVICE_KEY || !BREVO_KEY) {
+        return res.status(500).json({ error: '환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BREVO_API_KEY 확인' });
     }
 
     try {
@@ -123,14 +124,14 @@ export default async function handler(req, res) {
             const routeStops = optimizeRoute(targets);
             const html = buildAlertEmailHtml(managerName, targets, routeStops);
 
-            const sendRes = await fetch('https://api.resend.com/emails', {
+            const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+                headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    from:    FROM_EMAIL,
-                    to:      [email],
-                    subject: `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
-                    html
+                    sender:      { name: FROM_NAME, email: FROM_EMAIL },
+                    to:          [{ email }],
+                    subject:     `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
+                    htmlContent: html
                 })
             });
 
@@ -152,14 +153,14 @@ export default async function handler(req, res) {
             const routeStops = optimizeRoute(targets);
             const html = buildAlertEmailHtml('전체', targets, routeStops);
 
-            const sendRes = await fetch('https://api.resend.com/emails', {
+            const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+                headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    from:    FROM_EMAIL,
-                    to:      [email],
-                    subject: `[인허가 알림] 신규 ${newTargets.length}건 / 재확인 ${revisitTargets.length}건 (전체)`,
-                    html
+                    sender:      { name: FROM_NAME, email: FROM_EMAIL },
+                    to:          [{ email }],
+                    subject:     `[인허가 알림] 신규 ${newTargets.length}건 / 재확인 ${revisitTargets.length}건 (전체)`,
+                    htmlContent: html
                 })
             });
 
