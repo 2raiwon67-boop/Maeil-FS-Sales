@@ -1615,68 +1615,6 @@
         }
 
         // ============================================================
-        // 상세 모달
-        // ============================================================
-
-        function showDetail(index) {
-            const log = filteredData[index];
-            const modal = document.getElementById('detailModal');
-            const modalBody = document.getElementById('modalBody');
-
-            document.getElementById('modalTitle').textContent = log['일정명'] || '방문 상세';
-
-            modalBody.innerHTML = `
-                <div class="detail-section">
-                    <div class="detail-label">일정 기간(작성일)</div>
-                    <div class="detail-value">${log['작성일'] || log['일정기간'] || '-'}</div>
-                </div>
-                <div class="detail-section">
-                    <div class="detail-label">작성자 / 참여자</div>
-                    <div class="detail-value">${log['작성자'] || '-'} ${log['참여자'] ? '/ ' + log['참여자'] : ''}</div>
-                </div>
-                <div class="detail-section">
-                    <div class="detail-label">방문처</div>
-                    <div class="detail-value">
-                        ${log['방문처(거래처)'] || '-'}<br>
-                        <small style="color: #86868b;">${log['방문처(대리점)'] || ''}</small>
-                    </div>
-                </div>
-                <div class="detail-section">
-                    <div class="detail-label">거래 상태</div>
-                    <div class="detail-value">${log['거래상태'] || '-'}</div>
-                </div>
-                <div class="detail-section">
-                    <div class="detail-label">방문 내용</div>
-                    <div class="detail-value">${log['내용'] || '-'}</div>
-                </div>
-                ${log['TO-DO'] ? `
-                <div class="detail-section">
-                    <div class="detail-label">TO-DO</div>
-                    <div class="detail-value">${log['TO-DO']}</div>
-                </div>
-                ` : ''}
-                ${log['다음방문일'] ? `
-                <div class="detail-section">
-                    <div class="detail-label">다음 방문 예정일</div>
-                    <div class="detail-value">${log['다음방문일']}</div>
-                </div>
-                ` : ''}
-                ${log['사용품목'] ? `
-                <div class="detail-section">
-                    <div class="detail-label">사용 품목</div>
-                    <div class="detail-value">${log['사용품목']}</div>
-                </div>
-                ` : ''}
-            `;
-
-            modal.classList.add('active');
-        }
-
-        function closeDetailModal() {
-            document.getElementById('detailModal').classList.remove('active');
-        }
-
-        // ============================================================
     </script>
     <script src="js/auth.js"></script>
     <script>

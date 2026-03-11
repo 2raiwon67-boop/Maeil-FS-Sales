@@ -203,7 +203,7 @@ export default async function handler(req, res) {
                 reviewLinks: (blogData.items || []).map(i => i.link),
                 isUpdate: isIncrementalUpdate,
                 recipeMatched: 0,
-                naverInfo: { localResults: localSummary?.length || 0, blogResults: newReviewCount, newReviews: newReviewCount }
+                naverInfo: { localResults: (localData.items || []).length, blogResults: newReviewCount, newReviews: newReviewCount }
             });
         }
 

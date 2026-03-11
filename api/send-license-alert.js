@@ -144,7 +144,7 @@ export default async function handler(req, res) {
                 revisit: myRevisit.length,
                 id:      sendData.id || sendData.error
             });
-            await sleep(600); // Resend 2 req/s 한도 대응
+            await sleep(600); // Brevo 발송 간격
         }
 
         // ── 5. 지점장 전체 발송 ───────────────────────────────
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
                 revisit: revisitTargets.length,
                 id:      sendData.id || sendData.error
             });
-            await sleep(600); // Resend 2 req/s 한도 대응
+            await sleep(600); // Brevo 발송 간격
         }
 
         return res.status(200).json({
