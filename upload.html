@@ -1503,6 +1503,10 @@
                 srchSelected = new Set();
                 renderSearchResults();
 
+                if (data.failedRegions?.length) {
+                    showToast(`⚠️ 일부 지역 조회 실패 (재시도 권장): ${data.failedRegions.join(', ')}`);
+                }
+
             } catch (e) {
                 document.getElementById('searchResultArea').innerHTML =
                     `<div class="banner banner-error" style="margin:0;">❌ ${e.message}</div>`;

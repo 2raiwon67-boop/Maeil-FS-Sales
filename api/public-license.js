@@ -42,7 +42,7 @@ async function fetchPage(typeCode, apiKey, startDate, endDate, regionHint, pageN
     if (regionHint)  params.set('LOTNO_ADDR', regionHint);
 
     const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15000);
+    const timer = setTimeout(() => ctrl.abort(), 8000);
     try {
         const res = await fetch(`${ENDPOINTS[typeCode]}?${params}`, { signal: ctrl.signal });
         clearTimeout(timer);
@@ -55,21 +55,22 @@ async function fetchPage(typeCode, apiKey, startDate, endDate, regionHint, pageN
         return { items, totalCount: parseInt(body?.totalCount ?? '0', 10) };
     } catch {
         clearTimeout(timer);
-        return { items: [], totalCount: 0 };
+        return { items: [], totalCount: 0, failed: true };
     }
 }
 
 // ── 업종 × 지역 병렬 전체 조회 ───────────────────────────
 async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
-    // 지역별 1페이지 병렬 조회
     const firstPages = await Promise.all(
         regions.map(r => fetchPage(typeCode, apiKey, startDate, endDate, r, 1))
     );
 
     const all = [];
     const followUps = [];
+    let failedRegions = [];
 
-    firstPages.forEach(({ items, totalCount }, idx) => {
+    firstPages.forEach(({ items, totalCount, failed, region }, idx) => {
+        if (failed) { failedRegions.push(regions[idx]); return; }
         all.push(...items);
         const totalPages = Math.ceil(totalCount / 1000);
         for (let p = 2; p <= totalPages; p++) {
@@ -82,7 +83,7 @@ async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
         more.forEach(({ items }) => all.push(...items));
     }
 
-    return all;
+    return { items: all, failedRegions };
 }
 
 // ── API 응답 → 정제 객체 변환 ─────────────────────────────
@@ -155,9 +156,11 @@ export default async function handler(req, res) {
         // 취합 + 중복 제거 + 지역 필터 + 인허가일 필터
         const seen  = new Set();
         const items = [];
+        const allFailedRegions = [];
 
-        results.forEach((raw, i) => {
-            raw.forEach(item => {
+        results.forEach(({ items: rawItems, failedRegions }, i) => {
+            if (failedRegions?.length) allFailedRegions.push(...failedRegions);
+            rawItems.forEach(item => {
                 const norm = normalize(item, typeList[i]);
                 if (seen.has(norm.id)) return;
                 seen.add(norm.id);
@@ -176,7 +179,13 @@ export default async function handler(req, res) {
         // 인허가일 내림차순 정렬
         items.sort((a, b) => (b.permit_date || '').localeCompare(a.permit_date || ''));
 
-        return res.json({ success: true, totalCount: items.length, items });
+        const uniqueFailed = [...new Set(allFailedRegions)];
+        return res.json({
+            success: true,
+            totalCount: items.length,
+            items,
+            ...(uniqueFailed.length > 0 && { failedRegions: uniqueFailed })
+        });
 
     } catch (e) {
         return res.status(500).json({ success: false, error: e.message });
