@@ -1,6 +1,8 @@
 {
   "functions": {
-    "api/public-license.js": { "maxDuration": 60 }
+    "api/public-license.js": { "maxDuration": 60 },
+    "api/batch-briefings.js": { "maxDuration": 300 },
+    "api/send-license-alert.js": { "maxDuration": 60 }
   },
   "headers": [
     {
