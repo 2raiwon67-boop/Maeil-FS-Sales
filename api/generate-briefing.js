@@ -144,7 +144,7 @@ ${successSection}${motherBrainSection}
 ③ 오늘 방문 시 추천 접근법 (유사 성공 사례가 있다면 구체적으로 참고)`;
 
         const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-001:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
