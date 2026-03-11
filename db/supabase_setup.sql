@@ -238,6 +238,89 @@ BEGIN
 END;
 $$;
 
+-- ─────────────────────────────────────────────────────────────
+-- 6. ai_briefings (거래처 AI 브리핑 캐시)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ai_briefings (
+    id              BIGSERIAL PRIMARY KEY,
+    account_name    TEXT NOT NULL,
+    business_unit   TEXT,
+    briefing        TEXT NOT NULL,
+    last_visit_date TEXT,
+    visit_count     INT,
+    generated_at    TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (account_name, business_unit)
+);
+
+ALTER TABLE ai_briefings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "ai_briefings_select_same_unit" ON ai_briefings;
+CREATE POLICY "ai_briefings_select_same_unit" ON ai_briefings
+    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "ai_briefings_all_service" ON ai_briefings;
+CREATE POLICY "ai_briefings_all_service" ON ai_briefings
+    FOR ALL USING (true) WITH CHECK (true);
+-- 참고: generate-briefing.js / batch-briefings.js는 Service Role Key로 호출 → RLS 우회
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 7. naver_cache (네이버 지역/블로그 검색 캐시 — 240h)
+-- RLS 미적용: 서버사이드 anon key 호출, store_name만 있음 (비민감 캐시)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS naver_cache (
+    id          BIGSERIAL PRIMARY KEY,
+    store_name  TEXT NOT NULL UNIQUE,
+    local_data  JSONB,
+    blog_data   JSONB,
+    cached_at   TIMESTAMPTZ DEFAULT now()
+);
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 8. store_analysis_cache (네이버 매장 AI 분석 캐시 — 7일)
+-- RLS 미적용: 서버사이드 anon key 호출 (비민감 캐시)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS store_analysis_cache (
+    id           BIGSERIAL PRIMARY KEY,
+    store_name   TEXT NOT NULL UNIQUE,
+    analysis     JSONB NOT NULL,
+    review_count INT DEFAULT 0,
+    cached_at    TIMESTAMPTZ DEFAULT now()
+);
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 9. quotes (저장된 견적서)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS quotes (
+    id            BIGSERIAL PRIMARY KEY,
+    business_unit TEXT NOT NULL,
+    created_by    TEXT,
+    customer_name TEXT,
+    manager_name  TEXT,
+    manager_phone TEXT,
+    quote_mode    TEXT,
+    items         JSONB DEFAULT '[]',
+    total_amount  BIGINT DEFAULT 0,
+    created_at    TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "quotes_select_same_unit" ON quotes;
+CREATE POLICY "quotes_select_same_unit" ON quotes
+    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "quotes_insert_own_unit" ON quotes;
+CREATE POLICY "quotes_insert_own_unit" ON quotes
+    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "quotes_delete_own_unit" ON quotes;
+CREATE POLICY "quotes_delete_own_unit" ON quotes
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+
 -- ── 벡터 유사도 검색 함수 ──
 -- 사용 예: SELECT * FROM search_recipes('[0.1, 0.2, ...]'::vector, 5, '라떼');
 CREATE OR REPLACE FUNCTION search_recipes(
