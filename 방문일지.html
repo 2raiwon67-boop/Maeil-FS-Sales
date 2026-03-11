@@ -897,6 +897,7 @@
                 <button onclick="requestAiBriefing()" style="width:100%; padding: 10px; background: rgba(77,163,255,0.1); border: 1px solid rgba(77,163,255,0.3); border-radius: 10px; color: #4da3ff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                     ✦ AI 브리핑 보기
                 </button>
+                <div style="text-align: center; font-size: 11px; color: #86868b; margin-top: 6px;">방문일지 3건 이상인 거래처만 분석 가능</div>
             </div>
             <!-- AI 브리핑 섹션 -->
             <div id="aiBriefingSection" style="display:none; margin: 0 32px 20px; background: linear-gradient(135deg, #0a1628 0%, #0d2444 100%); border-radius: 14px; padding: 18px 20px; border: 1px solid rgba(0,113,227,0.3);">
@@ -1523,6 +1524,10 @@
 
         function requestAiBriefing() {
             if (!_currentBriefingAccount) return;
+            if (_currentBriefingAccount.visits.length < 3) {
+                showToast('분석할 방문일지 내용이 너무 적습니다. (최소 3건 필요)', 'warning', 3000);
+                return;
+            }
             document.getElementById('aiBriefingTrigger').style.display = 'none';
             document.getElementById('aiBriefingSection').style.display = 'none';
             document.getElementById('aiBriefingLoading').style.display = 'block';
