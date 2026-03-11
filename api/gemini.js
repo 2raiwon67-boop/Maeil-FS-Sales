@@ -28,7 +28,7 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: '프롬프트가 없습니다.' });
     }
 
-    const GEMINI_MODEL = 'gemini-2.5-flash';
+    const GEMINI_MODEL = 'gemini-2.0-flash';
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
     try {

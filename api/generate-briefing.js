@@ -144,7 +144,7 @@ ${successSection}${motherBrainSection}
 ③ 오늘 방문 시 추천 접근법 (유사 성공 사례가 있다면 구체적으로 참고)`;
 
         const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -171,8 +171,11 @@ ${successSection}${motherBrainSection}
         }
 
         const geminiData = await geminiRes.json();
-        const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-        const briefing = rawText ? (JSON.parse(rawText).briefing || '') : '';
+        const parts = geminiData.candidates?.[0]?.content?.parts || [];
+        const rawText = (parts.find(p => !p.thought) || parts[0])?.text?.trim() || '';
+        let briefing = '';
+        try { briefing = rawText ? (JSON.parse(rawText).briefing || '') : ''; }
+        catch (_pe) { briefing = rawText; }
         if (!briefing) return res.status(500).json({ error: '브리핑 생성 실패' });
 
         // ── 3. 캐시 저장 (upsert) ──
