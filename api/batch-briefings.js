@@ -121,7 +121,7 @@ export default async function handler(req, res) {
 
 ${visitText}
 
-4줄 이내로 분석: 키맨 성향 / 반복 허들 / 다음 방문 추천 접근법`;
+4줄 이내로 분석: 키맨 성향 / 반복 허들 / 다음 방문 추천 접근법 / 자사 전환 제품(개척완료·연결완료 시 기존 타사 제품을 어떤 자사 제품으로 교체했는지, 정보 없으면 생략)`;
 
         try {
             const gemRes = await fetch(

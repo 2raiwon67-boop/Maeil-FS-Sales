@@ -800,7 +800,7 @@
             .modal-content {
                 width: 100%;
                 margin: 0;
-                max-height: 100vh;
+                max-height: 66.67vh;
                 border-radius: 16px 16px 0 0;
                 position: fixed;
                 bottom: 0;
@@ -953,8 +953,8 @@
                 <button class="close-btn" onclick="closeTimelineModal()">&times;</button>
             </div>
             <!-- AI 브리핑 버튼 (온디맨드) -->
-            <div id="aiBriefingTrigger" style="margin: 0 0 16px 0; padding: 0 32px;">
-                <button onclick="requestAiBriefing()" style="width:100%; padding: 10px; background: rgba(77,163,255,0.1); border: 1px solid rgba(77,163,255,0.3); border-radius: 10px; color: #4da3ff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            <div id="aiBriefingTrigger" style="margin: 0 0 16px 0; padding: 0 32px; display: flex; flex-direction: column; align-items: center;">
+                <button onclick="requestAiBriefing()" style="width:50%; padding: 10px; background: rgba(77,163,255,0.1); border: 1px solid rgba(77,163,255,0.3); border-radius: 10px; color: #4da3ff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                     ✦ AI 브리핑 보기
                 </button>
                 <div style="text-align: center; font-size: 11px; color: #86868b; margin-top: 6px;">방문일지 3건 이상인 거래처만 분석 가능</div>
@@ -1667,14 +1667,14 @@
         if (!window._briefingCache) window._briefingCache = new Map();
         let _currentBriefingAccount = null;
 
-        // ① ② ③ 섹션을 스타일 블록으로 파싱
+        // ① ② ③ ④ 섹션을 스타일 블록으로 파싱
         function formatBriefingText(text) {
             if (!text) return '<div style="font-size:14px;color:#86868b;">브리핑 내용 없음</div>';
-            const ICONS  = { '①': '👤', '②': '🚧', '③': '💡' };
-            const LABELS = { '①': '키맨 / 결정권자', '②': '반복 허들', '③': '추천 접근법' };
-            const LABEL_KEYWORDS = ['키맨', '결정권자', '허들', '장벽', '접근법', '추천', '반복'];
+            const ICONS  = { '①': '👤', '②': '🚧', '③': '💡', '④': '📦' };
+            const LABELS = { '①': '키맨 / 결정권자', '②': '반복 허들', '③': '추천 접근법', '④': '전환 제품' };
+            const LABEL_KEYWORDS = ['키맨', '결정권자', '허들', '장벽', '접근법', '추천', '반복', '전환', '제품'];
 
-            const sections = text.split(/(?=[①②③])/).filter(p => /^[①②③]/.test(p));
+            const sections = text.split(/(?=[①②③④])/).filter(p => /^[①②③④]/.test(p));
             if (sections.length >= 2) {
                 return sections.map(s => {
                     const marker = s[0];

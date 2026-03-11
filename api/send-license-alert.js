@@ -3,7 +3,7 @@
 // 매주 월요일 오전 9시 15분 KST (= 00:15 UTC) 자동 실행
 // D+14: 인허가 상태 (순위 1, 2)
 // D+28: 공사중 상태 (순위 1, 2)
-// 환경변수: RESEND_API_KEY, RESEND_FROM_EMAIL,
+// 환경변수: BREVO_API_KEY, BREVO_FROM_EMAIL,
 //           SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
 // ============================================================
 
