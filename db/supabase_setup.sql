@@ -232,6 +232,7 @@ BEGIN
             OR v.content ILIKE '%개척 완료%'
             OR v.content ILIKE '%연결완료%'
         )
+        AND 1 - (v.embedding <=> query_embedding) > 0.62  -- 유사도 62% 미만 사례 제외
     ORDER BY v.embedding <=> query_embedding
     LIMIT match_count;
 END;

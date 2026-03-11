@@ -173,10 +173,11 @@ export default async function handler(req, res) {
 ${visitText}
 ${successSection}${motherBrainSection}${tradeSection}
 아래 3가지 항목을 각각 1~2문장으로 자연스럽게 작성하세요. 문장을 끊지 말고 완성된 문장으로 써주세요.
+※ [유사 거래처 성공 사례] 또는 [유사 주요거래처 관리 사례]는 참고용입니다. 현재 거래처와 업종·상황이 실제로 유사할 때만 구체적으로 언급하고, 관련성이 낮으면 무시하세요.
 
 ① 키맨/결정권자 정보 및 성향
 ② 반복되는 허들이나 장벽
-③ 오늘 방문 시 추천 접근법 (유사 성공 사례나 관리 사례가 있다면 구체적으로 참고)`;
+③ 오늘 방문 시 추천 접근법`;
 
         const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
