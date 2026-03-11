@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-    const { accountName, businessUnit, visits } = req.body || {};
+    const { accountName, businessUnit, visits, tradeStatus } = req.body || {};
     if (!accountName || !Array.isArray(visits) || visits.length === 0) {
         return res.status(400).json({ error: '거래처명과 방문 기록이 필요합니다.' });
     }
@@ -132,16 +132,51 @@ export default async function handler(req, res) {
             // Mother Brain 실패해도 브리핑은 정상 생성
         }
 
+        // ── 주요거래처 RAG: 유사 거래 계정 최근 관리 사례 ──
+        let tradeSection = '';
+        const isTradeAccount = tradeStatus === '거래' || visits[0]?.status === '거래';
+        if (isTradeAccount && businessUnit) {
+            try {
+                const sixMonthsAgo = new Date();
+                sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                const sixMonthCutoff = sixMonthsAgo.toISOString().split('T')[0];
+                const tradeRes = await fetch(
+                    `${SUPABASE_URL}/rest/v1/visit_logs` +
+                    `?business_unit=eq.${encodeURIComponent(businessUnit)}` +
+                    `&trade_status=eq.거래` +
+                    `&business_name=neq.${encodeURIComponent(accountName)}` +
+                    `&visit_date=gte.${sixMonthCutoff}` +
+                    `&content=not.is.null` +
+                    `&select=business_name,visit_date,content` +
+                    `&order=visit_date.desc&limit=3`,
+                    { headers: sbHeaders }
+                );
+                if (tradeRes.ok) {
+                    const tradeLogs = await tradeRes.json();
+                    const filtered = (Array.isArray(tradeLogs) ? tradeLogs : [])
+                        .filter(r => r.content && r.content.length > 30);
+                    if (filtered.length > 0) {
+                        const cases = filtered.map(r =>
+                            `- ${r.business_name} (${r.visit_date}): ${(r.content || '').substring(0, 80)}`
+                        ).join('\n');
+                        tradeSection = `\n[유사 주요거래처 관리 사례]\n${cases}\n`;
+                    }
+                }
+            } catch (_e) {
+                // 주요거래처 RAG 실패해도 브리핑은 정상 생성
+            }
+        }
+
         const prompt = `당신은 매일유업 FS 영업 전략 어시스턴트입니다.
 아래는 "${accountName}" 거래처의 방문 기록입니다 (최신순):
 
 ${visitText}
-${successSection}${motherBrainSection}
+${successSection}${motherBrainSection}${tradeSection}
 아래 3가지 항목을 각각 1~2문장으로 자연스럽게 작성하세요. 문장을 끊지 말고 완성된 문장으로 써주세요.
 
 ① 키맨/결정권자 정보 및 성향
 ② 반복되는 허들이나 장벽
-③ 오늘 방문 시 추천 접근법 (유사 성공 사례가 있다면 구체적으로 참고)`;
+③ 오늘 방문 시 추천 접근법 (유사 성공 사례나 관리 사례가 있다면 구체적으로 참고)`;
 
         const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
