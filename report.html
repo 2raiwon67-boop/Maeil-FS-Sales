@@ -1004,8 +1004,7 @@ ${majorAccounts.map(a => `${a.name}(${a.status || '-'}) ${a.visits.length}회`).
                         prompt,
                         generationConfig: {
                             temperature: 0.3,
-                            maxOutputTokens: 8192,
-                            thinkingConfig: { thinkingBudget: 0 }
+                            maxOutputTokens: 8192
                         }
                     })
                 });
