@@ -86,94 +86,103 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, message: '이메일 발송 대상 없음 (D+14, D+28 조건 만족 0건)' });
         }
 
-        // ── 3. 담당자 이메일 맵 ───────────────────────────────
-        const managerEmailMap = {};
-        const branchEmails    = [];
-
+        // ── 3. business_unit별 담당자 정보 그룹핑 ────────────
+        // unitManagers[bu] = { emailMap: { name→email }, branchEmails: [] }
+        const unitManagers = {};
         allManagers.forEach(m => {
-            const name   = (m.manager_name || '').trim();
-            const email  = (m.email        || '').trim();
-            const region = (m.region       || '').trim();
-            if (!name || !email) return;
+            const name = (m.manager_name || '').trim();
+            const email = (m.email       || '').trim();
+            const region = (m.region     || '').trim();
+            const bu = (m.business_unit  || '').trim();
+            if (!name || !email || !bu) return;
 
-            if (region === '지점장' || region === '전체') {
-                branchEmails.push(email);
+            if (!unitManagers[bu]) unitManagers[bu] = { emailMap: {}, branchEmails: [] };
+
+            if (m.is_branch_manager || region === '지점장' || region === '전체') {
+                unitManagers[bu].branchEmails.push(email);
             } else {
-                managerEmailMap[name] = email;
+                unitManagers[bu].emailMap[name] = email;
             }
         });
 
-        // ── 4. 담당자별 이메일 발송 ───────────────────────────
+        // ── 4. business_unit별 발송 ───────────────────────────
         const results = [];
         const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-        const activeManagers = new Set([
-            ...newTargets.map(t => t.manager),
-            ...revisitTargets.map(t => t.manager)
-        ]);
+        const allUnits = [...new Set([
+            ...newTargets.map(t => t.business_unit),
+            ...revisitTargets.map(t => t.business_unit)
+        ])].filter(Boolean);
 
-        for (const managerName of activeManagers) {
-            if (!managerName || managerName === '미지정') continue;
+        for (const bu of allUnits) {
+            const unitNew     = newTargets.filter(t => t.business_unit === bu);
+            const unitRevisit = revisitTargets.filter(t => t.business_unit === bu);
+            const { emailMap = {}, branchEmails = [] } = unitManagers[bu] || {};
 
-            const email = managerEmailMap[managerName];
-            if (!email) continue;
+            // 4-1. 일반 담당자: 본인 담당 건만
+            const activeManagers = new Set([
+                ...unitNew.map(t => t.manager),
+                ...unitRevisit.map(t => t.manager)
+            ]);
 
-            const myNew     = newTargets.filter(t => t.manager === managerName);
-            const myRevisit = revisitTargets.filter(t => t.manager === managerName);
-            const targets   = { newObj: myNew, revisitObj: myRevisit };
-            const routeStops = optimizeRoute(targets);
-            const html = buildAlertEmailHtml(managerName, targets, routeStops);
+            for (const managerName of activeManagers) {
+                if (!managerName || managerName === '미지정') continue;
+                const email = emailMap[managerName];
+                if (!email) continue;
 
-            const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-                method: 'POST',
-                headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sender:      { name: FROM_NAME, email: FROM_EMAIL },
-                    to:          [{ email }],
-                    subject:     `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
-                    htmlContent: html
-                })
-            });
+                const myNew     = unitNew.filter(t => t.manager === managerName);
+                const myRevisit = unitRevisit.filter(t => t.manager === managerName);
+                const targets   = { newObj: myNew, revisitObj: myRevisit };
+                const routeStops = optimizeRoute(targets);
+                const html = buildAlertEmailHtml(managerName, targets, routeStops);
 
-            const sendData = await sendRes.json();
-            results.push({
-                manager: managerName,
-                email,
-                status:  sendRes.ok ? 'sent' : 'failed',
-                new:     myNew.length,
-                revisit: myRevisit.length,
-                id:      sendData.id || sendData.error
-            });
-            await sleep(600); // Brevo 발송 간격
-        }
+                const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+                    method: 'POST',
+                    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender:      { name: FROM_NAME, email: FROM_EMAIL },
+                        to:          [{ email }],
+                        subject:     `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
+                        htmlContent: html
+                    })
+                });
 
-        // ── 5. 지점장 전체 발송 ───────────────────────────────
-        for (const email of branchEmails) {
-            const targets    = { newObj: newTargets, revisitObj: revisitTargets };
-            const routeStops = optimizeRoute(targets);
-            const html = buildAlertEmailHtml('전체', targets, routeStops);
+                const sendData = await sendRes.json();
+                results.push({
+                    manager: managerName, bu, email,
+                    status:  sendRes.ok ? 'sent' : 'failed',
+                    new:     myNew.length, revisit: myRevisit.length,
+                    id:      sendData.id || sendData.error
+                });
+                await sleep(600);
+            }
 
-            const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-                method: 'POST',
-                headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    sender:      { name: FROM_NAME, email: FROM_EMAIL },
-                    to:          [{ email }],
-                    subject:     `[인허가 알림] 신규 ${newTargets.length}건 / 재확인 ${revisitTargets.length}건 (전체)`,
-                    htmlContent: html
-                })
-            });
+            // 4-2. 지점장: 본인 지점 전체 건
+            for (const email of branchEmails) {
+                const targets    = { newObj: unitNew, revisitObj: unitRevisit };
+                const routeStops = optimizeRoute(targets);
+                const html = buildAlertEmailHtml('전체', targets, routeStops);
 
-            const sendData = await sendRes.json();
-            results.push({
-                manager: '지점장',
-                email,
-                status:  sendRes.ok ? 'sent' : 'failed',
-                new:     newTargets.length,
-                revisit: revisitTargets.length,
-                id:      sendData.id || sendData.error
-            });
-            await sleep(600); // Brevo 발송 간격
+                const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+                    method: 'POST',
+                    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender:      { name: FROM_NAME, email: FROM_EMAIL },
+                        to:          [{ email }],
+                        subject:     `[인허가 알림] 신규 ${unitNew.length}건 / 재확인 ${unitRevisit.length}건 (${bu} 전체)`,
+                        htmlContent: html
+                    })
+                });
+
+                const sendData = await sendRes.json();
+                results.push({
+                    manager: '지점장', bu, email,
+                    status:  sendRes.ok ? 'sent' : 'failed',
+                    new:     unitNew.length, revisit: unitRevisit.length,
+                    id:      sendData.id || sendData.error
+                });
+                await sleep(600);
+            }
         }
 
         return res.status(200).json({
@@ -376,7 +385,7 @@ function buildAlertEmailHtml(managerName, targets, routeStops) {
 </tr>
 <tr>
   <td style="padding:30px; background-color:#ffffff;">
-    <p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">&#xC548;&#xB155;&#xD558;&#xC2ED;&#xB2C8;&#xAE4C;,<br>&#xAE08;&#xC77C; &#xAE30;&#xC900; &#xBC29;&#xBB38;&#xC774; &#xD544;&#xC694;&#xD55C; &#xC0AC;&#xC5C5;&#xC7A5; &#xB9AC;&#xC2A4;&#xD2B8;&#xB97C; &#xC1A1;&#xBD80;&#xB4DC;&#xB9BD;&#xB2C8;&#xB2E4;.<br>&#xBC29;&#xBB38; &#xC77C;&#xC815; &#xC870;&#xC728;&#xC5D0; &#xCC38;&#xACE0;&#xD558;&#xC2DC;&#xAE30; &#xBC14;&#xB78D;&#xB2C8;&#xB2E4;.</p>
+    <p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">${managerName}&#xB2D8;, &#xC548;&#xB155;&#xD558;&#xC2ED;&#xB2C8;&#xAE4C;,<br>&#xAE08;&#xC77C; &#xAE30;&#xC900; &#xBC29;&#xBB38;&#xC774; &#xD544;&#xC694;&#xD55C; &#xC0AC;&#xC5C5;&#xC7A5; &#xB9AC;&#xC2A4;&#xD2B8;&#xB97C; &#xC1A1;&#xBD80;&#xB4DC;&#xB9BD;&#xB2C8;&#xB2E4;.<br>&#xBC29;&#xBB38; &#xC77C;&#xC815; &#xC870;&#xC728;&#xC5D0; &#xCC38;&#xACE0;&#xD558;&#xC2DC;&#xAE30; &#xBC14;&#xB78D;&#xB2C8;&#xB2E4;.</p>
     ${routeSection}
     ${newSection}
     ${revisitSection}
