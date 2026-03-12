@@ -705,19 +705,7 @@
                         </div>
                         <div class="search-divider">지역</div>
                         <div class="chip-group" id="regionChips">
-                            <span class="chip active" data-region="의정부">의정부</span>
-                            <span class="chip active" data-region="양주">양주</span>
-                            <span class="chip active" data-region="동두천">동두천</span>
-                            <span class="chip active" data-region="포천">포천</span>
-                            <span class="chip active" data-region="연천">연천</span>
-                            <span class="chip active" data-region="파주">파주</span>
-                            <span class="chip active" data-region="고양">고양</span>
-                            <span class="chip active" data-region="남양주">남양주</span>
-                            <span class="chip active" data-region="구리">구리</span>
-                            <span class="chip active" data-region="가평">가평</span>
-                            <span class="chip active" data-region="김포">김포</span>
-                            <span class="chip active" data-region="부천">부천</span>
-                            <span class="chip active" data-region="인천">인천</span>
+                            <span style="font-size:12px;color:#888;">지역 로딩 중...</span>
                         </div>
                         <div id="searchResultArea"></div>
                     </div>
@@ -734,6 +722,9 @@
                     <div class="card-body">
                         <button class="btn-template" onclick="downloadTemplate()">
                             ⬇️ 템플릿 다운로드 (.xlsx)
+                        </button>
+                        <button class="btn-template" onclick="downloadCurrentDb()" style="margin-left:8px;background:#34c759;">
+                            ⬇️ 현재 DB 다운로드 (.xlsx)
                         </button>
                         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
                             ondragover="event.preventDefault(); this.classList.add('drag')"
@@ -792,7 +783,7 @@
                     { key: 'milk_type', label: '사용우유' }
                 ],
                 templateHeaders: ['NO', '영업 허가일', '사업장명', '거래여부(기입예정)', '업태구분명', '평형', '도로명전체주소', '주소1', '주소2', '주소3', '순위', '담당자', '앱시트등록일', '위도', '경도', '사용우유'],
-                sampleRow: ['1', '2024-01-15', '테스트카페', '인허가', '커피', '30', '경기도 포천시 테스트로 1', '경기', '포천시', '신북면', '1', '홍길동', '2024-01-20', '37.89', '127.20', '서울우유'],
+                sampleRow: ['1', '2026-01-15', '행복카페', '인허가', '휴게음식점', '25', '경기도 포천시 소흘읍 죽엽산로 1', '경기도', '포천시', '소흘읍', '1', '홍길동', '2026-01-20', '37.894', '127.204', '매일'],
                 columnMap: {
                     '영업 허가일': 'permit_date',
                     '사업장명': 'business_name',
@@ -829,7 +820,7 @@
                     { key: 'address', label: '주소' }
                 ],
                 templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드명', '고객레벨2', '거래처ID', '거래처명', '거래상태', '주요거래처 여부', '담당자명', '주소', '도/광역시', '시/군/구', '면/동'],
-                sampleRow: ['1', '경기북부', '포천', '포천지점', 'S001', 'A', 'C001', '홍길동마트', '거래', 'Y', '홍길동', '경기도 포천시 테스트로 2', '경기도', '포천시', '신북면'],
+                sampleRow: ['1', '경기북부', '포천', '포천지점', 'K11P001', 'A', 'C00001', '행복카페', '거래', 'Y', '홍길동', '경기도 포천시 소흘읍 죽엽산로 1', '경기도', '포천시', '소흘읍'],
                 columnMap: {
                     'NO': 'seq_no',
                     '사업장코드명': 'store_code',
@@ -854,7 +845,7 @@
                     { key: 'content', label: '내용' }
                 ],
                 templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드', '작성일', '작성자', '방문처(대리점 코드)', '방문처(대리점)', '방문처(거래처 코드)', '방문처(거래처)', '내용'],
-                sampleRow: ['1', '경기북부', '포천', '포천지점', 'S001', '2024-03-01', '홍길동', 'D001', '포천대리점', 'C001', '테스트카페', '방문 후 가격 협의 진행'],
+                sampleRow: ['1', '경기북부', '포천', '포천지점', 'K11P001', '2026-03-10', '홍길동', 'D001', '포천대리점', 'C00001', '행복카페', '원장님 면담, 현재 서울우유 사용 중 / 자사 제품 가격 경쟁력 어필 예정'],
                 columnMap: {
                     'NO': 'seq_no',
                     '사업장코드': 'store_code',
@@ -885,14 +876,16 @@
                 label: '담당자관리', table: 'managers',
                 editable: true,
                 columns: [
-                    { key: 'region', label: '지역' },
+                    { key: 'region1', label: '시도' },
+                    { key: 'region2', label: '시군구' },
                     { key: 'manager_name', label: '담당자' },
                     { key: 'email', label: '이메일' }
                 ],
-                templateHeaders: ['지역', '담당자', '이메일'],
-                sampleRow: ['포천', '홍길동', 'hong@example.com'],
+                templateHeaders: ['시도', '시군구', '담당자', '이메일'],
+                sampleRow: ['경기도', '포천시', '홍길동', 'hong@example.com'],
                 columnMap: {
-                    '지역': 'region',
+                    '시도': 'region1',
+                    '시군구': 'region2',
                     '담당자': 'manager_name',
                     '이메일': 'email'
                 },
@@ -1248,11 +1241,40 @@
             }
         }
 
+        // ── 현재 DB 데이터 다운로드 ─────────────────────────
+        function downloadCurrentDb() {
+            const cfg = UPLOAD_TYPES[selectedType];
+            if (!currentDbData || currentDbData.length === 0) {
+                showToast('데이터가 없습니다. 먼저 좌측에서 데이터를 로드해주세요.');
+                return;
+            }
+            // templateHeaders → dbColumn 역방향 매핑
+            const headers = cfg.templateHeaders || (cfg.columns || []).map(c => c.label);
+            const colKeys = cfg.templateHeaders
+                ? cfg.templateHeaders.map(h => cfg.columnMap?.[h]).filter(Boolean)
+                : (cfg.columns || []).map(c => c.key);
+
+            const rows = currentDbData.map(row => colKeys.map(key => {
+                const v = row[key];
+                if (v == null) return '';
+                if (typeof v === 'boolean') return v ? 'Y' : 'N';
+                return String(v);
+            }));
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws['!cols'] = headers.map(h => ({ wch: Math.max(String(h).length + 2, 16) }));
+            XLSX.utils.book_append_sheet(wb, ws, cfg.label);
+            const today = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `FS_MISO_${cfg.label}_${today}.xlsx`);
+        }
+
         // ── 템플릿 다운로드 ──────────────────────────────────
         function downloadTemplate() {
             const cfg = UPLOAD_TYPES[selectedType];
             const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet([cfg.templateHeaders, cfg.sampleRow]);
+            const sampleMarked = ['[예시]', ...cfg.sampleRow.slice(1)];
+            const ws = XLSX.utils.aoa_to_sheet([cfg.templateHeaders, sampleMarked]);
             ws['!cols'] = cfg.templateHeaders.map(h => ({ wch: Math.max(h.length + 2, 14) }));
             XLSX.utils.book_append_sheet(wb, ws, cfg.label);
             XLSX.writeFile(wb, `FS_MISO_템플릿_${cfg.label}.xlsx`);
@@ -1304,7 +1326,7 @@
                             obj[dbCol] = val;
                         });
                         return obj;
-                    }).filter(row => row[cfg.requiredCol]);
+                    }).filter(row => row[cfg.requiredCol] && row[cfg.requiredCol] !== '[예시]');
 
                     if (parsedData.length === 0) {
                         showToast('유효한 데이터가 없습니다. 필수 컬럼을 확인해주세요.');
@@ -1459,6 +1481,44 @@
                 e.target.classList.toggle('active');
             }
         });
+
+        // 지역 칩 동적 로드 (managers 테이블 region1+region2 기반)
+        async function loadRegionChips() {
+            const chipContainer = document.getElementById('regionChips');
+            try {
+                const bu = await getBusinessUnit();
+                if (!bu) throw new Error('소속 없음');
+
+                const { data: { session } } = await client.auth.getSession();
+                const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                const token = session?.access_token || anonKey;
+
+                const res = await fetch(
+                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2&order=region2`,
+                    { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
+                );
+                if (!res.ok) throw new Error('조회 실패');
+                const rows = await res.json();
+
+                // region2 기준 중복 제거
+                const seen = new Set();
+                const chips = [];
+                for (const r of rows) {
+                    if (!r.region2 || seen.has(r.region2)) continue;
+                    seen.add(r.region2);
+                    chips.push(r);
+                }
+
+                if (chips.length === 0) throw new Error('지역 없음');
+
+                chipContainer.innerHTML = chips.map(r =>
+                    `<span class="chip active" data-region="${r.region2}">${r.region2}</span>`
+                ).join('');
+            } catch (e) {
+                chipContainer.innerHTML = '<span style="font-size:12px;color:#c00;">지역 로드 실패 — 담당자 관리에서 시도/시군구를 입력해주세요.</span>';
+            }
+        }
+        loadRegionChips();
 
         // 날짜 기본값: 이번 주 월~일
         (function initSearchDates() {
