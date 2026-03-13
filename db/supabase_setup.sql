@@ -1,6 +1,7 @@
 -- ============================================================
 -- FS MISO — 멀티테넌트 테이블 생성 + RLS 설정
 -- Supabase SQL Editor에서 전체 복붙 후 실행 (재실행 안전)
+-- 최종 업데이트: 2026-03-13
 -- ============================================================
 
 
@@ -103,15 +104,22 @@ CREATE TABLE IF NOT EXISTS visit_logs (
     content         TEXT,
     key_issue       TEXT,
     trade_status    TEXT,
+    embedding       vector(768),
     created_by      UUID REFERENCES auth.users(id),
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
--- seq_no 기반 중복 방지 인덱스 (업로드 시 동일 seq_no 재업로드 차단)
--- ⚠️ 실행 전 기존 중복 seq_no 제거 필요: SELECT seq_no, business_unit, COUNT(*) FROM visit_logs GROUP BY seq_no, business_unit HAVING COUNT(*) > 1;
-CREATE UNIQUE INDEX IF NOT EXISTS visit_logs_bu_seq_unique
-    ON visit_logs (business_unit, seq_no)
-    WHERE seq_no IS NOT NULL;
+-- 중복 방지: 같은 지점 내 동일 날짜+담당자+거래처 재업로드 차단
+-- ⚠️ 실행 전 기존 중복 확인:
+-- SELECT business_unit, visit_date, manager, business_name, COUNT(*)
+-- FROM visit_logs GROUP BY business_unit, visit_date, manager, business_name HAVING COUNT(*) > 1;
+CREATE UNIQUE INDEX IF NOT EXISTS visit_logs_natural_uq
+    ON visit_logs (business_unit, visit_date, manager, business_name)
+    WHERE visit_date IS NOT NULL AND manager IS NOT NULL AND business_name IS NOT NULL;
+
+-- 벡터 인덱스 (Mother Brain 유사도 검색)
+CREATE INDEX IF NOT EXISTS visit_logs_embedding_idx
+    ON visit_logs USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
 
 ALTER TABLE visit_logs ENABLE ROW LEVEL SECURITY;
 
@@ -137,6 +145,7 @@ CREATE POLICY "visit_logs_delete_own" ON visit_logs
 
 -- ─────────────────────────────────────────────────────────────
 -- 4. managers (담당자관리)
+-- region1: 시도, region2: 시군구 (지점장은 region2='지점장')
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS managers (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -186,64 +195,11 @@ CREATE TABLE IF NOT EXISTS recipes (
     created_at      TIMESTAMPTZ  DEFAULT now()
 );
 
--- 벡터 유사도 검색 인덱스 (ivfflat 근사 검색, lists는 rows/1000 기준)
 CREATE INDEX IF NOT EXISTS recipes_embedding_idx
     ON recipes USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
 
--- 카테고리 필터용 인덱스
 CREATE INDEX IF NOT EXISTS recipes_category_idx ON recipes (category);
 
-
--- ─────────────────────────────────────────────────────────────
--- Mother Brain: visit_logs 임베딩 컬럼 + 벡터 검색 함수
--- ─────────────────────────────────────────────────────────────
-
--- 1. embedding 컬럼 추가 (이미 있으면 무시)
-ALTER TABLE visit_logs ADD COLUMN IF NOT EXISTS embedding vector(768);
-
--- 2. 벡터 인덱스
-CREATE INDEX IF NOT EXISTS visit_logs_embedding_idx
-    ON visit_logs USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
-
--- 3. 개척완료 성공 사례 유사도 검색 함수
--- Service Role Key로만 호출 (브리핑 API에서 서버 사이드 호출)
-CREATE OR REPLACE FUNCTION search_success_visits(
-    query_embedding  vector(768),
-    p_business_unit  TEXT,
-    match_count      INT DEFAULT 2
-)
-RETURNS TABLE(
-    business_name  TEXT,
-    visit_date     DATE,
-    manager        TEXT,
-    content        TEXT,
-    similarity     FLOAT
-)
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    RETURN QUERY
-    SELECT
-        v.business_name,
-        v.visit_date,
-        v.manager,
-        v.content,
-        1 - (v.embedding <=> query_embedding) AS similarity
-    FROM visit_logs v
-    WHERE
-        v.business_unit = p_business_unit
-        AND v.embedding IS NOT NULL
-        AND (
-            v.content ILIKE '%개척완료%'
-            OR v.content ILIKE '%개척 완료%'
-            OR v.content ILIKE '%연결완료%'
-        )
-        AND 1 - (v.embedding <=> query_embedding) > 0.62  -- 유사도 62% 미만 사례 제외
-    ORDER BY v.embedding <=> query_embedding
-    LIMIT match_count;
-END;
-$$;
 
 -- ─────────────────────────────────────────────────────────────
 -- 6. ai_briefings (거래처 AI 브리핑 캐시)
@@ -265,15 +221,15 @@ DROP POLICY IF EXISTS "ai_briefings_select_same_unit" ON ai_briefings;
 CREATE POLICY "ai_briefings_select_same_unit" ON ai_briefings
     FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
+-- Service Role Key로 호출 시 RLS 우회 (generate-briefing.js / batch-briefings.js)
 DROP POLICY IF EXISTS "ai_briefings_all_service" ON ai_briefings;
 CREATE POLICY "ai_briefings_all_service" ON ai_briefings
     FOR ALL USING (true) WITH CHECK (true);
--- 참고: generate-briefing.js / batch-briefings.js는 Service Role Key로 호출 → RLS 우회
 
 
 -- ─────────────────────────────────────────────────────────────
 -- 7. naver_cache (네이버 지역/블로그 검색 캐시 — 240h)
--- RLS 미적용: 서버사이드 anon key 호출, store_name만 있음 (비민감 캐시)
+-- RLS 미적용: 서버사이드 anon key 호출, 비민감 캐시
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS naver_cache (
     id          BIGSERIAL PRIMARY KEY,
@@ -286,7 +242,7 @@ CREATE TABLE IF NOT EXISTS naver_cache (
 
 -- ─────────────────────────────────────────────────────────────
 -- 8. store_analysis_cache (네이버 매장 AI 분석 캐시 — 7일)
--- RLS 미적용: 서버사이드 anon key 호출 (비민감 캐시)
+-- RLS 미적용: 서버사이드 anon key 호출, 비민감 캐시
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS store_analysis_cache (
     id           BIGSERIAL PRIMARY KEY,
@@ -328,8 +284,53 @@ CREATE POLICY "quotes_delete_own_unit" ON quotes
     FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
 
--- ── 벡터 유사도 검색 함수 ──
+-- ─────────────────────────────────────────────────────────────
+-- 함수 1. search_success_visits (Mother Brain — 개척완료 유사도 검색)
+-- Service Role Key로만 호출 (브리핑 API 서버사이드)
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION search_success_visits(
+    query_embedding  vector(768),
+    p_business_unit  TEXT,
+    match_count      INT DEFAULT 2
+)
+RETURNS TABLE(
+    business_name  TEXT,
+    visit_date     DATE,
+    manager        TEXT,
+    content        TEXT,
+    similarity     FLOAT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT
+        v.business_name,
+        v.visit_date,
+        v.manager,
+        v.content,
+        1 - (v.embedding <=> query_embedding) AS similarity
+    FROM visit_logs v
+    WHERE
+        v.business_unit = p_business_unit
+        AND v.embedding IS NOT NULL
+        AND (
+            v.content ILIKE '%개척완료%'
+            OR v.content ILIKE '%개척 완료%'
+            OR v.content ILIKE '%연결완료%'
+        )
+        AND 1 - (v.embedding <=> query_embedding) > 0.62
+    ORDER BY v.embedding <=> query_embedding
+    LIMIT match_count;
+END;
+$$;
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 함수 2. search_recipes (레시피 벡터 유사도 검색)
 -- 사용 예: SELECT * FROM search_recipes('[0.1, 0.2, ...]'::vector, 5, '라떼');
+-- ─────────────────────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION search_recipes(
     query_embedding vector(768),
     match_count     INT     DEFAULT 5,
