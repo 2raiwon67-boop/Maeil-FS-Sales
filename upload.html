@@ -670,7 +670,7 @@
 
                 <!-- 담당자관리 가이드 (담당자 탭 전용) -->
                 <div class="card" id="managersGuideCard" style="display:none; border-left:3px solid #0071e3;">
-                    <div class="card-header" style="color:#0071e3;">📋 담당자 등록 안내 (지점장 필독)</div>
+                    <div class="card-header" style="color:#0071e3;">📋 담당자 등록 안내</div>
                     <div class="card-body" style="font-size:13px; line-height:1.8; color:#3a3a3c;">
                         <p style="margin:0 0 10px 0;">인허가 알림 이메일 및 앱 담당자 필터가 정상 작동하려면 아래 절차대로 담당자를 등록해주세요.</p>
                         <p style="margin:0 0 6px 0; font-weight:600;">① 엑셀 작성 방법</p>
@@ -689,10 +689,10 @@
                                 <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">이메일</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">hong@example.com</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">인허가 알림 수신 이메일 (필수)</td></tr>
                             </tbody>
                         </table>
-                        <p style="margin:0 0 6px 0; font-weight:600;">② 지점장 본인 등록 방법</p>
-                        <p style="margin:0 0 10px 0; padding:8px 12px; background:#fff3cd; border-radius:6px;">지점장님은 시군구 컬럼에 <strong>지점장</strong>이라고 입력하세요.<br>그러면 매주 월요일 알림 이메일에 지점 전체 인허가 현황이 발송됩니다.</p>
+                        <p style="margin:0 0 6px 0; font-weight:600;">② 지점장 등록 방안</p>
+                        <p style="margin:0 0 10px 0; padding:8px 12px; background:#fff3cd; border-radius:6px;">지점장님은 시군구 컬럼에 <strong>지점장</strong>이라고 입력하세요.</p>
                         <p style="margin:0 0 6px 0; font-weight:600;">③ 업로드 절차</p>
-                        <p style="margin:0; color:#555;">템플릿 다운로드 → 작성 → 드래그앤드롭 업로드 → 확인 버튼<br>기존 담당자를 수정하려면 <strong>현재 DB 다운로드</strong> 후 수정하여 재업로드하세요.</p>
+                        <p style="margin:0; color:#555;">템플릿 다운로드 → 작성 → 드래그앤드롭 업로드 → 확인 버튼<br>기존 담당자를 수정하려면 DB 다운로드 또는 현재 DB 현황에서 각 셀을 클릭하여 변경 가능합니다.</p>
                     </div>
                 </div>
 
@@ -751,7 +751,7 @@
                         <button class="btn-template" onclick="downloadTemplate()">
                             ⬇️ 템플릿 다운로드 (.xlsx)
                         </button>
-                        <button class="btn-template" onclick="downloadCurrentDb()" style="margin-left:8px;background:#34c759;">
+                        <button class="btn-template" id="btnDownloadDb" onclick="downloadCurrentDb()" style="margin-left:8px;background:#34c759;">
                             ⬇️ 현재 DB 다운로드 (.xlsx)
                         </button>
                         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
@@ -985,6 +985,10 @@
             const managersGuideCard = document.getElementById('managersGuideCard');
             if (managersGuideCard) managersGuideCard.style.display = type === 'managers' ? '' : 'none';
 
+            // 편집형(accounts, managers)은 DB 다운로드 버튼을 DB현황 내로 이동 → 업로드 카드에서 숨김
+            const btnDownloadDb = document.getElementById('btnDownloadDb');
+            if (btnDownloadDb) btnDownloadDb.style.display = cfg.editable ? 'none' : '';
+
             loadCurrentData();
         }
 
@@ -1170,6 +1174,7 @@
                 <div class="db-summary">
                     <span class="badge">${total ?? data.length}건</span>
                     <button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
+                    <button class="btn-template" onclick="downloadCurrentDb()" style="margin-left:8px;padding:5px 12px;font-size:12px;background:#34c759;">⬇️ DB 다운로드</button>
                 </div>
                 <div class="db-table-scroll" style="margin-top:10px;max-height:220px;">
                     <table class="preview-table editable-table">
