@@ -2750,19 +2750,37 @@
             }
         }
 
+        // ── 관리자 전체 데이터 조회 헬퍼 ────────────────────
+        const ADMIN_CODE = '532753';
+        async function fetchAdminTable(table) {
+            const resp = await fetch(`/api/admin-all-data?table=${table}`, {
+                headers: { 'x-admin-key': ADMIN_CODE }
+            });
+            if (!resp.ok) throw new Error(`admin fetch 실패: ${table}`);
+            const json = await resp.json();
+            return json.data || [];
+        }
+
         async function loadDataFromSheets() {
             try {
-                const businessUnit = await getBusinessUnitForIndex();
-                if (!businessUnit) {
-                    console.warn('소속 정보가 없어 인허가 데이터를 로드할 수 없습니다.');
-                    return;
+                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+                let rows;
+                if (isAdmin) {
+                    rows = await fetchAdminTable('licenses');
+                } else {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (!businessUnit) {
+                        console.warn('소속 정보가 없어 인허가 데이터를 로드할 수 없습니다.');
+                        return;
+                    }
+                    const { data, error } = await client
+                        .from('licenses')
+                        .select('*')
+                        .eq('business_unit', businessUnit);
+                    if (error) throw error;
+                    rows = data;
                 }
-
-                const { data, error } = await client
-                    .from('licenses')
-                    .select('*')
-                    .eq('business_unit', businessUnit);
-                if (error) throw error;
+                const data = rows;
 
                 // Supabase 영문 필드 → 기존 한국어 키로 변환 (기존 코드 호환)
                 allData = (data || [])
@@ -3430,14 +3448,20 @@
 
         async function loadAccountsData() {
             try {
-                const businessUnit = await getBusinessUnitForIndex();
-                if (!businessUnit) return;
-
-                const { data, error } = await client
-                    .from('accounts')
-                    .select('*')
-                    .eq('business_unit', businessUnit);
-                if (error) throw error;
+                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+                let data;
+                if (isAdmin) {
+                    data = await fetchAdminTable('accounts');
+                } else {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (!businessUnit) return;
+                    const { data: d, error } = await client
+                        .from('accounts')
+                        .select('*')
+                        .eq('business_unit', businessUnit);
+                    if (error) throw error;
+                    data = d;
+                }
 
                 // Supabase 영문 필드 → 한국어 키 변환
                 accountsData = (data || [])
@@ -3468,15 +3492,22 @@
         // 방문일지 캐시 로드 (InfoWindow에서 최신 방문 기록 표시용)
         async function loadVisitLogCache() {
             try {
-                const businessUnit = await getBusinessUnitForIndex();
-                if (!businessUnit) return;
-
-                const { data, error } = await client
-                    .from('visit_logs')
-                    .select('*')
-                    .eq('business_unit', businessUnit)
-                    .order('visit_date', { ascending: false });
-                if (error) throw error;
+                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+                let data;
+                if (isAdmin) {
+                    data = await fetchAdminTable('visit_logs');
+                    data = (data || []).sort((a, b) => (b.visit_date || '').localeCompare(a.visit_date || ''));
+                } else {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (!businessUnit) return;
+                    const { data: d, error } = await client
+                        .from('visit_logs')
+                        .select('*')
+                        .eq('business_unit', businessUnit)
+                        .order('visit_date', { ascending: false });
+                    if (error) throw error;
+                    data = d;
+                }
 
                 // Supabase 영문 필드 → 기존 한국어 키 변환 (이미 visit_date desc 정렬)
                 window.visitLogCache = (data || []).map(row => {

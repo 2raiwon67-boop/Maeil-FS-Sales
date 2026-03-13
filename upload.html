@@ -746,13 +746,10 @@
 
                 <!-- 3. 템플릿 + 파일 업로드 -->
                 <div class="card" id="uploadCard">
-                    <div class="card-header">엑셀 업로드 (대용량 일괄 교체용)</div>
+                    <div class="card-header">엑셀 업로드 (대량 데이터 추가)</div>
                     <div class="card-body">
                         <button class="btn-template" onclick="downloadTemplate()">
                             ⬇️ 템플릿 다운로드 (.xlsx)
-                        </button>
-                        <button class="btn-template" id="btnDownloadDb" onclick="downloadCurrentDb()" style="margin-left:8px;background:#34c759;">
-                            ⬇️ 현재 DB 다운로드 (.xlsx)
                         </button>
                         <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()"
                             ondragover="event.preventDefault(); this.classList.add('drag')"
@@ -832,7 +829,7 @@
                 requiredCol: 'business_name',
                 dateFields: ['permit_date', 'appsheet_date'],
                 numericFields: ['lat', 'lng'],
-                mode: 'append'
+                mode: 'add_new_only', deduplicateField: 'business_name'
             },
             accounts: {
                 label: '주요거래처', table: 'accounts',
@@ -859,7 +856,8 @@
                     '담당자명': 'manager_name',
                     '주소': 'address'
                 },
-                requiredCol: 'business_name', dateFields: [], numericFields: []
+                requiredCol: 'business_name', dateFields: [], numericFields: [],
+                mode: 'add_new_only', deduplicateField: 'account_id'
             },
             visit_logs: {
                 label: '방문일지', table: 'visit_logs',
@@ -984,10 +982,6 @@
             // 담당자 가이드: 담당자 탭일 때만 표시
             const managersGuideCard = document.getElementById('managersGuideCard');
             if (managersGuideCard) managersGuideCard.style.display = type === 'managers' ? '' : 'none';
-
-            // 편집형(accounts, managers)은 DB 다운로드 버튼을 DB현황 내로 이동 → 업로드 카드에서 숨김
-            const btnDownloadDb = document.getElementById('btnDownloadDb');
-            if (btnDownloadDb) btnDownloadDb.style.display = cfg.editable ? 'none' : '';
 
             loadCurrentData();
         }
@@ -1127,13 +1121,14 @@
                     <span class="badge">레시피 데이터 (CLI 스크립트로 관리)</span>`;
             }
 
-            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('');
-            const rowsHtml = data.map(row => `
-                <tr>${cols.map(c => {
-                const v = escapeAttr(formatCellValue(row[c.key]));
-                return `<td title="${v}">${v}</td>`;
-            }).join('')}</tr>
-            `).join('');
+            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('') + '<th style="width:32px;"></th>';
+            const rowsHtml = data.map(row => {
+                const cells = cols.map(c => {
+                    const v = escapeAttr(formatCellValue(row[c.key]));
+                    return `<td title="${v}">${v}</td>`;
+                }).join('');
+                return `<tr>${cells}<td><button class="btn-delete-row" onclick="deleteDbRow('${row.id}','${cfg.table}')" title="삭제">🗑️</button></td></tr>`;
+            }).join('');
 
             const totalPages = Math.ceil(total / PREVIEW_PAGE_SIZE);
             const startRow = previewPage * PREVIEW_PAGE_SIZE + 1;
@@ -1221,6 +1216,19 @@
                     if (firstInput) firstInput.focus();
                 }
             }, 50);
+        }
+
+        // ── DB 행 직접 삭제 (읽기전용 테이블) ────────────────
+        async function deleteDbRow(id, tableName) {
+            if (!confirm('이 행을 DB에서 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) return;
+            try {
+                const { error } = await client.from(tableName).delete().eq('id', id);
+                if (error) throw error;
+                showToast('삭제되었습니다.');
+                await loadCurrentData();
+            } catch (e) {
+                showToast('❌ 삭제 실패: ' + e.message);
+            }
         }
 
         // ── 편집 데이터 저장 (managers, accounts) ───────────
@@ -1420,12 +1428,17 @@
                         </table>`;
 
                     const isAppend = cfg.mode === 'append';
+                    const isAddNewOnly = cfg.mode === 'add_new_only';
                     document.getElementById('uploadBanner').className = 'banner banner-warn';
                     document.getElementById('uploadBanner').innerHTML = isAppend
                         ? `➕ <strong>${cfg.label}</strong> 기존 데이터에 <strong>${parsedData.length}건</strong>을 추가합니다. (seq_no 중복 시 덮어씀)`
+                        : isAddNewOnly
+                        ? `➕ <strong>${cfg.label}</strong> <strong>${parsedData.length}건</strong>을 추가합니다. 상호명이 이미 존재하는 항목은 자동으로 건너뜁니다.`
                         : `⚠️ 기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedData.length}건</strong>으로 교체됩니다.`;
                     document.getElementById('btnUpload').textContent = isAppend
                         ? `업로드 확인 (${parsedData.length}건 추가/갱신)`
+                        : isAddNewOnly
+                        ? `업로드 확인 (최대 ${parsedData.length}건 추가)`
                         : `업로드 확인 (${parsedData.length}건 교체)`;
                     document.getElementById('previewSection').style.display = 'block';
 
@@ -1441,7 +1454,11 @@
             if (!parsedData || parsedData.length === 0) return;
             const cfg = UPLOAD_TYPES[selectedType];
 
-            if (!confirm(`${cfg.label} 기존 데이터를 삭제하고\n새 데이터 ${parsedData.length}건을 업로드합니다.\n계속하시겠습니까?`)) return;
+            const isAddNewOnly = cfg.mode === 'add_new_only';
+            const confirmMsg = isAddNewOnly
+                ? `${cfg.label} ${parsedData.length}건을 추가합니다.\n(상호명 중복 항목은 자동 건너뜀)\n계속하시겠습니까?`
+                : `${cfg.label} 기존 데이터를 삭제하고\n새 데이터 ${parsedData.length}건을 업로드합니다.\n계속하시겠습니까?`;
+            if (!confirm(confirmMsg)) return;
 
             const btn = document.getElementById('btnUpload');
             btn.disabled = true;
@@ -1457,7 +1474,28 @@
 
                 const isAppend = cfg.mode === 'append';
 
-                if (!isAppend) {
+                // ── add_new_only: 기존 상호명 조회 후 중복 건너뜀 ──
+                if (isAddNewOnly && cfg.deduplicateField) {
+                    btn.innerHTML = '<span class="spinner-inline"></span>중복 확인 중...';
+                    const dedupField = cfg.deduplicateField;
+                    const { data: existingRows, error: existErr } = await client
+                        .from(cfg.table).select(dedupField).eq('business_unit', businessUnit);
+                    if (existErr) throw new Error('기존 데이터 확인 실패: ' + existErr.message);
+                    const existingSet = new Set((existingRows || []).map(r => r[dedupField]).filter(Boolean));
+                    const before = parsedData.length;
+                    parsedData = parsedData.filter(row => !existingSet.has(row[dedupField]));
+                    const skipped = before - parsedData.length;
+                    if (parsedData.length === 0) {
+                        document.getElementById('uploadBanner').className = 'banner banner-warn';
+                        document.getElementById('uploadBanner').innerHTML = `ℹ️ ${before}건 모두 이미 존재하는 데이터입니다. 추가할 신규 항목이 없습니다.`;
+                        btn.disabled = false;
+                        btn.textContent = '업로드 확인';
+                        return;
+                    }
+                    if (skipped > 0) showToast(`중복 ${skipped}건 건너뜀, ${parsedData.length}건 신규 추가`);
+                }
+
+                if (!isAppend && !isAddNewOnly) {
                     const { error: delErr } = await client.from(cfg.table)
                         .delete()
                         .eq('business_unit', businessUnit);
@@ -1515,6 +1553,8 @@
 
                 const doneMsg = isAppend
                     ? `✅ <strong>${cfg.label}</strong> ${inserted}건 추가/갱신 완료!`
+                    : isAddNewOnly
+                    ? `✅ <strong>${cfg.label}</strong> ${inserted}건 신규 추가 완료!`
                     : `✅ <strong>${cfg.label}</strong> ${inserted}건 업로드 완료!`;
                 document.getElementById('uploadBanner').className = 'banner banner-success';
                 document.getElementById('uploadBanner').innerHTML = doneMsg;
