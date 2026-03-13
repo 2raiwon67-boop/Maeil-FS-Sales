@@ -1491,8 +1491,9 @@
         async function downloadCurrentDb() {
             const cfg = UPLOAD_TYPES[selectedType];
             const headers = cfg.templateHeaders || (cfg.columns || cfg.previewColumns || []).map(c => c.label);
+            // filter(Boolean) 제거: columnMap에 없는 컬럼(NO 등)은 null로 유지해 헤더와 길이를 맞춤
             const colKeys = cfg.templateHeaders
-                ? cfg.templateHeaders.map(h => cfg.columnMap?.[h]).filter(Boolean)
+                ? cfg.templateHeaders.map(h => cfg.columnMap?.[h] || null)
                 : (cfg.columns || cfg.previewColumns || []).map(c => c.key);
 
             let data = currentDbData;
@@ -1521,7 +1522,9 @@
                 return;
             }
 
-            const rows = data.map(row => colKeys.map(key => {
+            // key가 null인 컬럼(NO 등)은 순번(1, 2, 3...)으로 자동 채움
+            const rows = data.map((row, idx) => colKeys.map(key => {
+                if (key === null) return String(idx + 1);
                 const v = row[key];
                 if (v == null) return '';
                 if (typeof v === 'boolean') return v ? 'Y' : 'N';
