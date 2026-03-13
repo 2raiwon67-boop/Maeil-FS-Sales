@@ -192,8 +192,12 @@ CREATE TABLE IF NOT EXISTS recipes (
     tags            TEXT[]       DEFAULT '{}',
     is_vegan        BOOLEAN      DEFAULT false,
     embedding       vector(768),
+    pdf_url         TEXT,
     created_at      TIMESTAMPTZ  DEFAULT now()
 );
+
+-- pdf_url 컬럼 추가 (이미 있으면 무시)
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS pdf_url TEXT;
 
 CREATE INDEX IF NOT EXISTS recipes_embedding_idx
     ON recipes USING ivfflat (embedding vector_cosine_ops) WITH (lists = 10);
@@ -215,29 +219,25 @@ CREATE TABLE IF NOT EXISTS ai_briefings (
     UNIQUE (account_name, business_unit)
 );
 
-ALTER TABLE ai_briefings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "ai_briefings_select_same_unit" ON ai_briefings;
-CREATE POLICY "ai_briefings_select_same_unit" ON ai_briefings
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
-
--- Service Role Key로 호출 시 RLS 우회 (generate-briefing.js / batch-briefings.js)
-DROP POLICY IF EXISTS "ai_briefings_all_service" ON ai_briefings;
-CREATE POLICY "ai_briefings_all_service" ON ai_briefings
-    FOR ALL USING (true) WITH CHECK (true);
+-- ※ ai_briefings는 RLS 미적용 (Service Role Key로만 쓰기, anon으로 읽기)
+-- generate-briefing.js / batch-briefings.js → SERVICE_ROLE_KEY 사용
 
 
 -- ─────────────────────────────────────────────────────────────
 -- 7. naver_cache (네이버 지역/블로그 검색 캐시 — 240h)
--- RLS 미적용: 서버사이드 anon key 호출, 비민감 캐시
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS naver_cache (
-    id          BIGSERIAL PRIMARY KEY,
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_name  TEXT NOT NULL UNIQUE,
     local_data  JSONB,
     blog_data   JSONB,
     cached_at   TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE naver_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anon_all" ON naver_cache;
+CREATE POLICY "anon_all" ON naver_cache FOR ALL TO anon USING (true) WITH CHECK (true);
 
 
 -- ─────────────────────────────────────────────────────────────
