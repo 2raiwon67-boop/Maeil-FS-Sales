@@ -1121,13 +1121,13 @@
                     <span class="badge">레시피 데이터 (CLI 스크립트로 관리)</span>`;
             }
 
-            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('') + '<th style="width:32px;"></th>';
+            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('');
             const rowsHtml = data.map(row => {
                 const cells = cols.map(c => {
                     const v = escapeAttr(formatCellValue(row[c.key]));
                     return `<td title="${v}">${v}</td>`;
                 }).join('');
-                return `<tr>${cells}<td><button class="btn-delete-row" onclick="deleteDbRow('${row.id}','${cfg.table}')" title="삭제">🗑️</button></td></tr>`;
+                return `<tr style="cursor:pointer;" onclick="selectDbRow(this,'${row.id}','${cfg.table}')">${cells}</tr>`;
             }).join('');
 
             const totalPages = Math.ceil(total / PREVIEW_PAGE_SIZE);
@@ -1147,7 +1147,15 @@
                 : '';
 
             dbBody.innerHTML = `
-                <div class="db-summary" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">${summaryHtml}${dlBtn}</div>
+                <div class="db-summary" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                    ${summaryHtml}
+                    <button id="btnDeleteSelected" onclick="deleteSelectedDbRow()"
+                        style="display:none;margin-left:auto;padding:4px 12px;font-size:12px;background:#ff3b30;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                        🗑️ 선택 행 삭제
+                    </button>
+                    ${dlBtn}
+                </div>
+                <p id="rowSelectHint" style="font-size:11px;color:#c7c7cc;margin:4px 0 8px;">행을 클릭하면 선택됩니다</p>
                 <div class="db-table-scroll">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
@@ -1218,12 +1226,40 @@
             }, 50);
         }
 
-        // ── DB 행 직접 삭제 (읽기전용 테이블) ────────────────
-        async function deleteDbRow(id, tableName) {
-            if (!confirm('이 행을 DB에서 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) return;
+        // ── DB 행 선택 + 삭제 (읽기전용 테이블) ─────────────
+        let _selectedDbRow = { el: null, id: null, table: null };
+
+        function selectDbRow(tr, id, table) {
+            const btn = document.getElementById('btnDeleteSelected');
+            const hint = document.getElementById('rowSelectHint');
+            if (_selectedDbRow.el === tr) {
+                // 같은 행 재클릭 → 선택 해제
+                tr.style.background = '';
+                tr.style.fontWeight = '';
+                _selectedDbRow = { el: null, id: null, table: null };
+                if (btn) btn.style.display = 'none';
+                if (hint) hint.style.display = '';
+            } else {
+                // 이전 선택 해제
+                if (_selectedDbRow.el) {
+                    _selectedDbRow.el.style.background = '';
+                    _selectedDbRow.el.style.fontWeight = '';
+                }
+                tr.style.background = '#fff0f0';
+                tr.style.fontWeight = '500';
+                _selectedDbRow = { el: tr, id, table };
+                if (btn) btn.style.display = '';
+                if (hint) hint.style.display = 'none';
+            }
+        }
+
+        async function deleteSelectedDbRow() {
+            if (!_selectedDbRow.id) return;
+            if (!confirm('선택한 행을 DB에서 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) return;
             try {
-                const { error } = await client.from(tableName).delete().eq('id', id);
+                const { error } = await client.from(_selectedDbRow.table).delete().eq('id', _selectedDbRow.id);
                 if (error) throw error;
+                _selectedDbRow = { el: null, id: null, table: null };
                 showToast('삭제되었습니다.');
                 await loadCurrentData();
             } catch (e) {
