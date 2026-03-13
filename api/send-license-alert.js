@@ -33,13 +33,16 @@ export default async function handler(req, res) {
         };
 
         // ── 1. 데이터 조회 ────────────────────────────────────
-        const [licRes, mgrRes] = await Promise.all([
+        const [licResult, mgrResult] = await Promise.allSettled([
             fetch(`${SUPABASE_URL}/rest/v1/licenses?select=*`, { headers: sbHeaders }).then(r => r.json()),
             fetch(`${SUPABASE_URL}/rest/v1/managers?select=*`,  { headers: sbHeaders }).then(r => r.json())
         ]);
 
-        const allLicenses = Array.isArray(licRes) ? licRes : [];
-        const allManagers = Array.isArray(mgrRes) ? mgrRes : [];
+        const allLicenses = licResult.status === 'fulfilled' && Array.isArray(licResult.value) ? licResult.value : [];
+        const allManagers = mgrResult.status === 'fulfilled' && Array.isArray(mgrResult.value) ? mgrResult.value : [];
+
+        if (licResult.status === 'rejected') console.error('licenses 조회 실패:', licResult.reason);
+        if (mgrResult.status === 'rejected') console.error('managers 조회 실패:', mgrResult.reason);
 
         // ── 2. D+14 / D+28 필터링 ────────────────────────────
         const today = new Date();
@@ -152,7 +155,7 @@ export default async function handler(req, res) {
                     manager: managerName, bu, email,
                     status:  sendRes.ok ? 'sent' : 'failed',
                     new:     myNew.length, revisit: myRevisit.length,
-                    id:      sendData.id || sendData.error
+                    id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
                 });
                 await sleep(600);
             }
@@ -179,7 +182,7 @@ export default async function handler(req, res) {
                     manager: '지점장', bu, email,
                     status:  sendRes.ok ? 'sent' : 'failed',
                     new:     unitNew.length, revisit: unitRevisit.length,
-                    id:      sendData.id || sendData.error
+                    id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
                 });
                 await sleep(600);
             }

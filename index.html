@@ -2532,11 +2532,12 @@
             await getBusinessUnitForIndex();
             await loadManagerConfig();
 
-            loadDataFromSheets();
-
-            // 주요거래처 별 마커 로드 + 방문일지 캐시
-            loadAccountsData();
-            loadVisitLogCache();
+            // 3개 동시 실행 + 완료 대기 (Race Condition 방지)
+            await Promise.all([
+                loadDataFromSheets(),
+                loadAccountsData(),
+                loadVisitLogCache()
+            ]);
         };
 
         // ============================================================
