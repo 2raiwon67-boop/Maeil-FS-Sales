@@ -993,6 +993,8 @@
             selectedType = type;
             parsedData = null;
             currentDbData = [];
+            _deleteMode = false;
+            _checkedRows.clear();
 
             document.querySelectorAll('.type-btn').forEach((btn, i) => {
                 const keys = Object.keys(UPLOAD_TYPES);
@@ -1027,6 +1029,8 @@
         }
 
         function changePage(page) {
+            _deleteMode = false;
+            _checkedRows.clear();
             previewPage = page;
             loadCurrentData();
         }
@@ -1175,7 +1179,7 @@
 
         // ── 현재 DB 데이터 로드 ──────────────────────────────
         async function loadCurrentData() {
-            _selectedDbRows.clear(); // 페이지 이동/탭 전환 시 선택 초기화
+            _checkedRows.clear(); // 페이지 이동/탭 전환 시 선택 초기화
             const dbBody = document.getElementById('dbCurrentBody');
             const dbCount = document.getElementById('dbCurrentCount');
             const cfg = UPLOAD_TYPES[selectedType];
@@ -1252,6 +1256,8 @@
 
         // ── 읽기 전용 테이블 렌더링 ─────────────────────────
         function renderReadonlyTable(data, cfg, total) {
+            _readonlyPageData = data;
+            _readonlyTotal = total;
             const dbBody = document.getElementById('dbCurrentBody');
             const cols = cfg.previewColumns;
 
@@ -1276,13 +1282,22 @@
                     <span class="badge">레시피 데이터 (CLI 스크립트로 관리)</span>`;
             }
 
-            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('');
+            const chkHeader = _deleteMode ? `<th style="width:36px;text-align:center;"><input type="checkbox" id="chkAll" onchange="toggleAllRows(this.checked)" title="전체 선택"></th>` : '';
+            const headerHtml = chkHeader + cols.map(c => `<th>${c.label}</th>`).join('');
+
             const rowsHtml = data.map(row => {
                 const cells = cols.map(c => {
                     const v = escapeAttr(formatCellValue(row[c.key]));
                     return `<td title="${v}">${v}</td>`;
                 }).join('');
-                return `<tr style="cursor:pointer;" onclick="selectDbRow(this,'${row.id}','${cfg.table}')">${cells}</tr>`;
+                if (_deleteMode) {
+                    const checked = _checkedRows.has(row.id) ? 'checked' : '';
+                    return `<tr style="${checked ? 'background:#fff0f0;' : ''}">
+                        <td style="text-align:center;"><input type="checkbox" ${checked} onchange="toggleRowCheck('${row.id}')"></td>
+                        ${cells}
+                    </tr>`;
+                }
+                return `<tr>${cells}</tr>`;
             }).join('');
 
             const totalPages = Math.ceil(total / PREVIEW_PAGE_SIZE);
@@ -1297,21 +1312,29 @@
                             style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">다음 ▶</button>
                     </div>` : `<p style="font-size:12px;color:#86868b;margin:4px 0 0;">총 ${total}건</p>`;
 
-            const dlBtn = cfg.table !== 'recipes'
-                ? `<button onclick="downloadCurrentDb()" style="margin-left:auto;padding:4px 12px;font-size:12px;background:#34c759;color:#fff;border:none;border-radius:6px;cursor:pointer;">⬇️ DB 다운로드</button>`
-                : '';
+            const actionBtns = cfg.table !== 'recipes' ? (_deleteMode
+                ? `<button id="btnDeleteConfirm" onclick="deleteCheckedRows()"
+                        style="margin-left:auto;padding:4px 12px;font-size:12px;background:#ff3b30;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                        🗑️ 삭제 확인 (${_checkedRows.size}건)</button>
+                   <button onclick="exitDeleteMode()"
+                        style="padding:4px 12px;font-size:12px;background:#e5e5ea;color:#3a3a3c;border:none;border-radius:6px;cursor:pointer;">
+                        ✕ 취소</button>`
+                : `<button onclick="enterDeleteMode()"
+                        style="margin-left:auto;padding:4px 12px;font-size:12px;background:#fff;color:#ff3b30;border:1px solid #ff3b30;border-radius:6px;cursor:pointer;">
+                        🗑️ 선택 행 삭제</button>
+                   <button onclick="downloadCurrentDb()"
+                        style="padding:4px 12px;font-size:12px;background:#34c759;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                        ⬇️ DB 다운로드</button>`)
+                : `<button onclick="downloadCurrentDb()"
+                        style="margin-left:auto;padding:4px 12px;font-size:12px;background:#34c759;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                        ⬇️ DB 다운로드</button>`;
 
             dbBody.innerHTML = `
                 <div class="db-summary" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
                     ${summaryHtml}
-                    <button id="btnDeleteSelected" onclick="deleteSelectedDbRow()"
-                        style="display:none;margin-left:auto;padding:4px 12px;font-size:12px;background:#ff3b30;color:#fff;border:none;border-radius:6px;cursor:pointer;">
-                        🗑️ 선택 행 삭제
-                    </button>
-                    ${dlBtn}
+                    ${actionBtns}
                 </div>
-                <p id="rowSelectHint" style="font-size:11px;color:#c7c7cc;margin:4px 0 8px;">행을 클릭하면 선택됩니다</p>
-                <div class="db-table-scroll">
+                <div class="db-table-scroll" style="margin-top:8px;">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
                         <tbody>${rowsHtml}</tbody>
@@ -1325,18 +1348,42 @@
             const dbBody = document.getElementById('dbCurrentBody');
             const cols = cfg.columns;
 
-            const headerHtml = cols.map(c => `<th>${c.label}</th>`).join('') + '<th style="width:36px"></th>';
-            const rowsHtml = data.map((row, i) => `
-                <tr>
-                    ${cols.map(c => `<td><input type="text" value="${escapeAttr(row[c.key])}" data-key="${c.key}"></td>`).join('')}
-                    <td><button class="btn-delete-row" onclick="deleteRow(${i})" title="삭제">🗑️</button></td>
-                </tr>`).join('');
+            let headerHtml, rowsHtml;
+            if (_deleteMode) {
+                headerHtml = `<th style="width:36px;text-align:center;"><input type="checkbox" id="chkAllEditable" onchange="toggleAllEditableRows(this.checked)" title="전체 선택"></th>`
+                    + cols.map(c => `<th>${c.label}</th>`).join('');
+                rowsHtml = data.map((row, i) => {
+                    const checked = _checkedRows.has(i) ? 'checked' : '';
+                    return `<tr style="${checked ? 'background:#fff0f0;' : ''}">
+                        <td style="text-align:center;"><input type="checkbox" ${checked} onchange="toggleEditableRowCheck(${i})"></td>
+                        ${cols.map(c => `<td><input type="text" value="${escapeAttr(row[c.key])}" data-key="${c.key}"></td>`).join('')}
+                    </tr>`;
+                }).join('');
+            } else {
+                headerHtml = cols.map(c => `<th>${c.label}</th>`).join('');
+                rowsHtml = data.map((row, i) => `
+                    <tr>
+                        ${cols.map(c => `<td><input type="text" value="${escapeAttr(row[c.key])}" data-key="${c.key}"></td>`).join('')}
+                    </tr>`).join('');
+            }
+
+            const editableBtns = _deleteMode
+                ? `<button id="btnDeleteConfirm" onclick="deleteCheckedRows()"
+                        style="padding:5px 12px;font-size:12px;background:#ff3b30;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                        🗑️ 삭제 확인 (${_checkedRows.size}건)</button>
+                   <button onclick="exitDeleteMode()"
+                        style="padding:5px 12px;font-size:12px;background:#e5e5ea;color:#3a3a3c;border:none;border-radius:6px;cursor:pointer;">
+                        ✕ 취소</button>`
+                : `<button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
+                   <button onclick="enterDeleteMode()"
+                        style="padding:5px 12px;font-size:12px;background:#fff;color:#ff3b30;border:1px solid #ff3b30;border-radius:6px;cursor:pointer;">
+                        🗑️ 선택 행 삭제</button>
+                   <button class="btn-template" onclick="downloadCurrentDb()" style="padding:5px 12px;font-size:12px;background:#34c759;">⬇️ DB 다운로드</button>`;
 
             dbBody.innerHTML = `
                 <div class="db-summary">
                     <span class="badge">${total ?? data.length}건</span>
-                    <button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
-                    <button class="btn-template" onclick="downloadCurrentDb()" style="margin-left:8px;padding:5px 12px;font-size:12px;background:#34c759;">⬇️ DB 다운로드</button>
+                    ${editableBtns}
                 </div>
                 <div class="db-table-scroll" style="margin-top:10px;max-height:220px;">
                     <table class="preview-table editable-table">
@@ -1344,7 +1391,28 @@
                         <tbody id="editableTableBody">${rowsHtml}</tbody>
                     </table>
                 </div>
-                <button class="btn-add-row" onclick="addRow()">+ 행 추가</button>`;
+                ${_deleteMode ? '' : '<button class="btn-add-row" onclick="addRow()">+ 행 추가</button>'}`;
+        }
+
+        function toggleEditableRowCheck(i) {
+            if (_checkedRows.has(i)) _checkedRows.delete(i);
+            else _checkedRows.add(i);
+            const btn = document.getElementById('btnDeleteConfirm');
+            if (btn) btn.textContent = `🗑️ 삭제 확인 (${_checkedRows.size}건)`;
+            const chkAll = document.getElementById('chkAllEditable');
+            if (chkAll) {
+                chkAll.checked = _checkedRows.size === currentDbData.length && _checkedRows.size > 0;
+                chkAll.indeterminate = _checkedRows.size > 0 && _checkedRows.size < currentDbData.length;
+            }
+        }
+
+        function toggleAllEditableRows(checked) {
+            currentDbData.forEach((_, i) => {
+                if (checked) _checkedRows.add(i);
+                else _checkedRows.delete(i);
+            });
+            const cfg = UPLOAD_TYPES[selectedType];
+            renderEditableTable(currentDbData, cfg, currentDbData.length);
         }
 
         // ── 편집 테이블 DOM → currentDbData 동기화 ──────────
@@ -1381,47 +1449,81 @@
             }, 50);
         }
 
-        // ── DB 행 다중 선택 + 삭제 (읽기전용 테이블) ────────
-        const _selectedDbRows = new Map(); // id → { el, table }
+        // ── 삭제 모드 (체크박스 선택) ────────────────────────
+        let _deleteMode = false;
+        const _checkedRows = new Set();
+        let _readonlyPageData = [];
+        let _readonlyTotal = 0;
 
-        function _syncDeleteBtn() {
-            const btn = document.getElementById('btnDeleteSelected');
-            const hint = document.getElementById('rowSelectHint');
-            const count = _selectedDbRows.size;
-            if (btn) {
-                btn.style.display = count > 0 ? '' : 'none';
-                btn.textContent = count > 1 ? `🗑️ 선택 ${count}행 삭제` : '🗑️ 선택 행 삭제';
-            }
-            if (hint) hint.style.display = count > 0 ? 'none' : '';
-        }
-
-        function selectDbRow(tr, id, table) {
-            if (_selectedDbRows.has(id)) {
-                // 재클릭 → 선택 해제
-                tr.style.background = '';
-                tr.style.fontWeight = '';
-                _selectedDbRows.delete(id);
+        function enterDeleteMode() {
+            _deleteMode = true;
+            _checkedRows.clear();
+            const cfg = UPLOAD_TYPES[selectedType];
+            if (cfg.editable) {
+                renderEditableTable(currentDbData, cfg, currentDbData.length);
             } else {
-                // 선택 추가
-                tr.style.background = '#fff0f0';
-                tr.style.fontWeight = '500';
-                _selectedDbRows.set(id, { el: tr, table });
+                renderReadonlyTable(_readonlyPageData, cfg, _readonlyTotal);
             }
-            _syncDeleteBtn();
         }
 
-        async function deleteSelectedDbRow() {
-            if (_selectedDbRows.size === 0) return;
-            const count = _selectedDbRows.size;
-            if (!confirm(`선택한 ${count}행을 DB에서 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) return;
+        function exitDeleteMode() {
+            _deleteMode = false;
+            _checkedRows.clear();
+            const cfg = UPLOAD_TYPES[selectedType];
+            if (cfg.editable) {
+                renderEditableTable(currentDbData, cfg, currentDbData.length);
+            } else {
+                renderReadonlyTable(_readonlyPageData, cfg, _readonlyTotal);
+            }
+        }
+
+        function toggleRowCheck(id) {
+            if (_checkedRows.has(id)) _checkedRows.delete(id);
+            else _checkedRows.add(id);
+            const btn = document.getElementById('btnDeleteConfirm');
+            if (btn) btn.textContent = `🗑️ 삭제 확인 (${_checkedRows.size}건)`;
+            const chkAll = document.getElementById('chkAll');
+            if (chkAll) {
+                chkAll.checked = _checkedRows.size === _readonlyPageData.length && _checkedRows.size > 0;
+                chkAll.indeterminate = _checkedRows.size > 0 && _checkedRows.size < _readonlyPageData.length;
+            }
+        }
+
+        function toggleAllRows(checked) {
+            _readonlyPageData.forEach(row => {
+                if (checked) _checkedRows.add(row.id);
+                else _checkedRows.delete(row.id);
+            });
+            const cfg = UPLOAD_TYPES[selectedType];
+            renderReadonlyTable(_readonlyPageData, cfg, _readonlyTotal);
+        }
+
+        async function deleteCheckedRows() {
+            if (_checkedRows.size === 0) { showToast('삭제할 행을 선택해주세요.'); return; }
+            const count = _checkedRows.size;
+            if (!confirm(`선택한 ${count}건을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) return;
+            const cfg = UPLOAD_TYPES[selectedType];
             try {
-                const ids = [..._selectedDbRows.keys()];
-                const table = [..._selectedDbRows.values()][0].table;
-                const { error } = await client.from(table).delete().in('id', ids);
-                if (error) throw error;
-                _selectedDbRows.clear();
+                if (cfg.editable) {
+                    const indices = [..._checkedRows].sort((a, b) => b - a);
+                    const idsToDelete = indices.map(i => currentDbData[i]?.id).filter(Boolean);
+                    if (idsToDelete.length > 0) {
+                        const { error } = await client.from(cfg.table).delete().in('id', idsToDelete);
+                        if (error) throw error;
+                    }
+                    indices.forEach(i => currentDbData.splice(i, 1));
+                    _deleteMode = false;
+                    _checkedRows.clear();
+                    renderEditableTable(currentDbData, cfg, currentDbData.length);
+                } else {
+                    const ids = [..._checkedRows];
+                    const { error } = await client.from(cfg.table).delete().in('id', ids);
+                    if (error) throw error;
+                    _deleteMode = false;
+                    _checkedRows.clear();
+                    await loadCurrentData();
+                }
                 showToast(`✅ ${count}건 삭제되었습니다.`);
-                await loadCurrentData();
             } catch (e) {
                 showToast('❌ 삭제 실패: ' + e.message);
             }
