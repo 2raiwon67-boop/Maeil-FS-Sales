@@ -1057,6 +1057,7 @@
 
         // ── 현재 DB 데이터 로드 ──────────────────────────────
         async function loadCurrentData() {
+            _selectedDbRows.clear(); // 페이지 이동/탭 전환 시 선택 초기화
             const dbBody = document.getElementById('dbCurrentBody');
             const dbCount = document.getElementById('dbCurrentCount');
             const cfg = UPLOAD_TYPES[selectedType];
@@ -1262,41 +1263,46 @@
             }, 50);
         }
 
-        // ── DB 행 선택 + 삭제 (읽기전용 테이블) ─────────────
-        let _selectedDbRow = { el: null, id: null, table: null };
+        // ── DB 행 다중 선택 + 삭제 (읽기전용 테이블) ────────
+        const _selectedDbRows = new Map(); // id → { el, table }
 
-        function selectDbRow(tr, id, table) {
+        function _syncDeleteBtn() {
             const btn = document.getElementById('btnDeleteSelected');
             const hint = document.getElementById('rowSelectHint');
-            if (_selectedDbRow.el === tr) {
-                // 같은 행 재클릭 → 선택 해제
+            const count = _selectedDbRows.size;
+            if (btn) {
+                btn.style.display = count > 0 ? '' : 'none';
+                btn.textContent = count > 1 ? `🗑️ 선택 ${count}행 삭제` : '🗑️ 선택 행 삭제';
+            }
+            if (hint) hint.style.display = count > 0 ? 'none' : '';
+        }
+
+        function selectDbRow(tr, id, table) {
+            if (_selectedDbRows.has(id)) {
+                // 재클릭 → 선택 해제
                 tr.style.background = '';
                 tr.style.fontWeight = '';
-                _selectedDbRow = { el: null, id: null, table: null };
-                if (btn) btn.style.display = 'none';
-                if (hint) hint.style.display = '';
+                _selectedDbRows.delete(id);
             } else {
-                // 이전 선택 해제
-                if (_selectedDbRow.el) {
-                    _selectedDbRow.el.style.background = '';
-                    _selectedDbRow.el.style.fontWeight = '';
-                }
+                // 선택 추가
                 tr.style.background = '#fff0f0';
                 tr.style.fontWeight = '500';
-                _selectedDbRow = { el: tr, id, table };
-                if (btn) btn.style.display = '';
-                if (hint) hint.style.display = 'none';
+                _selectedDbRows.set(id, { el: tr, table });
             }
+            _syncDeleteBtn();
         }
 
         async function deleteSelectedDbRow() {
-            if (!_selectedDbRow.id) return;
-            if (!confirm('선택한 행을 DB에서 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.')) return;
+            if (_selectedDbRows.size === 0) return;
+            const count = _selectedDbRows.size;
+            if (!confirm(`선택한 ${count}행을 DB에서 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.`)) return;
             try {
-                const { error } = await client.from(_selectedDbRow.table).delete().eq('id', _selectedDbRow.id);
+                const ids = [..._selectedDbRows.keys()];
+                const table = [..._selectedDbRows.values()][0].table;
+                const { error } = await client.from(table).delete().in('id', ids);
                 if (error) throw error;
-                _selectedDbRow = { el: null, id: null, table: null };
-                showToast('삭제되었습니다.');
+                _selectedDbRows.clear();
+                showToast(`✅ ${count}건 삭제되었습니다.`);
                 await loadCurrentData();
             } catch (e) {
                 showToast('❌ 삭제 실패: ' + e.message);
