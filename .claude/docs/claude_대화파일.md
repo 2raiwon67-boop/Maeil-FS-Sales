@@ -690,3 +690,49 @@ PUBLIC_DATA_API_KEY         data.go.kr (미등록 상태)
 | Gemini 2.5 Flash Lite | AI 분석 (gemini.js/generate-briefing.js/batch-briefings.js) | 무료 |
 | Gemini 2.5 Flash | 네이버 리뷰 분석 (naver-reviews.js) | 무료 |
 | Brevo | 이메일 발송 (인허가 주간 알림) | 일 300건 무료, 도메인 불필요 |
+
+---
+
+## 2026-03-13 오후 작업 (2) — upload.html DB 다운로드 컬럼 밀림 수정 + UX 개선
+
+### 문제: DB 다운로드 시 컬럼 밀림
+- **원인**: `downloadCurrentDb()`에서 `templateHeaders`를 `columnMap`으로 매핑 후 `.filter(Boolean)` 적용
+  - `licenses`의 'NO'는 `columnMap`에 없어 제거됨 → headers 16개 / colKeys 15개 불일치 → 값이 한 칸씩 밀림
+  - 방문일지·주요거래처도 `사업부`, `사업장`, `지점` 등 누락 컬럼 동일 문제
+- **수정**: `filter(Boolean)` 제거 → null 유지 → 출력 시 헤더가 'NO'인 경우만 순번(1,2,3...) 채움, 나머지 null 키는 빈칸
+- **커밋**: `fa3a1c4`, `f11645c`
+
+### 방문일지 업로드 안내 수정
+- NO 컬럼 설명: "중복 방지 기준 — 앱시트 원본 번호 그대로 유지" → "업로드 시 무시됨 — 임의 번호 입력 가능"
+- 중복 방지 기준 안내: seq_no → 실제 기준인 **작성일 + 작성자 + 방문처(거래처) 조합**으로 수정
+- ② 자주 발생하는 오류: "NO 컬럼 중복" 항목 제거, 중복 조합 건너뜀 동작 설명 추가
+- 하단 강조문구: "앱시트에서 엑셀 내보내기 후 그대로 업로드" → "템플릿 컬럼에 맞춰 방문일지의 동일한 컬럼 내용을 채워 업로드"
+- **커밋**: `f11645c`, `dfe74c7`
+
+### 선택 행 삭제 UX 개선 — 체크박스 선택 모드
+- **변경 전**: 행 클릭 → 핑크 하이라이트 → 삭제 버튼 표시 (수정/삭제 구분 불명확)
+- **변경 후**: "선택 행 삭제" 버튼 클릭 → 체크박스 컬럼 등장 → 행 체크 → "삭제 확인(N건)" 클릭
+  - 읽기전용 테이블(인허가·방문일지): 행 클릭 선택 방식 제거
+  - 편집형 테이블(주요거래처·담당자관리): 행별 🗑️ 버튼 제거, 체크박스 모드로 통일
+  - 전체선택 체크박스, 취소 버튼 추가
+  - 페이지 이동 / 탭 전환 시 삭제 모드 자동 해제
+- **커밋**: `7e85780`
+
+### 편집형 테이블 버튼 정렬 수정
+- `db-summary` 내 버튼들을 `margin-left:auto` flex 컨테이너로 묶어 우측 정렬
+- **커밋**: `d865a62`
+
+### 인허가 DB현황 편집형 전환 + 버튼 크기 통일 + 전체선택 해제 버그 수정
+- `licenses` config: `editable: false → true` → 편집형 테이블로 전환
+- `btn-db-action` CSS 클래스 추가, `btn-save-editable`의 `margin-left:auto` 제거 → 모든 버튼 동일 크기·정렬
+- `chkAll` / `chkAllEditable` 렌더링 시 `${_allChecked ? 'checked' : ''}` HTML 반영 → 전체선택 해제 시 개별 체크도 함께 해제
+- `indeterminate`는 innerHTML 이후 JS DOM 접근으로 별도 처리
+- **커밋**: `abd0e2d`
+
+## 2026-03-13 오후 작업 (3) — licenses 편집형 undefined 오류 수정
+
+### 문제: 인허가 DB현황 "Cannot read properties of undefined (reading 'map')"
+- **원인**: `renderEditableTable()`은 `cfg.columns`를 사용하나, `licenses` config에는 `columns`가 없고 `previewColumns`만 정의되어 있었음
+  - 이전 읽기전용 시절에는 `renderReadonlyTable()`이 `previewColumns`를 사용해 문제 없었으나, `editable: true`로 전환 후 편집 경로로 진입하며 `cfg.columns`가 `undefined` → `.map()` 호출 시 에러
+- **수정**: `const cols = cfg.columns ?? cfg.previewColumns;` 폴백 추가
+- **커밋**: `80372db`
