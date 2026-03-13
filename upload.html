@@ -1365,7 +1365,7 @@
         // ── 편집 가능 테이블 렌더링 ─────────────────────────
         function renderEditableTable(data, cfg, total) {
             const dbBody = document.getElementById('dbCurrentBody');
-            const cols = cfg.columns;
+            const cols = cfg.columns ?? cfg.previewColumns;
 
             const _eAllChecked = _deleteMode && data.length > 0 && data.every((_, i) => _checkedRows.has(i));
             const _eSomeChecked = _deleteMode && !_eAllChecked && data.some((_, i) => _checkedRows.has(i));
