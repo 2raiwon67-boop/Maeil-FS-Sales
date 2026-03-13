@@ -3268,6 +3268,22 @@
                 } else {
                     const businessUnit = await getBusinessUnitForIndex();
                     if (!businessUnit) return;
+
+                    // SessionStorage 캐시 확인 (10분 TTL)
+                    const cacheKey = `fs_accounts_${businessUnit}`;
+                    const cached = sessionStorage.getItem(cacheKey);
+                    const cachedTime = Number(sessionStorage.getItem(cacheKey + '_ts') || 0);
+                    if (cached && Date.now() - cachedTime < 10 * 60 * 1000) {
+                        accountsData = JSON.parse(cached);
+                        if (naverMap) { await updateAccountMarkers(); }
+                        else {
+                            const waitForMap = setInterval(async () => {
+                                if (naverMap) { clearInterval(waitForMap); await updateAccountMarkers(); }
+                            }, 500);
+                        }
+                        return;
+                    }
+
                     const { data: d, error } = await client
                         .from('accounts')
                         .select('*')
@@ -3286,6 +3302,17 @@
                         return obj;
                     })
                     .filter(row => row['거래처명'] || row['주소']);
+
+                // 캐시 저장 (어드민 제외)
+                if (!isAdmin) {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (businessUnit) {
+                        try {
+                            sessionStorage.setItem(`fs_accounts_${businessUnit}`, JSON.stringify(accountsData));
+                            sessionStorage.setItem(`fs_accounts_${businessUnit}_ts`, Date.now().toString());
+                        } catch (e) { /* sessionStorage 용량 초과 시 무시 */ }
+                    }
+                }
 
                 if (naverMap) {
                     await updateAccountMarkers();
@@ -3314,6 +3341,16 @@
                 } else {
                     const businessUnit = await getBusinessUnitForIndex();
                     if (!businessUnit) return;
+
+                    // SessionStorage 캐시 확인 (10분 TTL)
+                    const cacheKey = `fs_visitlogs_${businessUnit}`;
+                    const cached = sessionStorage.getItem(cacheKey);
+                    const cachedTime = Number(sessionStorage.getItem(cacheKey + '_ts') || 0);
+                    if (cached && Date.now() - cachedTime < 10 * 60 * 1000) {
+                        window.visitLogCache = JSON.parse(cached);
+                        return;
+                    }
+
                     const { data: d, error } = await client
                         .from('visit_logs')
                         .select('*')
@@ -3332,6 +3369,17 @@
                     obj['작성일'] = row.visit_date ?? ''; // 날짜 필드 fallback
                     return obj;
                 });
+
+                // 캐시 저장 (어드민 제외)
+                if (!isAdmin) {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (businessUnit) {
+                        try {
+                            sessionStorage.setItem(`fs_visitlogs_${businessUnit}`, JSON.stringify(window.visitLogCache));
+                            sessionStorage.setItem(`fs_visitlogs_${businessUnit}_ts`, Date.now().toString());
+                        } catch (e) { /* sessionStorage 용량 초과 시 무시 */ }
+                    }
+                }
             } catch (e) {
                 console.warn('방문일지 캐시 로드 실패:', e.message);
                 showToast('방문 기록을 불러오지 못했습니다.', 'error', 4000);
@@ -4322,6 +4370,10 @@
                 const acc = accountsData.find(a => (a['거래처명'] || '').trim() === name);
                 if (acc) acc['거래상태'] = newStatus;
 
+                // 거래처 캐시 무효화
+                sessionStorage.removeItem(`fs_accounts_${businessUnit}`);
+                sessionStorage.removeItem(`fs_accounts_${businessUnit}_ts`);
+
                 if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
                 updateDashboard();
                 await updateAccountMarkers();
@@ -4353,6 +4405,11 @@
                 const acc = accountsData.find(a => (a['거래처명'] || '').trim() === name);
                 if (acc) acc['거래상태'] = newStatus;
                 if (_sheetCurrentItem) _sheetCurrentItem['거래상태'] = newStatus;
+
+                // 거래처 캐시 무효화
+                sessionStorage.removeItem(`fs_accounts_${businessUnit}`);
+                sessionStorage.removeItem(`fs_accounts_${businessUnit}_ts`);
+
                 // 버튼 UI 갱신
                 group.querySelectorAll('.status-btn').forEach(b => {
                     b.classList.remove('active', 'status-거래', 'status-미거래');
