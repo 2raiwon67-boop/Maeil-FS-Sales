@@ -257,31 +257,34 @@ CREATE TABLE IF NOT EXISTS store_analysis_cache (
 -- 9. quotes (저장된 견적서)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS quotes (
-    id            BIGSERIAL PRIMARY KEY,
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_unit TEXT NOT NULL,
-    created_by    TEXT,
-    customer_name TEXT,
-    manager_name  TEXT,
-    manager_phone TEXT,
-    quote_mode    TEXT,
-    items         JSONB DEFAULT '[]',
-    total_amount  BIGINT DEFAULT 0,
+    created_by    TEXT NOT NULL,
+    customer_name TEXT DEFAULT '',
+    manager_name  TEXT DEFAULT '',
+    manager_phone TEXT DEFAULT '',
+    quote_mode    TEXT DEFAULT 'custom',
+    items         JSONB NOT NULL DEFAULT '[]',
+    total_amount  INTEGER DEFAULT 0,
     created_at    TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "quotes_select_same_unit" ON quotes;
-CREATE POLICY "quotes_select_same_unit" ON quotes
+DROP POLICY IF EXISTS "select_same_unit" ON quotes;
+CREATE POLICY "select_same_unit" ON quotes
     FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
-DROP POLICY IF EXISTS "quotes_insert_own_unit" ON quotes;
-CREATE POLICY "quotes_insert_own_unit" ON quotes
+DROP POLICY IF EXISTS "insert_own_unit" ON quotes;
+CREATE POLICY "insert_own_unit" ON quotes
     FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
 
-DROP POLICY IF EXISTS "quotes_delete_own_unit" ON quotes;
-CREATE POLICY "quotes_delete_own_unit" ON quotes
-    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+DROP POLICY IF EXISTS "delete_own" ON quotes;
+CREATE POLICY "delete_own" ON quotes
+    FOR DELETE USING (
+        created_by = (auth.jwt() -> 'user_metadata' ->> 'full_name')
+        AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
+    );
 
 
 -- ─────────────────────────────────────────────────────────────
