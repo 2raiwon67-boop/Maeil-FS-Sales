@@ -720,11 +720,11 @@
                         </table>
                         <p style="margin:0 0 6px 0; font-weight:600;">② 자주 발생하는 오류</p>
                         <ul style="margin:0 0 10px 0; padding-left:18px; color:#555;">
-                            <li>NO 컬럼이 비어있거나 중복된 경우 → 앱시트 원본 번호를 그대로 사용하세요</li>
                             <li>날짜가 텍스트 형식인 경우 → 셀 서식을 날짜(YYYY-MM-DD)로 변경</li>
                             <li>작성자 이름이 담당자관리와 다른 경우 → AI 브리핑에서 본인 거래처를 인식 못함</li>
+                            <li>동일한 <strong>작성일 + 작성자 + 방문처(거래처)</strong> 조합이 이미 DB에 있으면 업로드가 건너뜀 (정상 동작)</li>
                         </ul>
-                        <p style="margin:0; padding:8px 12px; background:#fff3cd; border-radius:6px; font-size:12px;">💡 앱시트에서 엑셀 내보내기 후 <strong>그대로 업로드</strong>하면 됩니다. NO 번호는 절대 바꾸지 마세요.</p>
+                        <p style="margin:0; padding:8px 12px; background:#fff3cd; border-radius:6px; font-size:12px;">💡 앱시트에서 엑셀 내보내기 후 <strong>그대로 업로드</strong>하면 됩니다. NO 컬럼은 업로드 시 무시됩니다.</p>
                     </div>
                 </div>
 
@@ -1383,7 +1383,9 @@
             dbBody.innerHTML = `
                 <div class="db-summary">
                     <span class="badge">${total ?? data.length}건</span>
-                    ${editableBtns}
+                    <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                        ${editableBtns}
+                    </div>
                 </div>
                 <div class="db-table-scroll" style="margin-top:10px;max-height:220px;">
                     <table class="preview-table editable-table">
