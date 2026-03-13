@@ -2710,21 +2710,22 @@
 
                 const { data, error } = await client
                     .from('managers')
-                    .select('region, manager_name, email')
+                    .select('region1, region2, manager_name, email')
                     .eq('business_unit', businessUnit);
                 if (error) throw error;
 
                 managerMap = {};
                 (data || []).forEach(row => {
-                    if (row.region && row.manager_name) {
-                        managerMap[row.region] = row.manager_name;
+                    const region = row.region2 || row.region1;
+                    if (region && row.manager_name) {
+                        managerMap[region] = row.manager_name;
                     }
                 });
 
                 // 본인 담당자명 식별 (지점장/전체 제외)
                 if (myEmail) {
                     const myRow = (data || []).find(r => r.email === myEmail);
-                    if (myRow && myRow.region !== '지점장' && myRow.region !== '전체') {
+                    if (myRow && myRow.region2 !== '지점장' && myRow.region2 !== '전체') {
                         myManagerName = myRow.manager_name;
                         // 모바일: localStorage 저장값 우선, 기본값은 내 타겟만
                         if (isMobile()) {

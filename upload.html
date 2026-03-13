@@ -1349,8 +1349,6 @@
                 const rows = toSave.map(row => ({
                     ...row,
                     business_unit: businessUnit,
-                    // managers: region 컬럼(NOT NULL) = region2 자동 세팅 (index.html 호환)
-                    ...(cfg.table === 'managers' ? { region: row.region2 || row.region1 || '' } : {}),
                     uploaded_by: user.id,
                     uploaded_at: now
                 }));
@@ -1596,10 +1594,7 @@
                         } else {
                             base.uploaded_by = user.id;
                             base.uploaded_at = now;
-                            // managers: region 컬럼(NOT NULL) = region2 자동 세팅
-                            if (cfg.table === 'managers') {
-                                base.region = base.region2 || base.region1 || '';
-                            }
+
                         }
                         return base;
                     });

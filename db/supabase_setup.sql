@@ -141,7 +141,8 @@ CREATE POLICY "visit_logs_delete_own" ON visit_logs
 CREATE TABLE IF NOT EXISTS managers (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_unit     TEXT NOT NULL,
-    region            TEXT NOT NULL,
+    region1           TEXT,
+    region2           TEXT,
     manager_name      TEXT NOT NULL,
     email             TEXT,
     is_branch_manager BOOLEAN DEFAULT false,
