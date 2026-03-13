@@ -421,16 +421,16 @@
         }
 
         .btn-save-editable {
-            margin-left: auto;
-            padding: 7px 16px;
+            padding: 6px 14px;
             background: #0071e3;
             color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 13px;
+            border-radius: 7px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: background 0.15s;
+            white-space: nowrap;
         }
 
         .btn-save-editable:hover {
@@ -441,6 +441,19 @@
             background: #c7c7cc;
             cursor: default;
         }
+
+        /* 편집형 테이블 상단 공통 액션 버튼 */
+        .btn-db-action {
+            padding: 6px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            border-radius: 7px;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: opacity 0.15s;
+        }
+        .btn-db-action:hover { opacity: 0.85; }
 
         .btn-delete-row {
             background: none;
@@ -825,7 +838,7 @@
         const UPLOAD_TYPES = {
             licenses: {
                 label: '인허가 데이터', table: 'licenses',
-                editable: false, scrollAll: true,
+                editable: true, scrollAll: true,
                 previewColumns: [
                     { key: 'permit_date', label: '영업 허가일' },
                     { key: 'business_name', label: '사업장명' },
@@ -1282,7 +1295,9 @@
                     <span class="badge">레시피 데이터 (CLI 스크립트로 관리)</span>`;
             }
 
-            const chkHeader = _deleteMode ? `<th style="width:36px;text-align:center;"><input type="checkbox" id="chkAll" onchange="toggleAllRows(this.checked)" title="전체 선택"></th>` : '';
+            const _allChecked = _deleteMode && data.length > 0 && data.every(row => _checkedRows.has(row.id));
+            const _someChecked = _deleteMode && !_allChecked && data.some(row => _checkedRows.has(row.id));
+            const chkHeader = _deleteMode ? `<th style="width:36px;text-align:center;"><input type="checkbox" id="chkAll" ${_allChecked ? 'checked' : ''} onchange="toggleAllRows(this.checked)" title="전체 선택"></th>` : '';
             const headerHtml = chkHeader + cols.map(c => `<th>${c.label}</th>`).join('');
 
             const rowsHtml = data.map(row => {
@@ -1341,6 +1356,10 @@
                     </table>
                 </div>
                 ${paginationHtml}`;
+            if (_someChecked) {
+                const chkEl = document.getElementById('chkAll');
+                if (chkEl) chkEl.indeterminate = true;
+            }
         }
 
         // ── 편집 가능 테이블 렌더링 ─────────────────────────
@@ -1348,9 +1367,11 @@
             const dbBody = document.getElementById('dbCurrentBody');
             const cols = cfg.columns;
 
+            const _eAllChecked = _deleteMode && data.length > 0 && data.every((_, i) => _checkedRows.has(i));
+            const _eSomeChecked = _deleteMode && !_eAllChecked && data.some((_, i) => _checkedRows.has(i));
             let headerHtml, rowsHtml;
             if (_deleteMode) {
-                headerHtml = `<th style="width:36px;text-align:center;"><input type="checkbox" id="chkAllEditable" onchange="toggleAllEditableRows(this.checked)" title="전체 선택"></th>`
+                headerHtml = `<th style="width:36px;text-align:center;"><input type="checkbox" id="chkAllEditable" ${_eAllChecked ? 'checked' : ''} onchange="toggleAllEditableRows(this.checked)" title="전체 선택"></th>`
                     + cols.map(c => `<th>${c.label}</th>`).join('');
                 rowsHtml = data.map((row, i) => {
                     const checked = _checkedRows.has(i) ? 'checked' : '';
@@ -1369,16 +1390,17 @@
 
             const editableBtns = _deleteMode
                 ? `<button id="btnDeleteConfirm" onclick="deleteCheckedRows()"
-                        style="padding:5px 12px;font-size:12px;background:#ff3b30;color:#fff;border:none;border-radius:6px;cursor:pointer;">
+                        class="btn-db-action" style="background:#ff3b30;color:#fff;">
                         🗑️ 삭제 확인 (${_checkedRows.size}건)</button>
                    <button onclick="exitDeleteMode()"
-                        style="padding:5px 12px;font-size:12px;background:#e5e5ea;color:#3a3a3c;border:none;border-radius:6px;cursor:pointer;">
+                        class="btn-db-action" style="background:#e5e5ea;color:#3a3a3c;">
                         ✕ 취소</button>`
                 : `<button class="btn-save-editable" id="btnSaveEditable" onclick="saveEditableData()">변경사항 저장</button>
                    <button onclick="enterDeleteMode()"
-                        style="padding:5px 12px;font-size:12px;background:#fff;color:#ff3b30;border:1px solid #ff3b30;border-radius:6px;cursor:pointer;">
+                        class="btn-db-action" style="background:#fff;color:#ff3b30;border:1px solid #ff3b30;">
                         🗑️ 선택 행 삭제</button>
-                   <button class="btn-template" onclick="downloadCurrentDb()" style="padding:5px 12px;font-size:12px;background:#34c759;">⬇️ DB 다운로드</button>`;
+                   <button onclick="downloadCurrentDb()"
+                        class="btn-db-action" style="background:#34c759;color:#fff;">⬇️ DB 다운로드</button>`;
 
             dbBody.innerHTML = `
                 <div class="db-summary">
@@ -1394,6 +1416,10 @@
                     </table>
                 </div>
                 ${_deleteMode ? '' : '<button class="btn-add-row" onclick="addRow()">+ 행 추가</button>'}`;
+            if (_eSomeChecked) {
+                const chkEl = document.getElementById('chkAllEditable');
+                if (chkEl) chkEl.indeterminate = true;
+            }
         }
 
         function toggleEditableRowCheck(i) {
