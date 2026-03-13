@@ -1122,6 +1122,45 @@
             animation: myLocationPulse 2s ease-in-out infinite;
         }
 
+        /* =============== 오늘 추천 패널 =============== */
+        .rec-panel {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 290px;
+            max-height: calc(100% - 32px);
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .rec-panel.active { display: flex; }
+        .rec-panel-header {
+            background: #1d1d1f;
+            color: white;
+            padding: 13px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .rec-panel-header h3 { font-size:14px;font-weight:600;margin:0; }
+        .rec-panel-body { padding:14px 16px;overflow-y:auto;flex:1; }
+        .rec-item {
+            padding: 10px;
+            background: #f5f5f7;
+            border-radius: 9px;
+            margin-bottom: 8px;
+            font-size: 12px;
+        }
+        .rec-item-name { font-weight:700;color:#1d1d1f;margin-bottom:3px; }
+        .rec-item-reason { color:#5856d6;font-size:11px;font-weight:600;margin-bottom:4px; }
+        .rec-item-briefing { color:#3a3a3c;line-height:1.5; }
+
         /* =============== 장바구니 경유지 =============== */
         .cart-item {
             display: flex;
@@ -1928,6 +1967,21 @@
             <!-- 모바일 배경 딤처리 -->
             <div class="route-panel-backdrop" id="routePanelBackdrop" onclick="closeRoutePanel()"></div>
 
+            <!-- 오늘 추천 플로팅 뱃지 -->
+            <div id="recFloatBadge" onclick="openRecPanel()" style="display:none;position:absolute;bottom:125px;right:16px;z-index:200;background:#ff9f0a;color:white;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(255,159,10,0.45);align-items:center;gap:6px;user-select:none;">
+                📍 오늘 추천 <span id="recFloatCount">0</span>곳
+            </div>
+
+            <!-- 오늘 추천 패널 -->
+            <div class="rec-panel" id="recPanel">
+                <div class="rec-panel-header">
+                    <h3>📍 오늘 가볼 곳 추천</h3>
+                    <button onclick="closeRecPanel()" style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
+                </div>
+                <div class="rec-panel-body" id="recPanelBody">
+                </div>
+            </div>
+
             <!-- 플로팅 카트 뱃지 -->
             <div id="cartFloatBadge" onclick="openRoutePanel()" style="display:none;position:absolute;bottom:80px;right:16px;z-index:200;background:#5856d6;color:white;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,86,214,0.45);align-items:center;gap:6px;user-select:none;">
                 🛒 <span id="cartFloatCount">0</span>개 담김
@@ -2548,6 +2602,9 @@
 
             // 오늘 저장된 방문 일정이 있으면 팝업 표시
             await checkTodayVisitPlan();
+
+            // 오늘 일정 없는 담당자에게 방문 추천 뱃지 표시
+            await loadTodayRecommendations();
         };
 
         // ============================================================
@@ -4825,6 +4882,103 @@
 
             document.body.appendChild(overlay);
             overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        }
+
+        // ── 오늘 가볼 곳 추천 ──
+        let _todayRecs = [];
+
+        async function loadTodayRecommendations() {
+            if (!myManagerName) return;
+            const today = new Date().toISOString().split('T')[0];
+            const bu = _indexBusinessUnit ?? null;
+
+            // 오늘 일정이 이미 있으면 추천 불필요
+            try {
+                const { data: plan } = await client.from('visit_plans')
+                    .select('id').eq('business_unit', bu)
+                    .eq('manager', myManagerName).eq('visit_date', today).maybeSingle();
+                if (plan) return;
+            } catch (e) { /* 조회 실패 시 추천 표시 */ }
+
+            const recs = computeRecommendations();
+            if (!recs.length) return;
+
+            // ai_briefings 첫 줄 조회
+            const names = recs.map(r => r.name);
+            let briefingMap = {};
+            try {
+                const { data: briefings } = await client.from('ai_briefings')
+                    .select('account_name, briefing').in('account_name', names).eq('business_unit', bu);
+                (briefings || []).forEach(b => { briefingMap[b.account_name] = b.briefing; });
+            } catch (e) { /* 브리핑 없어도 표시 */ }
+
+            _todayRecs = recs.map(r => ({ ...r, briefing: briefingMap[r.name] || null }));
+
+            // 플로팅 뱃지 표시
+            const badge = document.getElementById('recFloatBadge');
+            const count = document.getElementById('recFloatCount');
+            if (badge) { count.textContent = _todayRecs.length; badge.style.display = 'flex'; }
+        }
+
+        function computeRecommendations() {
+            const today = new Date();
+            const todayStr = today.toISOString().split('T')[0];
+            const visits = window.visitLogCache || [];
+
+            // 담당자 인허가 목록
+            const myLicenses = allData.filter(d =>
+                (d['담당자'] || '').trim() === myManagerName && d['사업장명']
+            );
+
+            const scored = myLicenses.map(item => {
+                const name = item['사업장명'];
+                // 가장 최근 방문일
+                const lastVisitEntry = visits
+                    .filter(v => (v['방문처(거래처)'] || '').trim() === name)
+                    .sort((a, b) => (b['일정기간'] || '').localeCompare(a['일정기간'] || ''))[0];
+
+                const lastVisitDate = lastVisitEntry?.['일정기간'] || null;
+                const daysSince = lastVisitDate
+                    ? Math.floor((today - new Date(lastVisitDate)) / 86400000)
+                    : 9999;
+
+                let priority = 0;
+                let reason = '';
+                if (daysSince === 9999) { priority = 3; reason = '방문 이력 없음'; }
+                else if (daysSince >= 60) { priority = 2; reason = `${daysSince}일 미방문`; }
+                else if (daysSince >= 30) { priority = 1; reason = `${daysSince}일 미방문`; }
+
+                return { name, reason, priority, daysSince };
+            }).filter(r => r.priority > 0)
+              .sort((a, b) => b.priority - a.priority || b.daysSince - a.daysSince)
+              .slice(0, 5);
+
+            return scored;
+        }
+
+        function openRecPanel() {
+            const panel = document.getElementById('recPanel');
+            const body = document.getElementById('recPanelBody');
+            if (!panel || !body) return;
+
+            body.innerHTML = _todayRecs.length === 0
+                ? '<div style="font-size:12px;color:#86868b;">추천 데이터 없음</div>'
+                : _todayRecs.map((r, i) => {
+                    const briefingLine = r.briefing
+                        ? r.briefing.split('\n').find(l => l.trim()) || r.briefing.substring(0, 80)
+                        : null;
+                    return `<div class="rec-item">
+                        <div class="rec-item-name">${_cartEsc(r.name)}</div>
+                        <div class="rec-item-reason">${_cartEsc(r.reason)}</div>
+                        ${briefingLine ? `<div class="rec-item-briefing">${_cartEsc(briefingLine)}</div>` : ''}
+                    </div>`;
+                }).join('') + `<div style="font-size:11px;color:#86868b;margin-top:8px;text-align:center;">오늘 일정을 저장하면 다음부터 자동으로 사라집니다</div>`;
+
+            panel.classList.add('active');
+        }
+
+        function closeRecPanel() {
+            document.getElementById('recPanel')?.classList.remove('active');
         }
 
         function openRoutePanel() {
