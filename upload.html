@@ -1552,6 +1552,34 @@
 
                 const isAppend = cfg.mode === 'append';
 
+                // ── 담당자 유효성 검사 (licenses, visit_logs) ──
+                if (cfg.table === 'licenses' || cfg.table === 'visit_logs') {
+                    btn.innerHTML = '<span class="spinner-inline"></span>담당자 확인 중...';
+                    const { data: mgrRows } = await client
+                        .from('managers').select('manager_name').eq('business_unit', businessUnit);
+                    const validManagers = new Set((mgrRows || []).map(m => m.manager_name.trim()));
+                    const unknownManagers = new Map(); // name → count
+                    parsedData.forEach(row => {
+                        const name = (row.manager || '').trim();
+                        if (!name || name === '미지정') return;
+                        if (!validManagers.has(name)) {
+                            unknownManagers.set(name, (unknownManagers.get(name) || 0) + 1);
+                        }
+                    });
+                    if (unknownManagers.size > 0) {
+                        const lines = [...unknownManagers.entries()]
+                            .map(([n, c]) => `  • ${n} (${c}건)`).join('\n');
+                        const go = confirm(
+                            `⚠️ 담당자 관리에 등록되지 않은 담당자가 있습니다:\n${lines}\n\n이메일 알림이 발송되지 않을 수 있습니다.\n계속 업로드하시겠습니까?`
+                        );
+                        if (!go) {
+                            btn.disabled = false;
+                            btn.textContent = '업로드 확인';
+                            return;
+                        }
+                    }
+                }
+
                 // ── add_new_only: 중복 확인 후 건너뜀 ──
                 if (isAddNewOnly && (cfg.deduplicateField || cfg.deduplicateFields)) {
                     btn.innerHTML = '<span class="spinner-inline"></span>중복 확인 중...';
