@@ -700,7 +700,7 @@
                 <div class="card" id="visitLogGuideCard" style="display:none; border-left:3px solid #ff9500;">
                     <div class="card-header" style="color:#ff9500;">📋 방문일지 업로드 안내</div>
                     <div class="card-body" style="font-size:13px; line-height:1.8; color:#3a3a3c;">
-                        <p style="margin:0 0 10px 0;">기존에 있는 NO(seq_no)는 건너뛰고 <strong>신규 행만 추가</strong>됩니다. 매주 방문일지 누적분을 그대로 업로드하면 됩니다.</p>
+                        <p style="margin:0 0 10px 0;"><strong>작성일 + 작성자 + 방문처(거래처)</strong> 조합이 기존과 동일하면 건너뛰고 <strong>신규 행만 추가</strong>됩니다. 매주 방문일지 누적분을 그대로 업로드하면 됩니다.</p>
                         <p style="margin:0 0 6px 0; font-weight:600;">① 필수 컬럼</p>
                         <table style="width:100%; border-collapse:collapse; margin-bottom:12px; font-size:12px;">
                             <thead>
@@ -711,7 +711,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">NO</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">1</td><td style="padding:5px 10px; border:1px solid #e0e0e0;"><strong>중복 방지 기준</strong> — 앱시트 원본 번호 그대로 유지</td></tr>
+                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">NO</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">1</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">업로드 시 무시됨 — 임의 번호 입력 가능</td></tr>
                                 <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">작성일</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">2026-03-10</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">YYYY-MM-DD 형식 (필수)</td></tr>
                                 <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">작성자</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">담당자 이름 (담당자관리와 동일하게)</td></tr>
                                 <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">방문처(거래처)</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">행복카페</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">거래처 상호명 (필수)</td></tr>
@@ -1522,9 +1522,9 @@
                 return;
             }
 
-            // key가 null인 컬럼(NO 등)은 순번(1, 2, 3...)으로 자동 채움
-            const rows = data.map((row, idx) => colKeys.map(key => {
-                if (key === null) return String(idx + 1);
+            // key가 null이면: 헤더가 'NO'인 경우만 순번, 나머지(사업부/사업장/지점 등)는 빈칸
+            const rows = data.map((row, idx) => colKeys.map((key, ki) => {
+                if (key === null) return headers[ki] === 'NO' ? String(idx + 1) : '';
                 const v = row[key];
                 if (v == null) return '';
                 if (typeof v === 'boolean') return v ? 'Y' : 'N';
