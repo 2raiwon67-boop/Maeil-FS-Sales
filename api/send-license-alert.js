@@ -92,13 +92,13 @@ export default async function handler(req, res) {
         allManagers.forEach(m => {
             const name = (m.manager_name || '').trim();
             const email = (m.email       || '').trim();
-            const region = (m.region     || '').trim();
+            const region2 = (m.region2    || '').trim();
             const bu = (m.business_unit  || '').trim();
             if (!name || !email || !bu) return;
 
             if (!unitManagers[bu]) unitManagers[bu] = { emailMap: {}, branchEmails: [] };
 
-            if (m.is_branch_manager || region === '지점장' || region === '전체') {
+            if (m.is_branch_manager || region2 === '지점장' || region2 === '전체') {
                 unitManagers[bu].branchEmails.push(email);
             } else {
                 unitManagers[bu].emailMap[name] = email;
