@@ -1966,6 +1966,13 @@
                         </div>
                     </div>
 
+                    <!-- 방문 일정 저장 -->
+                    <div id="visitPlanSaveSection" style="display:none;margin-top:10px;background:#f5f5f7;border-radius:10px;padding:10px;">
+                        <div style="font-size:11px;font-weight:700;color:#1d1d1f;margin-bottom:6px;">📅 방문 일정 저장</div>
+                        <input type="date" id="visitPlanDate" style="width:100%;padding:7px 8px;border:1px solid #d2d2d7;border-radius:7px;font-size:13px;box-sizing:border-box;margin-bottom:6px;">
+                        <button onclick="saveVisitPlan()" style="width:100%;padding:8px;background:#5856d6;color:white;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">이날 방문 일정 저장</button>
+                    </div>
+
                     <div class="route-section-label" id="autoTargetLabel">자동 포함 대상</div>
                     <div id="routeTargetSummary"
                         style="font-size:12px;color:#1d1d1f;background:#f5f5f7;border-radius:8px;padding:10px;">
@@ -2538,6 +2545,9 @@
                 loadAccountsData(),
                 loadVisitLogCache()
             ]);
+
+            // 오늘 저장된 방문 일정이 있으면 팝업 표시
+            await checkTodayVisitPlan();
         };
 
         // ============================================================
@@ -4662,18 +4672,22 @@
 
             if (!listEl) return;
 
+            const planSection = document.getElementById('visitPlanSaveSection');
+
             if (routeCart.length === 0) {
                 listEl.innerHTML = '<div style="font-size:12px;color:#86868b;background:#f5f5f7;border-radius:8px;padding:10px;text-align:center;">마커를 클릭해 경유지를 담으세요</div>';
                 badge.style.display = 'none';
                 clearBtn.style.display = 'none';
                 if (autoLabel) autoLabel.style.display = '';
                 if (autoSummary) autoSummary.style.display = '';
+                if (planSection) planSection.style.display = 'none';
             } else {
                 badge.textContent = routeCart.length;
                 badge.style.display = 'inline-flex';
                 clearBtn.style.display = 'block';
                 if (autoLabel) autoLabel.style.display = 'none';
                 if (autoSummary) autoSummary.style.display = 'none';
+                if (planSection) planSection.style.display = 'block';
                 listEl.innerHTML = routeCart.map((c, i) => `
                     <div class="cart-item">
                         <span style="color:#5856d6;font-size:11px;font-weight:700;flex-shrink:0;">${i + 1}</span>
@@ -4699,9 +4713,97 @@
             _cartToastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
         }
 
+        // ── 방문 일정 저장 ──
+        function saveVisitPlan() {
+            const dateInput = document.getElementById('visitPlanDate');
+            const date = dateInput?.value;
+            if (!date) { showToast('날짜를 선택해주세요', 'warning'); return; }
+            if (routeCart.length === 0) { showToast('경유지를 먼저 담아주세요', 'warning'); return; }
+
+            const bu = _indexBusinessUnit ?? null;
+            const plans = JSON.parse(localStorage.getItem('fs_visit_plans') || '[]');
+            const filtered = plans.filter(p => p.date !== date);
+            filtered.push({ date, items: routeCart.map(c => ({ ...c, businessUnit: bu })) });
+            localStorage.setItem('fs_visit_plans', JSON.stringify(filtered));
+            showToast(`${date} 방문 일정이 저장되었습니다`, 'success');
+        }
+
+        // ── 오늘 방문 일정 팝업 ──
+        async function checkTodayVisitPlan() {
+            const today = new Date().toISOString().split('T')[0];
+            if (sessionStorage.getItem('visit_plan_shown_' + today)) return;
+
+            const plans = JSON.parse(localStorage.getItem('fs_visit_plans') || '[]');
+            const todayPlan = plans.find(p => p.date === today);
+            if (!todayPlan || !todayPlan.items.length) return;
+
+            sessionStorage.setItem('visit_plan_shown_' + today, '1');
+
+            // ai_briefings에서 브리핑 조회
+            const bu = todayPlan.items[0]?.businessUnit ?? null;
+            const names = todayPlan.items.map(i => i.name);
+            let briefingMap = {};
+            try {
+                const nameFilter = names.map(n => `account_name.eq.${encodeURIComponent(n)}`).join(',');
+                const buFilter = bu ? `&business_unit=eq.${encodeURIComponent(bu)}` : '';
+                const { data: briefings } = await client
+                    .from('ai_briefings')
+                    .select('account_name, briefing')
+                    .in('account_name', names)
+                    .eq('business_unit', bu);
+                if (Array.isArray(briefings)) {
+                    briefings.forEach(b => { briefingMap[b.account_name] = b.briefing; });
+                }
+            } catch (e) { /* 브리핑 없어도 팝업은 표시 */ }
+
+            showVisitPlanPopup(todayPlan.items, briefingMap);
+        }
+
+        function showVisitPlanPopup(items, briefingMap) {
+            const overlay = document.createElement('div');
+            overlay.id = 'visitPlanPopup';
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
+
+            const itemsHtml = items.map((item, i) => {
+                const briefing = briefingMap[item.name] || null;
+                const briefingHtml = briefing
+                    ? `<div style="margin-top:6px;padding:8px 10px;background:#f5f5f7;border-radius:8px;font-size:12px;color:#3a3a3c;line-height:1.6;white-space:pre-wrap;">${_cartEsc(briefing)}</div>`
+                    : `<div style="margin-top:6px;font-size:12px;color:#86868b;">브리핑 없음 (방문일지 등록 시 자동 생성)</div>`;
+                return `
+                    <div style="margin-bottom:14px;padding-bottom:14px;${i < items.length - 1 ? 'border-bottom:1px solid #e5e5ea;' : ''}">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span style="background:#5856d6;color:white;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${i + 1}</span>
+                            <span style="font-size:14px;font-weight:700;color:#1d1d1f;">${_cartEsc(item.name)}</span>
+                        </div>
+                        ${briefingHtml}
+                    </div>`;
+            }).join('');
+
+            overlay.innerHTML = `
+                <div style="background:white;border-radius:16px;width:100%;max-width:420px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                    <div style="padding:18px 18px 0;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:17px;font-weight:700;color:#1d1d1f;">오늘의 방문 계획</div>
+                            <div style="font-size:12px;color:#86868b;margin-top:2px;">${new Date().toLocaleDateString('ko-KR', {month:'long',day:'numeric',weekday:'short'})}</div>
+                        </div>
+                        <button onclick="document.getElementById('visitPlanPopup').remove()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#86868b;line-height:1;">×</button>
+                    </div>
+                    <div style="padding:16px 18px;">
+                        ${itemsHtml}
+                        <button onclick="document.getElementById('visitPlanPopup').remove()" style="width:100%;padding:12px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;">시작하기</button>
+                    </div>
+                </div>`;
+
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        }
+
         function openRoutePanel() {
             document.getElementById('routePanel').classList.add('active');
             updateRouteTargetSummary();
+            // 날짜 기본값: 오늘
+            const dateInput = document.getElementById('visitPlanDate');
+            if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
             renderCartUI();
             // 모바일: FAB 숨기고 딤처리 표시
             const fab = document.getElementById('routeMobileFab');
