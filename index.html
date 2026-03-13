@@ -2773,6 +2773,7 @@
                     const businessUnit = await getBusinessUnitForIndex();
                     if (!businessUnit) {
                         console.warn('소속 정보가 없어 인허가 데이터를 로드할 수 없습니다.');
+                        showToast('소속 정보를 확인할 수 없어 데이터를 불러오지 못했습니다.', 'error', 5000);
                         return;
                     }
                     const { data, error } = await client
@@ -2851,201 +2852,11 @@
                 initAllMarkers();
             } catch (error) {
                 console.warn('인허가 데이터 로드 실패:', error.message);
+                showToast('인허가 데이터를 불러오지 못했습니다. 새로고침 해보세요.', 'error', 5000);
             }
         }
 
-        // ============================================================
-        // 공공데이터포털 API 자동 로딩
-        // ============================================================
 
-        async function loadDataFromPublicAPI() {
-            const btn = document.getElementById('apiLoadBtn');
-            const statusEl = document.getElementById('apiLoadStatus');
-
-            btn.disabled = true;
-            statusEl.style.display = 'block';
-
-            function setStatus(msg) {
-                statusEl.textContent = msg;
-            }
-
-            try {
-                // 날짜 input 값 읽기 (YYYYMMDD 형식으로 변환)
-                const startDateVal = document.getElementById('apiStartDate').value;
-                const endDateVal = document.getElementById('apiEndDate').value;
-                if (!startDateVal) {
-                    setStatus('❌ 시작일을 입력해주세요.');
-                    btn.disabled = false;
-                    return;
-                }
-                const startDate = startDateVal.replace(/-/g, '');
-                const endDate = endDateVal ? endDateVal.replace(/-/g, '') : '';
-
-                // 📅 스마트 페이지 제한: 날짜 범위 기반 자동 계산
-                const dateRangeDays = endDateVal
-                    ? (new Date(endDateVal) - new Date(startDateVal)) / (1000 * 60 * 60 * 24)
-                    : 365; // 종료일 미입력 시 1년으로 간주
-
-                let MAX_PAGES;
-                let estimatedTime;
-                if (dateRangeDays <= 30) {
-                    MAX_PAGES = 5;    // 1개월 이하 → 5페이지 (약 1,500건)
-                    estimatedTime = '30초';
-                } else if (dateRangeDays <= 90) {
-                    MAX_PAGES = 10;   // 3개월 이하 → 10페이지 (약 3,000건)
-                    estimatedTime = '1분';
-                } else if (dateRangeDays <= 180) {
-                    MAX_PAGES = 15;   // 6개월 이하 → 15페이지 (약 4,500건)
-                    estimatedTime = '1분 30초';
-                } else {
-                    MAX_PAGES = 20;   // 그 이상 → 20페이지 (약 6,000건)
-                    estimatedTime = '2분';
-                }
-
-                setStatus(`📊 날짜 범위: ${Math.round(dateRangeDays)}일 → ${MAX_PAGES}페이지 수집 예정 (예상 소요: ${estimatedTime})`);
-                await new Promise(resolve => setTimeout(resolve, 1500)); // 사용자에게 정보 표시
-
-                // 업종 서비스명 (업태구분명 필터 대상의 상위 카테고리)
-                const serviceNames = ['일반음식점', '휴게음식점', '제과점영업'];
-                const BATCH_SIZE = 10;  // 동시 병렬 호출 수
-
-                const rawMap = new Map(); // MNG_NO 기준 중복 제거
-
-                // 단일 페이지 fetch 헬퍼
-                async function fetchPage(svcNm, pageNo) {
-                    const params = new URLSearchParams({
-                        serviceType: svcNm,
-                        pageNo,
-                        startDate,
-                        SALS_STTS_CD: '01',
-                        LOTNO_ADDR: '경기'
-                    });
-                    if (endDate) params.set('endDate', endDate);
-                    try {
-                        const res = await fetch(`/api/public-license?${params}`);
-                        if (!res.ok) return null;
-                        const json = await res.json();
-                        if (json.error) return null;
-                        const rb = json?.response?.body;
-                        const rawItems = rb?.items;
-                        let items = [];
-                        if (Array.isArray(rawItems)) items = rawItems;
-                        else if (rawItems?.item) items = Array.isArray(rawItems.item) ? rawItems.item : [rawItems.item];
-
-                        // 🎯 날짜 범위 밖 데이터 비율 계산 (조기 종료 판단용)
-                        let outOfRangeCount = 0;
-                        if (endDate) {
-                            items.forEach(item => {
-                                const permitDate = item.LCPMT_YMD || '';
-                                if (permitDate < startDate || permitDate > endDate) {
-                                    outOfRangeCount++;
-                                }
-                            });
-                        }
-
-                        const outOfRangeRatio = items.length > 0 ? outOfRangeCount / items.length : 0;
-                        const shouldStop = outOfRangeRatio > 0.8; // 80% 이상 범위 밖이면 조기 종료
-
-                        return { items, totalCount: parseInt(rb?.totalCount || 0), shouldStop };
-                    } catch { return null; }
-                }
-
-                function addToMap(items) {
-                    items.forEach(item => {
-                        const key = item.MNG_NO || `${item.BPLC_NM}_${item.LOTNO_ADDR}`;
-                        if (!rawMap.has(key)) {
-                            rawMap.set(key, {
-                                '사업장명': item.BPLC_NM || '',
-                                '업태구분명': item.BZSTAT_SE_NM || item.SNTTN_BZSTAT_NM || '',
-                                '영업상태명': item.SALS_STTS_NM || '',
-                                '상세영업상태명': item.DTL_SALS_STTS_NM || '',
-                                '소재지전체주소': item.LOTNO_ADDR || '',
-                                '도로명전체주소': item.ROAD_NM_ADDR || '',
-                                '소재지면적': item.LCTN_AREA || '',
-                                '시설총규모': item.FCLT_TOTAL_SCL || item.LCTN_AREA || '',
-                                '인허가일자': item.LCPMT_YMD || '',
-                                '영업허가일': item.LCPMT_YMD || ''
-                            });
-                        }
-                    });
-                }
-
-                let svcIdx = 0;
-                let earlyStopped = false;
-
-                for (const svcNm of serviceNames) {
-                    svcIdx++;
-                    setStatus(`📥 (${svcIdx}/3) ${svcNm} — 1페이지 조회 중...`);
-
-                    // 1페이지로 totalCount·실제 페이지 크기 확인
-                    const first = await fetchPage(svcNm, 1);
-                    if (!first || first.items.length === 0) continue;
-
-                    addToMap(first.items);
-                    const actualPageSize = first.items.length || 100;
-                    const totalPages = Math.min(Math.ceil(first.totalCount / actualPageSize), MAX_PAGES);
-
-                    // 🎯 첫 페이지에서 조기 종료 신호 감지
-                    if (first.shouldStop && totalPages > 3) {
-                        setStatus(`⚡ (${svcIdx}/3) ${svcNm} — 날짜 범위 밖 데이터 감지, 3페이지만 수집합니다.`);
-                        earlyStopped = true;
-                        // 조기 종료 시 3페이지만 수집
-                        const limitedPages = Math.min(totalPages, 3);
-                        for (let pageNo = 2; pageNo <= limitedPages; pageNo++) {
-                            const result = await fetchPage(svcNm, pageNo);
-                            if (result) addToMap(result.items);
-                        }
-                        continue;
-                    }
-
-                    // 나머지 페이지 병렬 수집 (BATCH_SIZE씩)
-                    for (let bStart = 2; bStart <= totalPages; bStart += BATCH_SIZE) {
-                        const bEnd = Math.min(bStart + BATCH_SIZE - 1, totalPages);
-                        const results = await Promise.all(
-                            Array.from({ length: bEnd - bStart + 1 }, (_, i) => fetchPage(svcNm, bStart + i))
-                        );
-                        results.forEach(r => r && addToMap(r.items));
-
-                        // 📊 진행률 퍼센트 표시
-                        const progress = Math.round((bEnd / totalPages) * 100);
-                        setStatus(`📥 (${svcIdx}/3) ${svcNm} — ${progress}% (${bEnd}/${totalPages}페이지) | 누적 ${rawMap.size}건`);
-
-                        // 🎯 배치 중간에 조기 종료 신호 감지
-                        const stopSignal = results.some(r => r?.shouldStop);
-                        if (stopSignal && bEnd < totalPages) {
-                            setStatus(`⚡ (${svcIdx}/3) ${svcNm} — 날짜 범위 밖 데이터 증가, 수집 조기 종료 (누적 ${rawMap.size}건)`);
-                            earlyStopped = true;
-                            break;
-                        }
-                    }
-                }
-
-                const allRawData = Array.from(rawMap.values());
-
-                if (allRawData.length === 0) {
-                    setStatus('❌ 데이터 없음. API 키를 확인해주세요.');
-                    btn.disabled = false;
-                    return;
-                }
-
-                setStatus(`🔄 총 ${allRawData.length}건 수신 완료 — 필터링 및 가공 중...`);
-
-                // 사용자 선택 날짜를 processData 날짜 필터에 전달
-                await processData(allRawData, { startDate, endDate: endDate || '' });
-
-                const successMsg = earlyStopped
-                    ? `✅ ${processedData.length}건 처리 완료 (스마트 조기 종료 적용됨) — 다운로드 후 최종본 업로드 해주세요.`
-                    : `✅ ${processedData.length}건 처리 완료 — 다운로드 버튼으로 저장 후 최종본 업로드 해주세요.`;
-
-                setStatus(successMsg);
-
-            } catch (e) {
-                console.error('공공데이터 API 로드 오류:', e);
-                setStatus('❌ 오류: ' + e.message);
-            } finally {
-                btn.disabled = false;
-            }
-        }
 
         // ============================================================
         // 대시보드 업데이트
@@ -3488,6 +3299,7 @@
                 }
             } catch (e) {
                 console.warn('주요거래처 데이터 로드 실패:', e.message);
+                showToast('주요거래처 데이터를 불러오지 못했습니다.', 'error', 4000);
             }
         }
 
@@ -3522,6 +3334,7 @@
                 });
             } catch (e) {
                 console.warn('방문일지 캐시 로드 실패:', e.message);
+                showToast('방문 기록을 불러오지 못했습니다.', 'error', 4000);
             }
         }
 
@@ -4342,7 +4155,7 @@
                 console.error('업데이트 실패:', err);
                 selectElement.value = prevStatus;
                 _applyStatusSelectColor(selectElement, prevStatus);
-                alert(`❌ 상태 변경 실패\n\n${err.message}`);
+                showToast(`상태 변경에 실패했습니다: ${err.message}`, 'error', 5000);
             } finally {
                 selectElement.disabled = false;
             }
@@ -4368,7 +4181,7 @@
                 if (item) item['사용우유'] = newMilk;
             } catch (err) {
                 console.error('사용우유 업데이트 실패:', err);
-                alert(`❌ 사용우유 변경 실패\n\n${err.message}`);
+                showToast(`사용우유 변경에 실패했습니다: ${err.message}`, 'error', 5000);
             } finally {
                 selectElement.disabled = false;
             }
@@ -4406,7 +4219,7 @@
                 console.error('업데이트 실패:', err);
                 selectElement.value = prevStatus;
                 _applyStatusSelectColor(selectElement, prevStatus);
-                alert(`❌ 상태 변경 실패\n\n${err.message}`);
+                showToast(`상태 변경에 실패했습니다: ${err.message}`, 'error', 5000);
             } finally {
                 selectElement.disabled = false;
             }
@@ -4434,7 +4247,7 @@
                 if (_sheetCurrentItem) _sheetCurrentItem['사용우유'] = newMilk;
             } catch (err) {
                 console.error('사용우유 업데이트 실패:', err);
-                alert(`❌ 사용우유 변경 실패\n\n${err.message}`);
+                showToast(`사용우유 변경에 실패했습니다: ${err.message}`, 'error', 5000);
             } finally {
                 selectElement.disabled = false;
             }
@@ -4478,7 +4291,7 @@
                 console.error('업데이트 실패:', err);
                 buttons.forEach(btn => btn.classList.remove('active'));
                 if (originalActiveBtn) originalActiveBtn.classList.add('active');
-                alert(`❌ 상태 변경 실패\n\n${err.message}\n\n잠시 후 다시 시도해주세요.`);
+                showToast(`상태 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.`, 'error', 5000);
             } finally {
                 container.classList.remove('status-saving');
             }
@@ -4515,7 +4328,7 @@
 
             } catch (err) {
                 console.error('주요거래처 상태 변경 실패:', err);
-                alert('❌ 상태 변경 실패: ' + err.message);
+                showToast('상태 변경에 실패했습니다. 다시 시도해 주세요.', 'error', 5000);
                 group.style.opacity = '';
                 group.style.pointerEvents = '';
             }
@@ -4550,7 +4363,7 @@
                 showToast('거래상태가 변경되었습니다.', 'success');
             } catch (err) {
                 console.error('주요거래처 상태 변경 실패:', err);
-                alert('❌ 상태 변경 실패: ' + err.message);
+                showToast('상태 변경에 실패했습니다. 다시 시도해 주세요.', 'error', 5000);
             } finally {
                 group.style.opacity = '';
                 group.style.pointerEvents = '';
@@ -4881,7 +4694,7 @@
         }
 
         function useCurrentLocation() {
-            if (!navigator.geolocation) { alert('위치 서비스를 지원하지 않는 브라우저입니다.'); return; }
+            if (!navigator.geolocation) { showToast('위치 서비스를 지원하지 않는 브라우저입니다.', 'error', 4000); return; }
             const infoEl = document.getElementById('routeStartInfo');
             infoEl.textContent = '📍 위치 확인 중...';
 
@@ -4899,10 +4712,10 @@
             function onLocationError(err) {
                 if (err.code === 1) {
                     infoEl.textContent = '❌ 위치 권한 거부됨 (직접 입력 이용)';
-                    alert('위치 접근 권한이 거부되었습니다.\n브라우저/기기 설정에서 위치 권한을 허용한 후 다시 시도해주세요.');
+                    showToast('위치 접근 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해 주세요.', 'error', 6000);
                 } else {
                     infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
-                    alert('현재 위치를 확인할 수 없습니다.\n직접 입력을 이용해주세요.');
+                    showToast('현재 위치를 확인할 수 없습니다. 직접 입력을 이용해 주세요.', 'error', 4000);
                 }
             }
 
@@ -5009,7 +4822,7 @@
         }
 
         async function startRouteOptimization() {
-            if (!routeStartCoord) { alert('출발지를 먼저 설정해주세요.\n(현재 위치 또는 주소 입력)'); return; }
+            if (!routeStartCoord) { showToast('출발지를 먼저 설정해 주세요.', 'error', 4000); return; }
 
             // ── 장바구니 모드: 담긴 목적지만 사용 ──
             if (routeCart.length > 0) {
@@ -5141,7 +4954,7 @@
                 }
             } else {
                 if (additionalStops.length === 0) {
-                    alert('출발지 반경 3km 이내에 방문 대상이 없습니다.\n출발지를 변경하거나 데이터를 확인해주세요.');
+                    showToast('출발지 반경 3km 이내에 방문 대상이 없습니다. 출발지를 변경하거나 데이터를 확인해 주세요.', 'error', 5000);
                     return;
                 }
                 const orderedStops = nearestNeighborTSP(additionalStops, routeStartCoord);
