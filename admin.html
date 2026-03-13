@@ -416,6 +416,7 @@
                     <button class="btn-reject" onclick="rejectUser('${u.id}', '${safeName}', this)">거절</button>
                 </div>` : `
                 <div class="actions">
+                    <button class="btn-transfer" title="소속 변경 (인사발령)" onclick="transferUser('${u.id}', '${u.business_unit}', this)" style="font-size:12px;padding:5px 10px;border:1px solid #d2d2d7;border-radius:8px;background:#fff;color:#1d1d1f;cursor:pointer;margin-right:6px;">소속 변경</button>
                     <button class="btn-delete" title="계정 삭제 (퇴사 처리)" onclick="deleteUser('${u.id}', '${safeName}', this)">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
@@ -478,6 +479,44 @@
                 showToast('❌ ' + e.message, true);
                 confirmBtn.disabled = false;
                 confirmBtn.textContent = '확인';
+            }
+        }
+
+        // ── 소속 변경 (인사발령) 1단계: 드롭다운 UI 표시 ────────
+        function transferUser(userId, currentBu, btn) {
+            const options = BUSINESS_UNITS
+                .map(u => `<option value="${u}" ${u === currentBu ? 'selected' : ''}>${u}</option>`)
+                .join('');
+            const wrapper = btn.closest('.actions');
+            wrapper.innerHTML = `
+                <select id="tbu-${userId}" style="width:170px;padding:6px 8px;font-size:13px;border:1px solid #d2d2d7;border-radius:8px;outline:none;">
+                    ${options}
+                </select>
+                <button onclick="confirmTransfer('${userId}', '${currentBu}')" style="font-size:12px;padding:5px 10px;border:none;border-radius:8px;background:#0071e3;color:#fff;cursor:pointer;margin-left:4px;">확인</button>
+                <button onclick="loadUsers()" style="font-size:12px;padding:5px 10px;border:1px solid #d2d2d7;border-radius:8px;background:#fff;cursor:pointer;margin-left:4px;">취소</button>
+            `;
+        }
+
+        // ── 소속 변경 2단계: API 호출 ─────────────────────────
+        async function confirmTransfer(userId, currentBu) {
+            const select = document.getElementById(`tbu-${userId}`);
+            const newBu = select.value;
+            if (newBu === currentBu) { showToast('현재 소속과 동일합니다.'); loadUsers(); return; }
+            if (!confirm(`소속을 '${currentBu}' → '${newBu}'(으)로 변경하시겠습니까?`)) return;
+            select.disabled = true;
+            try {
+                const res = await fetch('/api/admin-users', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Admin-Code': getAdminCode() },
+                    body: JSON.stringify({ action: 'transfer', userId, businessUnit: newBu, adminCode: getAdminCode() })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                showToast(`✅ 소속이 '${newBu}'(으)로 변경되었습니다.`);
+                await loadUsers();
+            } catch (e) {
+                showToast('❌ ' + e.message, true);
+                await loadUsers();
             }
         }
 

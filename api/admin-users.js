@@ -101,6 +101,23 @@ export default async function handler(req, res) {
             return res.status(200).json({ success: true, message: '승인 완료' });
         }
 
+        if (action === 'transfer') {
+            // 소속 지점 변경 (인사발령)
+            if (!businessUnit) return res.status(400).json({ error: 'businessUnit이 필요합니다.' });
+            const getRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { headers: supabaseHeaders });
+            const getUser = await getRes.json();
+            if (!getRes.ok) return res.status(getRes.status).json(getUser);
+            const updatedMeta = { ...getUser.user_metadata, business_unit: businessUnit };
+            const putRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+                method: 'PUT',
+                headers: supabaseHeaders,
+                body: JSON.stringify({ user_metadata: updatedMeta })
+            });
+            const putData = await putRes.json();
+            if (!putRes.ok) return res.status(putRes.status).json(putData);
+            return res.status(200).json({ success: true, message: '소속 변경 완료' });
+        }
+
         if (action === 'reject' || action === 'delete') {
             // 계정 삭제 (거절 또는 퇴사 처리)
             const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
