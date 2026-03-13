@@ -1147,8 +1147,12 @@
                             style="padding:3px 10px;border:1px solid #d1d1d6;border-radius:5px;background:#fff;cursor:pointer;font-size:12px;">다음 ▶</button>
                     </div>` : `<p style="font-size:12px;color:#86868b;margin:4px 0 0;">총 ${total}건</p>`;
 
+            const dlBtn = cfg.table !== 'recipes'
+                ? `<button onclick="downloadCurrentDb()" style="margin-left:auto;padding:4px 12px;font-size:12px;background:#34c759;color:#fff;border:none;border-radius:6px;cursor:pointer;">⬇️ DB 다운로드</button>`
+                : '';
+
             dbBody.innerHTML = `
-                <div class="db-summary">${summaryHtml}</div>
+                <div class="db-summary" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">${summaryHtml}${dlBtn}</div>
                 <div class="db-table-scroll">
                     <table class="preview-table">
                         <thead><tr>${headerHtml}</tr></thead>
@@ -1280,19 +1284,40 @@
         }
 
         // ── 현재 DB 데이터 다운로드 ─────────────────────────
-        function downloadCurrentDb() {
+        async function downloadCurrentDb() {
             const cfg = UPLOAD_TYPES[selectedType];
-            if (!currentDbData || currentDbData.length === 0) {
-                showToast('데이터가 없습니다. 먼저 좌측에서 데이터를 로드해주세요.');
-                return;
-            }
-            // templateHeaders → dbColumn 역방향 매핑
-            const headers = cfg.templateHeaders || (cfg.columns || []).map(c => c.label);
+            const headers = cfg.templateHeaders || (cfg.columns || cfg.previewColumns || []).map(c => c.label);
             const colKeys = cfg.templateHeaders
                 ? cfg.templateHeaders.map(h => cfg.columnMap?.[h]).filter(Boolean)
-                : (cfg.columns || []).map(c => c.key);
+                : (cfg.columns || cfg.previewColumns || []).map(c => c.key);
 
-            const rows = currentDbData.map(row => colKeys.map(key => {
+            let data = currentDbData;
+
+            // 비편집형(licenses, visit_logs)은 전체 데이터 재조회
+            if (!cfg.editable && cfg.table) {
+                showToast('전체 데이터 조회 중...');
+                try {
+                    const businessUnit = cfg.noBusinessUnit ? null : await getBusinessUnit();
+                    const url = businessUnit
+                        ? `${SUPABASE_URL}/rest/v1/${cfg.table}?business_unit=eq.${encodeURIComponent(businessUnit)}&select=*&limit=10000`
+                        : `${SUPABASE_URL}/rest/v1/${cfg.table}?select=*&limit=10000`;
+                    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                    const { data: { session } } = await client.auth.getSession();
+                    const token = session?.access_token || anonKey;
+                    const res = await fetch(url, { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } });
+                    data = res.ok ? await res.json() : [];
+                } catch (e) {
+                    showToast('데이터 조회 실패');
+                    return;
+                }
+            }
+
+            if (!data || data.length === 0) {
+                showToast('다운로드할 데이터가 없습니다.');
+                return;
+            }
+
+            const rows = data.map(row => colKeys.map(key => {
                 const v = row[key];
                 if (v == null) return '';
                 if (typeof v === 'boolean') return v ? 'Y' : 'N';
