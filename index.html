@@ -4713,50 +4713,75 @@
             _cartToastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
         }
 
-        // ── 방문 일정 저장 ──
-        function saveVisitPlan() {
+        // ── 방문 일정 저장 (Supabase) ──
+        async function saveVisitPlan() {
             const dateInput = document.getElementById('visitPlanDate');
             const date = dateInput?.value;
             if (!date) { showToast('날짜를 선택해주세요', 'warning'); return; }
             if (routeCart.length === 0) { showToast('경유지를 먼저 담아주세요', 'warning'); return; }
+            if (!myManagerName) { showToast('담당자 정보를 확인할 수 없습니다', 'error'); return; }
 
             const bu = _indexBusinessUnit ?? null;
-            const plans = JSON.parse(localStorage.getItem('fs_visit_plans') || '[]');
-            const filtered = plans.filter(p => p.date !== date);
-            filtered.push({ date, items: routeCart.map(c => ({ ...c, businessUnit: bu })) });
-            localStorage.setItem('fs_visit_plans', JSON.stringify(filtered));
-            showToast(`${date} 방문 일정이 저장되었습니다`, 'success');
+            const today = new Date().toISOString().split('T')[0];
+            try {
+                // 지난 일정 정리
+                await client.from('visit_plans')
+                    .delete()
+                    .eq('business_unit', bu)
+                    .eq('manager', myManagerName)
+                    .lt('visit_date', today);
+
+                // upsert (같은 날짜 있으면 덮어쓰기)
+                const { error } = await client.from('visit_plans').upsert({
+                    business_unit: bu,
+                    manager: myManagerName,
+                    visit_date: date,
+                    items: routeCart.map(c => ({ name: c.name, address: c.address, lat: c.lat, lng: c.lng, type: c.type }))
+                }, { onConflict: 'business_unit,manager,visit_date' });
+
+                if (error) throw error;
+                showToast(`${date} 방문 일정이 저장되었습니다`, 'success');
+            } catch (e) {
+                showToast('일정 저장에 실패했습니다', 'error');
+            }
         }
 
-        // ── 오늘 방문 일정 팝업 ──
+        // ── 오늘 방문 일정 팝업 (Supabase) ──
         async function checkTodayVisitPlan() {
             const today = new Date().toISOString().split('T')[0];
             if (sessionStorage.getItem('visit_plan_shown_' + today)) return;
+            if (!myManagerName) return;
 
-            const plans = JSON.parse(localStorage.getItem('fs_visit_plans') || '[]');
-            const todayPlan = plans.find(p => p.date === today);
-            if (!todayPlan || !todayPlan.items.length) return;
-
-            sessionStorage.setItem('visit_plan_shown_' + today, '1');
-
-            // ai_briefings에서 브리핑 조회
-            const bu = todayPlan.items[0]?.businessUnit ?? null;
-            const names = todayPlan.items.map(i => i.name);
-            let briefingMap = {};
+            const bu = _indexBusinessUnit ?? null;
             try {
-                const nameFilter = names.map(n => `account_name.eq.${encodeURIComponent(n)}`).join(',');
-                const buFilter = bu ? `&business_unit=eq.${encodeURIComponent(bu)}` : '';
-                const { data: briefings } = await client
-                    .from('ai_briefings')
-                    .select('account_name, briefing')
-                    .in('account_name', names)
-                    .eq('business_unit', bu);
-                if (Array.isArray(briefings)) {
-                    briefings.forEach(b => { briefingMap[b.account_name] = b.briefing; });
-                }
-            } catch (e) { /* 브리핑 없어도 팝업은 표시 */ }
+                const { data, error } = await client
+                    .from('visit_plans')
+                    .select('items')
+                    .eq('business_unit', bu)
+                    .eq('manager', myManagerName)
+                    .eq('visit_date', today)
+                    .single();
 
-            showVisitPlanPopup(todayPlan.items, briefingMap);
+                if (error || !data?.items?.length) return;
+
+                sessionStorage.setItem('visit_plan_shown_' + today, '1');
+
+                // ai_briefings 조회
+                const names = data.items.map(i => i.name);
+                let briefingMap = {};
+                try {
+                    const { data: briefings } = await client
+                        .from('ai_briefings')
+                        .select('account_name, briefing')
+                        .in('account_name', names)
+                        .eq('business_unit', bu);
+                    if (Array.isArray(briefings)) {
+                        briefings.forEach(b => { briefingMap[b.account_name] = b.briefing; });
+                    }
+                } catch (e) { /* 브리핑 없어도 팝업 표시 */ }
+
+                showVisitPlanPopup(data.items, briefingMap);
+            } catch (e) { /* 오늘 일정 없음 */ }
         }
 
         function showVisitPlanPopup(items, briefingMap) {
@@ -4766,9 +4791,13 @@
 
             const itemsHtml = items.map((item, i) => {
                 const briefing = briefingMap[item.name] || null;
-                const briefingHtml = briefing
-                    ? `<div style="margin-top:6px;padding:8px 10px;background:#f5f5f7;border-radius:8px;font-size:12px;color:#3a3a3c;line-height:1.6;white-space:pre-wrap;">${_cartEsc(briefing)}</div>`
-                    : `<div style="margin-top:6px;font-size:12px;color:#86868b;">브리핑 없음 (방문일지 등록 시 자동 생성)</div>`;
+                // 브리핑 첫 줄만 표시
+                const briefingLine = briefing
+                    ? briefing.split('\n').find(l => l.trim()) || briefing.substring(0, 80)
+                    : null;
+                const briefingHtml = briefingLine
+                    ? `<div style="margin-top:6px;padding:7px 10px;background:#f5f5f7;border-radius:8px;font-size:12px;color:#3a3a3c;line-height:1.5;">${_cartEsc(briefingLine)}</div>`
+                    : `<div style="margin-top:5px;font-size:12px;color:#86868b;">브리핑 없음</div>`;
                 return `
                     <div style="margin-bottom:14px;padding-bottom:14px;${i < items.length - 1 ? 'border-bottom:1px solid #e5e5ea;' : ''}">
                         <div style="display:flex;align-items:center;gap:6px;">
