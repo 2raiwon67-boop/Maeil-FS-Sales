@@ -2816,7 +2816,7 @@
 
                 // 좌표 없는 항목만 지오코딩
                 const missingCoords = allData.filter(d =>
-                    (!d['위도'] || d['위도'] === 0 || d['위도'] === '') && d['도로명전체주소']
+                    !parseFloat(d['위도']) && d['도로명전체주소']
                 );
 
                 if (missingCoords.length > 0) {

@@ -139,7 +139,8 @@ ${visitText}
             if (!gemRes.ok) { results.failed++; continue; }
 
             const data = await gemRes.json();
-            const briefing = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+            const parts = data.candidates?.[0]?.content?.parts || [];
+            const briefing = (parts.find(p => !p.thought) || parts[0])?.text?.trim() || '';
             if (!briefing) { results.failed++; continue; }
 
             const buFilter = acc.businessUnit ? `&business_unit=eq.${encodeURIComponent(acc.businessUnit)}` : '&business_unit=is.null';
