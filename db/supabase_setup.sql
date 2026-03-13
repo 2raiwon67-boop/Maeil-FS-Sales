@@ -107,6 +107,12 @@ CREATE TABLE IF NOT EXISTS visit_logs (
     created_at      TIMESTAMPTZ DEFAULT now()
 );
 
+-- seq_no 기반 중복 방지 인덱스 (업로드 시 동일 seq_no 재업로드 차단)
+-- ⚠️ 실행 전 기존 중복 seq_no 제거 필요: SELECT seq_no, business_unit, COUNT(*) FROM visit_logs GROUP BY seq_no, business_unit HAVING COUNT(*) > 1;
+CREATE UNIQUE INDEX IF NOT EXISTS visit_logs_bu_seq_unique
+    ON visit_logs (business_unit, seq_no)
+    WHERE seq_no IS NOT NULL;
+
 ALTER TABLE visit_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "visit_logs_select_same_unit" ON visit_logs;

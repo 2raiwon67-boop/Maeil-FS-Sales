@@ -696,6 +696,38 @@
                     </div>
                 </div>
 
+                <!-- 방문일지 가이드 (방문일지 탭 전용) -->
+                <div class="card" id="visitLogGuideCard" style="display:none; border-left:3px solid #ff9500;">
+                    <div class="card-header" style="color:#ff9500;">📋 방문일지 업로드 안내</div>
+                    <div class="card-body" style="font-size:13px; line-height:1.8; color:#3a3a3c;">
+                        <p style="margin:0 0 10px 0;">기존에 있는 NO(seq_no)는 건너뛰고 <strong>신규 행만 추가</strong>됩니다. 매주 방문일지 누적분을 그대로 업로드하면 됩니다.</p>
+                        <p style="margin:0 0 6px 0; font-weight:600;">① 필수 컬럼</p>
+                        <table style="width:100%; border-collapse:collapse; margin-bottom:12px; font-size:12px;">
+                            <thead>
+                                <tr style="background:#f5f5f7;">
+                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">컬럼</th>
+                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">입력 예시</th>
+                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">설명</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">NO</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">1</td><td style="padding:5px 10px; border:1px solid #e0e0e0;"><strong>중복 방지 기준</strong> — 앱시트 원본 번호 그대로 유지</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">작성일</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">2026-03-10</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">YYYY-MM-DD 형식 (필수)</td></tr>
+                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">작성자</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">담당자 이름 (담당자관리와 동일하게)</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">방문처(거래처)</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">행복카페</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">거래처 상호명 (필수)</td></tr>
+                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">내용</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">원장님 면담...</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">방문 내용 (AI 브리핑 품질에 영향)</td></tr>
+                            </tbody>
+                        </table>
+                        <p style="margin:0 0 6px 0; font-weight:600;">② 자주 발생하는 오류</p>
+                        <ul style="margin:0 0 10px 0; padding-left:18px; color:#555;">
+                            <li>NO 컬럼이 비어있거나 중복된 경우 → 앱시트 원본 번호를 그대로 사용하세요</li>
+                            <li>날짜가 텍스트 형식인 경우 → 셀 서식을 날짜(YYYY-MM-DD)로 변경</li>
+                            <li>작성자 이름이 담당자관리와 다른 경우 → AI 브리핑에서 본인 거래처를 인식 못함</li>
+                        </ul>
+                        <p style="margin:0; padding:8px 12px; background:#fff3cd; border-radius:6px; font-size:12px;">💡 앱시트에서 엑셀 내보내기 후 <strong>그대로 업로드</strong>하면 됩니다. NO 번호는 절대 바꾸지 마세요.</p>
+                    </div>
+                </div>
+
                 <!-- 2. 현재 DB 현황 -->
                 <div class="card">
                     <div class="card-header">
@@ -884,7 +916,7 @@
                     '내용': 'content'
                 },
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
-                mode: 'append', conflictKey: 'visit_date,manager,business_name'
+                mode: 'add_new_only', deduplicateField: 'seq_no'
             },
             recipes: {
                 label: '레시피 데이터', table: 'recipes',
@@ -982,6 +1014,10 @@
             // 담당자 가이드: 담당자 탭일 때만 표시
             const managersGuideCard = document.getElementById('managersGuideCard');
             if (managersGuideCard) managersGuideCard.style.display = type === 'managers' ? '' : 'none';
+
+            // 방문일지 가이드: 방문일지 탭일 때만 표시
+            const visitLogGuideCard = document.getElementById('visitLogGuideCard');
+            if (visitLogGuideCard) visitLogGuideCard.style.display = type === 'visit_logs' ? '' : 'none';
 
             loadCurrentData();
         }
@@ -1542,25 +1578,11 @@
                 const now = new Date().toISOString();
                 let inserted = 0;
 
-                // ── 방문일지: seq_no 자동 채번 (DB 최대값 기준으로 이어서 부여) ──
-                let seqStart = 1;
-                if (cfg.table === 'visit_logs') {
-                    const { data: seqData } = await client
-                        .from('visit_logs')
-                        .select('seq_no')
-                        .eq('business_unit', businessUnit)
-                        .order('seq_no', { ascending: false })
-                        .limit(1);
-                    const maxSeq = seqData?.[0]?.seq_no;
-                    seqStart = maxSeq ? (parseInt(maxSeq, 10) || 0) + 1 : 1;
-                }
-
                 for (let i = 0; i < parsedData.length; i += BATCH) {
-                    const batch = parsedData.slice(i, i + BATCH).map((row, idx) => {
+                    const batch = parsedData.slice(i, i + BATCH).map((row) => {
                         const base = { ...row, business_unit: businessUnit };
                         if (cfg.table === 'visit_logs') {
-                            // 엑셀 NO 번호 무시 → DB 기준 자동 채번
-                            base.seq_no = String(seqStart + i + idx);
+                            // seq_no는 엑셀 NO 그대로 사용 (중복 방지 기준 키)
                             base.created_by = user.id;
                             base.created_at = now;
                         } else {
