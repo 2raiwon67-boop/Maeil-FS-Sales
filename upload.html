@@ -733,9 +733,13 @@
                     <div class="card-header">
                         <div class="card-header-row">
                             <span>2 — 현재 DB 현황 (<span id="dbCurrentCount">—</span>)</span>
-                            <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
+                            <div style="display:flex;gap:6px;">
+                                <button onclick="runDataCheck()" title="데이터 정합성 점검" style="font-size:12px;padding:4px 10px;border:1px solid #d1d1d6;border-radius:6px;background:#fff;cursor:pointer;color:#1d1d1f;">🔍 데이터 점검</button>
+                                <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
+                            </div>
                         </div>
                     </div>
+                    <div id="dataCheckPanel" style="display:none;padding:14px 16px;border-bottom:1px solid #f0f0f0;background:#fafafa;font-size:13px;"></div>
                     <div class="card-body" id="dbCurrentBody">
                         <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
                     </div>
@@ -1053,6 +1057,120 @@
         // ── HTML 속성 이스케이프 ─────────────────────────────
         function escapeAttr(val) {
             return String(val ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // ── 데이터 정합성 점검 ───────────────────────────────
+        async function runDataCheck() {
+            const panel = document.getElementById('dataCheckPanel');
+            panel.style.display = 'block';
+            panel.innerHTML = '<span style="color:#86868b;">🔍 점검 중...</span>';
+
+            try {
+                const { data: userData } = await client.auth.getUser();
+                const bu = userData?.user?.user_metadata?.business_unit;
+                if (!bu) { panel.innerHTML = '<span style="color:#ff3b30;">소속 정보를 확인할 수 없습니다.</span>'; return; }
+
+                const [licRes, visitRes, mgrRes] = await Promise.all([
+                    client.from('licenses').select('manager,priority,permit_date,lat,lng,trade_status').eq('business_unit', bu),
+                    client.from('visit_logs').select('manager,visit_date').eq('business_unit', bu),
+                    client.from('managers').select('manager_name,email').eq('business_unit', bu)
+                ]);
+
+                const licenses  = licRes.data  || [];
+                const visits    = visitRes.data || [];
+                const managers  = mgrRes.data   || [];
+
+                const validNames  = new Set(managers.map(m => m.manager_name.trim()));
+                const noEmailSet  = new Set(managers.filter(m => !m.email?.trim()).map(m => m.manager_name.trim()));
+                const VALID_STATUS = new Set(['인허가','공사중','거래','DROP','미거래','미지정']);
+
+                // ① licenses 담당자 불일치
+                const licMgrMissing = new Map();
+                licenses.forEach(r => {
+                    const n = (r.manager || '').trim();
+                    if (!n || n === '미지정') return;
+                    if (!validNames.has(n)) licMgrMissing.set(n, (licMgrMissing.get(n) || 0) + 1);
+                });
+
+                // ② managers 이메일 누락
+                const noEmailList = [...noEmailSet];
+
+                // ③ licenses 미지정 담당자
+                const licNoMgr = licenses.filter(r => !r.manager || r.manager.trim() === '' || r.manager.trim() === '미지정').length;
+
+                // ④ priority 비어있는 건
+                const licNoPriority = licenses.filter(r => !r.priority || r.priority.toString().trim() === '').length;
+
+                // ⑤ permit_date 비어있는 건
+                const licNoDate = licenses.filter(r => !r.permit_date).length;
+
+                // ⑥ lat/lng 없는 건
+                const licNoCoord = licenses.filter(r => !r.lat || !r.lng || r.lat == 0 || r.lng == 0).length;
+
+                // ⑦ trade_status 비정상 값
+                const licBadStatus = new Map();
+                licenses.forEach(r => {
+                    const s = (r.trade_status || '').trim();
+                    if (s && !VALID_STATUS.has(s)) licBadStatus.set(s, (licBadStatus.get(s) || 0) + 1);
+                });
+
+                // ⑧ visit_logs 담당자 불일치
+                const visitMgrMissing = new Map();
+                visits.forEach(r => {
+                    const n = (r.manager || '').trim();
+                    if (!n || n === '미지정') return;
+                    if (!validNames.has(n)) visitMgrMissing.set(n, (visitMgrMissing.get(n) || 0) + 1);
+                });
+
+                // ⑨ visit_logs visit_date 비어있는 건
+                const visitNoDate = visits.filter(r => !r.visit_date).length;
+
+                // ── 결과 렌더링 ──
+                const allOk = licMgrMissing.size === 0 && noEmailList.length === 0 &&
+                    licNoMgr === 0 && licNoPriority === 0 && licNoDate === 0 &&
+                    licNoCoord === 0 && licBadStatus.size === 0 &&
+                    visitMgrMissing.size === 0 && visitNoDate === 0;
+
+                if (allOk) {
+                    panel.innerHTML = `<span style="color:#34c759;font-weight:600;">✅ 데이터 정합성 이상 없음</span>
+                        <button onclick="document.getElementById('dataCheckPanel').style.display='none'" style="float:right;border:none;background:none;cursor:pointer;color:#86868b;font-size:13px;">✕ 닫기</button>`;
+                    return;
+                }
+
+                const warn = (title, items) => items.length === 0 ? '' : `
+                    <div style="margin-bottom:10px;">
+                        <div style="font-weight:600;color:#ff3b30;margin-bottom:4px;">⚠️ ${title}</div>
+                        <ul style="margin:0;padding-left:18px;color:#3a3a3c;">
+                            ${items.map(i => `<li>${i}</li>`).join('')}
+                        </ul>
+                    </div>`;
+                const info = (title, count) => count === 0 ? '' : `
+                    <div style="margin-bottom:10px;">
+                        <div style="font-weight:600;color:#ff9500;margin-bottom:4px;">ℹ️ ${title}: <span style="font-weight:400;">${count}건</span></div>
+                    </div>`;
+
+                panel.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <span style="font-weight:700;font-size:14px;">🔍 데이터 점검 결과</span>
+                        <button onclick="document.getElementById('dataCheckPanel').style.display='none'" style="border:none;background:none;cursor:pointer;color:#86868b;font-size:13px;">✕ 닫기</button>
+                    </div>
+                    <div style="font-size:12px;color:#86868b;margin-bottom:10px;">지점: ${bu} · 인허가 ${licenses.length}건 · 방문일지 ${visits.length}건</div>
+                    ${warn('인허가 — 미등록 담당자 (이메일 알림 미발송)',
+                        [...licMgrMissing.entries()].map(([n,c]) => `${n} (${c}건)`))}
+                    ${warn('방문일지 — 미등록 담당자',
+                        [...visitMgrMissing.entries()].map(([n,c]) => `${n} (${c}건)`))}
+                    ${warn('담당자 관리 — 이메일 미등록',
+                        noEmailList.map(n => `${n}`))}
+                    ${warn('인허가 — 비정상 거래상태 값',
+                        [...licBadStatus.entries()].map(([s,c]) => `"${s}" (${c}건)`))}
+                    ${info('인허가 — 미지정/빈 담당자', licNoMgr)}
+                    ${info('인허가 — 순위 미입력', licNoPriority)}
+                    ${info('인허가 — 허가일 미입력', licNoDate)}
+                    ${info('인허가 — 좌표(lat/lng) 없음', licNoCoord)}
+                    ${info('방문일지 — 작성일 미입력', visitNoDate)}`;
+            } catch (e) {
+                panel.innerHTML = `<span style="color:#ff3b30;">점검 실패: ${e.message}</span>`;
+            }
         }
 
         // ── 현재 DB 데이터 로드 ──────────────────────────────
