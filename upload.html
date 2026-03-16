@@ -933,8 +933,7 @@
                     '내용': 'content'
                 },
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
-                mode: 'add_new_only', deduplicateFields: ['visit_date', 'manager', 'business_name'],
-                conflictKey: 'business_unit,visit_date,manager,business_name'
+                mode: 'add_new_only', deduplicateFields: ['visit_date', 'manager', 'business_name']
             },
             recipes: {
                 label: '레시피 데이터', table: 'recipes',
@@ -1710,6 +1709,21 @@
                     const fileHeaders = raw[0].map(h => String(h || '').trim());
                     const rows = raw.slice(1).filter(row => row.some(c => c !== '' && c != null));
 
+                    // 날짜 정규화: 엑셀 로케일/포맷 무관하게 YYYY-MM-DD 보장
+                    const normalizeToYMD = (val) => {
+                        if (!val) return null;
+                        const m = String(val).match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+                        if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+                        const d = new Date(val);
+                        if (!isNaN(d.getTime())) {
+                            const y = d.getFullYear();
+                            const mo = String(d.getMonth()+1).padStart(2,'0');
+                            const dy = String(d.getDate()).padStart(2,'0');
+                            return `${y}-${mo}-${dy}`;
+                        }
+                        return String(val).trim();
+                    };
+
                     parsedData = rows.map(row => {
                         const obj = {};
                         fileHeaders.forEach((header, i) => {
@@ -1721,6 +1735,8 @@
                                 val = ['Y', 'y', 'TRUE', 'true', '1', '예', '지점장'].includes(val);
                             } else if (cfg.numericFields.includes(dbCol)) {
                                 val = val ? parseFloat(val) : null;
+                            } else if (cfg.dateFields.includes(dbCol)) {
+                                val = normalizeToYMD(val);
                             } else if (val === '') {
                                 val = null;
                             }
@@ -1911,18 +1927,13 @@
                     });
 
                     let opErr;
-                    if (isAddNewOnly && cfg.conflictKey) {
-                        // add_new_only + conflictKey: 중복은 DB에서 무시 (날짜 포맷 불일치 안전)
-                        const { error } = await client.from(cfg.table)
-                            .upsert(batch, { onConflict: cfg.conflictKey, ignoreDuplicates: true });
-                        opErr = error;
-                    } else if (isAppend && cfg.conflictKey) {
+                    if (isAppend && cfg.conflictKey) {
                         // append + conflictKey: 기존 행 덮어쓰기 upsert
                         const { error } = await client.from(cfg.table)
                             .upsert(batch, { onConflict: cfg.conflictKey });
                         opErr = error;
                     } else {
-                        // 충돌 키 없는 append(인허가) 또는 replace: 단순 INSERT
+                        // add_new_only(인허가/방문일지) 또는 replace: 단순 INSERT
                         const { error } = await client.from(cfg.table).insert(batch);
                         opErr = error;
                     }
