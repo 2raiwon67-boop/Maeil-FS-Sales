@@ -468,7 +468,7 @@
                 const res = await fetch('/api/admin-users', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Admin-Code': getAdminCode() },
-                    body: JSON.stringify({ action: 'approve', userId, existingMetadata: meta, businessUnit, adminCode: getAdminCode() })
+                    body: JSON.stringify({ action: 'approve', userId, existingMetadata: meta, businessUnit, userEmail: user?.email || '', adminCode: getAdminCode() })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error);

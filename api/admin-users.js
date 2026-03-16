@@ -98,6 +98,56 @@ export default async function handler(req, res) {
             });
             const data = await response.json();
             if (!response.ok) return res.status(response.status).json(data);
+
+            // 승인 이메일 발송
+            const BREVO_KEY   = process.env.BREVO_API_KEY;
+            const FROM_EMAIL  = process.env.BREVO_FROM_EMAIL || '2raiwon67@gmail.com';
+            const { userEmail, existingMetadata: meta } = req.body || {};
+            const userName = meta?.full_name || userEmail || '담당자';
+
+            if (BREVO_KEY && userEmail) {
+                const loginUrl = 'https://2raiwon67-boop.github.io/Maeil-FS-Sales/login.html';
+                const html = `<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f8f9fa;font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa">
+<tr><td align="center" style="padding:30px 10px;">
+<table width="520" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border:1px solid #dee2e6;border-radius:12px;overflow:hidden;">
+<tr><td bgcolor="#2c3e50" style="background:#2c3e50;padding:28px 32px;">
+  <p style="margin:0;font-size:20px;font-weight:bold;color:#fff;">✅ 가입 승인 완료</p>
+  <p style="margin:6px 0 0;font-size:13px;color:#bdc3c7;">FS MISO 경기북부 인허가 대시보드</p>
+</td></tr>
+<tr><td style="padding:32px;">
+  <p style="font-size:15px;color:#2c3e50;margin:0 0 16px;">${userName}님, 안녕하세요.</p>
+  <p style="font-size:14px;color:#495057;margin:0 0 8px;">가입 신청이 <strong>승인</strong>되었습니다.</p>
+  <p style="font-size:14px;color:#495057;margin:0 0 24px;">소속: <strong>${businessUnit || '-'}</strong></p>
+  <table cellpadding="0" cellspacing="0" border="0">
+  <tr><td bgcolor="#2c3e50" style="background:#2c3e50;border-radius:8px;padding:12px 28px;">
+    <a href="${loginUrl}" style="color:#fff;font-size:14px;font-weight:bold;text-decoration:none;">로그인하러 가기</a>
+  </td></tr>
+  </table>
+</td></tr>
+<tr><td style="padding:16px 32px;border-top:1px solid #dee2e6;text-align:center;">
+  <p style="margin:0;font-size:11px;color:#adb5bd;">본 메일은 FS MISO 시스템에서 자동 발송되었습니다.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body></html>`;
+
+                await fetch('https://api.brevo.com/v3/smtp/email', {
+                    method: 'POST',
+                    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sender:      { name: 'FS MISO', email: FROM_EMAIL },
+                        to:          [{ email: userEmail, name: userName }],
+                        subject:     '[FS MISO] 가입이 승인되었습니다',
+                        htmlContent: html
+                    })
+                }).catch(e => console.error('승인 이메일 발송 실패:', e.message));
+            }
+
             return res.status(200).json({ success: true, message: '승인 완료' });
         }
 
