@@ -7,6 +7,10 @@ const ALLOWED_TABLES = ['licenses', 'accounts', 'visit_logs'];
 export default async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
     // 관리자 인증
     const adminKey = req.headers['x-admin-key'];
     const expectedKey = process.env.ADMIN_CODE;
