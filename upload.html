@@ -933,7 +933,8 @@
                     '내용': 'content'
                 },
                 requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
-                mode: 'add_new_only', deduplicateFields: ['visit_date', 'manager', 'business_name']
+                mode: 'add_new_only', deduplicateFields: ['visit_date', 'manager', 'business_name'],
+                conflictKey: 'business_unit,visit_date,manager,business_name'
             },
             recipes: {
                 label: '레시피 데이터', table: 'recipes',
@@ -1910,8 +1911,13 @@
                     });
 
                     let opErr;
-                    if (isAppend && cfg.conflictKey) {
-                        // 충돌 키: visit_date,manager,business_name 기준 upsert
+                    if (isAddNewOnly && cfg.conflictKey) {
+                        // add_new_only + conflictKey: 중복은 DB에서 무시 (날짜 포맷 불일치 안전)
+                        const { error } = await client.from(cfg.table)
+                            .upsert(batch, { onConflict: cfg.conflictKey, ignoreDuplicates: true });
+                        opErr = error;
+                    } else if (isAppend && cfg.conflictKey) {
+                        // append + conflictKey: 기존 행 덮어쓰기 upsert
                         const { error } = await client.from(cfg.table)
                             .upsert(batch, { onConflict: cfg.conflictKey });
                         opErr = error;
