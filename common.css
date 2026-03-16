@@ -46,6 +46,8 @@
 
 /* ── 페이드인 애니메이션 ── */
 body {
+    margin: 0;
+    padding: 0;
     opacity: 0;
     transition: opacity 0.2s ease-in-out;
 }
