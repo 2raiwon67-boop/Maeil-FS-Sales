@@ -93,6 +93,12 @@
             height: calc(100vh - 52px);
         }
 
+        @media (max-width: 768px) {
+            .main-layout {
+                height: calc(100vh - 52px - 60px - env(safe-area-inset-bottom));
+            }
+        }
+
         /* =============== 좌측 사이드바 =============== */
         .sidebar {
             background: #f5f5f7;

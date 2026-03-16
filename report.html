@@ -274,7 +274,7 @@
         }
 
         .account-table tr:hover td {
-            background: #fafafa;
+            background: #f0f4ff;
         }
 
         .account-name {
@@ -434,7 +434,7 @@
             }
         }
 
-        @media (max-width: 700px) {
+        @media (max-width: 768px) {
 
             /* 컨트롤 바: 세로 스택 */
             .controls-bar {
@@ -576,10 +576,6 @@
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
             if (typeof getUser === 'function') {
                 currentUser = await getUser();
-                if (currentUser) {
-                    const name = currentUser.user_metadata?.full_name || currentUser.email;
-                    document.getElementById('userNameDisplay').textContent = name;
-                }
             }
 
             // 데이터 로드
