@@ -1320,6 +1320,8 @@
         }
 
         /* ===== 인쇄 전용 스타일 ===== */
+        @page { size: A4 portrait; }
+
         @media print {
 
             /* 인쇄 시 print-container만 표시 */
@@ -2335,6 +2337,7 @@
         // ===== 자사 레시피 DB =====
         let _recipeDB = null;      // null = 미로드, [] = 빈 배열
         let _recipeDBPromise = null; // 중복 요청 방지
+        let _lastStoreName = '';   // recipe-recommend API에 storeName 전달용
 
         async function loadRecipeDB() {
             if (_recipeDB !== null) return _recipeDB;
@@ -2353,86 +2356,111 @@
             return _recipeDBPromise;
         }
 
-        async function renderRecipeSignatures(analysisTags, analysisText, sigResult, sigList) {
+        async function renderRecipeRAG(data, sigResult, sigList) {
             sigResult.style.display = 'none';
-            const recipes = await loadRecipeDB();
-            if (!recipes.length) return;
 
-            // 태그 + 분석 텍스트 모두에서 키워드 추출
-            const tagWords = analysisTags.map(t => t.toLowerCase());
-            const textWords = (analysisText || '').toLowerCase()
-                .replace(/[^가-힣a-z0-9\s]/g, ' ')
-                .split(/\s+/)
-                .filter(w => w.length >= 2);
-            const allKeywords = [...new Set([...tagWords, ...textWords])];
-
-            const toStr = v => (Array.isArray(v) ? v.join(' ') : (v || '')).toLowerCase();
-            let matched = recipes.filter(r => {
-                const rTags = toStr(r.tags);
-                const rCat  = toStr(r.category);
-                const rProd = toStr(r.main_products);
-                const rName = toStr(r.name);
-                return allKeywords.some(t => rTags.includes(t) || rCat.includes(t) || rProd.includes(t) || rName.includes(t));
-            });
-            // 매칭 없으면 랜덤 2개 (항상 같은 레시피 고정 방지)
-            if (!matched.length) {
-                const shuffled = [...recipes].sort(() => Math.random() - 0.5);
-                matched = shuffled.slice(0, 2);
-            }
-            const show = matched.slice(0, 2);
-
-            const fmtArr = v => Array.isArray(v) ? v.join(', ') : (v || '');
-            sigList.innerHTML = show.map((r, i) => `
-                <div style="padding:10px 12px;background:white;border-radius:8px;border-left:3px solid #ff9500;${r.pdf_url ? 'cursor:pointer;' : ''}" ${r.pdf_url ? `onclick="openRecipePdf('${encodeURIComponent(r.pdf_url)}','${r.name.replace(/'/g,'&#39;')}')"` : ''}>
-                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:700;font-size:13px;color:#1d1d1f;margin-bottom:3px;">${r.name}</div>
-                            ${r.category ? `<div style="font-size:11px;color:#888;margin-bottom:2px;">카테고리: ${fmtArr(r.category)}</div>` : ''}
-                        </div>
-                        ${r.pdf_url ? `<span style="flex-shrink:0;font-size:11px;color:#ff9500;font-weight:600;white-space:nowrap;">📄 레시피 보기</span>` : ''}
-                    </div>
-                </div>
-            `).join('');
+            // 로딩 상태 표시
+            sigList.innerHTML = '<div style="font-size:12px;color:#aaa;padding:8px 0;">레시피 검색 중...</div>';
             sigResult.style.display = 'block';
 
-            // 레시피 main_products → 추천 상품 리스트 상단 보완
-            const recipeProductNames = [...new Set(show.flatMap(r => Array.isArray(r.main_products) ? r.main_products : []))];
-            const recipeProducts = recipeProductNames
-                .map(name => productDB.find(p => p.name === name || p.name.includes(name) || name.includes(p.name)))
-                .filter(Boolean);
-
-            if (recipeProducts.length > 0) {
-                const list = document.getElementById('recommendList');
-                const existingNames = new Set(Array.from(list.querySelectorAll('[data-product-name]')).map(el => el.dataset.productName));
-                recipeProducts.forEach(item => {
-                    if (existingNames.has(item.name)) return;
-                    const div = document.createElement('div');
-                    div.dataset.productName = item.name;
-                    div.style.cssText = 'padding:10px;background:#fff8f0;border-radius:8px;border:1px solid #ffe0b2;cursor:pointer;display:flex;align-items:center;gap:10px;';
-                    const imgHtml = item.imageUrl
-                        ? `<img src="${item.imageUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML='📦'">`
-                        : `<span style="font-size:20px;">📦</span>`;
-                    div.innerHTML = `
-                        <div style="width:48px;height:48px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#f5f5f7;display:flex;align-items:center;justify-content:center;">${imgHtml}</div>
-                        <div style="flex:1;min-width:0;">
-                            <div style="font-weight:600;font-size:13px;">${item.name}</div>
-                            <div style="font-size:11px;color:#ff9500;font-weight:600;">📋 레시피 연계 상품</div>
-                        </div>
-                        <div style="font-size:18px;color:#0071e3;">+</div>
-                    `;
-                    div.onclick = () => {
-                        div.style.background = '#e3f2fd';
-                        if (window.innerWidth <= 768) {
-                            _pendingPickerCard = { name: item.name, spec: item.spec || '', expiryDate: item.expiryDate || '', price: 0, taxFree: item.taxFree || false, maxDc: item.maxDc || 0 };
-                            closeMobileAnalysis();
-                            showPriceSheet(_pendingPickerCard);
-                        } else {
-                            addRow({ ...item });
-                            setTimeout(() => div.remove(), 300);
+            try {
+                // 30일 캐시 확인
+                const recipeCacheKey = `recipe_cache_${_lastStoreName}`;
+                const RECIPE_CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+                let show = null;
+                try {
+                    const cached = localStorage.getItem(recipeCacheKey);
+                    if (cached) {
+                        const parsed = JSON.parse(cached);
+                        if (Date.now() - parsed.timestamp < RECIPE_CACHE_MS) {
+                            show = parsed.recipes;
                         }
-                    };
-                    list.insertBefore(div, list.firstChild);
-                });
+                    }
+                } catch (_) {}
+
+                if (!show) {
+                    const res = await fetch('/api/recipe-recommend', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            storeName: _lastStoreName,
+                            tags: data.tags || [],
+                            signatureMenus: data.signatureMenus || [],
+                            productNames: (data.items || []).map(i => i.name)
+                        })
+                    });
+
+                    if (!res.ok) throw new Error('recipe-recommend API 오류');
+                    const result = await res.json();
+                    show = result.recipes || [];
+                    try {
+                        localStorage.setItem(recipeCacheKey, JSON.stringify({ timestamp: Date.now(), recipes: show }));
+                    } catch (_) {}
+                }
+
+                if (!show.length) {
+                    sigResult.style.display = 'none';
+                    return;
+                }
+
+                const fmtArr = v => Array.isArray(v) ? v.join(', ') : (v || '');
+                sigList.innerHTML = show.map(r => `
+                    <div style="padding:10px 12px;background:white;border-radius:8px;border-left:3px solid #ff9500;${r.pdf_url ? 'cursor:pointer;' : ''}" ${r.pdf_url ? `onclick="openRecipePdf('${encodeURIComponent(r.pdf_url)}','${r.name.replace(/'/g,'&#39;')}')"` : ''}>
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:700;font-size:13px;color:#1d1d1f;margin-bottom:3px;">${r.name}</div>
+                                ${r.category ? `<div style="font-size:11px;color:#888;margin-bottom:2px;">${fmtArr(r.category)}</div>` : ''}
+                                ${r.reason ? `<div style="font-size:11px;color:#0071e3;margin-top:3px;">${r.reason}</div>` : ''}
+                            </div>
+                            ${r.pdf_url ? `<span style="flex-shrink:0;font-size:11px;color:#ff9500;font-weight:600;white-space:nowrap;">📄 레시피 보기</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+                sigResult.style.display = 'block';
+
+                // 레시피 main_products → 추천 상품 리스트 상단 보완
+                const recipeProductNames = [...new Set(show.flatMap(r => Array.isArray(r.main_products) ? r.main_products : []))];
+                const recipeProducts = recipeProductNames
+                    .map(name => productDB.find(p => p.name === name || p.name.includes(name) || name.includes(p.name)))
+                    .filter(Boolean);
+
+                if (recipeProducts.length > 0) {
+                    const list = document.getElementById('recommendList');
+                    const existingNames = new Set(Array.from(list.querySelectorAll('[data-product-name]')).map(el => el.dataset.productName));
+                    recipeProducts.forEach(item => {
+                        if (existingNames.has(item.name)) return;
+                        const div = document.createElement('div');
+                        div.dataset.productName = item.name;
+                        div.style.cssText = 'padding:10px;background:#fff8f0;border-radius:8px;border:1px solid #ffe0b2;cursor:pointer;display:flex;align-items:center;gap:10px;';
+                        const imgHtml = item.imageUrl
+                            ? `<img src="${item.imageUrl}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentNode.innerHTML='📦'">`
+                            : `<span style="font-size:20px;">📦</span>`;
+                        div.innerHTML = `
+                            <div style="width:48px;height:48px;flex-shrink:0;border-radius:8px;overflow:hidden;background:#f5f5f7;display:flex;align-items:center;justify-content:center;">${imgHtml}</div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:600;font-size:13px;">${item.name}</div>
+                                <div style="font-size:11px;color:#ff9500;font-weight:600;">📋 레시피 연계 상품</div>
+                            </div>
+                            <div style="font-size:18px;color:#0071e3;">+</div>
+                        `;
+                        div.onclick = () => {
+                            div.style.background = '#e3f2fd';
+                            if (window.innerWidth <= 768) {
+                                _pendingPickerCard = { name: item.name, spec: item.spec || '', expiryDate: item.expiryDate || '', price: 0, taxFree: item.taxFree || false, maxDc: item.maxDc || 0 };
+                                closeMobileAnalysis();
+                                showPriceSheet(_pendingPickerCard);
+                            } else {
+                                addRow({ ...item });
+                                setTimeout(() => div.remove(), 300);
+                            }
+                        };
+                        list.insertBefore(div, list.firstChild);
+                    });
+                }
+
+            } catch (err) {
+                console.warn('Recipe RAG 실패, 숨김 처리:', err);
+                sigResult.style.display = 'none';
             }
         }
 
@@ -2492,6 +2520,7 @@
                     if (cacheAge < CACHE_EXPIRY_MS) {
                         card.style.display = 'block';
                         card.classList.add('active');
+                        _lastStoreName = keyword;
                         renderAnalysis(cachedData.result, true);
 
                         // 백그라운드 증분 업데이트 (캐시 10일 미만이면 스킵)
@@ -2545,6 +2574,7 @@
                     result: data
                 }));
 
+                _lastStoreName = keyword;
                 renderAnalysis(data, false);
                 lastAnalysisTime = now;
 
@@ -2604,6 +2634,7 @@
                         result: data
                     }));
 
+                    _lastStoreName = keyword;
                     renderAnalysis(data, false, true);
                 }
 
@@ -2626,8 +2657,8 @@
             tags.innerHTML = data.tags.map(t => `<span class="keyword-tag">#${t}</span>`).join('');
             text.innerHTML = data.description + cacheIndicator + updateIndicator;
 
-            // 시그니처 메뉴 — 자사 레시피 DB 기반 렌더링 (태그+분석텍스트 모두 활용)
-            renderRecipeSignatures(data.tags || [], data.description || '', sigResult, sigList);
+            // 시그니처 메뉴 — 자사 레시피 RAG 기반 렌더링 (벡터 검색 + reason)
+            renderRecipeRAG(data, sigResult, sigList);
 
             list.innerHTML = '';
             data.items.forEach(item => {
@@ -2729,6 +2760,7 @@
         addRow();
 
         // ===== 견적서 저장/불러오기 =====
+        let _loadedQuoteId = null; // 불러온 견적서 ID (수정 저장용)
 
         async function saveQuote() {
             const user = await getUser();
@@ -2747,7 +2779,7 @@
                 desc: row.querySelector('.p-description').value
             }));
 
-            const { error } = await client.from('quotes').insert({
+            const payload = {
                 business_unit: businessUnit,
                 created_by: user.user_metadata?.full_name || user.email,
                 customer_name: document.getElementById('edit-customerName').value,
@@ -2756,7 +2788,14 @@
                 quote_mode: document.querySelector('input[name="quoteMode"]:checked').value,
                 items,
                 total_amount: parseInt(document.getElementById('edit-totalAmount').innerText.replace(/,/g, '')) || 0
-            });
+            };
+
+            let error;
+            if (_loadedQuoteId) {
+                ({ error } = await client.from('quotes').update(payload).eq('id', _loadedQuoteId).eq('business_unit', businessUnit));
+            } else {
+                ({ error } = await client.from('quotes').insert(payload));
+            }
 
             if (error) { alert('저장 실패: ' + error.message); return; }
             alert('견적서가 저장되었습니다.');
@@ -2816,6 +2855,7 @@
                 .single();
             if (error || !data) { alert('불러오기 실패'); return; }
 
+            _loadedQuoteId = data.id;
             document.getElementById('edit-customerName').value = data.customer_name || '';
             document.getElementById('edit-managerName').value = data.manager_name || '';
             document.getElementById('edit-managerPhone').value = data.manager_phone || '';
@@ -3198,7 +3238,10 @@
         <div style="background:white;border-radius:16px;width:90vw;max-width:960px;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e0e0e5;flex-shrink:0;">
                 <span id="recipePdfTitle" style="font-weight:700;font-size:15px;color:#1d1d1f;"></span>
-                <button onclick="closeRecipePdf()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;">&times;</button>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <button onclick="printCurrentRecipe()" style="padding:6px 14px;background:#ff9500;color:white;border:none;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;">🖨️ 가로 출력</button>
+                    <button onclick="closeRecipePdf()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#666;line-height:1;">&times;</button>
+                </div>
             </div>
             <iframe id="recipePdfFrame" src="" style="flex:1;border:none;width:100%;"></iframe>
         </div>
@@ -3215,6 +3258,11 @@
         function closeRecipePdf() {
             document.getElementById('recipePdfModal').style.display = 'none';
             document.getElementById('recipePdfFrame').src = '';
+        }
+        function printCurrentRecipe() {
+            const url = document.getElementById('recipePdfFrame').src;
+            if (!url) return;
+            window.open(url, '_blank');
         }
         document.getElementById('recipePdfModal').addEventListener('click', function(e) {
             if (e.target === this) closeRecipePdf();
