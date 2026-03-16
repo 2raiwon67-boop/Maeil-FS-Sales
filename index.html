@@ -1817,7 +1817,8 @@
 
             <!-- 탭 전환 -->
             <div class="sidebar-tabs">
-                <button class="sidebar-tab active" id="sidebarTabLicenseBtn" onclick="switchSidebarTab('license')">인허가</button>
+                <button class="sidebar-tab active" id="sidebarTabAllBtn" onclick="switchSidebarTab('all')">전체</button>
+                <button class="sidebar-tab" id="sidebarTabLicenseBtn" onclick="switchSidebarTab('license')">인허가</button>
                 <button class="sidebar-tab" id="sidebarTabAccountBtn" onclick="switchSidebarTab('account')">주요거래처</button>
             </div>
 
@@ -2747,17 +2748,22 @@
             updateMap();
         }
 
-        // 사이드바 탭 상태 ('license' | 'account')
-        let currentSidebarTab = 'license';
+        // 사이드바 탭 상태 ('all' | 'license' | 'account')
+        let currentSidebarTab = 'all';
 
         function switchSidebarTab(tab) {
             currentSidebarTab = tab;
+            document.getElementById('sidebarTabAllBtn').classList.toggle('active', tab === 'all');
             document.getElementById('sidebarTabLicenseBtn').classList.toggle('active', tab === 'license');
             document.getElementById('sidebarTabAccountBtn').classList.toggle('active', tab === 'account');
             document.getElementById('sidebarContentLicense').classList.toggle('active', tab === 'license');
             document.getElementById('sidebarContentAccount').classList.toggle('active', tab === 'account');
-            // 탭 전환 시 반대쪽 필터 초기화
-            if (tab === 'license') {
+            // 탭 전환 시 해당 탭과 무관한 필터 초기화
+            if (tab === 'all') {
+                window.currentDealStatusFilter = null;
+                currentAccountFilter = null;
+                currentFilter = 'all';
+            } else if (tab === 'license') {
                 currentAccountFilter = null;
             } else {
                 window.currentDealStatusFilter = null;
@@ -3274,7 +3280,7 @@
 
             markers = []; // 실제 보이는 마커만 담는 배열 (하위 호환)
 
-            // 주요거래처 탭 활성 시 인허가 마커는 모두 숨김
+            // 주요거래처 탭 단독 활성 시 인허가 마커는 모두 숨김
             if (currentSidebarTab === 'account') {
                 allMarkers.forEach(marker => marker.setMap(null));
                 return;
@@ -3324,7 +3330,7 @@
         function filterAccountMarkers() {
             if (!naverMap || accountMarkers.length === 0) return;
 
-            // 인허가 탭 활성 시 주요거래처 마커는 모두 숨김
+            // 인허가 탭 단독 활성 시 주요거래처 마커는 모두 숨김
             if (currentSidebarTab === 'license') {
                 accountMarkers.forEach(marker => marker.setMap(null));
                 return;
@@ -3404,10 +3410,10 @@
                     const cachedTime = Number(sessionStorage.getItem(cacheKey + '_ts') || 0);
                     if (cached && Date.now() - cachedTime < 10 * 60 * 1000) {
                         accountsData = JSON.parse(cached);
-                        if (naverMap) { await updateAccountMarkers(); }
+                        if (naverMap) { await initAccountMarkers(); }
                         else {
                             const waitForMap = setInterval(async () => {
-                                if (naverMap) { clearInterval(waitForMap); await updateAccountMarkers(); }
+                                if (naverMap) { clearInterval(waitForMap); await initAccountMarkers(); }
                             }, 500);
                         }
                         return;
@@ -3444,12 +3450,12 @@
                 }
 
                 if (naverMap) {
-                    await updateAccountMarkers();
+                    await initAccountMarkers();
                 } else {
                     const waitForMap = setInterval(async () => {
                         if (naverMap) {
                             clearInterval(waitForMap);
-                            await updateAccountMarkers();
+                            await initAccountMarkers();
                         }
                     }, 500);
                 }
@@ -3540,20 +3546,31 @@
             }).filter(row => row['거래처명'] || row['주소']);
         }
 
-        async function updateAccountMarkers() {
-            // 기존 별 마커 제거
-            accountMarkers.forEach(m => m.setMap(null));
-            accountMarkers = [];
+        function _buildAccountMarkerIcon(dealStatus) {
+            const starColor = dealStatus === '거래' ? '#FFD700' : '#AAAAAA';
+            const starBorder = dealStatus === '거래' ? '#FFA500' : '#888888';
+            const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style="pointer-events:all;display:block;">
+                <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
+                    fill="${starColor}" stroke="${starBorder}" stroke-width="1.5" style="pointer-events:all;"/>
+            </svg>`;
+            return {
+                content: `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">${starSVG}</div>`,
+                anchor: new naver.maps.Point(16, 16)
+            };
+        }
+
+        /** 주요거래처 마커 1회 생성. 이미 생성된 경우 필터만 재적용. */
+        async function initAccountMarkers() {
+            if (accountMarkers.length > 0) {
+                filterAccountMarkers();
+                return;
+            }
 
             for (const account of accountsData) {
                 const address = account['주소'] || '';
                 const name = account['거래처명'] || '';
                 const dealStatus = (account['거래상태'] || '').trim();
                 if (!address && !name) continue;
-
-                // 별 색상: 거래=노란색, 미거래=회색, 기타=연회색
-                const starColor = dealStatus === '거래' ? '#FFD700' : '#AAAAAA';
-                const starBorder = dealStatus === '거래' ? '#FFA500' : '#888888';
 
                 try {
                     // 캐시 확인
@@ -3574,31 +3591,33 @@
 
                     const pos = new naver.maps.LatLng(coords.lat, coords.lng);
 
-                    // 별 모양 SVG 마커 (모바일 터치 타깃 확대: 32×32 래퍼 + pointer-events:all)
-                    const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style="pointer-events:all;display:block;">
-                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                            fill="${starColor}" stroke="${starBorder}" stroke-width="1.5" style="pointer-events:all;"/>
-                    </svg>`;
-
                     const marker = new naver.maps.Marker({
                         position: pos,
                         map: naverMap,
-                        icon: {
-                            content: `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">${starSVG}</div>`,
-                            anchor: new naver.maps.Point(16, 16)
-                        },
-                        zIndex: 5  // 인허가 마커보다 위에 표시
+                        icon: _buildAccountMarkerIcon(dealStatus),
+                        zIndex: 5
                     });
+
+                    marker._dealStatus = dealStatus;
+                    marker._region = (account['주소2'] || '').trim();
+                    marker._managerName = account['담당자명'] || account['담당자'] || '미지정';
+                    marker._name = name;
+                    marker._address = address;
+                    marker._lat = coords.lat;
+                    marker._lng = coords.lng;
+                    marker._account = account;
+                    marker._coords = coords;
 
                     // 클릭 시 미니 CRM 및 InfoWindow 연동 (모바일은 바텀시트)
                     naver.maps.Event.addListener(marker, 'click', function (e) {
                         window._markerClickedAt = Date.now();
+                        // 클릭 시점의 최신 상태를 marker에서 읽음 (상태 변경 후에도 정확)
+                        const currentStatus = marker._dealStatus;
                         if (window.innerWidth <= 768) {
                             if (typeof openBottomSheet === 'function') {
-                                // 거래처용 아이템 객체 생성 (기존 InfoWindow 표시용 데이터를 모아 전달)
                                 const accItem = {
-                                    '우선순위': dealStatus === '거래' ? '거래' : '미거래',
-                                    '거래상태': dealStatus,
+                                    '우선순위': currentStatus === '거래' ? '거래' : '미거래',
+                                    '거래상태': currentStatus,
                                     '거래처명': name,
                                     '주소': address,
                                     '데이터출처': 'account',
@@ -3628,14 +3647,14 @@
                             const escapedAccName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                             const escapedAccAddr = (address || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
-                            // 거래 상태별 별 SVG (마커 색상과 동일)
-                            const _sc = dealStatus === '거래' ? '#FFD700' : '#AAAAAA';
-                            const _sb = dealStatus === '거래' ? '#FFA500' : '#888888';
+                            // 거래 상태별 별 SVG (클릭 시점 상태 기준)
+                            const _sc = currentStatus === '거래' ? '#FFD700' : '#AAAAAA';
+                            const _sb = currentStatus === '거래' ? '#FFA500' : '#888888';
                             const accStarSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:5px;flex-shrink:0;"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="' + _sc + '" stroke="' + _sb + '" stroke-width="1.5"/></svg>';
 
                             // 상태 변경 버튼 (거래 / 미거래)
                             const accStatusBtns = ['거래', '미거래'].map(s =>
-                                '<button class="status-btn ' + (dealStatus === s ? 'active status-' + s : '') + '" ' +
+                                '<button class="status-btn ' + (currentStatus === s ? 'active status-' + s : '') + '" ' +
                                 'onclick="updateAccountStatus(\'' + escapedAccName + '\', \'' + s + '\', this)" ' +
                                 'style="flex:1;">' + s + '</button>'
                             ).join('');
@@ -3691,13 +3710,6 @@
                         }
                     });
 
-                    marker._dealStatus = dealStatus; // 필터용 상태 저장
-                    marker._region = (account['주소2'] || '').trim(); // 지역별 필터용
-                    marker._managerName = account['담당자명'] || account['담당자'] || '미지정'; // 담당자별 필터용
-                    marker._name = name; // 루트 최적화용
-                    marker._address = address; // 루트 최적화용
-                    marker._lat = coords.lat; // 루트 최적화용
-                    marker._lng = coords.lng; // 루트 최적화용
                     accountMarkers.push(marker);
 
                     // 모바일 초기 필터링 수동 처리를 제거하고, 
@@ -3708,6 +3720,15 @@
                     console.warn('주요거래처 마커 생성 실패:', name, e);
                 }
             }
+            filterAccountMarkers();
+        }
+
+        /** 주요거래처 개별 마커 상태 갱신 (전체 재생성 없이 아이콘만 교체) */
+        function refreshAccountMarkerForItem(name, newStatus) {
+            const marker = accountMarkers.find(m => m._name === name);
+            if (!marker) return;
+            marker._dealStatus = newStatus;
+            marker.setIcon(_buildAccountMarkerIcon(newStatus));
             filterAccountMarkers();
         }
 
@@ -4505,7 +4526,7 @@
 
                 if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
                 updateDashboard();
-                await updateAccountMarkers();
+                refreshAccountMarkerForItem(name, newStatus);
 
             } catch (err) {
                 console.error('주요거래처 상태 변경 실패:', err);
@@ -4545,7 +4566,7 @@
                     if (b.textContent.trim() === newStatus) b.classList.add('active', 'status-' + newStatus);
                 });
                 updateDashboard();
-                await updateAccountMarkers();
+                refreshAccountMarkerForItem(name, newStatus);
                 showToast('거래상태가 변경되었습니다.', 'success');
             } catch (err) {
                 console.error('주요거래처 상태 변경 실패:', err);
