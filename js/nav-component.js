@@ -16,7 +16,7 @@
 
 (function () {
     const NAV_ITEMS = [
-        { href: 'index.html',    label: '인허가' },
+        { href: 'index.html',    label: '거래처' },
         { href: '방문일지.html', label: '방문일지' },
         { href: 'proposal.html', label: '견적서' },
         { href: 'report.html',   label: '월별 보고서', mobileHide: true },
@@ -68,7 +68,7 @@
 
     // ── 모바일 하단 탭 바 ──
     var MOB_TABS = [
-        { href: 'index.html',    label: '인허가',  icon: '🏠' },
+        { href: 'index.html',    label: '거래처',  icon: '🏠' },
         { href: '방문일지.html', label: '방문일지', icon: '📋' },
         { href: 'proposal.html', label: '견적서',  icon: '📄' },
     ];

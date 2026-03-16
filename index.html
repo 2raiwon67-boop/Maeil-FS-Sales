@@ -111,8 +111,39 @@
             font-size: 22px;
             font-weight: 700;
             color: #1d1d1f;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
+
+        /* ─ 사이드바 탭 ─ */
+        .sidebar-tabs {
+            display: flex;
+            gap: 4px;
+            background: #e5e5ea;
+            border-radius: 10px;
+            padding: 4px;
+            margin-bottom: 16px;
+        }
+        .sidebar-tab {
+            flex: 1;
+            padding: 7px 0;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #86868b;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: none;
+            transition: all 0.15s;
+        }
+        .sidebar-tab.active {
+            background: white;
+            color: #1d1d1f;
+            font-weight: 600;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+        .sidebar-tab-content { display: none; }
+        .sidebar-tab-content.active { display: block; }
 
         .section {
             margin-bottom: 20px;
@@ -1782,39 +1813,49 @@
     <div class="main-layout">
         <!-- 좌측 사이드바 -->
         <div class="sidebar">
-            <h1 class="sidebar-title">거래처 현황</h1>
+            <h1 class="sidebar-title">거래처</h1>
 
-            <!-- 거래 현황 드롭다운 -->
-            <div class="section">
-                <div class="dropdown-card open" id="ddStatusCard">
-                    <div class="dropdown-header" onclick="toggleDropdown('ddStatusCard')">
-                        <h4>📍 거래 현황</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="statusDropdownList"></div>
+            <!-- 탭 전환 -->
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" id="sidebarTabLicenseBtn" onclick="switchSidebarTab('license')">인허가</button>
+                <button class="sidebar-tab" id="sidebarTabAccountBtn" onclick="switchSidebarTab('account')">주요거래처</button>
+            </div>
+
+            <!-- 인허가 탭 전용 필터 -->
+            <div class="sidebar-tab-content active" id="sidebarContentLicense">
+                <div class="section">
+                    <div class="dropdown-card open" id="ddStatusCard">
+                        <div class="dropdown-header" onclick="toggleDropdown('ddStatusCard')">
+                            <h4>📍 거래 현황</h4>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-content">
+                            <div class="dropdown-list" id="statusDropdownList"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 주요거래처 드롭다운 -->
-            <div class="section">
-                <div class="dropdown-card open" id="ddAccountCard">
-                    <div class="dropdown-header" onclick="toggleDropdown('ddAccountCard')">
-                        <h4>⭐ 주요거래처</h4>
-                        <span class="dropdown-arrow">▼</span>
-                    </div>
-                    <div class="dropdown-content">
-                        <div class="dropdown-list" id="accountDropdownList"></div>
+            <!-- 주요거래처 탭 전용 필터 -->
+            <div class="sidebar-tab-content" id="sidebarContentAccount">
+                <div class="section">
+                    <div class="dropdown-card open" id="ddAccountCard">
+                        <div class="dropdown-header" onclick="toggleDropdown('ddAccountCard')">
+                            <h4>📍 거래/미거래 현황</h4>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-content">
+                            <div class="dropdown-list" id="accountDropdownList"></div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 사용우유 필터 드롭다운 -->
+            <!-- 공통 필터 (두 탭 모두 표시) -->
             <div class="section">
                 <div class="dropdown-card open" id="ddMilkCard">
                     <div class="dropdown-header" onclick="toggleDropdown('ddMilkCard')">
-                        <h4>🥛 사용우유 필터</h4>
+                        <h4>🥛 사용우유</h4>
                         <span class="dropdown-arrow">▼</span>
                     </div>
                     <div class="dropdown-content">
@@ -1823,11 +1864,10 @@
                 </div>
             </div>
 
-            <!-- 담당자/지역 통합 필터 패널 -->
             <div class="section">
                 <div class="filter-panel">
                     <div class="filter-panel-header">
-                        <span class="filter-panel-title">필터</span>
+                        <span class="filter-panel-title">담당자 · 지역</span>
                         <button class="filter-reset-btn" onclick="clearAllFilters()">초기화</button>
                     </div>
                     <div class="filter-panel-body">
@@ -1841,7 +1881,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
 
 
@@ -2710,6 +2749,26 @@
             updateMap();
         }
 
+        // 사이드바 탭 상태 ('license' | 'account')
+        let currentSidebarTab = 'license';
+
+        function switchSidebarTab(tab) {
+            currentSidebarTab = tab;
+            document.getElementById('sidebarTabLicenseBtn').classList.toggle('active', tab === 'license');
+            document.getElementById('sidebarTabAccountBtn').classList.toggle('active', tab === 'account');
+            document.getElementById('sidebarContentLicense').classList.toggle('active', tab === 'license');
+            document.getElementById('sidebarContentAccount').classList.toggle('active', tab === 'account');
+            // 탭 전환 시 반대쪽 필터 초기화
+            if (tab === 'license') {
+                currentAccountFilter = null;
+            } else {
+                window.currentDealStatusFilter = null;
+                currentFilter = 'all';
+            }
+            updateDashboard();
+            updateMap();
+        }
+
         // 주요거래처 별 필터 (별 마커만 표시)
         let currentAccountFilter = null;
         function filterAccountsByStatus(status) {
@@ -3217,8 +3276,8 @@
 
             markers = []; // 실제 보이는 마커만 담는 배열 (하위 호환)
 
-            // 주요거래처 탭(currentAccountFilter) 활성 시 인허가 마커는 모두 숨김
-            if (currentAccountFilter !== null) {
+            // 주요거래처 탭 활성 시 인허가 마커는 모두 숨김
+            if (currentSidebarTab === 'account') {
                 allMarkers.forEach(marker => marker.setMap(null));
                 return;
             }
@@ -3267,17 +3326,14 @@
         function filterAccountMarkers() {
             if (!naverMap || accountMarkers.length === 0) return;
 
+            // 인허가 탭 활성 시 주요거래처 마커는 모두 숨김
+            if (currentSidebarTab === 'license') {
+                accountMarkers.forEach(marker => marker.setMap(null));
+                return;
+            }
+
             accountMarkers.forEach(marker => {
                 const ds = (marker._dealStatus || '').trim();
-
-                // 인허가 순위 필터가 'all'이 아니면 별 마커 숨김
-                if (currentFilter !== 'all') {
-                    marker.setMap(null); return;
-                }
-                // 인허가 방문현황 필터 활성화 시 별 마커 숨김
-                if (window.currentDealStatusFilter) {
-                    marker.setMap(null); return;
-                }
 
                 // 주요거래처 필터 (currentAccountFilter)
                 if (currentAccountFilter && ds !== currentAccountFilter) {
