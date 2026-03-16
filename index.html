@@ -2140,8 +2140,9 @@
         let markers = [];           // filterMarkers()가 현재 보이는 마커 목록 (하위 호환)
         let allMarkers = [];         // 마커 재사용: 최초 1회 생성 후 setMap으로 ON/OFF만 처리
         let currentFilter = 'all';
-        let currentRegion = null;
-        let currentManager = null;
+        let currentRegion = new Set();
+        let currentManager = new Set();
+        window.currentDealStatusFilter = new Set();
         let currentInfoWindow = null;  // 현재 열린 InfoWindow 추적
 
         // ── 주요거래처 전용 ──
@@ -2664,31 +2665,31 @@
 
 
         function setRegionFilter(region) {
-            if (currentRegion === region) {
-                currentRegion = null;
+            if (currentRegion.has(region)) {
+                currentRegion.delete(region);
             } else {
-                currentRegion = region;
+                currentRegion.add(region);
             }
             updateDashboard();
             updateMap();
         }
 
         function setManagerFilter(manager) {
-            if (currentManager === manager) {
-                currentManager = null;
+            if (currentManager.has(manager)) {
+                currentManager.delete(manager);
             } else {
-                currentManager = manager;
+                currentManager.add(manager);
             }
             updateDashboard();
             updateMap();
         }
 
         function clearAllFilters() {
-            currentManager = null;
-            currentRegion = null;
-            currentMilkFilter = null;
-            window.currentDealStatusFilter = null;
-            currentAccountFilter = null;
+            currentManager.clear();
+            currentRegion.clear();
+            currentMilkFilter.clear();
+            window.currentDealStatusFilter.clear();
+            currentAccountFilter.clear();
             currentFilter = 'all';
             // 내 타겟 모드도 해제
             isMyTargetOnly = false;
@@ -2703,7 +2704,7 @@
             if (!myManagerName) return;
             isMyTargetOnly = !isMyTargetOnly;
             localStorage.setItem('fs_myTargetOnly', isMyTargetOnly);
-            currentManager = isMyTargetOnly ? myManagerName : null;
+            currentManager = isMyTargetOnly ? new Set([myManagerName]) : new Set();
             _updateMyTargetToggleUI();
             updateDashboard();
             updateMap();
@@ -2722,10 +2723,10 @@
 
         // 방문 현황 카드 클릭 필터 (인허가 데이터)
         function filterByStatus(status) {
-            if (window.currentDealStatusFilter === status) {
-                window.currentDealStatusFilter = null;
+            if (window.currentDealStatusFilter.has(status)) {
+                window.currentDealStatusFilter.delete(status);
             } else {
-                window.currentDealStatusFilter = status;
+                window.currentDealStatusFilter.add(status);
             }
             updateDashboard();
             updateMapByStatus();
@@ -2740,8 +2741,8 @@
             } else {
                 currentFilter = rank;
             }
-            window.currentDealStatusFilter = null;
-            currentAccountFilter = null;
+            window.currentDealStatusFilter.clear();
+            currentAccountFilter.clear();
             updateDashboard();
             updateMap();
         }
@@ -2758,13 +2759,13 @@
             document.getElementById('sidebarContentAccount').classList.toggle('active', tab === 'account');
             // 탭 전환 시 해당 탭과 무관한 필터 초기화
             if (tab === 'all') {
-                window.currentDealStatusFilter = null;
-                currentAccountFilter = null;
+                window.currentDealStatusFilter.clear();
+                currentAccountFilter.clear();
                 currentFilter = 'all';
             } else if (tab === 'license') {
-                currentAccountFilter = null;
+                currentAccountFilter.clear();
             } else {
-                window.currentDealStatusFilter = null;
+                window.currentDealStatusFilter.clear();
                 currentFilter = 'all';
             }
             updateDashboard();
@@ -2772,24 +2773,24 @@
         }
 
         // 주요거래처 별 필터 (별 마커만 표시)
-        let currentAccountFilter = null;
+        let currentAccountFilter = new Set();
         function filterAccountsByStatus(status) {
-            if (currentAccountFilter === status) {
-                currentAccountFilter = null;
+            if (currentAccountFilter.has(status)) {
+                currentAccountFilter.delete(status);
             } else {
-                currentAccountFilter = status;
+                currentAccountFilter.add(status);
             }
             updateDashboard();
             updateMap();
         }
 
         // 사용우유 필터
-        let currentMilkFilter = null;
+        let currentMilkFilter = new Set();
         function filterByMilk(milk) {
-            if (currentMilkFilter === milk) {
-                currentMilkFilter = null;
+            if (currentMilkFilter.has(milk)) {
+                currentMilkFilter.delete(milk);
             } else {
-                currentMilkFilter = milk;
+                currentMilkFilter.add(milk);
             }
             updateDashboard();
             updateMap();
@@ -2868,7 +2869,7 @@
                         if (isMobile()) {
                             const saved = localStorage.getItem('fs_myTargetOnly');
                             isMyTargetOnly = saved !== 'false';
-                            if (isMyTargetOnly) currentManager = myManagerName;
+                            if (isMyTargetOnly) currentManager = new Set([myManagerName]);
                         }
                     }
                 }
@@ -3008,13 +3009,13 @@
             }
 
             // 지역 필터
-            if (currentRegion) {
-                filteredData = filteredData.filter(d => (d['주소2'] || '기타') === currentRegion);
+            if (currentRegion.size > 0) {
+                filteredData = filteredData.filter(d => currentRegion.has(d['주소2'] || '기타'));
             }
 
             // 담당자 필터
-            if (currentManager) {
-                filteredData = filteredData.filter(d => (d['담당자'] || '미지정') === currentManager);
+            if (currentManager.size > 0) {
+                filteredData = filteredData.filter(d => currentManager.has(d['담당자'] || '미지정'));
             }
 
             // ── 거래 현황 드롭다운 렌더링 ──
@@ -3029,7 +3030,7 @@
             if (statusEl) {
                 statusEl.innerHTML = _statusItems.map(item => {
                     const cnt = filteredData.filter(d => d['거래여부(기입예정)'] === item.key).length;
-                    const active = window.currentDealStatusFilter === item.key ? ' active' : '';
+                    const active = window.currentDealStatusFilter.has(item.key) ? ' active' : '';
                     return `<div class="dropdown-item${active}" onclick="filterByStatus('${item.key}')">
                         <span class="dropdown-item-name"><span class="status-dot" style="background:${item.color};"></span>${item.label}</span>
                         <span class="dropdown-item-count">${cnt}</span>
@@ -3041,15 +3042,15 @@
             const accountEl = document.getElementById('accountDropdownList');
             if (accountEl) {
                 let filteredAccounts = accountsData;
-                if (currentManager) filteredAccounts = filteredAccounts.filter(a => (a['담당자명'] || '').trim() === currentManager);
-                if (currentRegion) filteredAccounts = filteredAccounts.filter(a => (a['주소'] || '').includes(currentRegion));
+                if (currentManager.size > 0) filteredAccounts = filteredAccounts.filter(a => currentManager.has((a['담당자명'] || '').trim()));
+                if (currentRegion.size > 0) filteredAccounts = filteredAccounts.filter(a => [...currentRegion].some(r => (a['주소'] || '').includes(r)));
                 const _acctItems = [
                     { key: '거래',  label: '주요 기거래처', color: '#c8a000' },
                     { key: '미거래', label: '주요 미거래처', color: '#8e8e93' },
                 ];
                 accountEl.innerHTML = _acctItems.map(item => {
                     const cnt = filteredAccounts.filter(a => (a['거래상태'] || '').trim() === item.key).length;
-                    const active = currentAccountFilter === item.key ? ' active' : '';
+                    const active = currentAccountFilter.has(item.key) ? ' active' : '';
                     return `<div class="dropdown-item${active}" onclick="filterAccountsByStatus('${item.key}')">
                         <span class="dropdown-item-name"><span class="status-dot" style="background:${item.color};"></span>${item.label}</span>
                         <span class="dropdown-item-count">${cnt}</span>
@@ -3069,7 +3070,7 @@
                 });
                 milkEl.innerHTML = _milkTypes.map(milk => {
                     const cnt    = milkCounts[milk] || 0;
-                    const active = currentMilkFilter === milk ? ' active' : '';
+                    const active = currentMilkFilter.has(milk) ? ' active' : '';
                     return `<div class="dropdown-item${active}" onclick="filterByMilk('${milk}')">
                         <span class="dropdown-item-name"><span class="status-dot" style="background:${_milkColors[milk]};"></span>${milk}</span>
                         <span class="dropdown-item-count">${cnt}</span>
@@ -3086,7 +3087,7 @@
             document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
                 .sort((a, b) => b[1] - a[1])
                 .map(([r, c]) => {
-                    const active = currentRegion === r ? ' active' : '';
+                    const active = currentRegion.has(r) ? ' active' : '';
                     return `<div class="filter-item${active}" onclick="setRegionFilter('${r}')"><span class="filter-item-name">${r}</span><span class="filter-item-count">${c}</span></div>`;
                 }).join('');
 
@@ -3099,7 +3100,7 @@
             document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
                 .sort((a, b) => b[1] - a[1])
                 .map(([m, c]) => {
-                    const active = currentManager === m ? ' active' : '';
+                    const active = currentManager.has(m) ? ' active' : '';
                     return `<div class="filter-item${active}" onclick="setManagerFilter('${m}')"><span class="filter-item-name">${m}</span><span class="filter-item-count">${c}</span></div>`;
                 }).join('');
 
@@ -3292,23 +3293,22 @@
                     marker.setMap(null); return;
                 }
                 // 거래상태 필터 (filterByStatus)
-                if (window.currentDealStatusFilter && s !== window.currentDealStatusFilter) {
+                if (window.currentDealStatusFilter.size > 0 && !window.currentDealStatusFilter.has(s)) {
                     marker.setMap(null); return;
                 }
                 // 지역 필터
-                if (currentRegion && marker._region !== currentRegion) {
+                if (currentRegion.size > 0 && !currentRegion.has(marker._region)) {
                     marker.setMap(null); return;
                 }
                 // 담당자 필터
-                if (currentManager && marker._manager !== currentManager) {
+                if (currentManager.size > 0 && !currentManager.has(marker._manager)) {
                     marker.setMap(null); return;
                 }
                 // 사용우유 필터
-                if (currentMilkFilter) {
+                if (currentMilkFilter.size > 0) {
                     const markerMilk = marker._milk || '';
-                    const matchMilk = currentMilkFilter === '기타'
-                        ? (!markerMilk || !['매일','서울','남양','연세'].includes(markerMilk))
-                        : markerMilk === currentMilkFilter;
+                    const isOther = !markerMilk || !['매일','서울','남양','연세'].includes(markerMilk);
+                    const matchMilk = currentMilkFilter.has(markerMilk) || (currentMilkFilter.has('기타') && isOther);
                     if (!matchMilk) { marker.setMap(null); return; }
                 }
                 // 모바일 레이어 필터
@@ -3338,15 +3338,15 @@
                 const ds = (marker._dealStatus || '').trim();
 
                 // 주요거래처 필터 (currentAccountFilter)
-                if (currentAccountFilter && ds !== currentAccountFilter) {
+                if (currentAccountFilter.size > 0 && !currentAccountFilter.has(ds)) {
                     marker.setMap(null); return;
                 }
                 // 공통 지역 필터 (주소 전체에 포함 여부로 비교 — 주요거래처는 주소2 컬럼 없음)
-                if (currentRegion && !(marker._address || '').includes(currentRegion)) {
+                if (currentRegion.size > 0 && ![...currentRegion].some(r => (marker._address || '').includes(r))) {
                     marker.setMap(null); return;
                 }
                 // 공통 담당자 필터
-                if (currentManager && (marker._managerName || '').trim() !== currentManager) {
+                if (currentManager.size > 0 && !currentManager.has((marker._managerName || '').trim())) {
                     marker.setMap(null); return;
                 }
                 // 모바일 레이어 필터
