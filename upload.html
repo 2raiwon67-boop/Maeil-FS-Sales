@@ -1839,13 +1839,21 @@
                         // 복합키 방식 (visit_logs: visit_date+manager+business_name)
                         const fields = cfg.deduplicateFields;
                         const { data: existingRows, error: existErr } = await client
-                            .from(cfg.table).select(fields.join(',')).eq('business_unit', businessUnit);
+                            .from(cfg.table).select(fields.join(',')).eq('business_unit', businessUnit).limit(50000);
                         if (existErr) throw new Error('기존 데이터 확인 실패: ' + existErr.message);
                         const existingSet = new Set(
                             (existingRows || []).map(r => fields.map(f => r[f] ?? '').join('|'))
                         );
                         const before = parsedData.length;
                         parsedData = parsedData.filter(row => !existingSet.has(fields.map(f => row[f] ?? '').join('|')));
+                        // 파일 내부 중복 제거 (같은 키가 파일 안에 두 번 이상 있을 경우 unique constraint 위반 방지)
+                        const internalSet = new Set();
+                        parsedData = parsedData.filter(row => {
+                            const key = fields.map(f => row[f] ?? '').join('|');
+                            if (internalSet.has(key)) return false;
+                            internalSet.add(key);
+                            return true;
+                        });
                         const skipped = before - parsedData.length;
                         if (parsedData.length === 0) {
                             document.getElementById('uploadBanner').className = 'banner banner-warn';
