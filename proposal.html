@@ -192,6 +192,25 @@
             background: #0077ed;
         }
 
+        .analyze-btn:disabled {
+            background: #6ea8d8;
+            cursor: not-allowed;
+            opacity: 0.85;
+        }
+
+        @keyframes _spin { to { transform: rotate(360deg); } }
+        .analyze-btn .btn-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: _spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
         .result-card {
             background: #f5f5f7;
             border-radius: 12px;
@@ -2423,11 +2442,19 @@
             const list = document.getElementById('recommendList');
             const tags = document.getElementById('keywordTags');
             const text = document.getElementById('analysisText');
+            const btn = document.querySelector('.analyze-btn');
 
             if (!keyword) {
-                alert('매장명을 입력해주세요!');
+                text.innerHTML = '⚠️ 매장명을 입력해주세요.';
+                card.style.display = 'block';
+                card.classList.add('active');
                 return;
             }
+
+            // 중복 클릭 방지
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="btn-spinner"></span>분석 중...';
 
             // 제품 DB 미로드 시 재시도
             if (productDB.length === 0) {
@@ -2536,6 +2563,9 @@
 
                 text.innerHTML = `❌ 오류 발생: ${errorMsg}<br><small style="color:#888;">매장명을 다시 확인하거나, 잠시 후 재시도해주세요.</small>`;
                 card.classList.remove('active');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '분석 및 추천상품 검색';
             }
         }
 
