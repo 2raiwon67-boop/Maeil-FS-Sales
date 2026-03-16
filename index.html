@@ -1955,7 +1955,7 @@
                 </div>
                 <div class="layer-divider"></div>
                 <div class="layer-item" id="myTargetToggle" onclick="toggleMyTarget()" style="display:none;">
-                    <span class="layer-label">👤 내 타겟만</span>
+                    <span class="layer-label" id="myTargetLabel">👥 전체보기</span>
                     <span class="layer-toggle"></span>
                 </div>
             </div>
@@ -2674,6 +2674,8 @@
             if (!myManagerName) { el.style.display = 'none'; return; }
             el.style.display = '';
             el.classList.toggle('active', isMyTargetOnly);
+            const label = document.getElementById('myTargetLabel');
+            if (label) label.textContent = isMyTargetOnly ? '👤 나만보기' : '👥 전체보기';
         }
 
         // 방문 현황 카드 클릭 필터 (인허가 데이터)
