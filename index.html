@@ -2755,8 +2755,8 @@
             document.getElementById('sidebarTabAllBtn').classList.toggle('active', tab === 'all');
             document.getElementById('sidebarTabLicenseBtn').classList.toggle('active', tab === 'license');
             document.getElementById('sidebarTabAccountBtn').classList.toggle('active', tab === 'account');
-            document.getElementById('sidebarContentLicense').classList.toggle('active', tab === 'license');
-            document.getElementById('sidebarContentAccount').classList.toggle('active', tab === 'account');
+            document.getElementById('sidebarContentLicense').classList.toggle('active', tab === 'all' || tab === 'license');
+            document.getElementById('sidebarContentAccount').classList.toggle('active', tab === 'all' || tab === 'account');
             // 탭 전환 시 해당 탭과 무관한 필터 초기화
             if (tab === 'all') {
                 window.currentDealStatusFilter.clear();
@@ -3078,31 +3078,87 @@
                 }).join('');
             }
 
-            const regionCounts = {};
-            filteredData.forEach(item => {
-                const region = item['주소2'] || '기타';
-                regionCounts[region] = (regionCounts[region] || 0) + 1;
-            });
+            if (currentSidebarTab === 'account') {
+                // 주요거래처 탭: accountsData 기준, 활성 필터 적용
+                let filteredForPanel = accountsData;
+                if (currentAccountFilter.size > 0) {
+                    filteredForPanel = filteredForPanel.filter(a => currentAccountFilter.has((a['거래상태'] || '').trim()));
+                }
+                if (currentManager.size > 0) {
+                    filteredForPanel = filteredForPanel.filter(a => currentManager.has((a['담당자명'] || '').trim()));
+                }
+                if (currentRegion.size > 0) {
+                    filteredForPanel = filteredForPanel.filter(a => [...currentRegion].some(r => (a['주소'] || '').includes(r)));
+                }
 
-            document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([r, c]) => {
-                    const active = currentRegion.has(r) ? ' active' : '';
-                    return `<div class="filter-item${active}" onclick="setRegionFilter('${r}')"><span class="filter-item-name">${r}</span><span class="filter-item-count">${c}</span></div>`;
-                }).join('');
+                const regionCounts = {};
+                filteredForPanel.forEach(a => {
+                    const parts = (a['주소'] || '').split(' ');
+                    const region = parts[1] || '기타';
+                    regionCounts[region] = (regionCounts[region] || 0) + 1;
+                });
+                document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([r, c]) => {
+                        const active = currentRegion.has(r) ? ' active' : '';
+                        return `<div class="filter-item${active}" onclick="setRegionFilter('${r}')"><span class="filter-item-name">${r}</span><span class="filter-item-count">${c}</span></div>`;
+                    }).join('');
 
-            const managerCounts = {};
-            filteredData.forEach(item => {
-                const m = item['담당자'] || '미지정';
-                managerCounts[m] = (managerCounts[m] || 0) + 1;
-            });
+                const managerCounts = {};
+                filteredForPanel.forEach(a => {
+                    const m = (a['담당자명'] || '').trim() || '미지정';
+                    managerCounts[m] = (managerCounts[m] || 0) + 1;
+                });
+                document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([m, c]) => {
+                        const active = currentManager.has(m) ? ' active' : '';
+                        return `<div class="filter-item${active}" onclick="setManagerFilter('${m}')"><span class="filter-item-name">${m}</span><span class="filter-item-count">${c}</span></div>`;
+                    }).join('');
+            } else {
+                const regionCounts = {};
+                const managerCounts = {};
 
-            document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([m, c]) => {
-                    const active = currentManager.has(m) ? ' active' : '';
-                    return `<div class="filter-item${active}" onclick="setManagerFilter('${m}')"><span class="filter-item-name">${m}</span><span class="filter-item-count">${c}</span></div>`;
-                }).join('');
+                // 인허가 데이터 집계 (인허가 탭 or 전체 탭 공통)
+                filteredData.forEach(item => {
+                    const region = item['주소2'] || '기타';
+                    regionCounts[region] = (regionCounts[region] || 0) + 1;
+                    const m = item['담당자'] || '미지정';
+                    managerCounts[m] = (managerCounts[m] || 0) + 1;
+                });
+
+                // 전체 탭: 주요거래처 데이터도 합산
+                if (currentSidebarTab === 'all') {
+                    let filteredAccForPanel = accountsData;
+                    if (currentManager.size > 0) {
+                        filteredAccForPanel = filteredAccForPanel.filter(a => currentManager.has((a['담당자명'] || '').trim()));
+                    }
+                    if (currentRegion.size > 0) {
+                        filteredAccForPanel = filteredAccForPanel.filter(a => [...currentRegion].some(r => (a['주소'] || '').includes(r)));
+                    }
+                    filteredAccForPanel.forEach(a => {
+                        const parts = (a['주소'] || '').split(' ');
+                        const region = parts[1] || '기타';
+                        regionCounts[region] = (regionCounts[region] || 0) + 1;
+                        const m = (a['담당자명'] || '').trim() || '미지정';
+                        managerCounts[m] = (managerCounts[m] || 0) + 1;
+                    });
+                }
+
+                document.getElementById('regionList').innerHTML = Object.entries(regionCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([r, c]) => {
+                        const active = currentRegion.has(r) ? ' active' : '';
+                        return `<div class="filter-item${active}" onclick="setRegionFilter('${r}')"><span class="filter-item-name">${r}</span><span class="filter-item-count">${c}</span></div>`;
+                    }).join('');
+
+                document.getElementById('managerList').innerHTML = Object.entries(managerCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([m, c]) => {
+                        const active = currentManager.has(m) ? ' active' : '';
+                        return `<div class="filter-item${active}" onclick="setManagerFilter('${m}')"><span class="filter-item-name">${m}</span><span class="filter-item-count">${c}</span></div>`;
+                    }).join('');
+            }
 
             updateDashboardCharts();
         }
