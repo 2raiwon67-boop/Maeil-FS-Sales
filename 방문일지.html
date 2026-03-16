@@ -805,6 +805,11 @@
                 position: fixed;
                 bottom: 0;
                 left: 0;
+                overflow-y: auto;
+                overflow-x: hidden;
+                -webkit-overflow-scrolling: touch;
+                overscroll-behavior: contain;
+                box-sizing: border-box;
             }
 
             .modal-header {
@@ -817,6 +822,29 @@
 
             #timelineContent {
                 padding: 16px 20px 32px;
+            }
+
+            #aiBriefingSection, #aiBriefingLoading {
+                margin: 0 16px 20px !important;
+                box-sizing: border-box;
+                max-width: calc(100% - 32px);
+                word-break: break-word;
+                overflow-wrap: break-word;
+            }
+
+            #aiBriefingContent {
+                word-break: break-word;
+                overflow-wrap: break-word;
+                max-width: 100%;
+                overflow-x: hidden;
+            }
+
+            #aiBriefingTrigger {
+                padding: 0 16px !important;
+            }
+
+            #aiBriefingTrigger button {
+                width: 100% !important;
             }
 
             .timeline-label {
