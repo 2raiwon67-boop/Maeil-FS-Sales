@@ -1558,13 +1558,33 @@
         }
 
         // ── 편집 데이터 저장 (managers, accounts) ───────────
+        let _saveConfirmPending = false;
+        let _saveConfirmTimer = null;
+
         async function saveEditableData() {
+            const btn = document.getElementById('btnSaveEditable');
+
+            // 2단계 확인: 첫 클릭 → 경고 표시, 3초 내 재클릭 → 실행
+            if (!_saveConfirmPending) {
+                _saveConfirmPending = true;
+                if (btn) { btn.textContent = '⚠️ 기존 데이터 교체됩니다. 다시 클릭'; btn.style.background = '#ff9500'; }
+                _saveConfirmTimer = setTimeout(() => {
+                    _saveConfirmPending = false;
+                    if (btn) { btn.textContent = '변경사항 저장'; btn.style.background = ''; }
+                }, 3000);
+                return;
+            }
+
+            clearTimeout(_saveConfirmTimer);
+            _saveConfirmPending = false;
+
             collectEditableValues();
             const cfg = UPLOAD_TYPES[selectedType];
             const businessUnit = await getBusinessUnit();
 
             if (!businessUnit) {
                 showToast('❌ 소속 정보가 없습니다.');
+                if (btn) { btn.textContent = '변경사항 저장'; btn.style.background = ''; }
                 return;
             }
 
@@ -1574,13 +1594,11 @@
 
             if (toSave.length === 0) {
                 showToast('저장할 데이터가 없습니다.');
+                if (btn) { btn.textContent = '변경사항 저장'; btn.style.background = ''; }
                 return;
             }
 
-            if (!confirm(`${cfg.label} 데이터를 ${toSave.length}건으로 저장합니다.\n기존 데이터가 모두 교체됩니다. 계속하시겠습니까?`)) return;
-
-            const btn = document.getElementById('btnSaveEditable');
-            if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; }
+            if (btn) { btn.disabled = true; btn.textContent = '저장 중...'; btn.style.background = ''; }
 
             try {
                 const { data: userData, error: authErr } = await client.auth.getUser();
