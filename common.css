@@ -269,6 +269,22 @@ body.loaded {
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     }
 
+    .mob-profile-plan-btn {
+        color: #1d1d1f;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: 'Pretendard', -apple-system, sans-serif;
+        cursor: pointer;
+        padding: 4px 0;
+        display: block;
+        -webkit-tap-highlight-color: transparent;
+        background: none;
+        border: none;
+        width: 100%;
+        text-align: left;
+        margin-bottom: 4px;
+    }
+
     .mob-profile-logout-btn {
         color: #ff6b6b;
         font-size: 14px;

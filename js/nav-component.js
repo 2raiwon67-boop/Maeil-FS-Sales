@@ -100,6 +100,7 @@
         var popup = '<div class="mob-profile-backdrop" id="mobProfileBackdrop" onclick="window._mobCloseProfile()"></div>'
             + '<div class="mob-profile-popup" id="mobProfilePopup">'
             + '<div class="mob-profile-name" id="mobProfileName">로딩 중...</div>'
+            + '<button class="mob-profile-plan-btn" onclick="window._mobOpenMyPlans()">📅 내 일정</button>'
             + '<button class="mob-profile-logout-btn" onclick="window._mobDoLogout()">로그아웃</button>'
             + '</div>';
 
@@ -140,6 +141,11 @@
         window._mobCloseProfile();
         var btn = document.getElementById('logoutBtn');
         if (btn) btn.click();
+    };
+
+    window._mobOpenMyPlans = function () {
+        window._mobCloseProfile();
+        if (typeof window._openMyPlans === 'function') window._openMyPlans();
     };
 })();
 
