@@ -1195,20 +1195,36 @@
 
         async function loadVisitLogs() {
             const businessUnit = await getBusinessUnitForVisit();
-            const PAGE_SIZE = 1000;
-            let allData = [];
-            let from = 0;
-            while (true) {
-                let query = client.from('visit_logs')
-                    .select('*')
-                    .order('visit_date', { ascending: false })
-                    .range(from, from + PAGE_SIZE - 1);
-                if (businessUnit) query = query.eq('business_unit', businessUnit);
-                const { data, error } = await query;
-                if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
-                allData = allData.concat(data || []);
-                if (!data || data.length < PAGE_SIZE) break;
-                from += PAGE_SIZE;
+
+            // localStorage 캐시 (5분 TTL)
+            const CACHE_TTL = 24 * 60 * 60 * 1000;
+            const cacheKey = `fs_visitlogs_v_${businessUnit}`;
+            const cached = localStorage.getItem(cacheKey);
+            const cachedTime = Number(localStorage.getItem(cacheKey + '_ts') || 0);
+            let allData;
+            if (cached && Date.now() - cachedTime < CACHE_TTL) {
+                allData = JSON.parse(cached);
+            } else {
+                const VL_COLS = 'id,visit_date,manager,dealer_code,dealer_name,account_code,business_name,content,store_code,business_unit,trade_status,seq_no';
+                const PAGE_SIZE = 1000;
+                allData = [];
+                let from = 0;
+                while (true) {
+                    let query = client.from('visit_logs')
+                        .select(VL_COLS)
+                        .order('visit_date', { ascending: false })
+                        .range(from, from + PAGE_SIZE - 1);
+                    if (businessUnit) query = query.eq('business_unit', businessUnit);
+                    const { data, error } = await query;
+                    if (error) throw new Error(`방문일지 로드 실패: ${error.message}`);
+                    allData = allData.concat(data || []);
+                    if (!data || data.length < PAGE_SIZE) break;
+                    from += PAGE_SIZE;
+                }
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(allData));
+                    localStorage.setItem(cacheKey + '_ts', Date.now().toString());
+                } catch (e) { /* localStorage 용량 초과 시 무시 */ }
             }
             const data = allData;
             allVisitLogs = (data || []).filter(row => row.manager).map(row => {
@@ -1679,6 +1695,10 @@
                 // 뷰 DOM 갱신 후 edit 패널 닫기
                 document.getElementById(`visit-view-${idx}`).innerHTML = renderVisitView(visit, idx);
                 cancelVisitEdit(idx);
+
+                // 방문일지 localStorage 캐시 무효화 (내용이 바뀌었으므로)
+                localStorage.removeItem(`fs_visitlogs_v_${businessUnit}`);
+                localStorage.removeItem(`fs_visitlogs_v_${businessUnit}_ts`);
 
                 // 브리핑 세션 캐시 무효화 (내용이 바뀌었으므로)
                 const cacheKey = `${_currentBriefingAccount.accountName}_${businessUnit || ''}`;

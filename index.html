@@ -2896,43 +2896,6 @@
         async function loadDataFromSheets() {
             try {
                 const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
-                let rows;
-                if (isAdmin) {
-                    rows = await fetchAdminTable('licenses');
-                } else {
-                    const businessUnit = await getBusinessUnitForIndex();
-                    if (!businessUnit) {
-                        console.warn('소속 정보가 없어 인허가 데이터를 로드할 수 없습니다.');
-                        showToast('소속 정보를 확인할 수 없어 데이터를 불러오지 못했습니다.', 'error', 5000);
-                        return;
-                    }
-                    const { data, error } = await client
-                        .from('licenses')
-                        .select('*')
-                        .eq('business_unit', businessUnit);
-                    if (error) throw error;
-                    rows = data;
-                }
-                const data = rows;
-
-                // Supabase 영문 필드 → 기존 한국어 키로 변환 (기존 코드 호환)
-                allData = (data || [])
-                    .map(row => {
-                        const obj = {};
-                        Object.entries(LICENSE_DB_TO_KR).forEach(([eng, kor]) => {
-                            obj[kor] = row[eng] ?? '';
-                        });
-                        return obj;
-                    })
-                    .filter(row => row['사업장명'] && String(row['사업장명']).trim() !== '');
-
-                // 인허가 데이터를 LocalStorage에 저장 (견적서 AI 활용)
-                try {
-                    localStorage.setItem('maeil_visitLogs', JSON.stringify(allData));
-                    localStorage.setItem('maeil_visitLogs_timestamp', Date.now().toString());
-                } catch (e) {
-                    console.warn('LocalStorage 저장 실패:', e.message);
-                }
 
                 // 지오코딩 캐싱 함수
                 async function getCachedGeocode(address) {
@@ -2943,6 +2906,51 @@
                     if (coords) localStorage.setItem(cacheKey, JSON.stringify(coords));
                     return coords;
                 }
+
+                if (!isAdmin) {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (!businessUnit) {
+                        console.warn('소속 정보가 없어 인허가 데이터를 로드할 수 없습니다.');
+                        showToast('소속 정보를 확인할 수 없어 데이터를 불러오지 못했습니다.', 'error', 5000);
+                        return;
+                    }
+
+                    // localStorage 캐시 확인 (24시간 TTL)
+                    const CACHE_TTL = 24 * 60 * 60 * 1000;
+                    const licCacheKey = `fs_licenses_${businessUnit}`;
+                    const licCached = localStorage.getItem(licCacheKey);
+                    const licCachedTime = Number(localStorage.getItem(licCacheKey + '_ts') || 0);
+                    if (licCached && Date.now() - licCachedTime < CACHE_TTL) {
+                        allData = JSON.parse(licCached);
+                        updateDashboard();
+                        initAllMarkers();
+                        return;
+                    }
+                }
+
+                let rows;
+                if (isAdmin) {
+                    rows = await fetchAdminTable('licenses');
+                } else {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    const { data, error } = await client
+                        .from('licenses')
+                        .select('*')
+                        .eq('business_unit', businessUnit);
+                    if (error) throw error;
+                    rows = data;
+                }
+
+                // Supabase 영문 필드 → 기존 한국어 키로 변환 (기존 코드 호환)
+                allData = (rows || [])
+                    .map(row => {
+                        const obj = {};
+                        Object.entries(LICENSE_DB_TO_KR).forEach(([eng, kor]) => {
+                            obj[kor] = row[eng] ?? '';
+                        });
+                        return obj;
+                    })
+                    .filter(row => row['사업장명'] && String(row['사업장명']).trim() !== '');
 
                 // 좌표 없는 항목만 지오코딩
                 const missingCoords = allData.filter(d =>
@@ -2976,6 +2984,18 @@
                         await new Promise(r => setTimeout(r, 10));
                     }
                     document.body.removeChild(statusDiv);
+                }
+
+                // 지오코딩 완료 후 캐시 저장 (어드민 제외)
+                if (!isAdmin) {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (businessUnit) {
+                        try {
+                            const licCacheKey = `fs_licenses_${businessUnit}`;
+                            localStorage.setItem(licCacheKey, JSON.stringify(allData));
+                            localStorage.setItem(licCacheKey + '_ts', Date.now().toString());
+                        } catch (e) { /* localStorage 용량 초과 시 무시 */ }
+                    }
                 }
 
                 updateDashboard();
@@ -3451,11 +3471,11 @@
                     const businessUnit = await getBusinessUnitForIndex();
                     if (!businessUnit) return;
 
-                    // SessionStorage 캐시 확인 (10분 TTL)
+                    // localStorage 캐시 확인 (24시간 TTL)
                     const cacheKey = `fs_accounts_${businessUnit}`;
-                    const cached = sessionStorage.getItem(cacheKey);
-                    const cachedTime = Number(sessionStorage.getItem(cacheKey + '_ts') || 0);
-                    if (cached && Date.now() - cachedTime < 10 * 60 * 1000) {
+                    const cached = localStorage.getItem(cacheKey);
+                    const cachedTime = Number(localStorage.getItem(cacheKey + '_ts') || 0);
+                    if (cached && Date.now() - cachedTime < 24 * 60 * 60 * 1000) {
                         accountsData = JSON.parse(cached);
                         if (naverMap) { await initAccountMarkers(); }
                         else {
@@ -3490,9 +3510,9 @@
                     const businessUnit = await getBusinessUnitForIndex();
                     if (businessUnit) {
                         try {
-                            sessionStorage.setItem(`fs_accounts_${businessUnit}`, JSON.stringify(accountsData));
-                            sessionStorage.setItem(`fs_accounts_${businessUnit}_ts`, Date.now().toString());
-                        } catch (e) { /* sessionStorage 용량 초과 시 무시 */ }
+                            localStorage.setItem(`fs_accounts_${businessUnit}`, JSON.stringify(accountsData));
+                            localStorage.setItem(`fs_accounts_${businessUnit}_ts`, Date.now().toString());
+                        } catch (e) { /* localStorage 용량 초과 시 무시 */ }
                     }
                 }
 
@@ -3524,11 +3544,11 @@
                     const businessUnit = await getBusinessUnitForIndex();
                     if (!businessUnit) return;
 
-                    // SessionStorage 캐시 확인 (10분 TTL)
+                    // localStorage 캐시 확인 (24시간 TTL)
                     const cacheKey = `fs_visitlogs_${businessUnit}`;
-                    const cached = sessionStorage.getItem(cacheKey);
-                    const cachedTime = Number(sessionStorage.getItem(cacheKey + '_ts') || 0);
-                    if (cached && Date.now() - cachedTime < 10 * 60 * 1000) {
+                    const cached = localStorage.getItem(cacheKey);
+                    const cachedTime = Number(localStorage.getItem(cacheKey + '_ts') || 0);
+                    if (cached && Date.now() - cachedTime < 24 * 60 * 60 * 1000) {
                         window.visitLogCache = JSON.parse(cached);
                         return;
                     }
@@ -3557,9 +3577,9 @@
                     const businessUnit = await getBusinessUnitForIndex();
                     if (businessUnit) {
                         try {
-                            sessionStorage.setItem(`fs_visitlogs_${businessUnit}`, JSON.stringify(window.visitLogCache));
-                            sessionStorage.setItem(`fs_visitlogs_${businessUnit}_ts`, Date.now().toString());
-                        } catch (e) { /* sessionStorage 용량 초과 시 무시 */ }
+                            localStorage.setItem(`fs_visitlogs_${businessUnit}`, JSON.stringify(window.visitLogCache));
+                            localStorage.setItem(`fs_visitlogs_${businessUnit}_ts`, Date.now().toString());
+                        } catch (e) { /* localStorage 용량 초과 시 무시 */ }
                     }
                 }
             } catch (e) {
@@ -3621,7 +3641,7 @@
 
                 try {
                     // 캐시 확인
-                    const cacheKey = `geocode_${address || name}`;
+                    const cacheKey = `maeil_geo_${address || name}`;
                     let coords = null;
                     let fromCache = false;
                     const cached = localStorage.getItem(cacheKey);
@@ -4394,6 +4414,8 @@
                 if (item) item['거래여부(기입예정)'] = newStatus;
                 selectElement.dataset.prev = newStatus;
                 _applyStatusSelectColor(selectElement, newStatus);
+                localStorage.removeItem(`fs_licenses_${businessUnit}`);
+                localStorage.removeItem(`fs_licenses_${businessUnit}_ts`);
                 updateDashboard();
                 if (item) refreshMarkerForItem(item); else initAllMarkers();
             } catch (err) {
@@ -4458,6 +4480,8 @@
                 }
                 selectElement.dataset.prev = newStatus;
                 _applyStatusSelectColor(selectElement, newStatus);
+                localStorage.removeItem(`fs_licenses_${businessUnit}`);
+                localStorage.removeItem(`fs_licenses_${businessUnit}_ts`);
                 updateDashboard();
                 if (item) refreshMarkerForItem(item); else initAllMarkers();
             } catch (err) {
@@ -4528,6 +4552,9 @@
                     item['거래여부(기입예정)'] = newStatus;
                 }
 
+                localStorage.removeItem(`fs_licenses_${businessUnit}`);
+                localStorage.removeItem(`fs_licenses_${businessUnit}_ts`);
+
                 // UI 및 대시보드 새로고침
                 updateDashboard();
                 if (item) refreshMarkerForItem(item); else initAllMarkers();
@@ -4568,8 +4595,8 @@
                 if (acc) acc['거래상태'] = newStatus;
 
                 // 거래처 캐시 무효화
-                sessionStorage.removeItem(`fs_accounts_${businessUnit}`);
-                sessionStorage.removeItem(`fs_accounts_${businessUnit}_ts`);
+                localStorage.removeItem(`fs_accounts_${businessUnit}`);
+                localStorage.removeItem(`fs_accounts_${businessUnit}_ts`);
 
                 if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
                 updateDashboard();
@@ -4604,8 +4631,8 @@
                 if (_sheetCurrentItem) _sheetCurrentItem['거래상태'] = newStatus;
 
                 // 거래처 캐시 무효화
-                sessionStorage.removeItem(`fs_accounts_${businessUnit}`);
-                sessionStorage.removeItem(`fs_accounts_${businessUnit}_ts`);
+                localStorage.removeItem(`fs_accounts_${businessUnit}`);
+                localStorage.removeItem(`fs_accounts_${businessUnit}_ts`);
 
                 // 버튼 UI 갱신
                 group.querySelectorAll('.status-btn').forEach(b => {

@@ -1973,6 +1973,17 @@
                 parsedData = null;
                 showToast(doneMsg.replace(/<[^>]+>/g, ''));
 
+                // 업로드 테이블별 localStorage 캐시 무효화
+                const bu = businessUnit ?? '';
+                if (cfg.table === 'visit_logs') {
+                    localStorage.removeItem(`fs_visitlogs_v_${bu}`);
+                    localStorage.removeItem(`fs_visitlogs_v_${bu}_ts`);
+                }
+                if (cfg.table === 'licenses') {
+                    localStorage.removeItem(`fs_licenses_${bu}`);
+                    localStorage.removeItem(`fs_licenses_${bu}_ts`);
+                }
+
                 // DB 현황 자동 갱신
                 previewPage = 0;
                 await loadCurrentData();
