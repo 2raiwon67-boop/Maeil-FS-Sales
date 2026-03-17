@@ -1823,9 +1823,9 @@
             <!-- 인허가 탭 전용 필터 -->
             <div class="sidebar-tab-content active" id="sidebarContentLicense">
                 <div class="section">
-                    <div class="dropdown-card open" id="ddStatusCard">
+                    <div class="dropdown-card" id="ddStatusCard">
                         <div class="dropdown-header" onclick="toggleDropdown('ddStatusCard')">
-                            <h4>📍 거래 현황</h4>
+                            <h4>📍 인허가 현황</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
                         <div class="dropdown-content">
@@ -1834,9 +1834,9 @@
                     </div>
                 </div>
                 <div class="section">
-                    <div class="dropdown-card open" id="ddMilkCard">
+                    <div class="dropdown-card" id="ddMilkCard">
                         <div class="dropdown-header" onclick="toggleDropdown('ddMilkCard')">
-                            <h4>🥛 사용우유</h4>
+                            <h4>🥛 사용우유(인허가)</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
                         <div class="dropdown-content">
@@ -1849,9 +1849,9 @@
             <!-- 주요거래처 탭 전용 필터 -->
             <div class="sidebar-tab-content" id="sidebarContentAccount">
                 <div class="section">
-                    <div class="dropdown-card open" id="ddAccountCard">
+                    <div class="dropdown-card" id="ddAccountCard">
                         <div class="dropdown-header" onclick="toggleDropdown('ddAccountCard')">
-                            <h4>📍 거래/미거래 현황</h4>
+                            <h4>📍 주요거래처 현황</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
                         <div class="dropdown-content">
@@ -1971,7 +1971,7 @@
             <!-- 레이어 드롭다운 패널 -->
             <div class="layer-dropdown" id="layerDropdown">
                 <div class="layer-item active" data-layer="인허가" onclick="toggleMobileLayer('인허가')">
-                    <span class="layer-label">🟢 인허가</span>
+                    <span class="layer-label" id="layerLabel인허가">🟢 인허가</span>
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-item active" data-layer="공사중" onclick="toggleMobileLayer('공사중')">
@@ -1983,7 +1983,7 @@
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-item" data-layer="미거래" onclick="toggleMobileLayer('미거래')">
-                    <span class="layer-label">🔴 미거래</span>
+                    <span class="layer-label" id="layerLabel미거래">🔴 미거래</span>
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-divider"></div>
@@ -3033,11 +3033,11 @@
 
             // ── 거래 현황 드롭다운 렌더링 ──
             const _statusItems = [
-                { key: '거래',  label: '거래',      color: '#0050FF' },
-                { key: '미거래', label: '미거래',    color: '#FF1A1A' },
-                { key: '인허가', label: '인허가',    color: '#00B33C' },
-                { key: '공사중', label: '공사중',    color: '#FF7700' },
-                { key: 'DROP',  label: 'DROP',      color: '#8e8e93' },
+                { key: '거래',  label: '거래',   color: '#0050FF' },
+                { key: '미거래', label: '미거래', color: _isColorblind ? '#CC0099' : '#FF1A1A' },
+                { key: '인허가', label: '인허가', color: _isColorblind ? '#0099CC' : '#00B33C' },
+                { key: '공사중', label: '공사중', color: '#FF7700' },
+                { key: 'DROP',  label: 'DROP',   color: '#8e8e93' },
             ];
             const statusEl = document.getElementById('statusDropdownList');
             if (statusEl) {
@@ -3075,7 +3075,7 @@
             const milkEl = document.getElementById('milkDropdownList');
             if (milkEl) {
                 const _milkTypes  = ['매일', '서울', '남양', '연세', '기타'];
-                const _milkColors = { '매일': '#0071e3', '서울': '#ff3b30', '남양': '#ff9500', '연세': '#34c759', '기타': '#8e8e93' };
+                const _milkColors = { '매일': '#0071e3', '서울': _isColorblind ? '#CC0099' : '#ff3b30', '남양': '#ff9500', '연세': _isColorblind ? '#0099CC' : '#34c759', '기타': '#8e8e93' };
                 const milkCounts  = {};
                 filteredData.forEach(d => {
                     const m = (d['사용우유'] || '').trim();
@@ -3181,6 +3181,15 @@
         // ============================================================
 
         const _isColorblind = document.body.classList.contains('colorblind');
+
+        // 색각 보정 모드: 모바일 레이어 이모지 교체
+        if (_isColorblind) {
+            const lbLicense = document.getElementById('layerLabel인허가');
+            const lbNoDeal  = document.getElementById('layerLabel미거래');
+            if (lbLicense) lbLicense.textContent = '🔵 인허가';
+            if (lbNoDeal)  lbNoDeal.textContent  = '🟣 미거래';
+        }
+
         const _markerColorMap = {
             '거래':  '#007AFF',
             '미거래': _isColorblind ? '#CC0099' : '#FF3B30',
