@@ -683,7 +683,7 @@ getBusinessUnitForIndex()       // business_unit 캐시
 |------|------|
 | 내 일정 달력 UI — 날짜 먼저 선택 후 경유지 추가하는 방식. 미니 캘린더 표시, 일정 있는 날 점 표시, 날짜 클릭 시 해당 일정 확인 + 현재 경유지 추가. 현재는 경유지 먼저 담고 날짜 선택하는 방식으로 구현됨. | 미구현 (보류) |
 | 영업 메모 저장 (`store_memos` 테이블) | SQL 미실행, 코드 미완료 |
-| `recipes` `main_products` 빈 항목 8건 | 수동 보완 필요 |
+| ~~`recipes` `main_products` 빈 항목 8건~~ | ✅ 완료 |
 | 수도권FS지역사업부장 멀티지점 뷰 | 보류 |
 | N8N + Gemini + Groq Agentic 자동화 | 기획 완료, 미구현 |
 | GitHub Actions + Supabase 공공인허가 배치 | 보류 (data.go.kr API 접근 이슈) |
