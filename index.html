@@ -2916,7 +2916,7 @@
                     }
 
                     // localStorage 캐시 확인 (24시간 TTL)
-                    const CACHE_TTL = 24 * 60 * 60 * 1000;
+                    const CACHE_TTL = 12 * 60 * 60 * 1000;
                     const licCacheKey = `fs_licenses_${businessUnit}`;
                     const licCached = localStorage.getItem(licCacheKey);
                     const licCachedTime = Number(localStorage.getItem(licCacheKey + '_ts') || 0);
@@ -3475,7 +3475,7 @@
                     const cacheKey = `fs_accounts_${businessUnit}`;
                     const cached = localStorage.getItem(cacheKey);
                     const cachedTime = Number(localStorage.getItem(cacheKey + '_ts') || 0);
-                    if (cached && Date.now() - cachedTime < 24 * 60 * 60 * 1000) {
+                    if (cached && Date.now() - cachedTime < 12 * 60 * 60 * 1000) {
                         accountsData = JSON.parse(cached);
                         if (naverMap) { await initAccountMarkers(); }
                         else {
