@@ -687,7 +687,7 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | 수도권FS지역사업부장 멀티지점 뷰 | 보류 |
 | N8N + Gemini + Groq Agentic 자동화 | 기획 완료, 미구현 |
 | GitHub Actions + Supabase 공공인허가 배치 | 보류 (data.go.kr API 접근 이슈) |
-| proposal.html 제품DB Supabase 전환 | products 테이블 미생성, 보류 |
+| ~~proposal.html 제품DB Supabase 전환~~ | ✅ 완료 — Cloudflare D1 DB로 전환 결정 및 적용 |
 | naver-reviews.js `localSummary` 캐시 히트 시 0 반환 | **수정 완료** (2026-03-11) |
 | proposal.html 레시피 매칭 항상 같은 2개 고정 | **수정 완료** (2026-03-10) → **2026-03-17 벡터 RAG + reason 생성으로 완전 교체** |
 | 방문일지 방문우선순위 AI JSON 파싱 오류 | **수정 완료** (2026-03-10) |
