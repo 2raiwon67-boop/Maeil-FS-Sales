@@ -643,6 +643,8 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v104 | 방문일지.html localStorage 24h 캐시 추가 (fs_visitlogs_v_), 수정 저장 시 무효화, upload.html 방문일지 업로드 시 캐시 무효화 |
 | v105 | index.html 인허가(fs_licenses_) 캐시 추가, 거래처·방문일지 지도용 캐시 sessionStorage→localStorage 24h, 지오코딩 키 maeil_geo_ 통일, 거래상태 변경 시 캐시 무효화 |
 | v106 | upload.html: accounts 업로드 시 fs_accounts_ 캐시 무효화, visit_logs 업로드 시 fs_visitlogs_ (index.html용) 도 함께 무효화 |
+| v107 | initAccountMarkers: 좌표를 accountsData에 포함 저장 → 재진입 시 지오코딩 완전 건너뜀. deleteCheckedRows: 모든 테이블 삭제 시 캐시 무효화 |
+| v108 | updateMilkTypeSelect/Sheet: 사용우유 변경 시 fs_licenses_ 캐시 무효화 누락 수정 |
 
 ---
 

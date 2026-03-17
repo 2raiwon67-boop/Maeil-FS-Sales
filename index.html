@@ -4468,6 +4468,8 @@
                 if (error) throw new Error(error.message);
                 const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
                 if (item) item['사용우유'] = newMilk;
+                localStorage.removeItem(`fs_licenses_${businessUnit}`);
+                localStorage.removeItem(`fs_licenses_${businessUnit}_ts`);
             } catch (err) {
                 console.error('사용우유 업데이트 실패:', err);
                 showToast(`사용우유 변경에 실패했습니다: ${err.message}`, 'error', 5000);
@@ -4536,6 +4538,8 @@
                 const item = allData.find(d => d['사업장명'] === name && d['도로명전체주소'] === address);
                 if (item) item['사용우유'] = newMilk;
                 if (_sheetCurrentItem) _sheetCurrentItem['사용우유'] = newMilk;
+                localStorage.removeItem(`fs_licenses_${businessUnit}`);
+                localStorage.removeItem(`fs_licenses_${businessUnit}_ts`);
             } catch (err) {
                 console.error('사용우유 업데이트 실패:', err);
                 showToast(`사용우유 변경에 실패했습니다: ${err.message}`, 'error', 5000);
