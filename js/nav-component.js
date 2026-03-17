@@ -15,6 +15,11 @@
  */
 
 (function () {
+    // ── 색각 보정 모드 적용 (페이지 로드 즉시) ──
+    if (localStorage.getItem('fs_colorblind_mode') === 'true') {
+        document.body.classList.add('colorblind');
+    }
+
     const NAV_ITEMS = [
         { href: 'index.html',    label: '거래처' },
         { href: '방문일지.html', label: '방문일지' },
@@ -54,7 +59,7 @@
             + '</div>'
             + '<div class="nav-actions" style="display: flex; align-items: center;">'
             + extraActions
-            + '<span id="userNameDisplay" class="nav-hide-mobile" onclick="window._mobOpenMyPlans()" style="color:#a1a1a6;font-size:13px;margin-right:14px;cursor:pointer;" title="내 일정"></span>'
+            + '<span id="userNameDisplay" class="nav-hide-mobile" onclick="window._pcToggleProfile(event)" style="color:#a1a1a6;font-size:13px;margin-right:14px;cursor:pointer;" title="프로필"></span>'
             + adminLink
             + '<a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>'
             + '</div>'
@@ -101,13 +106,87 @@
             + '<div class="mob-profile-popup" id="mobProfilePopup">'
             + '<div class="mob-profile-name" id="mobProfileName">로딩 중...</div>'
             + '<button class="mob-profile-plan-btn" onclick="window._mobOpenMyPlans()">📅 내 일정</button>'
+            + '<button class="mob-profile-plan-btn" onclick="window._mobCloseProfile();window._openSettings()">⚙️ 설정</button>'
             + '<button class="mob-profile-logout-btn" onclick="window._mobDoLogout()">로그아웃</button>'
             + '</div>';
 
         return tabBar + popup;
     }
 
-    document.body.insertAdjacentHTML('beforeend', buildMobTabBar());
+    // ── PC 프로필 드롭다운 ──
+    var pcProfileHTML = '<div class="pc-profile-backdrop" id="pcProfileBackdrop" onclick="window._pcCloseProfile()"></div>'
+        + '<div class="pc-profile-dropdown" id="pcProfileDropdown">'
+        + '<button class="pc-profile-btn" onclick="window._pcCloseProfile();window._mobOpenMyPlans()">📅 내 일정</button>'
+        + '<button class="pc-profile-btn" onclick="window._pcCloseProfile();window._openSettings()">⚙️ 설정</button>'
+        + '<button class="pc-profile-btn logout" onclick="window._mobDoLogout()">로그아웃</button>'
+        + '</div>';
+
+    // ── 설정 모달 ──
+    var settingsHTML = '<div class="settings-backdrop" id="settingsBackdrop" onclick="window._closeSettings()"></div>'
+        + '<div class="settings-modal" id="settingsModal">'
+        + '<div class="settings-modal-title">설정</div>'
+        + '<div class="settings-row">'
+        + '<div class="settings-row-info">'
+        + '<span class="settings-row-label">색각 보정 모드</span>'
+        + '<span class="settings-row-desc">적녹색맹을 위한 색상 조정</span>'
+        + '</div>'
+        + '<label class="miso-toggle"><input type="checkbox" id="colorblindToggle"><span class="miso-toggle-slider"></span></label>'
+        + '</div>'
+        + '<button class="settings-close-btn" onclick="window._closeSettings()">닫기</button>'
+        + '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', buildMobTabBar() + pcProfileHTML + settingsHTML);
+
+    // 설정 토글 이벤트 연결
+    var colorblindToggle = document.getElementById('colorblindToggle');
+    if (colorblindToggle) {
+        colorblindToggle.checked = localStorage.getItem('fs_colorblind_mode') === 'true';
+        colorblindToggle.addEventListener('change', function () {
+            localStorage.setItem('fs_colorblind_mode', this.checked ? 'true' : 'false');
+            location.reload();
+        });
+    }
+
+    // ── PC 프로필 드롭다운 함수 ──
+    window._pcToggleProfile = function (e) {
+        if (e) e.stopPropagation();
+        var dropdown = document.getElementById('pcProfileDropdown');
+        var backdrop = document.getElementById('pcProfileBackdrop');
+        if (!dropdown) return;
+        var isOpen = dropdown.classList.contains('open');
+        if (isOpen) {
+            dropdown.classList.remove('open');
+            backdrop.classList.remove('open');
+        } else {
+            dropdown.classList.add('open');
+            backdrop.classList.add('open');
+        }
+    };
+
+    window._pcCloseProfile = function () {
+        var dropdown = document.getElementById('pcProfileDropdown');
+        var backdrop = document.getElementById('pcProfileBackdrop');
+        if (dropdown) dropdown.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+    };
+
+    // ── 설정 모달 함수 ──
+    window._openSettings = function () {
+        var modal = document.getElementById('settingsModal');
+        var backdrop = document.getElementById('settingsBackdrop');
+        var toggle = document.getElementById('colorblindToggle');
+        if (!modal) return;
+        if (toggle) toggle.checked = localStorage.getItem('fs_colorblind_mode') === 'true';
+        modal.classList.add('open');
+        backdrop.classList.add('open');
+    };
+
+    window._closeSettings = function () {
+        var modal = document.getElementById('settingsModal');
+        var backdrop = document.getElementById('settingsBackdrop');
+        if (modal) modal.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+    };
 
     // 프로필 팝업 토글 함수
     window._mobToggleProfile = function () {

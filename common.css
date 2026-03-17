@@ -388,3 +388,191 @@ body.loaded {
         bottom: calc(60px + env(safe-area-inset-bottom) + 12px);
     }
 }
+
+/* ============================================================
+   PC 프로필 드롭다운
+   ============================================================ */
+.pc-profile-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+}
+.pc-profile-backdrop.open { display: block; }
+
+.pc-profile-dropdown {
+    position: fixed;
+    top: 56px;
+    right: 16px;
+    background: rgba(28, 28, 30, 0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 8px;
+    min-width: 160px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    transform: translateY(-6px) scale(0.97);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.pc-profile-dropdown.open {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.pc-profile-btn {
+    display: block;
+    width: 100%;
+    padding: 9px 12px;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    color: #f5f5f7;
+    font-size: 13px;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.12s;
+}
+.pc-profile-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.pc-profile-btn.logout { color: #ff6b6b; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 12px; }
+
+@media (max-width: 768px) {
+    .pc-profile-backdrop,
+    .pc-profile-dropdown { display: none !important; }
+}
+
+/* ============================================================
+   설정 모달
+   ============================================================ */
+.settings-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+}
+.settings-backdrop.open { display: block; }
+
+.settings-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -46%) scale(0.97);
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 24px;
+    width: min(360px, calc(100vw - 48px));
+    z-index: 1001;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.settings-modal.open {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.settings-modal-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: #1d1d1f;
+    margin-bottom: 20px;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-top: 1px solid #f0f0f5;
+}
+
+.settings-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.settings-row-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1d1d1f;
+}
+
+.settings-row-desc {
+    font-size: 12px;
+    color: #86868b;
+}
+
+/* 토글 스위치 */
+.miso-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 26px;
+    flex-shrink: 0;
+}
+.miso-toggle input { opacity: 0; width: 0; height: 0; }
+.miso-toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #d1d1d6;
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.miso-toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transition: transform 0.2s;
+}
+.miso-toggle input:checked + .miso-toggle-slider { background: var(--color-primary); }
+.miso-toggle input:checked + .miso-toggle-slider::before { transform: translateX(18px); }
+
+.settings-close-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    padding: 11px;
+    background: #f5f5f7;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Pretendard', -apple-system, sans-serif;
+    color: #1d1d1f;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.settings-close-btn:hover { background: #e5e5ea; }
+
+/* ============================================================
+   색각 보정 모드 (.colorblind)
+   ============================================================ */
+body.colorblind {
+    --color-success: #0099CC;
+    --color-danger:  #CC0099;
+}
+
+/* index.html 상태 카드 */
+body.colorblind .status-card.licensed { border-left-color: #0099CC; }
+body.colorblind .status-card.no-deal  { border-left-color: #CC0099; }
+
+/* 토스트 */
+body.colorblind .miso-toast.success { background: #006688; }
+body.colorblind .miso-toast.error   { background: #880066; }

@@ -3180,10 +3180,11 @@
         // 지도 업데이트 — 마커 재사용
         // ============================================================
 
+        const _isColorblind = document.body.classList.contains('colorblind');
         const _markerColorMap = {
-            '거래': '#007AFF',
-            '미거래': '#FF3B30',
-            '인허가': '#34C759',
+            '거래':  '#007AFF',
+            '미거래': _isColorblind ? '#CC0099' : '#FF3B30',
+            '인허가': _isColorblind ? '#0099CC' : '#34C759',
             '공사중': '#FF9500'
             // DROP은 마커 없음
         };
