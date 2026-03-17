@@ -56,7 +56,7 @@
             + extraActions
             + '<span id="userNameDisplay" style="color: #a1a1a6; font-size: 13px; margin-right: 14px;"></span>'
             + adminLink
-            + '<a href="#" class="nav-link nav-hide-mobile" style="margin-right:14px;" onclick="window._mobOpenMyPlans();return false;">📅 내 일정</a>'
+            + '<a href="#" class="nav-link" style="margin-right:14px;" onclick="window._mobOpenMyPlans();return false;">📅 내 일정</a>'
             + '<a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>'
             + '</div>'
             + '</nav>';
