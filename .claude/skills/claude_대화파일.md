@@ -645,6 +645,20 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v106 | upload.html: accounts 업로드 시 fs_accounts_ 캐시 무효화, visit_logs 업로드 시 fs_visitlogs_ (index.html용) 도 함께 무효화 |
 | v107 | initAccountMarkers: 좌표를 accountsData에 포함 저장 → 재진입 시 지오코딩 완전 건너뜀. deleteCheckedRows: 모든 테이블 삭제 시 캐시 무효화 |
 | v108 | updateMilkTypeSelect/Sheet: 사용우유 변경 시 fs_licenses_ 캐시 무효화 누락 수정 |
+| — | 인허가·거래처 캐시 TTL 24h → 12h (팀원 간 변경사항 반영 주기 단축, 방문일지는 24h 유지) |
+
+### 캐시 구조 최종 정리 (2026-03-17)
+
+| 키 | 저장소 | TTL | 무효화 시점 |
+|---|---|---|---|
+| `fs_licenses_${bu}` | localStorage | 12h | 거래상태/사용우유 변경, licenses 업로드/삭제 |
+| `fs_accounts_${bu}` | localStorage | 12h | 거래상태 변경, accounts 업로드/삭제 |
+| `fs_visitlogs_${bu}` | localStorage | 24h | visit_logs 업로드/삭제 (index.html 지도용) |
+| `fs_visitlogs_v_${bu}` | localStorage | 24h | 수정 저장, visit_logs 업로드/삭제 (방문일지.html용) |
+| `maeil_geo_${address}` | localStorage | 영구 | 없음 (주소 변경 시 수동 삭제 필요) |
+
+- accounts에 `_lat`/`_lng` 포함 저장 → 재진입 시 지오코딩 루프 건너뜀
+- 지오코딩 키 `geocode_` → `maeil_geo_` 통일
 
 ---
 
