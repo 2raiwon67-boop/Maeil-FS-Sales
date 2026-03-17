@@ -1551,6 +1551,21 @@
                     _checkedRows.clear();
                     await loadCurrentData();
                 }
+                // 삭제된 테이블의 localStorage 캐시 무효화
+                const bu = (await getBusinessUnit()) ?? '';
+                if (cfg.table === 'accounts') {
+                    localStorage.removeItem(`fs_accounts_${bu}`);
+                    localStorage.removeItem(`fs_accounts_${bu}_ts`);
+                } else if (cfg.table === 'licenses') {
+                    localStorage.removeItem(`fs_licenses_${bu}`);
+                    localStorage.removeItem(`fs_licenses_${bu}_ts`);
+                } else if (cfg.table === 'visit_logs') {
+                    localStorage.removeItem(`fs_visitlogs_v_${bu}`);
+                    localStorage.removeItem(`fs_visitlogs_v_${bu}_ts`);
+                    localStorage.removeItem(`fs_visitlogs_${bu}`);
+                    localStorage.removeItem(`fs_visitlogs_${bu}_ts`);
+                }
+
                 showToast(`✅ ${count}건 삭제되었습니다.`);
             } catch (e) {
                 showToast('❌ 삭제 실패: ' + e.message);

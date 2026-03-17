@@ -3633,6 +3633,7 @@
                 return;
             }
 
+            let _coordsUpdated = false;
             for (const account of accountsData) {
                 const address = account['주소'] || '';
                 const name = account['거래처명'] || '';
@@ -3640,18 +3641,25 @@
                 if (!address && !name) continue;
 
                 try {
-                    // 캐시 확인
-                    const cacheKey = `maeil_geo_${address || name}`;
                     let coords = null;
-                    let fromCache = false;
-                    const cached = localStorage.getItem(cacheKey);
-                    if (cached) {
-                        coords = JSON.parse(cached);
-                        fromCache = true;
+                    // accountsData에 좌표가 이미 있으면 지오코딩 완전 건너뜀
+                    if (account['_lat'] && account['_lng']) {
+                        coords = { lat: account['_lat'], lng: account['_lng'] };
                     } else {
-                        coords = await geocodeAddress(address || name);
+                        const cacheKey = `maeil_geo_${address || name}`;
+                        const cached = localStorage.getItem(cacheKey);
+                        if (cached) {
+                            coords = JSON.parse(cached);
+                        } else {
+                            coords = await geocodeAddress(address || name);
+                            if (coords) {
+                                localStorage.setItem(cacheKey, JSON.stringify(coords));
+                            }
+                        }
                         if (coords) {
-                            localStorage.setItem(cacheKey, JSON.stringify(coords));
+                            account['_lat'] = coords.lat;
+                            account['_lng'] = coords.lng;
+                            _coordsUpdated = true;
                         }
                     }
                     if (!coords) continue;
@@ -3782,11 +3790,25 @@
                     // 모바일 초기 필터링 수동 처리를 제거하고, 
                     // 로드 완료 후 filterAccountMarkers() 로 일괄 처리합니다.
 
-                    if (!fromCache) await new Promise(r => setTimeout(r, 20)); // API 호출 시에만 부하 방지
                 } catch (e) {
                     console.warn('주요거래처 마커 생성 실패:', name, e);
                 }
             }
+
+            // 새로 지오코딩한 좌표가 있으면 accountsData 캐시 갱신 (좌표 포함)
+            if (_coordsUpdated) {
+                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+                if (!isAdmin) {
+                    const businessUnit = await getBusinessUnitForIndex();
+                    if (businessUnit) {
+                        try {
+                            localStorage.setItem(`fs_accounts_${businessUnit}`, JSON.stringify(accountsData));
+                            localStorage.setItem(`fs_accounts_${businessUnit}_ts`, Date.now().toString());
+                        } catch (e) { /* localStorage 용량 초과 시 무시 */ }
+                    }
+                }
+            }
+
             filterAccountMarkers();
         }
 
