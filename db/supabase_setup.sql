@@ -326,6 +326,38 @@ CREATE POLICY "report_cache_delete_same_unit" ON report_cache
 
 
 -- ─────────────────────────────────────────────────────────────
+-- visit_plans (방문 일정 — 경유지 저장, 달력 UI)
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS visit_plans (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_unit TEXT NOT NULL,
+    manager       TEXT,                          -- 지점장은 NULL 가능
+    visit_date    DATE NOT NULL,
+    items         JSONB NOT NULL DEFAULT '[]',
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (business_unit, manager, visit_date)
+);
+
+ALTER TABLE visit_plans ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "visit_plans_select" ON visit_plans;
+CREATE POLICY "visit_plans_select" ON visit_plans
+    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "visit_plans_insert" ON visit_plans;
+CREATE POLICY "visit_plans_insert" ON visit_plans
+    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "visit_plans_update" ON visit_plans;
+CREATE POLICY "visit_plans_update" ON visit_plans
+    FOR UPDATE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "visit_plans_delete" ON visit_plans;
+CREATE POLICY "visit_plans_delete" ON visit_plans
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+
+-- ─────────────────────────────────────────────────────────────
 -- 함수 1. search_success_visits (Mother Brain — 개척완료 유사도 검색)
 -- Service Role Key로만 호출 (브리핑 API 서버사이드)
 -- ─────────────────────────────────────────────────────────────

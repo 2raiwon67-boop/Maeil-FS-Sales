@@ -4996,8 +4996,6 @@
                 }, { onConflict: 'business_unit,manager,visit_date' });
 
                 if (error) throw error;
-                document.getElementById('planModeBadge')?.remove();
-                window._pendingPlanDate = null;
                 showToast('일정이 생성되었습니다! 🎉', 'success');
             } catch (e) {
                 showToast('일정 저장에 실패했습니다', 'error');
@@ -5043,6 +5041,13 @@
 
             const bu = _indexBusinessUnit ?? null;
             const today = new Date().toISOString().split('T')[0];
+
+            // 지점장은 담당자 없음 → 일정 기능 미지원
+            if (!myManagerName) {
+                const body = document.getElementById('myPlansBody');
+                if (body) body.innerHTML = `<div style="text-align:center;color:#86868b;font-size:13px;padding:30px 0;">지점장 계정은 일정 기능을 사용할 수 없습니다.</div>`;
+                return;
+            }
 
             // 과거 일정 자동 삭제
             try {
@@ -5165,7 +5170,7 @@
                     <button onclick="_deletePlan('${dateStr}')" style="background:none;border:1px solid #ff3b30;color:#ff3b30;padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;">삭제</button>
                 </div>
                 <div style="background:#f5f5f7;border-radius:10px;padding:10px 12px;margin-bottom:12px;">${itemsHtml}</div>
-                <button onclick="_loadPlanItemsToCart(${JSON.stringify(items).replace(/"/g,'&quot;')})" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">경유지 불러오기 + 동선 최적화</button>
+                <button onclick="_loadPlanDatePlan('${dateStr}')" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">경유지 불러오기 + 동선 최적화</button>
             </div>`;
         }
 
@@ -5175,6 +5180,14 @@
         }
 
         function _calNav(delta) {
+            const now = new Date();
+            const minY = now.getFullYear(), minM = now.getMonth();
+            const maxDay = new Date(minY, minM + 2, 0);
+            const maxY = maxDay.getFullYear(), maxM = maxDay.getMonth();
+
+            if (delta < 0 && window._calYear === minY && window._calMonth === minM) return;
+            if (delta > 0 && window._calYear === maxY && window._calMonth === maxM) return;
+
             let m = window._calMonth + delta;
             let y = window._calYear;
             if (m < 0) { m = 11; y--; }
@@ -5218,6 +5231,11 @@
         function _cancelPlanMode() {
             window._pendingPlanDate = null;
             document.getElementById('planModeBadge')?.remove();
+        }
+
+        function _loadPlanDatePlan(dateStr) {
+            const plan = (window._calPlansData || []).find(p => p.visit_date === dateStr);
+            if (plan?.items) _loadPlanItemsToCart(plan.items);
         }
 
         function _loadPlanItemsToCart(items) {
@@ -5294,6 +5312,7 @@
         }
 
         function showVisitPlanPopup(items, briefingMap) {
+            window._todayPlanItems = items;
             const overlay = document.createElement('div');
             overlay.id = 'visitPlanPopup';
             overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;';
@@ -5328,7 +5347,7 @@
                     </div>
                     <div style="padding:16px 18px;">
                         ${itemsHtml}
-                        <button onclick="_startTodayPlan(${JSON.stringify(items).replace(/"/g,'&quot;')})" style="width:100%;padding:12px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;">경유지 불러오기 + 동선 최적화</button>
+                        <button onclick="_startTodayPlan()" style="width:100%;padding:12px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;">경유지 불러오기 + 동선 최적화</button>
                     </div>
                 </div>`;
 
@@ -5336,9 +5355,9 @@
             overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
         }
 
-        function _startTodayPlan(items) {
+        function _startTodayPlan() {
             document.getElementById('visitPlanPopup')?.remove();
-            _loadPlanItemsToCart(items);
+            _loadPlanItemsToCart(window._todayPlanItems || []);
         }
 
         // ── 오늘 가볼 곳 추천 ──
