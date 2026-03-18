@@ -1016,10 +1016,10 @@
                 const diffMonths = (new Date().getFullYear() - new Date(data.generated_at).getFullYear()) * 12
                     + (new Date().getMonth() - new Date(data.generated_at).getMonth());
                 if (diffMonths >= 4) {
-                    client.from('report_cache').delete()
+                    await client.from('report_cache').delete()
                         .eq('business_unit', currentBusinessUnit)
                         .eq('report_month', reportMonth)
-                        .eq('manager_name', managerName || '').then(() => {});
+                        .eq('manager_name', managerName || '');
                     return null;
                 }
                 return data.ai_content;

@@ -2768,10 +2768,10 @@
 
         async function saveQuote() {
             const user = await getUser();
-            if (!user) { alert('로그인이 필요합니다.'); return; }
+            if (!user) { showToast('로그인이 필요합니다.', 'error'); return; }
 
             const businessUnit = user.user_metadata?.business_unit;
-            if (!businessUnit) { alert('사업부 정보가 없습니다. 관리자에게 문의하세요.'); return; }
+            if (!businessUnit) { showToast('사업부 정보가 없습니다. 관리자에게 문의하세요.', 'error'); return; }
 
             const editorRows = Array.from(document.querySelectorAll('#editor-items-container > div'));
             const items = editorRows.map(row => ({
@@ -2801,8 +2801,8 @@
                 ({ error } = await client.from('quotes').insert(payload));
             }
 
-            if (error) { alert('저장 실패: ' + error.message); return; }
-            alert('견적서가 저장되었습니다.');
+            if (error) { showToast('저장 실패: ' + error.message, 'error'); return; }
+            showToast('견적서가 저장되었습니다.');
         }
 
         function openQuotePickerModal() {
@@ -2850,14 +2850,14 @@
         async function loadQuote(id) {
             const user = await getUser();
             const businessUnit = user?.user_metadata?.business_unit;
-            if (!businessUnit) { alert('사업부 정보가 없습니다.'); return; }
+            if (!businessUnit) { showToast('사업부 정보가 없습니다.', 'error'); return; }
 
             const { data, error } = await client.from('quotes')
                 .select('*')
                 .eq('id', id)
                 .eq('business_unit', businessUnit)   // ← ID를 알아도 다른 지점 견적서 접근 불가
                 .single();
-            if (error || !data) { alert('불러오기 실패'); return; }
+            if (error || !data) { showToast('불러오기 실패', 'error'); return; }
 
             _loadedQuoteId = data.id;
             document.getElementById('edit-customerName').value = data.customer_name || '';
@@ -2881,7 +2881,7 @@
             });
             syncInfo();
             closeQuotePickerModal();
-            alert(`"${data.customer_name}" 견적서를 불러왔습니다.`);
+            showToast(`"${data.customer_name}" 견적서를 불러왔습니다.`);
         }
 
         async function deleteQuote(id, btn) {
@@ -2889,13 +2889,13 @@
             btn.disabled = true;
             const user = await getUser();
             const businessUnit = user?.user_metadata?.business_unit;
-            if (!businessUnit) { alert('사업부 정보가 없습니다.'); btn.disabled = false; return; }
+            if (!businessUnit) { showToast('사업부 정보가 없습니다.', 'error'); btn.disabled = false; return; }
 
             const { error } = await client.from('quotes')
                 .delete()
                 .eq('id', id)
                 .eq('business_unit', businessUnit);  // ← 내 지점 견적서만 삭제 가능
-            if (error) { alert('삭제 실패: ' + error.message); btn.disabled = false; return; }
+            if (error) { showToast('삭제 실패: ' + error.message, 'error'); btn.disabled = false; return; }
             loadSavedQuotes();
         }
 
@@ -3079,7 +3079,7 @@
         function pickerGenerate() {
             // 선택 항목 없으면 안내
             if (Object.keys(_pickerSelectedMap).length === 0) {
-                alert('상품을 한 개 이상 선택해주세요.');
+                showToast('상품을 한 개 이상 선택해주세요.', 'warning');
                 return;
             }
             // 피커에서 선택되지 않은 행 제거 (초기 빈 행 포함)
@@ -3112,7 +3112,7 @@
         // 모바일 저장 (피커 선택 행만 유지 후 저장)
         function pickerSave() {
             if (Object.keys(_pickerSelectedMap).length === 0) {
-                alert('상품을 한 개 이상 선택해주세요.');
+                showToast('상품을 한 개 이상 선택해주세요.', 'warning');
                 return;
             }
             Array.from(document.querySelectorAll('#editor-items-container > div')).forEach(row => {
@@ -3271,7 +3271,21 @@
         document.getElementById('recipePdfModal').addEventListener('click', function(e) {
             if (e.target === this) closeRecipePdf();
         });
+
+        // ── 토스트 ───────────────────────────────────────────
+        let _toastTimer;
+        function showToast(msg, type = 'success', duration = 3500) {
+            const el = document.getElementById('proposal-toast');
+            el.textContent = msg;
+            el.style.background = type === 'error' ? '#ff3b30' : type === 'warning' ? '#ff9500' : '#1d1d1f';
+            el.classList.add('show');
+            clearTimeout(_toastTimer);
+            _toastTimer = setTimeout(() => el.classList.remove('show'), duration);
+        }
     </script>
+
+    <div id="proposal-toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1d1d1f;color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;z-index:99999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;max-width:90vw;text-align:center;"></div>
+    <style>#proposal-toast.show{opacity:1;}</style>
 </body>
 
 </html>
