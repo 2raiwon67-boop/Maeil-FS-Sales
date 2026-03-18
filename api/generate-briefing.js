@@ -172,13 +172,13 @@ export default async function handler(req, res) {
 
 ${visitText}
 ${successSection}${motherBrainSection}${tradeSection}
-아래 항목을 각각 1~2문장으로 자연스럽게 작성하세요. 문장을 끊지 말고 완성된 문장으로 써주세요.
+아래 4개 항목을 각각 1~2문장으로 작성하세요. 문장을 끊지 말고 완성된 문장으로 써주세요.
 ※ [유사 거래처 성공 사례] 또는 [유사 주요거래처 관리 사례]는 참고용입니다. 현재 거래처와 업종·상황이 실제로 유사할 때만 구체적으로 언급하고, 관련성이 낮으면 무시하세요.
 
-① 키맨/결정권자 정보 및 성향
-② 반복되는 허들이나 장벽
-③ 오늘 방문 시 추천 접근법
-④ 자사 전환 제품 (개척완료·연결완료 방문에서 기존 타사 제품을 어떤 자사 제품으로 교체했는지 1줄로 작성. 방문 기록에 해당 정보가 없으면 이 항목은 완전히 생략)`;
+keyman: 키맨/결정권자 정보 및 성향
+hurdles: 반복되는 허들이나 장벽
+approach: 오늘 방문 시 추천 접근법
+product: 개척완료·연결완료 방문에서 기존 타사 제품을 어떤 자사 제품으로 교체했는지 1줄. 방문 기록에 해당 정보가 없으면 빈 문자열`;
 
         const geminiRes = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
@@ -194,8 +194,13 @@ ${successSection}${motherBrainSection}${tradeSection}
                         responseMimeType: 'application/json',
                         responseSchema: {
                             type: 'object',
-                            properties: { briefing: { type: 'string' } },
-                            required: ['briefing']
+                            properties: {
+                                keyman:   { type: 'string' },
+                                hurdles:  { type: 'string' },
+                                approach: { type: 'string' },
+                                product:  { type: 'string' }
+                            },
+                            required: ['keyman', 'hurdles', 'approach', 'product']
                         }
                     }
                 })
@@ -210,10 +215,11 @@ ${successSection}${motherBrainSection}${tradeSection}
         const geminiData = await geminiRes.json();
         const parts = geminiData.candidates?.[0]?.content?.parts || [];
         const rawText = (parts.find(p => !p.thought) || parts[0])?.text?.trim() || '';
-        let briefing = '';
-        try { briefing = rawText ? (JSON.parse(rawText).briefing || '') : ''; }
-        catch (_pe) { briefing = rawText; }
-        if (!briefing) return res.status(500).json({ error: '브리핑 생성 실패' });
+        let structured = null;
+        try { structured = rawText ? JSON.parse(rawText) : null; } catch (_pe) {}
+        if (!structured?.keyman) return res.status(500).json({ error: '브리핑 생성 실패' });
+        // 구조화 객체를 JSON 문자열로 저장 (프론트에서 파싱해서 렌더링)
+        const briefing = JSON.stringify(structured);
 
         // ── 3. 캐시 저장 (upsert) ──
         await fetch(`${SUPABASE_URL}/rest/v1/ai_briefings`, {

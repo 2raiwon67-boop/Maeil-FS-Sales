@@ -67,29 +67,26 @@
             animation: miso-shimmer 1.4s ease infinite;
             border-radius: 6px;
         }
-        /* AI 브리핑 항목 블록 */
-        .briefing-block {
-            margin-bottom: 14px;
-            padding-bottom: 14px;
-            border-bottom: 1px solid rgba(0, 113, 227, 0.1);
+        /* AI 브리핑 항목 행 (컴팩트) */
+        .briefing-row {
+            display: flex;
+            gap: 6px;
+            padding: 5px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            border-bottom: 1px solid rgba(0, 113, 227, 0.07);
         }
-        .briefing-block:last-child {
-            margin-bottom: 0;
-            padding-bottom: 0;
-            border-bottom: none;
-        }
-        .briefing-block-label {
-            font-size: 12px;
+        .briefing-row:last-child { border-bottom: none; }
+        .briefing-row-icon { flex-shrink: 0; width: 18px; }
+        .briefing-row-label {
+            flex-shrink: 0;
             font-weight: 700;
             color: #0071e3;
-            margin-bottom: 5px;
-            letter-spacing: 0.3px;
+            font-size: 11px;
+            padding-top: 2px;
+            min-width: 36px;
         }
-        .briefing-block-body {
-            font-size: 14px;
-            color: #1d1d1f;
-            line-height: 1.75;
-        }
+        .briefing-row-body { color: #1d1d1f; }
 
         /* 로딩 오버레이 */
         .loading-spinner {
@@ -1717,28 +1714,45 @@
 
         // ① ② ③ ④ 섹션을 스타일 블록으로 파싱
         function formatBriefingText(text) {
-            if (!text) return '<div style="font-size:14px;color:#86868b;">브리핑 내용 없음</div>';
-            const ICONS  = { '①': '👤', '②': '🚧', '③': '💡', '④': '📦' };
-            const LABELS = { '①': '키맨 / 결정권자', '②': '반복 허들', '③': '추천 접근법', '④': '전환 제품' };
-            const LABEL_KEYWORDS = ['키맨', '결정권자', '허들', '장벽', '접근법', '추천', '반복', '전환', '제품'];
+            if (!text) return '<div style="font-size:13px;color:#86868b;">브리핑 내용 없음</div>';
 
+            // ── 신규 구조화 JSON 형식 ──
+            try {
+                const obj = JSON.parse(text);
+                if (obj && obj.keyman) {
+                    const rows = [
+                        { icon: '👤', label: '키맨', body: obj.keyman },
+                        { icon: '🚧', label: '허들', body: obj.hurdles },
+                        { icon: '💡', label: '접근법', body: obj.approach },
+                    ];
+                    if (obj.product) rows.push({ icon: '📦', label: '전환제품', body: obj.product });
+                    return rows.map(r => `
+                        <div class="briefing-row">
+                            <span class="briefing-row-icon">${r.icon}</span>
+                            <span class="briefing-row-label">${r.label}</span>
+                            <span class="briefing-row-body">${r.body.replace(/\n/g, '<br>')}</span>
+                        </div>`).join('');
+                }
+            } catch (_) {}
+
+            // ── 구버전 텍스트 폴백 (①②③④) ──
+            const ICONS  = { '①': '👤', '②': '🚧', '③': '💡', '④': '📦' };
+            const LABELS = { '①': '키맨', '②': '허들', '③': '접근법', '④': '전환제품' };
             const sections = text.split(/(?=[①②③④])/).filter(p => /^[①②③④]/.test(p));
             if (sections.length >= 2) {
                 return sections.map(s => {
                     const marker = s[0];
-                    const rest   = s.substring(1).trim();
-                    const lines  = rest.split('\n');
-                    const firstIsLabel = LABEL_KEYWORDS.some(k => lines[0].includes(k));
-                    const body   = firstIsLabel ? lines.slice(1).join('\n').trim() : rest;
-                    return `<div class="briefing-block">
-                        <div class="briefing-block-label">${ICONS[marker] || ''} ${LABELS[marker] || marker}</div>
-                        <div class="briefing-block-body">${body.replace(/\n/g, '<br>')}</div>
+                    const body   = s.substring(1).replace(/^[^\n]*키맨[^\n]*\n|^[^\n]*허들[^\n]*\n|^[^\n]*접근[^\n]*\n|^[^\n]*제품[^\n]*\n/i, '').trim();
+                    return `<div class="briefing-row">
+                        <span class="briefing-row-icon">${ICONS[marker] || ''}</span>
+                        <span class="briefing-row-label">${LABELS[marker] || marker}</span>
+                        <span class="briefing-row-body">${body.replace(/\n/g, '<br>')}</span>
                     </div>`;
                 }).join('');
             }
-            // 구분자 없을 때: 빈 줄로 단락 분리
-            return `<div class="briefing-block-body">${
-                text.split(/\n\n+/).map(p => `<p style="margin:0 0 10px">${p.replace(/\n/g, '<br>')}</p>`).join('')
+            // 구분자 없는 구버전 폴백
+            return `<div style="font-size:13px;color:#1d1d1f;line-height:1.7;">${
+                text.split(/\n\n+/).map(p => `<p style="margin:0 0 8px">${p.replace(/\n/g, '<br>')}</p>`).join('')
             }</div>`;
         }
 
