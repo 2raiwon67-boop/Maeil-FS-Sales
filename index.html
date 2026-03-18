@@ -5119,8 +5119,9 @@
                 const numFinalColor = (isToday || isSelected) ? 'white' : numColor;
                 const dotColor = isSelected ? 'white' : isToday ? 'white' : '#5856d6';
 
-                cells += `<div style="text-align:center;padding:3px 0;${isPast ? '' : 'cursor:pointer;'}position:relative;"
-                    ${!isPast ? `onclick="_onCalDateClick('${dateStr}',${hasPlan})"` : ''}>
+                cells += `<div style="text-align:center;padding:3px 0;cursor:pointer;position:relative;"
+                    onclick="${isPast ? `showToast('이전 날짜는 계획 수립이 불가합니다','warning')` : `_onCalDateClick('${dateStr}',${hasPlan})`}">
+
                     <div style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:${circleBg};color:${numFinalColor};font-size:13px;font-weight:${(isToday||isSelected)?'700':'400'};">${d}</div>
                     <div style="height:5px;display:flex;justify-content:center;align-items:center;margin-top:1px;">${hasPlan ? `<div style="width:5px;height:5px;background:${dotColor};border-radius:50%;"></div>` : ''}</div>
                 </div>`;
