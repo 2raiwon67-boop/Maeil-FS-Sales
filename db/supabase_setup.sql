@@ -272,8 +272,13 @@ CREATE TABLE IF NOT EXISTS quotes (
     quote_mode    TEXT DEFAULT 'custom',
     items         JSONB NOT NULL DEFAULT '[]',
     total_amount  INTEGER DEFAULT 0,
-    created_at    TIMESTAMPTZ DEFAULT now()
+    memo          TEXT DEFAULT '',
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    updated_at    TIMESTAMPTZ DEFAULT now()
 );
+-- 기존 테이블에 컬럼 없으면 추가 (멱등성)
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS memo TEXT DEFAULT '';
+ALTER TABLE quotes ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
 

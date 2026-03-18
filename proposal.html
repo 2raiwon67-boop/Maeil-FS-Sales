@@ -1454,7 +1454,7 @@
                         <button onclick="openQuotePickerModal()"
                             style="padding: 7px 16px; background: #ff9500; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">📂
                             불러오기</button>
-                        <button onclick="saveQuote()"
+                        <button id="saveQuoteBtn" onclick="saveQuote()"
                             style="padding: 7px 16px; background: #34c759; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">💾
                             저장</button>
                         <button onclick="generatePDF()"
@@ -1485,6 +1485,11 @@
                         <label class="input-label">거래처 명</label>
                         <input type="text" id="edit-customerName" class="input-field" placeholder="상호명 입력"
                             oninput="syncInfo()">
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">메모 <span style="font-size:11px;color:#aaa;font-weight:400;">(예: 초안, 최종확정, 2차방문)</span></label>
+                        <input type="text" id="edit-quoteMemo" class="input-field" placeholder="버전 구분용 메모 (선택)">
                     </div>
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
@@ -2766,12 +2771,22 @@
         // ===== 견적서 저장/불러오기 =====
         let _loadedQuoteId = null; // 불러온 견적서 ID (수정 저장용)
 
-        async function saveQuote() {
+        async function saveQuote(forceNew = false) {
             const user = await getUser();
             if (!user) { showToast('로그인이 필요합니다.', 'error'); return; }
 
             const businessUnit = user.user_metadata?.business_unit;
             if (!businessUnit) { showToast('사업부 정보가 없습니다. 관리자에게 문의하세요.', 'error'); return; }
+
+            // 불러온 견적 수정 시 저장 방식 선택
+            if (_loadedQuoteId && !forceNew) {
+                const choice = await _showSaveChoiceDialog();
+                if (choice === null) return; // 취소
+                if (choice === 'new') return saveQuote(true);
+            }
+
+            const btn = document.getElementById('saveQuoteBtn');
+            if (btn) { btn.disabled = true; btn.innerHTML = '⏳ 저장 중...'; }
 
             const editorRows = Array.from(document.querySelectorAll('#editor-items-container > div'));
             const items = editorRows.map(row => ({
@@ -2783,6 +2798,7 @@
                 desc: row.querySelector('.p-description').value
             }));
 
+            const now = new Date().toISOString();
             const payload = {
                 business_unit: businessUnit,
                 created_by: user.user_metadata?.full_name || user.email,
@@ -2790,19 +2806,44 @@
                 manager_name: document.getElementById('edit-managerName').value,
                 manager_phone: document.getElementById('edit-managerPhone').value,
                 quote_mode: document.querySelector('input[name="quoteMode"]:checked').value,
+                memo: document.getElementById('edit-quoteMemo')?.value || '',
                 items,
-                total_amount: parseInt(document.getElementById('edit-totalAmount').innerText.replace(/,/g, '')) || 0
+                total_amount: parseInt(document.getElementById('edit-totalAmount').innerText.replace(/,/g, '')) || 0,
+                updated_at: now
             };
 
             let error;
-            if (_loadedQuoteId) {
+            if (_loadedQuoteId && !forceNew) {
                 ({ error } = await client.from('quotes').update(payload).eq('id', _loadedQuoteId).eq('business_unit', businessUnit));
             } else {
+                _loadedQuoteId = null;
                 ({ error } = await client.from('quotes').insert(payload));
             }
 
+            if (btn) { btn.disabled = false; btn.innerHTML = '💾 저장'; }
             if (error) { showToast('저장 실패: ' + error.message, 'error'); return; }
-            showToast('견적서가 저장되었습니다.');
+            showToast('견적서가 저장되었습니다.', 'success');
+        }
+
+        function _showSaveChoiceDialog() {
+            return new Promise(resolve => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;';
+                overlay.innerHTML = `
+                    <div style="background:#fff;border-radius:16px;padding:24px;width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+                        <div style="font-size:15px;font-weight:700;margin-bottom:8px;">저장 방식 선택</div>
+                        <div style="font-size:13px;color:#666;margin-bottom:20px;">불러온 견적서를 어떻게 저장할까요?</div>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <button id="_sqOverwrite" style="padding:10px;background:#34c759;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">덮어쓰기 (현재 버전 갱신)</button>
+                            <button id="_sqNew" style="padding:10px;background:#0071e3;color:white;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;">새 견적으로 저장 (복사본 생성)</button>
+                            <button id="_sqCancel" style="padding:10px;background:none;color:#888;border:1px solid #ddd;border-radius:10px;font-size:13px;cursor:pointer;">취소</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#_sqOverwrite').onclick = () => { document.body.removeChild(overlay); resolve('overwrite'); };
+                overlay.querySelector('#_sqNew').onclick     = () => { document.body.removeChild(overlay); resolve('new'); };
+                overlay.querySelector('#_sqCancel').onclick  = () => { document.body.removeChild(overlay); resolve(null); };
+            });
         }
 
         function openQuotePickerModal() {
@@ -2826,25 +2867,28 @@
             if (!businessUnit) return;
 
             const { data, error } = await client.from('quotes')
-                .select('id, customer_name, created_by, total_amount, created_at')
+                .select('id, customer_name, created_by, total_amount, memo, created_at, updated_at')
                 .eq('business_unit', businessUnit)   // ← 내 지점 견적서만 조회
-                .order('created_at', { ascending: false })
+                .order('updated_at', { ascending: false })
                 .limit(20);
 
             if (error || !data?.length) {
                 document.getElementById('savedQuotesList').innerHTML = '<div style="font-size:12px;color:#aaa;text-align:center;padding:10px;">저장된 견적이 없습니다</div>';
                 return;
             }
-            document.getElementById('savedQuotesList').innerHTML = data.map(q => `
+            document.getElementById('savedQuotesList').innerHTML = data.map(q => {
+                const dateStr = new Date(q.updated_at || q.created_at).toLocaleDateString('ko-KR');
+                const memoHtml = q.memo ? `<span style="background:#f0f4ff;color:#0071e3;border-radius:4px;padding:1px 6px;font-size:11px;margin-left:4px;">${q.memo}</span>` : '';
+                return `
                 <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f9f9fb;border-radius:8px;border:1px solid #e5e5e5;">
                     <div style="flex:1;min-width:0;">
-                        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.customer_name || '(고객명 없음)'}</div>
-                        <div style="font-size:11px;color:#888;">${q.created_by} · ${new Date(q.created_at).toLocaleDateString('ko-KR')} · ${Number(q.total_amount).toLocaleString()}원</div>
+                        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${q.customer_name || '(고객명 없음)'}${memoHtml}</div>
+                        <div style="font-size:11px;color:#888;">${q.created_by} · 수정 ${dateStr} · ${Number(q.total_amount).toLocaleString()}원</div>
                     </div>
                     <button onclick="loadQuote('${q.id}')" style="padding:4px 10px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0;">불러오기</button>
                     <button onclick="deleteQuote('${q.id}', this)" style="padding:4px 8px;background:none;border:1px solid #ff3b30;color:#ff3b30;border-radius:6px;font-size:12px;cursor:pointer;flex-shrink:0;">삭제</button>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         async function loadQuote(id) {
@@ -2863,6 +2907,8 @@
             document.getElementById('edit-customerName').value = data.customer_name || '';
             document.getElementById('edit-managerName').value = data.manager_name || '';
             document.getElementById('edit-managerPhone').value = data.manager_phone || '';
+            const memoEl = document.getElementById('edit-quoteMemo');
+            if (memoEl) memoEl.value = data.memo || '';
             const modeInput = document.querySelector(`input[name="quoteMode"][value="${data.quote_mode}"]`);
             if (modeInput) { modeInput.checked = true; setQuoteMode(data.quote_mode); }
 
