@@ -3656,36 +3656,54 @@
             }
 
             let _coordsUpdated = false;
+            const _GEOCODE_BATCH = 5;
+
+            // Phase 1: 좌표 분류 — 캐시 히트 즉시 반영, 없는 것만 수집
+            const _needsGeocode = [];
+            for (const account of accountsData) {
+                const address = account['주소'] || '';
+                const name = account['거래처명'] || '';
+                if (!address && !name) continue;
+                if (account['_lat'] && account['_lng']) continue; // 이미 좌표 있음
+                const cacheKey = `maeil_geo_${address || name}`;
+                const cached = localStorage.getItem(cacheKey);
+                if (cached) {
+                    const c = JSON.parse(cached);
+                    account['_lat'] = c.lat;
+                    account['_lng'] = c.lng;
+                    _coordsUpdated = true;
+                } else {
+                    _needsGeocode.push({ account, address, name, cacheKey });
+                }
+            }
+
+            // Phase 2: 5개씩 병렬 geocoding
+            for (let _bi = 0; _bi < _needsGeocode.length; _bi += _GEOCODE_BATCH) {
+                const _batch = _needsGeocode.slice(_bi, _bi + _GEOCODE_BATCH);
+                await Promise.all(_batch.map(async ({ account, address, name, cacheKey }) => {
+                    try {
+                        const coords = await geocodeAddress(address || name);
+                        if (coords) {
+                            localStorage.setItem(cacheKey, JSON.stringify(coords));
+                            account['_lat'] = coords.lat;
+                            account['_lng'] = coords.lng;
+                            _coordsUpdated = true;
+                        }
+                    } catch (e) { /* geocode 실패 무시 */ }
+                }));
+            }
+
+            // Phase 3: 마커 생성 (좌표 확보된 계정만)
             for (const account of accountsData) {
                 const address = account['주소'] || '';
                 const name = account['거래처명'] || '';
                 const dealStatus = (account['거래상태'] || '').trim();
                 if (!address && !name) continue;
+                if (!account['_lat'] || !account['_lng']) continue;
+
+                const coords = { lat: account['_lat'], lng: account['_lng'] };
 
                 try {
-                    let coords = null;
-                    // accountsData에 좌표가 이미 있으면 지오코딩 완전 건너뜀
-                    if (account['_lat'] && account['_lng']) {
-                        coords = { lat: account['_lat'], lng: account['_lng'] };
-                    } else {
-                        const cacheKey = `maeil_geo_${address || name}`;
-                        const cached = localStorage.getItem(cacheKey);
-                        if (cached) {
-                            coords = JSON.parse(cached);
-                        } else {
-                            coords = await geocodeAddress(address || name);
-                            if (coords) {
-                                localStorage.setItem(cacheKey, JSON.stringify(coords));
-                            }
-                        }
-                        if (coords) {
-                            account['_lat'] = coords.lat;
-                            account['_lng'] = coords.lng;
-                            _coordsUpdated = true;
-                        }
-                    }
-                    if (!coords) continue;
-
                     const pos = new naver.maps.LatLng(coords.lat, coords.lng);
 
                     const marker = new naver.maps.Marker({
