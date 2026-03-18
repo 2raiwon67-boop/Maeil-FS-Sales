@@ -54,19 +54,13 @@
         /* ── 컨트롤 바 ── */
         .controls-bar {
             display: flex;
-            flex-direction: column;
-            gap: 14px;
+            align-items: center;
+            gap: 12px;
             background: white;
             border-radius: 14px;
             padding: 16px 20px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
             margin-bottom: 28px;
-        }
-
-        .controls-row {
-            display: flex;
-            align-items: center;
-            gap: 10px;
             flex-wrap: wrap;
         }
 
@@ -77,41 +71,19 @@
             white-space: nowrap;
         }
 
-        /* ── 월 / 담당자 pill 공통 ── */
-        .month-pills, .manager-pills {
-            display: flex;
-            gap: 6px;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-            padding-bottom: 2px;
-        }
-        .month-pills::-webkit-scrollbar,
-        .manager-pills::-webkit-scrollbar { display: none; }
-
-        .month-pill, .manager-pill {
-            padding: 6px 15px;
-            border: 1.5px solid #d2d2d7;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-            cursor: pointer;
-            background: white;
-            color: #3a3a3c;
-            transition: all 0.15s;
-            white-space: nowrap;
+        .report-select {
+            padding: 8px 14px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 14px;
             font-family: inherit;
-            flex-shrink: 0;
+            background: white;
+            cursor: pointer;
+            color: #1d1d1f;
         }
-        .month-pill:hover, .manager-pill:hover {
+        .report-select:focus {
+            outline: none;
             border-color: #0071e3;
-            color: #0071e3;
-        }
-        .month-pill.active, .manager-pill.active {
-            background: #0071e3;
-            border-color: #0071e3;
-            color: white;
-            font-weight: 600;
         }
 
         .btn-generate {
@@ -470,25 +442,26 @@
 
         @media (max-width: 768px) {
 
-            /* 컨트롤 바 */
+            /* 컨트롤 바: 세로 스택 */
             .controls-bar {
-                gap: 10px;
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
                 padding: 12px;
             }
 
-            .controls-row {
-                flex-wrap: wrap;
-                gap: 8px;
+            .report-select {
+                width: 100%;
             }
 
             .btn-generate {
-                flex: 1;
+                width: 100%;
                 margin-left: 0 !important;
             }
 
             .btn-print {
                 margin-left: 0;
-                flex: 1;
+                width: 100%;
                 text-align: center;
             }
 
@@ -561,16 +534,12 @@
 
         <!-- 컨트롤 -->
         <div class="controls-bar">
-            <div class="controls-row">
-                <label>보고 기간</label>
-                <div class="month-pills" id="monthPills"></div>
-                <button class="btn-generate" id="generateBtn" onclick="generateReport()" style="margin-left:auto;">보고서 생성</button>
-                <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
-            </div>
-            <div class="controls-row" id="managerFilterRow" style="display:none;">
-                <label>담당자</label>
-                <div class="manager-pills" id="managerPills"></div>
-            </div>
+            <label>보고 기간</label>
+            <select class="report-select" id="monthSelect"></select>
+            <label>담당자</label>
+            <select class="report-select" id="managerSelect" style="display:none;"></select>
+            <button class="btn-generate" id="generateBtn" onclick="generateReport()" style="margin-left:auto;">보고서 생성</button>
+            <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
         </div>
 
         <!-- 로딩 -->
@@ -607,13 +576,15 @@
         let selectedMonthValue = null;
         let selectedManagerName = null;   // null = 전체
         let isBranchManager = false;
+        let currentBusinessUnit = null;
+        let forceRegenerateAI = false;
 
         // ── 초기화 ────────────────────────────────────────────
         window.addEventListener('load', () => document.body.classList.add('loaded'));
 
         window.onload = async function () {
-            // 월 pill 초기화
-            initMonthPills();
+            // 월 선택기 초기화
+            initMonthSelect();
 
             // 인증
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
@@ -626,51 +597,45 @@
             document.getElementById('loadingState').style.display = 'none';
         };
 
-        // ── 월 pill 선택기 (최근 4개월) ──────────────────────
-        function initMonthPills() {
-            const container = document.getElementById('monthPills');
+        // ── 월 선택기 (최근 4개월) ───────────────────────────
+        function initMonthSelect() {
+            const sel = document.getElementById('monthSelect');
             const now = new Date();
             for (let i = 0; i < 4; i++) {
                 const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                 const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 const label = `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
-                const btn = document.createElement('button');
-                btn.className = 'month-pill' + (i === 1 ? ' active' : '');
-                btn.textContent = label;
-                btn.dataset.value = value;
-                btn.onclick = () => {
-                    document.querySelectorAll('.month-pill').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    selectedMonthValue = value;
-                };
-                container.appendChild(btn);
-                if (i === 1) selectedMonthValue = value; // 지난달 기본값
+                const opt = new Option(label, value);
+                if (i === 1) opt.selected = true; // 지난달 기본
+                sel.appendChild(opt);
             }
+            selectedMonthValue = sel.value;
+            sel.onchange = () => { selectedMonthValue = sel.value; };
         }
 
-        // ── 담당자 pill 선택기 ────────────────────────────────
-        function initManagerPills(managerNames) {
+        // ── 담당자 선택기 ─────────────────────────────────────
+        function initManagerSelect(managerNames) {
             if (!managerNames || managerNames.length === 0) return;
-            const row = document.getElementById('managerFilterRow');
-            const container = document.getElementById('managerPills');
-            row.style.display = 'flex';
+            const sel = document.getElementById('managerSelect');
+            sel.style.display = '';
 
             const myName = currentUser?.user_metadata?.full_name || '';
-            // 지점장이거나 내 이름이 목록에 없으면 '전체' 기본
-            const defaultName = (!isBranchManager && managerNames.includes(myName)) ? myName : '전체';
+            // 지점장: 첫 번째 담당자 기본 / 일반: 본인 이름 기본
+            const defaultName = isBranchManager
+                ? (managerNames[0] || '')
+                : (managerNames.includes(myName) ? myName : '');
 
-            ['전체', ...managerNames].forEach(name => {
-                const btn = document.createElement('button');
-                btn.className = 'manager-pill' + (name === defaultName ? ' active' : '');
-                btn.textContent = name;
-                btn.onclick = () => {
-                    document.querySelectorAll('.manager-pill').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    selectedManagerName = name === '전체' ? null : name;
-                };
-                container.appendChild(btn);
+            // 전체 옵션
+            sel.appendChild(new Option('전체', ''));
+
+            managerNames.forEach(name => {
+                const opt = new Option(name, name);
+                if (name === defaultName) opt.selected = true;
+                sel.appendChild(opt);
             });
-            selectedManagerName = defaultName === '전체' ? null : defaultName;
+
+            selectedManagerName = defaultName || null;
+            sel.onchange = () => { selectedManagerName = sel.value || null; };
         }
 
         function normalize(str) {
@@ -682,7 +647,8 @@
             try {
                 if (!client) throw new Error('Supabase client 초기화 오류');
                 const { data: userData } = await client.auth.getUser();
-                const businessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+                currentBusinessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+                const businessUnit = currentBusinessUnit;
                 const myName = userData?.user?.user_metadata?.full_name || '';
 
                 const applyFilter = (q) => businessUnit ? q.eq('business_unit', businessUnit) : q;
@@ -719,11 +685,13 @@
                 const managersData = mgrRes.data || [];
                 const myRow = managersData.find(m => normalize(m.manager_name) === normalize(myName));
                 isBranchManager = myRow?.is_branch_manager ?? false;
-                const managerNames = managersData
-                    .filter(m => !m.is_branch_manager && m.manager_name)
-                    .map(m => m.manager_name)
-                    .sort();
-                initManagerPills(managerNames);
+                // 중복 제거 (region별로 여러 행이 있을 수 있음)
+                const managerNames = [...new Set(
+                    managersData
+                        .filter(m => !m.is_branch_manager && m.manager_name)
+                        .map(m => m.manager_name.trim())
+                )].sort();
+                initManagerSelect(managerNames);
 
             } catch (e) {
                 console.error('데이터 로드 오류:', e);
@@ -1027,12 +995,92 @@
             return s || '-';
         }
 
+        // ── AI 보고서 캐시 (report_cache) ────────────────────
+        async function getAICache(reportMonth, managerName) {
+            if (!currentBusinessUnit) return null;
+            try {
+                const { data } = await client.from('report_cache')
+                    .select('ai_content, generated_at')
+                    .eq('business_unit', currentBusinessUnit)
+                    .eq('report_month', reportMonth)
+                    .eq('manager_name', managerName || '')
+                    .maybeSingle();
+                if (!data) return null;
+                // 4개월 초과 시 만료
+                const diffMonths = (new Date().getFullYear() - new Date(data.generated_at).getFullYear()) * 12
+                    + (new Date().getMonth() - new Date(data.generated_at).getMonth());
+                if (diffMonths >= 4) {
+                    client.from('report_cache').delete()
+                        .eq('business_unit', currentBusinessUnit)
+                        .eq('report_month', reportMonth)
+                        .eq('manager_name', managerName || '').then(() => {});
+                    return null;
+                }
+                return data.ai_content;
+            } catch { return null; }
+        }
+
+        async function saveAICache(reportMonth, managerName, aiContent) {
+            if (!currentBusinessUnit) return;
+            try {
+                await client.from('report_cache').upsert({
+                    business_unit: currentBusinessUnit,
+                    report_month: reportMonth,
+                    manager_name: managerName || '',
+                    ai_content: aiContent,
+                    generated_at: new Date().toISOString()
+                }, { onConflict: 'business_unit,report_month,manager_name' });
+            } catch { /* 캐시 저장 실패는 무시 */ }
+        }
+
+        function formatAIContent(raw) {
+            const formatted = raw
+                .replace(/\*\*(.+?)\*\*/g, '$1')
+                .replace(/\*(.+?)\*/g, '$1')
+                .replace(/^#{1,4}\s+/gm, '')
+                .replace(/^[-•]\s+/gm, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+            const sections = formatted.split(/(?=\d\. )/);
+            return { html: sections.map(sec => {
+                const m = sec.match(/^(\d+\. [^\n]+)\n([\s\S]*)/);
+                if (m) return `<div style="margin-bottom:20px;"><div style="font-weight:700;font-size:15px;color:#1d1d1f;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #e8e8ed;">${m[1]}</div><div style="font-size:14px;line-height:1.9;color:#3a3a3c;white-space:pre-wrap;">${m[2].trim()}</div></div>`;
+                return `<div style="font-size:14px;line-height:1.9;color:#3a3a3c;white-space:pre-wrap;">${sec.trim()}</div>`;
+            }).join(''), raw: formatted };
+        }
+
+        // "새로 생성" 버튼 핸들러
+        window.regenAI = function () { forceRegenerateAI = true; generateReport(); };
+
         // ── Gemini AI 분석 ────────────────────────────────────
         async function runAIAnalysis({ selYear, selMonth, managerName, constructionAccounts,
             majorAccounts, licenseAccounts, noVisitConstruction, monthLogs }) {
+            const reportMonth = `${selYear}-${String(selMonth).padStart(2, '0')}`;
             const periodLabel = `${selYear}년 ${selMonth}월`;
+            const aiContentEl = document.getElementById('aiContent');
 
-            // 반복 문구 제거 후 핵심 내용만 추출
+            // ── 캐시 확인 (forceRegenerate 아닐 때만) ──────────
+            if (!forceRegenerateAI) {
+                aiContentEl.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>캐시 확인 중...</div>`;
+                const cached = await getAICache(reportMonth, managerName);
+                if (cached) {
+                    const { html } = formatAIContent(cached);
+                    const genDate = new Date(cached.__generatedAt || 0);
+                    aiContentEl.innerHTML = `
+                        <div style="font-size:12px;color:#86868b;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <span>저장된 보고서입니다.</span>
+                            <button onclick="regenAI()" style="padding:3px 12px;border:1px solid #d2d2d7;border-radius:12px;background:white;font-size:12px;cursor:pointer;font-family:inherit;color:#3a3a3c;">새로 생성</button>
+                        </div>
+                        ${html}`;
+                    forceRegenerateAI = false;
+                    return;
+                }
+            }
+            forceRegenerateAI = false;
+
+            // ── AI 생성 ─────────────────────────────────────────
+            aiContentEl.innerHTML = `<div class="ai-loading"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div>Gemini가 ${periodLabel} 활동을 분석하고 있습니다...</div>`;
+
             const visitSummary = monthLogs.slice(0, 70).map(l => {
                 const date = formatDate(l['작성일'] || l['일정기간']);
                 const place = l['방문처(거래처)'] || '';
@@ -1085,40 +1133,18 @@ ${majorAccounts.map(a => `${a.name}(${a.status || '-'}) ${a.visits.length}회`).
                 const res = await fetch('/api/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prompt,
-                        generationConfig: {
-                            temperature: 0.3,
-                            maxOutputTokens: 8192
-                        }
-                    })
+                    body: JSON.stringify({ prompt, generationConfig: { temperature: 0.3, maxOutputTokens: 8192 } })
                 });
-
                 const json = await res.json();
-                const raw = json.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 가져오지 못했습니다.';
+                const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '분석 결과를 가져오지 못했습니다.';
+                const { html } = formatAIContent(rawText);
 
-                // 마크다운 기호 제거 및 줄바꿈으로 포맷팅
-                const formatted = raw
-                    .replace(/\*\*(.+?)\*\*/g, '$1')  // **bold** 제거
-                    .replace(/\*(.+?)\*/g, '$1')        // *italic* 제거
-                    .replace(/^#{1,4}\s+/gm, '')         // ## 헤더 제거
-                    .replace(/^[-•]\s+/gm, '')           // 목록 기호 제거
-                    .replace(/\n{3,}/g, '\n\n')           // 과도한 빈줄 정리
-                    .trim();
+                // 캐시 저장 (비동기)
+                saveAICache(reportMonth, managerName, rawText);
 
-                // 항목별로 분리하여 카드 형태로 렌더링
-                const sections = formatted.split(/(?=\d\. )/);
-                const html = sections.map(sec => {
-                    const titleMatch = sec.match(/^(\d+\. [^\n]+)\n([\s\S]*)/);
-                    if (titleMatch) {
-                        return `<div style="margin-bottom:20px;"><div style="font-weight:700;font-size:15px;color:#1d1d1f;margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid #e8e8ed;">${titleMatch[1]}</div><div style="font-size:14px;line-height:1.9;color:#3a3a3c;white-space:pre-wrap;">${titleMatch[2].trim()}</div></div>`;
-                    }
-                    return `<div style="font-size:14px;line-height:1.9;color:#3a3a3c;white-space:pre-wrap;">${sec.trim()}</div>`;
-                }).join('');
-
-                document.getElementById('aiContent').innerHTML = html || `<div class="ai-content">${formatted}</div>`;
+                aiContentEl.innerHTML = html || `<div class="ai-content">${rawText}</div>`;
             } catch (e) {
-                document.getElementById('aiContent').innerHTML =
+                aiContentEl.innerHTML =
                     `<div class="ai-content" style="color:#86868b;">AI 분석을 불러올 수 없습니다. (${e.message})</div>`;
             }
         }
