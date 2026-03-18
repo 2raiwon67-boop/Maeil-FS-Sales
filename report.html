@@ -657,7 +657,7 @@
                     applyFilter(client.from('visit_logs').select('*').order('visit_date', { ascending: false })),
                     applyFilter(client.from('accounts').select('*')),
                     applyFilter(client.from('licenses').select('*')),
-                    applyFilter(client.from('managers').select('manager_name,is_branch_manager'))
+                    applyFilter(client.from('managers').select('manager_name,region2,is_branch_manager'))
                 ]);
 
                 if (vlRes.error) throw vlRes.error;
@@ -681,14 +681,14 @@
                     return obj;
                 });
 
-                // 담당자 목록 + 지점장 여부
+                // 담당자 목록 + 지점장 여부 (region2='지점장' 또는 is_branch_manager=true 이면 지점장)
                 const managersData = mgrRes.data || [];
                 const myRow = managersData.find(m => normalize(m.manager_name) === normalize(myName));
-                isBranchManager = myRow?.is_branch_manager ?? false;
-                // 중복 제거 (region별로 여러 행이 있을 수 있음)
+                isBranchManager = myRow?.is_branch_manager || myRow?.region2 === '지점장' || false;
+                // 중복 제거, 지점장(region2='지점장' 또는 is_branch_manager) 제외
                 const managerNames = [...new Set(
                     managersData
-                        .filter(m => !m.is_branch_manager && m.manager_name)
+                        .filter(m => !m.is_branch_manager && m.region2 !== '지점장' && m.manager_name)
                         .map(m => m.manager_name.trim())
                 )].sort();
                 initManagerSelect(managerNames);
