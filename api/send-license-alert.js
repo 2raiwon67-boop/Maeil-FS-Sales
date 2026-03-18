@@ -136,8 +136,7 @@ export default async function handler(req, res) {
                 const myNew     = unitNew.filter(t => t.manager === managerName);
                 const myRevisit = unitRevisit.filter(t => t.manager === managerName);
                 const targets   = { newObj: myNew, revisitObj: myRevisit };
-                const routeStops = optimizeRoute(targets);
-                const html = buildAlertEmailHtml(managerName, targets, routeStops);
+                const html = buildAlertEmailHtml(managerName, targets);
 
                 const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
                     method: 'POST',
@@ -163,8 +162,7 @@ export default async function handler(req, res) {
             // 4-2. 지점장: 본인 지점 전체 건
             for (const email of branchEmails) {
                 const targets    = { newObj: unitNew, revisitObj: unitRevisit };
-                const routeStops = optimizeRoute(targets);
-                const html = buildAlertEmailHtml('전체', targets, routeStops);
+                const html = buildAlertEmailHtml('전체', targets);
 
                 const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
                     method: 'POST',
@@ -202,71 +200,8 @@ export default async function handler(req, res) {
     }
 }
 
-// ── Nearest Neighbor TSP 동선 최적화 (최대 5건) ─────────────
-function calculateDistance(lat1, lng1, lat2, lng2) {
-    if (!lat1 || !lng1 || !lat2 || !lng2) return 9999;
-    const R    = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a    = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                 Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                 Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function optimizeRoute(targets) {
-    const all = [...targets.newObj, ...targets.revisitObj];
-    const valid = all.filter(t => {
-        const lat = parseFloat(t.lat), lng = parseFloat(t.lng);
-        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
-    });
-    if (valid.length === 0) return [];
-
-    // 앵커: D+14(인허가) 우선, 없으면 첫 번째 유효 항목
-    const anchor = valid.find(t => t.status === '인허가') || valid[0];
-    anchor._routeDist = 0;
-
-    const unvisited = valid.filter(t => t !== anchor).slice(0, 4); // 최대 4개 추가 = 총 5건
-    const ordered   = [anchor];
-    let   cur       = anchor;
-
-    while (unvisited.length > 0) {
-        let minDist = 9999, nearestIdx = -1;
-        for (let j = 0; j < unvisited.length; j++) {
-            const d = calculateDistance(
-                parseFloat(cur.lat), parseFloat(cur.lng),
-                parseFloat(unvisited[j].lat), parseFloat(unvisited[j].lng)
-            );
-            if (d < minDist) { minDist = d; nearestIdx = j; }
-        }
-        const nearest = unvisited.splice(nearestIdx, 1)[0];
-        nearest._routeDist = minDist;
-        ordered.push(nearest);
-        cur = nearest;
-    }
-    return ordered;
-}
-
-// ── 네이버 지도 경로 URL ────────────────────────────────────
-function buildNaverRouteUrl(routeStops) {
-    if (!routeStops || routeStops.length === 0) return '';
-    const enc  = encodeURIComponent;
-    const dest = routeStops[routeStops.length - 1];
-
-    if (routeStops.length === 1) {
-        return `https://map.naver.com/p/directions/-/${parseFloat(dest.lng).toFixed(6)},${parseFloat(dest.lat).toFixed(6)},${enc(dest.name || '목적지')}/-/car`;
-    }
-
-    const waypoints = routeStops.slice(0, -1);
-    let params = `dlat=${parseFloat(dest.lat).toFixed(6)}&dlng=${parseFloat(dest.lng).toFixed(6)}&dname=${enc(dest.name || '목적지')}`;
-    waypoints.forEach((wp, i) => {
-        params += `&v${i+1}lat=${parseFloat(wp.lat).toFixed(6)}&v${i+1}lng=${parseFloat(wp.lng).toFixed(6)}&v${i+1}name=${enc(wp.name || `경유지${i+1}`)}`;
-    });
-    return `nmap://route/car?${params}`;
-}
-
 // ── 이메일 HTML 생성 (Outlook 호환 테이블 기반 레이아웃) ────
-function buildAlertEmailHtml(managerName, targets, routeStops) {
+function buildAlertEmailHtml(managerName, targets) {
     const today = new Date().toLocaleDateString('ko-KR');
 
     const TH_CENTER = 'background-color:#f1f3f5; color:#495057; font-weight:bold; padding:10px 12px; text-align:center; border:1px solid #dee2e6; white-space:nowrap;';
@@ -309,53 +244,6 @@ function buildAlertEmailHtml(managerName, targets, routeStops) {
 <tr><td style="padding-bottom:6px; font-size:15px; font-weight:bold; color:${color};">${text}</td></tr>
 </table>`;
 
-    // 동선 최적화 섹션
-    let routeSection = '';
-    if (routeStops.length > 0) {
-        const totalDist = routeStops.reduce((sum, s) => sum + (s._routeDist || 0), 0);
-        const naverUrl  = buildNaverRouteUrl(routeStops);
-
-        const routeRows = routeStops.map((s, idx) => {
-            const isConst  = s.status === '공사중';
-            const bdgBg    = isConst ? '#fff3bf' : '#dbeafe';
-            const bdgColor = isConst ? '#b45309' : '#1a56db';
-            const distTxt  = idx === 0
-                ? '<span style="color:#03C75A; font-weight:bold;">&#xCD9C;&#xBC1C;</span>'
-                : `+ ${(s._routeDist || 0).toFixed(1)}km`;
-            return `<tr>
-<td style="${TD} text-align:center; font-weight:bold; color:#1a56db; width:36px;">${idx + 1}</td>
-<td style="${TD} font-weight:600;">${s.name || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap;"><span style="background-color:${bdgBg}; color:${bdgColor}; padding:3px 10px; font-size:11px; font-weight:bold; white-space:nowrap;">${s.status || '-'}</span></td>
-<td style="${TD} color:#555; font-size:12px;">${s.address || '-'}</td>
-<td style="${TD} text-align:center; color:#868e96; font-size:12px; white-space:nowrap;">${distTxt}</td>
-</tr>`;
-        }).join('');
-
-        const naverBtn = naverUrl
-            ? `<a href="${naverUrl}" style="background-color:#03C75A; color:#ffffff; padding:7px 16px; text-decoration:none; font-size:12px; font-weight:bold;">&#128205; &#xB124;&#xC774;&#xBC84; &#xC9C0;&#xB3C4;&#xB85C; &#xC5F4;&#xAE30;</a>`
-            : '';
-
-        routeSection =
-            sectionTitle('#2c3e50', '&#128506; &#xC624;&#xB298;&#xC758; &#xCD94;&#xCC9C; &#xB3D9;&#xC120; (' + routeStops.length + '&#xAC74;)') +
-            '<p style="font-size:12px; color:#868e96; margin:0 0 8px 0;">&#xCCAB; &#xBC88;&#xC9F8; &#xB300;&#xC0C1; &#xAE30;&#xC900;&#xC73C;&#xB85C; &#xC774;&#xB3D9;&#xAC70;&#xB9AC;&#xB97C; &#xCD5C;&#xC18C;&#xD654;&#xD55C; &#xBC29;&#xBB38; &#xC21C;&#xC11C;&#xC785;&#xB2C8;&#xB2E4;. (&#xC9C1;&#xC120;&#xAC70;&#xB9AC; &#xAE30;&#xC900;, &#xCD5C;&#xB300; 5&#xAC74;)</p>' +
-            `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:8px 0 12px 0; font-size:13px;">
-<thead><tr>
-<th style="${TH_CENTER} width:36px;">&#xC21C;&#xC11C;</th>
-<th style="${TH_LEFT}">&#xC0AC;&#xC5C5;&#xC7A5;&#xBA85;</th>
-<th style="${TH_CENTER}">&#xC0C1;&#xD0DC;</th>
-<th style="${TH_LEFT}">&#xC8FC;&#xC18C;</th>
-<th style="${TH_CENTER}">&#xAD6C;&#xAC04;&#xAC70;&#xB9AC;</th>
-</tr></thead>
-<tbody>${routeRows}</tbody>
-</table>` +
-            `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px;">
-<tr>
-<td style="padding:6px 0; font-size:12px; color:#555;">&#8251; &#xCD1D; &#xC608;&#xC0C1; &#xC774;&#xB3D9;&#xAC70;&#xB9AC; (&#xC9C1;&#xC120;): <strong>&#xC57D; ${totalDist.toFixed(1)}km</strong></td>
-<td align="right">${naverBtn}</td>
-</tr>
-</table>`;
-    }
-
     const newSection = targets.newObj.length > 0
         ? sectionTitle('#1c7ed6', '&#128640; 1. &#xC2E0;&#xADDC; &#xB4F1;&#xB85D; &#xB300;&#xC0C1; (D+14)') +
           '<p style="font-size:12px; color:#868e96; margin:0 0 8px 0;">&#xC778;&#xD5C8;&#xAC00; &#xB4F1;&#xB85D; &#xD6C4; 14&#xC77C;&#xC774; &#xACBD;&#xACFC;&#xD55C; &#xC0AC;&#xC5C5;&#xC7A5; &#xBAA9;&#xB85D;&#xC785;&#xB2C8;&#xB2E4;.</p>' +
@@ -389,14 +277,13 @@ function buildAlertEmailHtml(managerName, targets, routeStops) {
 <tr>
   <td style="padding:30px; background-color:#ffffff;">
     <p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">${managerName}&#xB2D8;, &#xC548;&#xB155;&#xD558;&#xC2ED;&#xB2C8;&#xAE4C;,<br>&#xAE08;&#xC77C; &#xAE30;&#xC900; &#xBC29;&#xBB38;&#xC774; &#xD544;&#xC694;&#xD55C; &#xC0AC;&#xC5C5;&#xC7A5; &#xB9AC;&#xC2A4;&#xD2B8;&#xB97C; &#xC1A1;&#xBD80;&#xB4DC;&#xB9BD;&#xB2C8;&#xB2E4;.<br>&#xBC29;&#xBB38; &#xC77C;&#xC815; &#xC870;&#xC728;&#xC5D0; &#xCC38;&#xACE0;&#xD558;&#xC2DC;&#xAE30; &#xBC14;&#xB78D;&#xB2C8;&#xB2E4;.</p>
-    ${routeSection}
     ${newSection}
     ${revisitSection}
   </td>
 </tr>
 <tr>
   <td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:18px 30px; border-top:1px solid #dee2e6; text-align:center;">
-    <p style="margin:0 0 4px 0; font-size:12px; color:#868e96;">&#xACBD;&#xAE30;&#xBD81;&#xBD80; FS &#xC601;&#xC5C5;&#xD300; | &#xC790;&#xB3D9; &#xBC1C;&#xC1A1; &#xC2DC;&#xC2A4;&#xD15C;</p>
+    <p style="margin:0 0 4px 0; font-size:12px; color:#868e96;">FS MISO | &#xC790;&#xB3D9; &#xBC1C;&#xC1A1; &#xC2DC;&#xC2A4;&#xD15C;</p>
     <p style="margin:0; font-size:11px; color:#adb5bd;">&#xBCF8; &#xC774;&#xBA54;&#xC77C;&#xC740; FS MISO AI&#xC2DC;&#xC2A4;&#xD15C;&#xC5D0; &#xC758;&#xD574; &#xBC1C;&#xC1A1;&#xB418;&#xC5C8;&#xC2B5;&#xB2C8;&#xB2E4;.</p>
   </td>
 </tr>
