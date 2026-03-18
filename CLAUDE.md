@@ -117,4 +117,4 @@ marker._origIcon  // 장바구니 담길 때 원본 저장
 
 ## 상세 작업 이력
 
-`.claude/skills/claude_대화파일.md` 참고
+`.claude/docs/claude_대화파일.md` 참고
