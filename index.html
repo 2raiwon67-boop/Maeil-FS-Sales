@@ -1435,6 +1435,18 @@
             display: none;
         }
 
+        /* 일정 생성 모드 플로팅 뱃지 */
+        #planModeBadge {
+            top: 60px;
+            right: 12px;
+        }
+        @media (max-width: 768px) {
+            #planModeBadge {
+                top: 56px;
+                right: 10px;
+            }
+        }
+
         /* 카트 뱃지 모바일 위치 고정 (inline style override) */
         @media (max-width: 768px) {
             #cartFloatBadge {
@@ -4984,7 +4996,9 @@
                 }, { onConflict: 'business_unit,manager,visit_date' });
 
                 if (error) throw error;
-                showToast(`${date} 방문 일정이 저장되었습니다`, 'success');
+                document.getElementById('planModeBadge')?.remove();
+                window._pendingPlanDate = null;
+                showToast('일정이 생성되었습니다! 🎉', 'success');
             } catch (e) {
                 showToast('일정 저장에 실패했습니다', 'error');
             }
@@ -4994,6 +5008,13 @@
         window._openMyPlans = async function () {
             const existing = document.getElementById('myPlansModal');
             if (existing) existing.remove();
+
+            // 캘린더 상태 초기화
+            const now = new Date();
+            window._calYear = now.getFullYear();
+            window._calMonth = now.getMonth();
+            window._calSelectedDate = null;
+            window._calPlansData = [];
 
             const overlay = document.createElement('div');
             overlay.id = 'myPlansModal';
@@ -5022,70 +5043,188 @@
 
             const bu = _indexBusinessUnit ?? null;
             const today = new Date().toISOString().split('T')[0];
-            const todayDefault = today;
 
-            // 현재 경유지 저장 섹션
-            const cartSection = routeCart.length > 0 ? `
-                <div style="background:#f0f6ff;border:1.5px solid #cce0ff;border-radius:12px;padding:14px;margin-bottom:18px;">
-                    <div style="font-size:13px;font-weight:700;color:#1d1d1f;margin-bottom:10px;">현재 경유지 저장 <span style="color:#5856d6;font-weight:800;">(${routeCart.length}곳)</span></div>
-                    <div style="font-size:12px;color:#3a3a3c;margin-bottom:10px;">${routeCart.map(c => `• ${_cartEsc(c.name)}`).join('<br>')}</div>
-                    <input type="date" id="myPlanDateInput" value="${todayDefault}" min="${today}" style="width:100%;padding:8px 10px;border:1px solid #d2d2d7;border-radius:8px;font-size:13px;box-sizing:border-box;margin-bottom:8px;">
-                    <button onclick="_saveMyPlan()" style="width:100%;padding:10px;background:#5856d6;color:white;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer;">일정 저장하기</button>
-                </div>` : '';
+            // 과거 일정 자동 삭제
+            try {
+                await client.from('visit_plans')
+                    .delete()
+                    .eq('business_unit', bu)
+                    .eq('manager', myManagerName)
+                    .lt('visit_date', today);
+            } catch (e) { /* 삭제 실패 시 무시 */ }
 
-            // visit_plans 조회
-            let plans = [];
+            // 앞으로 2달치 일정 조회
+            const twoMonthsLater = new Date();
+            twoMonthsLater.setMonth(twoMonthsLater.getMonth() + 2);
+            const maxDate = twoMonthsLater.toISOString().split('T')[0];
+
             try {
                 const { data } = await client.from('visit_plans')
                     .select('visit_date, items')
                     .eq('business_unit', bu)
                     .eq('manager', myManagerName)
                     .gte('visit_date', today)
+                    .lte('visit_date', maxDate)
                     .order('visit_date', { ascending: true });
-                plans = data || [];
-            } catch (e) { /* 조회 실패 */ }
+                window._calPlansData = data || [];
+            } catch (e) { window._calPlansData = []; }
 
-            const plansHtml = plans.length === 0
-                ? `<div style="text-align:center;color:#86868b;font-size:13px;padding:12px 0;">저장된 일정이 없습니다</div>`
-                : plans.map((p, pi) => {
-                    const d = new Date(p.visit_date + 'T00:00:00');
-                    const label = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-                    const isToday = p.visit_date === today;
-                    const items = (p.items || []).map(it => `<div style="font-size:12px;color:#3a3a3c;padding:2px 0;">• ${_cartEsc(it.name)}</div>`).join('');
-                    return `
-                        <div style="margin-bottom:14px;padding:12px;background:#f5f5f7;border-radius:12px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                                <div style="font-size:14px;font-weight:700;color:#1d1d1f;">${label}${isToday ? ' <span style="background:#ff9500;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;vertical-align:middle;">오늘</span>' : ''}</div>
-                                <button onclick="_loadPlanToCart(${pi})" style="padding:5px 10px;background:#5856d6;color:white;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;">경유지 불러오기</button>
-                            </div>
-                            ${items}
-                        </div>`;
-                }).join('');
-
-            body.innerHTML = cartSection
-                + `<div style="font-size:12px;font-weight:700;color:#86868b;margin-bottom:10px;">저장된 일정</div>`
-                + plansHtml;
-
-            // 데이터 캐시 (불러오기용)
-            window._myPlansCache = plans;
+            _renderCalView();
         }
 
-        async function _saveMyPlan() {
-            const dateInput = document.getElementById('myPlanDateInput');
-            const date = dateInput?.value;
+        function _renderCalView() {
+            const body = document.getElementById('myPlansBody');
+            if (!body) return;
+
+            const planDates = new Set((window._calPlansData || []).map(p => p.visit_date));
+            const calHtml = _buildCalendarHtml(window._calYear, window._calMonth, planDates);
+
+            let detailHtml = '';
+            if (window._calSelectedDate) {
+                detailHtml = _buildPlanDetailHtml(window._calSelectedDate);
+            }
+
+            body.innerHTML = calHtml + detailHtml;
+        }
+
+        function _buildCalendarHtml(year, month, planDates) {
+            const today = new Date().toISOString().split('T')[0];
+            const monthNames = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+            const dayNames = ['일','월','화','수','목','금','토'];
+
+            const now = new Date();
+            const minYear = now.getFullYear(), minMonth = now.getMonth();
+            const maxMonth2 = new Date(minYear, minMonth + 2, 0);
+            const maxYear = maxMonth2.getFullYear(), maxMonthIdx = maxMonth2.getMonth();
+
+            const canPrev = !(year === minYear && month === minMonth);
+            const canNext = !(year === maxYear && month === maxMonthIdx);
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const lastDate = new Date(year, month + 1, 0).getDate();
+
+            let cells = '';
+            for (let i = 0; i < firstDay; i++) cells += '<div></div>';
+
+            for (let d = 1; d <= lastDate; d++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const isPast = dateStr < today;
+                const isToday = dateStr === today;
+                const isSelected = dateStr === window._calSelectedDate;
+                const hasPlan = planDates.has(dateStr);
+                const dow = (firstDay + d - 1) % 7;
+
+                const numColor = isPast ? '#c7c7cc' : dow === 0 ? '#ff3b30' : dow === 6 ? '#5856d6' : '#1d1d1f';
+                const circleBg = isSelected ? '#1d1d1f' : isToday ? '#5856d6' : 'transparent';
+                const numFinalColor = (isToday || isSelected) ? 'white' : numColor;
+                const dotColor = isSelected ? 'white' : isToday ? 'white' : '#5856d6';
+
+                cells += `<div style="text-align:center;padding:3px 0;${isPast ? '' : 'cursor:pointer;'}position:relative;"
+                    ${!isPast ? `onclick="_onCalDateClick('${dateStr}',${hasPlan})"` : ''}>
+                    <div style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;background:${circleBg};color:${numFinalColor};font-size:13px;font-weight:${(isToday||isSelected)?'700':'400'};">${d}</div>
+                    <div style="height:5px;display:flex;justify-content:center;align-items:center;margin-top:1px;">${hasPlan ? `<div style="width:5px;height:5px;background:${dotColor};border-radius:50%;"></div>` : ''}</div>
+                </div>`;
+            }
+
+            return `<div style="margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <button onclick="_calNav(-1)" style="background:none;border:none;font-size:22px;cursor:pointer;color:${canPrev?'#5856d6':'#c7c7cc'};padding:4px 10px;line-height:1;" ${canPrev?'':'disabled'}>‹</button>
+                    <div style="font-size:15px;font-weight:700;color:#1d1d1f;">${year}년 ${monthNames[month]}</div>
+                    <button onclick="_calNav(1)" style="background:none;border:none;font-size:22px;cursor:pointer;color:${canNext?'#5856d6':'#c7c7cc'};padding:4px 10px;line-height:1;" ${canNext?'':'disabled'}>›</button>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px;">
+                    ${dayNames.map((n,i) => `<div style="text-align:center;font-size:11px;font-weight:600;color:${i===0?'#ff3b30':i===6?'#5856d6':'#86868b'};padding:2px 0;">${n}</div>`).join('')}
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(7,1fr);">${cells}</div>
+            </div>`;
+        }
+
+        function _buildPlanDetailHtml(dateStr) {
+            const plan = (window._calPlansData || []).find(p => p.visit_date === dateStr);
+            const d = new Date(dateStr + 'T00:00:00');
+            const label = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+            const today = new Date().toISOString().split('T')[0];
+            const isToday = dateStr === today;
+
+            if (!plan) {
+                // 일정 없는 날 → 생성 유도
+                return `<div style="border-top:1px solid #e5e5ea;padding-top:16px;margin-top:4px;">
+                    <div style="font-size:14px;font-weight:700;color:#1d1d1f;margin-bottom:6px;">${label}${isToday ? ' <span style="background:#ff9500;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;vertical-align:middle;">오늘</span>' : ''}</div>
+                    <div style="font-size:13px;color:#86868b;margin-bottom:14px;">저장된 일정이 없습니다.</div>
+                    <button onclick="_startPlanMode('${dateStr}')" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">📍 이 날 일정 만들기</button>
+                </div>`;
+            }
+
+            // 일정 있는 날 → 상세 표시
+            const items = (plan.items || []);
+            const itemsHtml = items.map(it => `<div style="font-size:13px;color:#3a3a3c;padding:3px 0;">• ${_cartEsc(it.name)}</div>`).join('');
+            return `<div style="border-top:1px solid #e5e5ea;padding-top:16px;margin-top:4px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <div style="font-size:14px;font-weight:700;color:#1d1d1f;">${label}${isToday ? ' <span style="background:#ff9500;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;vertical-align:middle;">오늘</span>' : ''}</div>
+                    <button onclick="_deletePlan('${dateStr}')" style="background:none;border:1px solid #ff3b30;color:#ff3b30;padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;">삭제</button>
+                </div>
+                <div style="background:#f5f5f7;border-radius:10px;padding:10px 12px;margin-bottom:12px;">${itemsHtml}</div>
+                <button onclick="_loadPlanItemsToCart(${JSON.stringify(items).replace(/"/g,'&quot;')})" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">경유지 불러오기 + 동선 최적화</button>
+            </div>`;
+        }
+
+        function _onCalDateClick(dateStr, hasPlan) {
+            window._calSelectedDate = (window._calSelectedDate === dateStr) ? null : dateStr;
+            _renderCalView();
+        }
+
+        function _calNav(delta) {
+            let m = window._calMonth + delta;
+            let y = window._calYear;
+            if (m < 0) { m = 11; y--; }
+            if (m > 11) { m = 0; y++; }
+            window._calMonth = m;
+            window._calYear = y;
+            window._calSelectedDate = null;
+            _renderCalView();
+        }
+
+        // ── 일정 생성 모드 ──
+        function _startPlanMode(dateStr) {
+            document.getElementById('myPlansModal')?.remove();
+            window._pendingPlanDate = dateStr;
+
+            const existing = document.getElementById('planModeBadge');
+            if (existing) existing.remove();
+
+            const d = new Date(dateStr + 'T00:00:00');
+            const label = d.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
+
+            const badge = document.createElement('div');
+            badge.id = 'planModeBadge';
+            badge.style.cssText = 'position:fixed;top:60px;right:12px;z-index:9000;background:#5856d6;color:white;padding:9px 12px;border-radius:12px;display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(88,86,214,0.5);font-size:13px;';
+            badge.innerHTML = `<span>📅 ${label}</span>
+                <button onclick="_completePlanMode()" style="background:rgba(255,255,255,0.25);border:none;color:white;padding:4px 10px;border-radius:7px;font-size:12px;font-weight:700;cursor:pointer;">완료</button>
+                <button onclick="_cancelPlanMode()" style="background:none;border:none;color:rgba(255,255,255,0.75);font-size:18px;cursor:pointer;padding:0;line-height:1;">✕</button>`;
+            document.body.appendChild(badge);
+
+            showToast('지도에서 경유지를 담은 후 완료를 눌러주세요', 'success', 3000);
+        }
+
+        async function _completePlanMode() {
+            const date = window._pendingPlanDate;
+            if (!date) return;
+            if (routeCart.length === 0) { showToast('경유지를 먼저 담아주세요', 'warning'); return; }
             await saveVisitPlan(date);
-            if (date) await _renderMyPlansBody();
+            _cancelPlanMode();
         }
 
-        function _loadPlanToCart(idx) {
-            const plan = (window._myPlansCache || [])[idx];
-            if (!plan?.items?.length) return;
+        function _cancelPlanMode() {
+            window._pendingPlanDate = null;
+            document.getElementById('planModeBadge')?.remove();
+        }
 
+        function _loadPlanItemsToCart(items) {
+            if (!items?.length) return;
             clearCart();
             let added = 0;
-            plan.items.forEach(it => {
-                if (added >= 4) return;
-                if (!it.lat || !it.lng) return;
+            items.forEach(it => {
+                if (added >= 4 || !it.lat || !it.lng) return;
                 const key = `${parseFloat(it.lat).toFixed(5)},${parseFloat(it.lng).toFixed(5)}`;
                 routeCart.push({ lat: it.lat, lng: it.lng, name: it.name, address: it.address || '', type: it.type || 'license', _key: key });
                 _applyCartMarkerColor(key);
@@ -5094,8 +5233,26 @@
             renderCartUI();
             document.getElementById('myPlansModal')?.remove();
             openRoutePanel();
-            showToast(`${plan.items.length}곳이 경유지에 불러와졌습니다`, 'success');
+            showToast(`${Math.min(items.length, 4)}곳이 경유지에 불러와졌습니다`, 'success');
         }
+
+        async function _deletePlan(dateStr) {
+            const bu = _indexBusinessUnit ?? null;
+            try {
+                await client.from('visit_plans')
+                    .delete()
+                    .eq('business_unit', bu)
+                    .eq('manager', myManagerName)
+                    .eq('visit_date', dateStr);
+                window._calPlansData = (window._calPlansData || []).filter(p => p.visit_date !== dateStr);
+                window._calSelectedDate = null;
+                showToast('일정이 삭제되었습니다', 'success');
+                _renderCalView();
+            } catch (e) {
+                showToast('일정 삭제에 실패했습니다', 'error');
+            }
+        }
+
 
         // ── 오늘 방문 일정 팝업 (Supabase) ──
         async function checkTodayVisitPlan() {
@@ -5170,12 +5327,17 @@
                     </div>
                     <div style="padding:16px 18px;">
                         ${itemsHtml}
-                        <button onclick="document.getElementById('visitPlanPopup').remove()" style="width:100%;padding:12px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;">시작하기</button>
+                        <button onclick="_startTodayPlan(${JSON.stringify(items).replace(/"/g,'&quot;')})" style="width:100%;padding:12px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;margin-top:4px;">경유지 불러오기 + 동선 최적화</button>
                     </div>
                 </div>`;
 
             document.body.appendChild(overlay);
             overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        }
+
+        function _startTodayPlan(items) {
+            document.getElementById('visitPlanPopup')?.remove();
+            _loadPlanItemsToCart(items);
         }
 
         // ── 오늘 가볼 곳 추천 ──
