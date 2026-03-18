@@ -538,8 +538,10 @@
             <select class="report-select" id="monthSelect"></select>
             <label>담당자</label>
             <select class="report-select" id="managerSelect" style="display:none;"></select>
-            <button class="btn-generate" id="generateBtn" onclick="generateReport()" style="margin-left:auto;">보고서 생성</button>
-            <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+                <button class="btn-generate" id="generateBtn" onclick="generateReport()">보고서 생성</button>
+                <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
+            </div>
         </div>
 
         <!-- 로딩 -->

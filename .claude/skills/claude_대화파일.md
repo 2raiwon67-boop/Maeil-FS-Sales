@@ -652,6 +652,7 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v111 | 방문일지 업로드 409 폴백 처리: 배치 INSERT 충돌 시 행별 개별 INSERT로 재시도, 충돌 행만 건너뜀 (showToast 경고) — v86 dedup miss edge case 최종 해결 |
 | v112 | report.html: 월 선택 select→최근 4개월 pill 버튼, 담당자 pill 필터 추가 (managers 테이블 기반), 지점장 기본값 전체/일반 담당자 기본값 본인 |
 | v113 | report.html: pill→드롭다운으로 교체, 담당자 중복 제거(Set), AI 분석 Supabase 캐시(report_cache, 4개월 TTL, 지점 공유), 지점장 기본값 첫 번째 담당자 |
+| v114 | report.html: 담당자 드롭다운에서 지점장 제외 기준을 region2='지점장' 으로 확장 (is_branch_manager OR region2='지점장') |
 
 ### 캐시 구조 최종 정리 (2026-03-17)
 
