@@ -388,6 +388,7 @@ RETURNS TABLE(
     category      TEXT,
     tags          TEXT[],
     is_vegan      BOOLEAN,
+    pdf_url       TEXT,
     similarity    FLOAT
 )
 LANGUAGE plpgsql
@@ -397,7 +398,7 @@ BEGIN
     SELECT
         r.id, r.name, r.name_en, r.description,
         r.main_products, r.ingredients, r.steps,
-        r.category, r.tags, r.is_vegan,
+        r.category, r.tags, r.is_vegan, r.pdf_url,
         1 - (r.embedding <=> query_embedding) AS similarity
     FROM recipes r
     WHERE

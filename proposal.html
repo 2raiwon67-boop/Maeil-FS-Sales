@@ -2503,6 +2503,8 @@
             if (timeSinceLastAnalysis < RATE_LIMIT_MS) {
                 const waitSeconds = Math.ceil((RATE_LIMIT_MS - timeSinceLastAnalysis) / 1000);
                 text.innerHTML = `⏳ ${waitSeconds}초 후에 다시 시도해주세요.`;
+                btn.disabled = false;
+                btn.innerHTML = '분석 및 추천상품 검색';
                 return;
             }
 
@@ -2522,6 +2524,8 @@
                         card.classList.add('active');
                         _lastStoreName = keyword;
                         renderAnalysis(cachedData.result, true);
+                        btn.disabled = false;
+                        btn.innerHTML = '분석 및 추천상품 검색';
 
                         // 백그라운드 증분 업데이트 (캐시 10일 미만이면 스킵)
                         if (cacheAge < BG_UPDATE_SKIP_MS) return;
