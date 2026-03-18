@@ -822,17 +822,21 @@
             // 인허가 활동
             const licenseAccounts = accounts.filter(a => a.type === 'license');
 
-            // 보고서 렌더링
-            renderReport({
-                selYear, selMonth, managerName,
-                total: monthLogs.length,
-                totalAccounts: accounts.length,
-                constructionAccounts, noVisitConstruction,
-                majorAccounts, licenseAccounts, monthLogs
-            });
-
-            btn.disabled = false;
-            btn.textContent = '보고서 생성';
+            try {
+                // 보고서 렌더링
+                renderReport({
+                    selYear, selMonth, managerName,
+                    total: monthLogs.length,
+                    totalAccounts: accounts.length,
+                    constructionAccounts, noVisitConstruction,
+                    majorAccounts, licenseAccounts, monthLogs
+                });
+            } catch (e) {
+                console.error('보고서 렌더링 오류:', e);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '보고서 생성';
+            }
         }
 
         // ── 렌더링 ────────────────────────────────────────────
@@ -1065,7 +1069,6 @@
                 const cached = await getAICache(reportMonth, managerName);
                 if (cached) {
                     const { html } = formatAIContent(cached);
-                    const genDate = new Date(cached.__generatedAt || 0);
                     aiContentEl.innerHTML = `
                         <div style="font-size:12px;color:#86868b;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                             <span>저장된 보고서입니다.</span>
