@@ -1959,20 +1959,32 @@
                         return base;
                     });
 
-                    let opErr;
                     if (isAppend && cfg.conflictKey) {
                         // append + conflictKey: 기존 행 덮어쓰기 upsert
                         const { error } = await client.from(cfg.table)
                             .upsert(batch, { onConflict: cfg.conflictKey });
-                        opErr = error;
+                        if (error) throw new Error(`업로드 실패 (${i + 1}~${i + batch.length}번째): ` + error.message);
+                        inserted += batch.length;
                     } else {
                         // add_new_only(인허가/방문일지) 또는 replace: 단순 INSERT
                         const { error } = await client.from(cfg.table).insert(batch);
-                        opErr = error;
+                        if (error && error.code === '23505') {
+                            // 409 충돌: 행별 개별 삽입으로 폴백 (dedup이 놓친 충돌 행만 건너뜀)
+                            let fallbackConflicts = 0;
+                            for (const row of batch) {
+                                const { error: rowErr } = await client.from(cfg.table).insert([row]);
+                                if (rowErr) {
+                                    if (rowErr.code === '23505') { fallbackConflicts++; }
+                                    else { throw new Error(`업로드 실패: ` + rowErr.message); }
+                                } else { inserted++; }
+                            }
+                            if (fallbackConflicts > 0) showToast(`⚠️ ${fallbackConflicts}건 이미 존재하여 건너뜀`, 'warning', 4000);
+                        } else if (error) {
+                            throw new Error(`업로드 실패 (${i + 1}~${i + batch.length}번째): ` + error.message);
+                        } else {
+                            inserted += batch.length;
+                        }
                     }
-                    if (opErr) throw new Error(`업로드 실패 (${i + 1}~${i + batch.length}번째): ` + opErr.message);
-
-                    inserted += batch.length;
                     btn.innerHTML = `<span class="spinner-inline"></span>${inserted}/${parsedData.length}건 처리 중...`;
                 }
 
@@ -2011,7 +2023,8 @@
 
             } catch (e) {
                 btn.disabled = false;
-                btn.textContent = `업로드 확인 (${parsedData?.length ?? 0}건 교체)`;
+                const _isAddNew = cfg?.mode === 'add_new_only';
+                btn.textContent = `업로드 확인 (${parsedData?.length ?? 0}건 ${_isAddNew ? '추가' : '교체'})`;
                 document.getElementById('uploadBanner').className = 'banner banner-error';
                 document.getElementById('uploadBanner').innerHTML = '❌ ' + e.message;
                 showToast('❌ ' + e.message);
