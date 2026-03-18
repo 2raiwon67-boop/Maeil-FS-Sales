@@ -5226,6 +5226,8 @@
             if (routeCart.length === 0) { showToast('경유지를 먼저 담아주세요', 'warning'); return; }
             await saveVisitPlan(date);
             _cancelPlanMode();
+            clearCart();
+            renderCartUI();
         }
 
         function _cancelPlanMode() {
