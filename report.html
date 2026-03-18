@@ -54,13 +54,19 @@
         /* ── 컨트롤 바 ── */
         .controls-bar {
             display: flex;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
+            gap: 14px;
             background: white;
             border-radius: 14px;
             padding: 16px 20px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
             margin-bottom: 28px;
+        }
+
+        .controls-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
@@ -68,16 +74,44 @@
             font-size: 13px;
             font-weight: 600;
             color: #86868b;
+            white-space: nowrap;
         }
 
-        .month-select {
-            padding: 8px 14px;
-            border: 1px solid #d2d2d7;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            background: white;
+        /* ── 월 / 담당자 pill 공통 ── */
+        .month-pills, .manager-pills {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding-bottom: 2px;
+        }
+        .month-pills::-webkit-scrollbar,
+        .manager-pills::-webkit-scrollbar { display: none; }
+
+        .month-pill, .manager-pill {
+            padding: 6px 15px;
+            border: 1.5px solid #d2d2d7;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
+            background: white;
+            color: #3a3a3c;
+            transition: all 0.15s;
+            white-space: nowrap;
+            font-family: inherit;
+            flex-shrink: 0;
+        }
+        .month-pill:hover, .manager-pill:hover {
+            border-color: #0071e3;
+            color: #0071e3;
+        }
+        .month-pill.active, .manager-pill.active {
+            background: #0071e3;
+            border-color: #0071e3;
+            color: white;
+            font-weight: 600;
         }
 
         .btn-generate {
@@ -436,25 +470,25 @@
 
         @media (max-width: 768px) {
 
-            /* 컨트롤 바: 세로 스택 */
+            /* 컨트롤 바 */
             .controls-bar {
-                flex-direction: column;
-                gap: 8px;
-                align-items: stretch;
+                gap: 10px;
                 padding: 12px;
             }
 
-            .month-select {
-                width: 100%;
+            .controls-row {
+                flex-wrap: wrap;
+                gap: 8px;
             }
 
             .btn-generate {
-                width: 100%;
+                flex: 1;
+                margin-left: 0 !important;
             }
 
             .btn-print {
                 margin-left: 0;
-                width: 100%;
+                flex: 1;
                 text-align: center;
             }
 
@@ -527,10 +561,16 @@
 
         <!-- 컨트롤 -->
         <div class="controls-bar">
-            <label>보고 기간</label>
-            <select class="month-select" id="monthSelect"></select>
-            <button class="btn-generate" id="generateBtn" onclick="generateReport()">보고서 생성</button>
-            <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
+            <div class="controls-row">
+                <label>보고 기간</label>
+                <div class="month-pills" id="monthPills"></div>
+                <button class="btn-generate" id="generateBtn" onclick="generateReport()" style="margin-left:auto;">보고서 생성</button>
+                <button class="btn-print" onclick="window.print()">🖨️ PDF 저장</button>
+            </div>
+            <div class="controls-row" id="managerFilterRow" style="display:none;">
+                <label>담당자</label>
+                <div class="manager-pills" id="managerPills"></div>
+            </div>
         </div>
 
         <!-- 로딩 -->
@@ -564,13 +604,16 @@
         // ── 전역 변수 ──────────────────────────────────────────
         let allVisitLogs = [], allAccounts = [], allLicenses = [];
         let currentUser = null;
+        let selectedMonthValue = null;
+        let selectedManagerName = null;   // null = 전체
+        let isBranchManager = false;
 
         // ── 초기화 ────────────────────────────────────────────
         window.addEventListener('load', () => document.body.classList.add('loaded'));
 
         window.onload = async function () {
-            // 월 선택기 초기화
-            initMonthSelect();
+            // 월 pill 초기화
+            initMonthPills();
 
             // 인증
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
@@ -583,21 +626,51 @@
             document.getElementById('loadingState').style.display = 'none';
         };
 
-        // ── 월 선택기 ─────────────────────────────────────────
-        function initMonthSelect() {
-            const select = document.getElementById('monthSelect');
+        // ── 월 pill 선택기 (최근 4개월) ──────────────────────
+        function initMonthPills() {
+            const container = document.getElementById('monthPills');
             const now = new Date();
-            // 지난달을 기본값으로
-            const defaultMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 4; i++) {
                 const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
                 const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
                 const label = `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
-                const opt = new Option(label, value);
-                if (i === 1) opt.selected = true; // 지난달 기본 선택
-                select.appendChild(opt);
+                const btn = document.createElement('button');
+                btn.className = 'month-pill' + (i === 1 ? ' active' : '');
+                btn.textContent = label;
+                btn.dataset.value = value;
+                btn.onclick = () => {
+                    document.querySelectorAll('.month-pill').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedMonthValue = value;
+                };
+                container.appendChild(btn);
+                if (i === 1) selectedMonthValue = value; // 지난달 기본값
             }
+        }
+
+        // ── 담당자 pill 선택기 ────────────────────────────────
+        function initManagerPills(managerNames) {
+            if (!managerNames || managerNames.length === 0) return;
+            const row = document.getElementById('managerFilterRow');
+            const container = document.getElementById('managerPills');
+            row.style.display = 'flex';
+
+            const myName = currentUser?.user_metadata?.full_name || '';
+            // 지점장이거나 내 이름이 목록에 없으면 '전체' 기본
+            const defaultName = (!isBranchManager && managerNames.includes(myName)) ? myName : '전체';
+
+            ['전체', ...managerNames].forEach(name => {
+                const btn = document.createElement('button');
+                btn.className = 'manager-pill' + (name === defaultName ? ' active' : '');
+                btn.textContent = name;
+                btn.onclick = () => {
+                    document.querySelectorAll('.manager-pill').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedManagerName = name === '전체' ? null : name;
+                };
+                container.appendChild(btn);
+            });
+            selectedManagerName = defaultName === '전체' ? null : defaultName;
         }
 
         function normalize(str) {
@@ -610,13 +683,15 @@
                 if (!client) throw new Error('Supabase client 초기화 오류');
                 const { data: userData } = await client.auth.getUser();
                 const businessUnit = userData?.user?.user_metadata?.business_unit ?? null;
+                const myName = userData?.user?.user_metadata?.full_name || '';
 
                 const applyFilter = (q) => businessUnit ? q.eq('business_unit', businessUnit) : q;
 
-                const [vlRes, acctRes, licRes] = await Promise.all([
+                const [vlRes, acctRes, licRes, mgrRes] = await Promise.all([
                     applyFilter(client.from('visit_logs').select('*').order('visit_date', { ascending: false })),
                     applyFilter(client.from('accounts').select('*')),
-                    applyFilter(client.from('licenses').select('*'))
+                    applyFilter(client.from('licenses').select('*')),
+                    applyFilter(client.from('managers').select('manager_name,is_branch_manager'))
                 ]);
 
                 if (vlRes.error) throw vlRes.error;
@@ -626,7 +701,7 @@
                 allVisitLogs = (vlRes.data || []).filter(r => r.manager).map(row => {
                     const obj = {};
                     Object.entries(VL_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
-                    obj['일정기간'] = row.visit_date ?? ''; // 소비 코드 fallback
+                    obj['일정기간'] = row.visit_date ?? '';
                     return obj;
                 });
                 allAccounts = (acctRes.data || []).filter(r => r.business_name).map(row => {
@@ -639,6 +714,17 @@
                     Object.entries(LIC_DB_TO_KR).forEach(([db, kr]) => { obj[kr] = row[db] ?? ''; });
                     return obj;
                 });
+
+                // 담당자 목록 + 지점장 여부
+                const managersData = mgrRes.data || [];
+                const myRow = managersData.find(m => normalize(m.manager_name) === normalize(myName));
+                isBranchManager = myRow?.is_branch_manager ?? false;
+                const managerNames = managersData
+                    .filter(m => !m.is_branch_manager && m.manager_name)
+                    .map(m => m.manager_name)
+                    .sort();
+                initManagerPills(managerNames);
+
             } catch (e) {
                 console.error('데이터 로드 오류:', e);
                 document.getElementById('loadingState').innerHTML = '<p style="color:#ff3b30">데이터 로드 실패. 새로고침해 주세요.</p>';
@@ -663,18 +749,21 @@
             btn.disabled = true;
             btn.textContent = '생성 중...';
 
-            const [selYear, selMonth] = document.getElementById('monthSelect').value.split('-').map(Number);
+            if (!selectedMonthValue) {
+                btn.disabled = false; btn.textContent = '보고서 생성';
+                return;
+            }
+            const [selYear, selMonth] = selectedMonthValue.split('-').map(Number);
 
-            // 담당자 이름 (로그인 사용자)
-            const managerName = currentUser?.user_metadata?.full_name || null;
+            // 선택된 담당자 (null = 전체)
+            const managerName = selectedManagerName;
 
             // 이달 방문일지 필터 (담당자 + 월)
             const monthLogs = allVisitLogs.filter(log => {
                 const d = parseDate(log['작성일'] || log['일정기간']);
                 if (!d) return false;
                 if (d.getFullYear() !== selYear || d.getMonth() + 1 !== selMonth) return false;
-                // 담당자 필터: 관리자면 전체, 아니면 본인 것만
-                if (managerName && managerName !== '관리자') {
+                if (managerName) {
                     return normalize(log['작성자']) === normalize(managerName);
                 }
                 return true;
@@ -735,9 +824,9 @@
             const constructionAccounts = accounts.filter(a => a.status === '공사중');
 
             // 공사중이지만 이달 미방문
-            // → 이 담당자가 과거에 한 번이라도 방문한 적 있는 거래처 중, 현재 공사중이고 이달 미방문인 곳만 표시
+            // → 선택 담당자가 과거에 한 번이라도 방문한 거래처 중, 현재 공사중이고 이달 미방문인 곳만 표시
             const myAllTimeLogs = allVisitLogs.filter(log => {
-                if (!managerName || managerName === '관리자') return true;
+                if (!managerName) return true;
                 return normalize(log['작성자']) === normalize(managerName);
             });
             const myEverVisited = new Set(
@@ -785,7 +874,7 @@
                 majorAccounts, licenseAccounts, monthLogs } = data;
 
             const periodLabel = `${selYear}년 ${selMonth}월`;
-            const displayName = managerName || '전체';
+            const displayName = managerName || '전체 담당자';
             const today = new Date().toLocaleDateString('ko-KR');
 
             const output = document.getElementById('reportOutput');
@@ -952,7 +1041,7 @@
             }).filter(Boolean).join('\n');
 
             const prompt = `당신은 매일유업의 실적 데이터 기반 영업 기획자이자 영업 이사 역할을 수행하는 MISO(Maeil AI 영업비서)입니다.
-아래 데이터를 바탕으로 ${managerName ? managerName + '님' : '전체 담당자님'}의 ${periodLabel} 월간 영업 보고서 종합 분석을 작성해 주십시오.
+아래 데이터를 바탕으로 ${managerName ? managerName + '님' : '경기북부 FS팀 전체'}의 ${periodLabel} 월간 영업 보고서 종합 분석을 작성해 주십시오.
 
 [이달 방문 현황 요약]
 ${visitSummary || '방문 기록 없음'}

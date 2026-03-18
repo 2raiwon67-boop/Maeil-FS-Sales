@@ -650,6 +650,7 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v110 | 사이드 필터 기본 접힘 + 섹션명 변경 + 색각 보정 필터 색상 연동 + 전체탭 주요거래처현황 버그 수정 |
 | v86 | 방문일지 업로드 unique constraint 수정 3단계: ①dedup 한도 1000→50000 ②upsert ignoreDuplicates 시도→partial index 미지원으로 제거 ③normalizeToYMD 날짜 정규화 |
 | v111 | 방문일지 업로드 409 폴백 처리: 배치 INSERT 충돌 시 행별 개별 INSERT로 재시도, 충돌 행만 건너뜀 (showToast 경고) — v86 dedup miss edge case 최종 해결 |
+| v112 | report.html: 월 선택 select→최근 4개월 pill 버튼, 담당자 pill 필터 추가 (managers 테이블 기반), 지점장 기본값 전체/일반 담당자 기본값 본인 |
 
 ### 캐시 구조 최종 정리 (2026-03-17)
 
