@@ -520,7 +520,7 @@
         /* 현재 위치 버튼 */
         #locateBtn {
             position: absolute;
-            bottom: 180px;
+            bottom: 16px;
             right: 12px;
             z-index: 200;
             width: 40px;
@@ -535,6 +535,9 @@
             justify-content: center;
             color: #333;
             transition: background 0.15s, color 0.15s;
+        }
+        @media (max-width: 768px) {
+            #locateBtn { bottom: calc(60px + env(safe-area-inset-bottom) + 12px); }
         }
         #locateBtn:hover { background: #f0f4ff; color: #2563eb; }
         #locateBtn.locating { color: #2563eb; animation: pulse-locate 1s infinite; }
