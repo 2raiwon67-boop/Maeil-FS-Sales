@@ -314,7 +314,7 @@ export default async function handler(req, res) {
         // 방문일지 데이터 정리 (실제 필드명 기반)
         let visitHistorySection = '';
         if (hasVisitHistory) {
-            const historyItems = storeHistory.slice(0, 5).map(log => ({
+            const historyItems = storeHistory.map(log => ({
                 방문일: log['작성일'] || log['일정기간'] || '',
                 담당자: log['작성자'] || '',
                 거래상태: log['거래상태'] || '',
@@ -322,7 +322,7 @@ export default async function handler(req, res) {
                 주요이슈: log['주요이슈'] || ''
             }));
 
-            visitHistorySection = `\n## ✨ 우리 팀 방문 기록 (${storeHistory.length}건, 최근 5건 표시)
+            visitHistorySection = `\n## ✨ 우리 팀 방문 기록 (${storeHistory.length}건 전체)
 ${historyItems.map(h =>
     `[${h.방문일}|${h.담당자}|${h.거래상태}] ${h.방문내용}${h.주요이슈 ? ` (이슈:${h.주요이슈})` : ''}`
 ).join('\n')}
