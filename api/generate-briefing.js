@@ -132,6 +132,32 @@ export default async function handler(req, res) {
             // Mother Brain 실패해도 브리핑은 정상 생성
         }
 
+        // ── 네이버 캐시: 매장 리뷰/메뉴 컨텍스트 ──
+        let naverSection = '';
+        try {
+            const naverRes = await fetch(
+                `${SUPABASE_URL}/rest/v1/naver_cache?store_name=eq.${encodeURIComponent(accountName)}&select=local_data,blog_data&limit=1`,
+                { headers: sbHeaders }
+            );
+            if (naverRes.ok) {
+                const naverRows = await naverRes.json();
+                const naverRow = Array.isArray(naverRows) ? naverRows[0] : null;
+                if (naverRow) {
+                    const localItem = naverRow.local_data?.items?.[0];
+                    const category = localItem?.category || '';
+                    const blogTitles = (naverRow.blog_data?.items || [])
+                        .slice(0, 5)
+                        .map(b => (b.title || '').replace(/<[^>]+>/g, '').substring(0, 50))
+                        .filter(Boolean);
+                    if (category || blogTitles.length > 0) {
+                        naverSection = `\n[네이버 매장 정보]\n업종: ${category || '정보 없음'}\n블로그 리뷰 키워드: ${blogTitles.join(' / ') || '없음'}\n`;
+                    }
+                }
+            }
+        } catch (_e) {
+            // 네이버 캐시 없어도 브리핑 정상 생성
+        }
+
         // ── 주요거래처 RAG: 유사 거래 계정 최근 관리 사례 ──
         let tradeSection = '';
         const isTradeAccount = tradeStatus === '거래' || visits[0]?.status === '거래';
@@ -171,7 +197,7 @@ export default async function handler(req, res) {
 아래는 "${accountName}" 거래처의 방문 기록입니다 (최신순):
 
 ${visitText}
-${successSection}${motherBrainSection}${tradeSection}
+${successSection}${motherBrainSection}${naverSection}${tradeSection}
 아래 4개 항목을 각각 1~2문장으로 작성하세요. 문장을 끊지 말고 완성된 문장으로 써주세요.
 ※ [유사 거래처 성공 사례] 또는 [유사 주요거래처 관리 사례]는 참고용입니다. 현재 거래처와 업종·상황이 실제로 유사할 때만 구체적으로 언급하고, 관련성이 낮으면 무시하세요.
 
