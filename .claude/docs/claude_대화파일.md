@@ -209,6 +209,9 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v116 | 코드 점검: alert()→showToast, await 수정 |
 | v117 | 내 일정 캘린더 UI (달력 뷰, 플로팅 뱃지, 과거 일정 자동 삭제) |
 | v118 | 주요거래처 geocoding 5개씩 병렬 처리 (최대 5배 속도) |
+| v119 | 견적서 저장 개선 (메모 필드, 저장 피드백, 덮어쓰기/복사 선택, 수정일 정렬) |
+| v120 | AI 브리핑 구조화 응답 + 컴팩트 UI (형식 불일치·공간 과점유 해결) |
+| v121 | 지도 현재위치 과녁 버튼 추가 — 지도 이동 + 동선최적화 출발지 자동 설정 |
 
 ---
 
@@ -337,3 +340,37 @@ ADMIN_CODE                  관리자 API 인증 (= 532753)
   - Phase 3: 좌표 확보된 계정만 마커 생성 (기존 로직 동일)
 - 100건 기준: 100회 순차 대기 → 20회 배치 대기 (최대 5배 속도)
 - 2회차 이후: 캐시 즉시 반환으로 차이 없음
+
+---
+
+## 2026-03-18 — 이메일 개선 + 견적서 저장 개선 (v119)
+
+### 인허가 알림 이메일 개선 (c51a046)
+
+- 오늘의 추천 동선 섹션 제거 (`optimizeRoute`, `calculateDistance`, `buildNaverRouteUrl` 삭제)
+- 푸터 "경기북부 FS 영업팀" → "FS MISO" 변경 (지역 한정 표현 제거)
+- 이메일 구조: 인사말 → 신규 대상(D+14) → 재확인 대상(D+28) → 푸터
+
+### 견적서 저장 개선 (v119, df8fb6e)
+
+- **메모 필드** 추가 (`edit-quoteMemo`): 거래처명 아래, 버전 구분용 (초안/최종확정/2차방문)
+- **저장 버튼 피드백**: 클릭 시 disabled + "⏳ 저장 중..." → 완료 후 복원 + 성공 토스트
+- **저장 방식 선택 다이얼로그** (`_showSaveChoiceDialog`): 불러온 견적 수정 저장 시
+  - "덮어쓰기 (현재 버전 갱신)" / "새 견적으로 저장 (복사본 생성)" / 취소
+  - forceNew=true 시 `_loadedQuoteId` 초기화 후 INSERT
+- **목록 개선**: `updated_at` 기준 내림차순 정렬, 메모 파란 뱃지 표시, "수정 N일" 표기
+- **DB**: `quotes` 테이블 `memo TEXT`, `updated_at TIMESTAMPTZ` 컬럼 추가
+  - `ALTER TABLE quotes ADD COLUMN IF NOT EXISTS` (멱등성) ✅ Supabase 실행 완료
+
+### AI 브리핑 구조화 응답 + 컴팩트 UI (v120, c2e26dc)
+
+- **문제**: responseSchema가 `{briefing: string}`이라 Gemini가 형식을 제멋대로 씀 → ①②③④ 불일치, ④ 생략 시 파싱 실패, 블록 UI 공간 과점유
+- **generate-briefing.js**:
+  - responseSchema → `{keyman, hurdles, approach, product}` 구조화
+  - product 없으면 빈 문자열 (생략 오류 제거)
+  - `briefing = JSON.stringify(structured)` 으로 Supabase 저장
+- **방문일지.html** `formatBriefingText`:
+  - JSON 파싱 우선 → 구조화 렌더링
+  - 구버전 텍스트(①②③④) 폴백 유지 (기존 캐시 7일 후 자동 전환)
+  - UI: 블록 → 인라인 행 형식 (`briefing-row`: 아이콘 + 라벨 + 내용)
+  - product 빈 문자열이면 행 숨김

@@ -517,6 +517,31 @@
         }
 
 
+        /* 현재 위치 버튼 */
+        #locateBtn {
+            position: absolute;
+            bottom: 80px;
+            right: 12px;
+            z-index: 200;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: none;
+            background: #fff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            transition: background 0.15s, color 0.15s;
+        }
+        #locateBtn:hover { background: #f0f4ff; color: #2563eb; }
+        #locateBtn.locating { color: #2563eb; animation: pulse-locate 1s infinite; }
+        @keyframes pulse-locate {
+            0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+        }
+
         /* 📍 마커 글로우 효과 (2주 경과 인허가) */
         @keyframes pulse-yellow {
             0% {
@@ -1911,6 +1936,12 @@
 
 
             <div id="map"></div>
+            <button id="locateBtn" title="현재 위치로 이동" onclick="moveToMyLocation()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/>
+                    <line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
+                </svg>
+            </button>
 
             <!-- 대시보드 뷰 (통계 화면) -->
             <div class="dashboard-container" id="dashboardView">
@@ -2836,6 +2867,19 @@
             }
         }
 
+
+        // 현재 위치 버튼
+        function moveToMyLocation() {
+            const btn = document.getElementById('locateBtn');
+            btn.classList.add('locating');
+            // useCurrentLocation()이 지도 이동 + 동선최적화 출발지 설정을 모두 처리
+            // 완료/실패 후 버튼 애니메이션 해제를 위해 infoEl 변화를 감시
+            const infoEl = document.getElementById('routeStartInfo');
+            const originalText = infoEl ? infoEl.textContent : '';
+            useCurrentLocation();
+            // geolocation은 비동기이므로 버튼 상태는 짧게 유지 후 해제
+            setTimeout(() => btn.classList.remove('locating'), 5000);
+        }
 
         // ============================================================
         // 데이터 로드
