@@ -1885,23 +1885,33 @@
                     }
 
                     // 거래여부 유효성 검사 (인허가 데이터 전용)
+                    let hasStatusError = false;
                     if (selectedType === 'licenses') {
                         const VALID_STATUSES = new Set(['거래', '미거래', '인허가', '공사중', 'DROP']);
                         const invalidRows = parsedData.filter(row => row.trade_status && !VALID_STATUSES.has(row.trade_status));
                         if (invalidRows.length > 0) {
                             const invalidVals = [...new Set(invalidRows.map(r => `"${r.trade_status}"`))].join(', ');
-                            bannerClass = 'banner banner-warn';
-                            bannerLines.push(`⚠️ 유효하지 않은 거래여부 값 ${invalidRows.length}건: ${invalidVals}<br><small style="color:#86868b;">허용값: 거래 / 미거래 / 인허가 / 공사중 / DROP</small>`);
+                            hasStatusError = true;
+                            bannerClass = 'banner banner-error';
+                            bannerLines = [`❌ 유효하지 않은 거래여부 값 ${invalidRows.length}건: ${invalidVals}<br>` +
+                                `<small>허용값: 거래 / 미거래 / 인허가 / 공사중 / DROP — 파일을 수정 후 다시 업로드해주세요.</small>`];
                         }
                     }
 
                     document.getElementById('uploadBanner').className = bannerClass;
                     document.getElementById('uploadBanner').innerHTML = bannerLines.join('<br>');
-                    document.getElementById('btnUpload').textContent = isAppend
-                        ? `업로드 확인 (${parsedData.length}건 추가/갱신)`
-                        : isAddNewOnly
-                        ? `업로드 확인 (최대 ${parsedData.length}건 추가)`
-                        : `업로드 확인 (${parsedData.length}건 교체)`;
+                    const btnUpload = document.getElementById('btnUpload');
+                    if (hasStatusError) {
+                        btnUpload.disabled = true;
+                        btnUpload.textContent = '업로드 불가 — 거래여부 값 오류';
+                    } else {
+                        btnUpload.disabled = false;
+                        btnUpload.textContent = isAppend
+                            ? `업로드 확인 (${parsedData.length}건 추가/갱신)`
+                            : isAddNewOnly
+                            ? `업로드 확인 (최대 ${parsedData.length}건 추가)`
+                            : `업로드 확인 (${parsedData.length}건 교체)`;
+                    }
                     document.getElementById('previewSection').style.display = 'block';
 
                 } catch (err) {
