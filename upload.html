@@ -2108,7 +2108,31 @@
         let rawProcessedData = null;
         let rawManagerMap = {};
 
-        // managers 테이블에서 region2 → manager_name 매핑 로드
+        // 시도명 정규화 (입력 형식 불일치 흡수)
+        const REGION1_MAP = {
+            '서울특별시': '서울', '서울시': '서울', '서울': '서울',
+            '인천광역시': '인천', '인천시': '인천', '인천': '인천',
+            '경기도': '경기', '경기': '경기',
+            '부산광역시': '부산', '부산시': '부산', '부산': '부산',
+            '대구광역시': '대구', '대구시': '대구', '대구': '대구',
+            '광주광역시': '광주', '광주시': '광주', '광주': '광주',
+            '대전광역시': '대전', '대전시': '대전', '대전': '대전',
+            '울산광역시': '울산', '울산시': '울산', '울산': '울산',
+            '세종특별자치시': '세종', '세종시': '세종', '세종': '세종',
+            '강원도': '강원', '강원특별자치도': '강원', '강원': '강원',
+            '충청북도': '충북', '충북': '충북',
+            '충청남도': '충남', '충남': '충남',
+            '전라북도': '전북', '전북특별자치도': '전북', '전북': '전북',
+            '전라남도': '전남', '전남': '전남',
+            '경상북도': '경북', '경북': '경북',
+            '경상남도': '경남', '경남': '경남',
+            '제주특별자치도': '제주', '제주도': '제주', '제주': '제주',
+        };
+        function normalizeRegion1(r) {
+            return REGION1_MAP[r?.trim()] ?? r?.trim() ?? '';
+        }
+
+        // managers 테이블에서 (region1+region2) 복합키 → manager_name 매핑 로드
         async function loadRawManagerMap() {
             try {
                 const bu = await getBusinessUnit();
@@ -2117,13 +2141,17 @@
                 const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
                 const token = session?.access_token || anonKey;
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region2,manager_name`,
+                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,manager_name`,
                     { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
                 );
                 if (!res.ok) return;
                 const rows = await res.json();
                 rawManagerMap = {};
-                rows.forEach(r => { if (r.region2) rawManagerMap[r.region2] = r.manager_name; });
+                rows.forEach(r => {
+                    if (!r.region2 || r.region2 === '지점장') return;
+                    const key = normalizeRegion1(r.region1) + '|' + r.region2;
+                    rawManagerMap[key] = r.manager_name;
+                });
             } catch (e) {
                 console.warn('담당자 맵 로드 실패:', e);
             }
@@ -2260,7 +2288,7 @@
                         } else { addr3 = tokens[2] || ''; }
                     } else { addr1 = '확인필요'; addr2 = '확인필요'; addr3 = '확인필요'; }
 
-                    const manager = rawManagerMap[addr2] || '미지정';
+                    const manager = rawManagerMap[normalizeRegion1(addr1) + '|' + addr2] || '미지정';
                     let rank = '3';
                     if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
                     else if (parseFloat(pyeong) >= 10) rank = '2';
