@@ -211,7 +211,7 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v118 | 주요거래처 geocoding 5개씩 병렬 처리 (최대 5배 속도) |
 | v119 | 견적서 저장 개선 (메모 필드, 저장 피드백, 덮어쓰기/복사 선택, 수정일 정렬) |
 | v120 | AI 브리핑 구조화 응답 + 컴팩트 UI (형식 불일치·공간 과점유 해결) |
-| v121 | 지도 현재위치 과녁 버튼 추가 — 지도 이동 + 동선최적화 출발지 자동 설정 |
+| v121 | 지도 현재위치 과녁 버튼 추가 — 지도 이동 + 동선최적화 출발지 자동 설정, 동그라미 모양, 플로팅 버튼 위 배치 |
 
 ---
 
@@ -238,6 +238,57 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | GitHub Actions + 공공인허가 자동 배치 | data.go.kr API 접근 이슈 |
 | 내 일정 달력 UI 고도화 (달력에서 날짜 먼저 선택) | ✅ v117에서 구현 완료 |
 | managers region1/region2 기존 24개 행 수동 입력 | ✅ 완료 (2026-03-18) |
+| **지역 카테고리 트렌드 패널** | 기획 완료, 미구현 — 아래 상세 참고 |
+
+### 지역 카테고리 트렌드 패널 (미구현)
+
+**목적**: 케이스영업 지원 — "우리 지역에서 어떤 카테고리/업종이 활발한지" 파악 → recipes RAG와 연결해 거래처마다 전파
+
+**흐름**:
+```
+사업부별 카테고리 5개 설정 (예: 크루아상, 소금빵, 라떼, 브런치카페, 베이커리)
+    ↓
+N8N 주 1회: 네이버 블로그 검색 "의정부 크루아상 카페" 등
+    ↓
+Gemini: 언급 많은 매장명 + 카테고리 추출
+    ↓
+regional_trending_stores 테이블 저장
+    ↓
+index.html 지도 옆 패널에 표시
+    ↓
+recipes RAG 자동 매칭 → 케이스영업 토킹포인트 생성
+```
+
+**필요 DB 테이블**:
+```sql
+-- 사업부별 카테고리 설정 (담당자·지점장 모두 설정 가능)
+business_unit_categories (
+  business_unit TEXT PRIMARY KEY,
+  categories JSONB  -- ['크루아상', '소금빵', ...]  max 5개
+)
+
+-- 지역별 카테고리 트렌드 수집 결과
+regional_trending_stores (
+  id BIGSERIAL,
+  business_unit TEXT,
+  category TEXT,
+  store_name TEXT,
+  mention_count INT,
+  region TEXT,        -- managers.region2 기반 (담당자 지역 자동 매핑)
+  collected_at DATE
+)
+```
+
+**UI**: index.html 지도 옆 패널 내 별도 섹션
+
+**한계점**:
+- 인기 매장 = 오래된 유명 매장 (트렌딩 ≠ 신규 급부상)
+- 소도시(연천·동두천)는 블로그 데이터 자체가 부족
+- 매장명 AI 추출 정확도 한계 (흔한 상호명 혼동 가능)
+- 카테고리 키워드는 직접 업데이트 필요 (자동 아님)
+- N8N 자체 서버 안정 운영 전제
+
+**선행 조건**: N8N 자체 서버 운영 안정화 후 구현
 
 ### store_memos 테이블 SQL (미실행)
 ```sql

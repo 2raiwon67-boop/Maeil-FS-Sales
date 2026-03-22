@@ -31,9 +31,6 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-    <!-- Proj4js (좌표계 변환) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
-
     <link rel="stylesheet" href="common.css">
 
     <!-- Supabase CDN -->
@@ -1926,10 +1923,10 @@
             <div class="section">
                 <div class="section-header">💾 데이터 관리</div>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button onclick="openUploadModal()" class="naver-map-btn"
-                        style="background: #34c759; justify-content: center;">
-                        📂 RAW 파일 업로드
-                    </button>
+                    <a href="upload.html" class="naver-map-btn"
+                        style="background: #34c759; justify-content: center; text-decoration:none;">
+                        📂 데이터 관리 페이지
+                    </a>
                 </div>
             </div>
         </div>
@@ -1954,8 +1951,8 @@
                         <div class="sv-value" id="dashTotVisits">0</div>
                     </div>
                     <div class="summary-value-card">
-                        <div class="sv-label">인입 대비 개척 비율 <span style="cursor:help; border-bottom:1px dotted #86868b;"
-                                title="전체 인허가 데이터 중 현재 '거래' 상태인 곳의 비율입니다.">ℹ️</span></div>
+                        <div class="sv-label">거래율 <span style="cursor:help; border-bottom:1px dotted #86868b;"
+                                title="인허가 데이터 중 거래 / (거래 + 미거래) 비율입니다.">ℹ️</span></div>
                         <div class="sv-value" id="dashSuccessRate">0%</div>
                     </div>
                     <div class="summary-value-card">
@@ -2133,29 +2130,6 @@
         </div>
     </div>
 
-    <!-- RAW 파일 업로드 모달 -->
-    <div class="modal" id="uploadModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>RAW 파일 업로드</h2>
-                <span class="close-btn" onclick="closeUploadModal()">&times;</span>
-            </div>
-            <div class="upload-zone" id="uploadZone1">
-                <div class="upload-icon">📁</div>
-                <p class="upload-text">클릭하거나 드래그앤드롭</p>
-                <p class="upload-hint">Excel 파일 (.xlsx, .xls)</p>
-            </div>
-            <input type="file" id="fileInput1" accept=".xlsx,.xls" multiple>
-            <div class="loading" id="loading1">
-                <div class="spinner"></div>
-                <p>데이터 가공 중...</p>
-            </div>
-            <div id="alert1"></div>
-            <button class="btn btn-primary btn-full" id="downloadBtn" disabled>
-                📥 1차 가공본 다운로드
-            </button>
-        </div>
-    </div>
 
 
     <script>
@@ -2315,10 +2289,11 @@
             const totalVisits = visits.length;
             document.getElementById('dashTotVisits').innerText = totalVisits;
 
-            // 인입 대비 개척 비율 계산 (전체 인허가 중 거래 성사 비율)
-            const totalAccounts = combinedData.length;
-            const dealAccounts = combinedData.filter(d => d.status === '거래').length;
-            const successRate = totalAccounts > 0 ? Math.round((dealAccounts / totalAccounts) * 100) : 0;
+            // 거래율 계산 (거래 / (거래 + 미거래))
+            const dealCount = combinedData.filter(d => d.status === '거래').length;
+            const nonDealCount = combinedData.filter(d => d.status === '미거래').length;
+            const dealBase = dealCount + nonDealCount;
+            const successRate = dealBase > 0 ? Math.round((dealCount / dealBase) * 100) : 0;
             document.getElementById('dashSuccessRate').innerText = successRate + '%';
 
             // 3. 차트용 데이터 집계
@@ -3965,9 +3940,6 @@
         // 모달
         // ============================================================
 
-        function openUploadModal() { document.getElementById('uploadModal').classList.add('active'); }
-        function closeUploadModal() { document.getElementById('uploadModal').classList.remove('active'); }
-
         /** 네이버 지도 앱 열기 — iOS PWA에서도 작동하는 딥링크 방식 */
         function openNaverMapApp(lat, lng, name) {
             const enc = encodeURIComponent;
@@ -3995,356 +3967,6 @@
         // ============================================================
         // 지도 업데이트 및 검색
         // ============================================================
-
-        // 모달 외부 클릭 시 닫기
-        window.onclick = function (event) {
-            const modal1 = document.getElementById('uploadModal');
-            if (event.target == modal1) {
-                modal1.style.display = "none";
-            }
-        }
-
-        function setupUploadZones() {
-            setupUploadZone('uploadZone1', 'fileInput1', handleRawFile);
-        }
-
-        function setupUploadZone(zoneId, inputId, handler) {
-            const zone = document.getElementById(zoneId);
-            const input = document.getElementById(inputId);
-            zone.onclick = () => input.click();
-            zone.ondragover = (e) => { e.preventDefault(); zone.classList.add('dragover'); };
-            zone.ondragleave = () => zone.classList.remove('dragover');
-            zone.ondrop = (e) => { e.preventDefault(); zone.classList.remove('dragover'); if (e.dataTransfer.files.length > 0) handler(e.dataTransfer.files); };
-            input.onchange = (e) => { if (e.target.files.length > 0) handler(e.target.files); };
-        }
-
-        async function handleRawFile(files) {
-            document.getElementById('loading1').classList.add('active');
-            document.getElementById('downloadBtn').disabled = true;
-
-            try {
-                const fileArray = Array.from(files);
-                const allRawData = [];
-
-                for (const file of fileArray) {
-                    const data = await readFileAsArrayBuffer(file);
-                    const wb = XLSX.read(data, { type: 'array' });
-                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                    allRawData.push(...rawData);
-                }
-
-                await processData(allRawData);
-            } catch (err) {
-                document.getElementById('loading1').classList.remove('active');
-
-                // 암호화된 파일 오류 감지
-                if (err.message && err.message.includes('Encrypted')) {
-                    showAlert('alert1', 'error',
-                        '❌ 암호화된 파일입니다!<br><br>' +
-                        '<strong>해결 방법:</strong><br>' +
-                        '1. Excel에서 파일 열기<br>' +
-                        '2. [파일] → [다른 이름으로 저장]<br>' +
-                        '3. 새 파일로 저장 후 다시 업로드<br><br>' +
-                        '<small>※ 암호로 보호된 파일은 지원되지 않습니다</small>'
-                    );
-                } else {
-                    showAlert('alert1', 'error', '❌ 오류: ' + err.message);
-                }
-            }
-        }
-
-        function readFileAsArrayBuffer(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-                reader.onerror = reject;
-                reader.readAsArrayBuffer(file);
-            });
-        }
-
-        async function processData(rawData, options = {}) {
-            try {
-
-                // 1. 영업/정상만 필터링
-                let data = rawData.filter(row => {
-                    const status = (row['영업상태명'] || row['상세영업상태명'] || '').toString().trim();
-                    return status === '영업/정상' || status === '영업' || status === '정상';
-                });
-
-                // 2. 업종 필터링 & 명칭 변경
-                const targetCategories = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
-                const categoryRenameMap = {
-                    '커피숍': '카페',
-                    '제과점영업': '베이커리',
-                    '기타 휴게음식점': 'FS기타',
-                    '기타': 'FS기타',
-                    '경양식': '레스토랑'
-                };
-
-                data = data.filter(row => {
-                    const category = (row['업태구분명'] || '').toString().trim();
-                    return targetCategories.includes(category);
-                });
-
-                // 3. 블랙리스트 필터링
-                const excludeKeywords = [
-                    '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
-                    'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
-                    '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
-                    '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치'
-                ];
-
-                data = data.filter(row => {
-                    const name = (row['사업장명'] || '').toString();
-                    return !excludeKeywords.some(keyword => name.includes(keyword));
-                });
-
-                // 4. 날짜 필터링
-                // options.startDate / options.endDate (YYYYMMDD)가 있으면 우선 사용, 없으면 기본 1년
-                let filterFrom, filterTo;
-                if (options.startDate) {
-                    const s = options.startDate;
-                    filterFrom = new Date(parseInt(s.slice(0, 4)), parseInt(s.slice(4, 6)) - 1, parseInt(s.slice(6, 8)));
-                } else {
-                    filterFrom = new Date();
-                    filterFrom.setFullYear(filterFrom.getFullYear() - 1);
-                }
-                if (options.endDate) {
-                    const e = options.endDate;
-                    filterTo = new Date(parseInt(e.slice(0, 4)), parseInt(e.slice(4, 6)) - 1, parseInt(e.slice(6, 8)));
-                } else {
-                    filterTo = new Date();
-                }
-
-                data = data.filter(row => {
-                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
-                    if (dateStr.length < 8) return false;
-                    const year = parseInt(dateStr.substring(0, 4));
-                    const month = parseInt(dateStr.substring(4, 6)) - 1;
-                    const day = parseInt(dateStr.substring(6, 8));
-                    const date = new Date(year, month, day);
-                    return date >= filterFrom && date <= filterTo;
-                });
-
-                // 5. 데이터 가공
-                processedData = data.map(row => {
-                    // 기본 정보
-                    const name = (row['사업장명'] || '').toString().trim();
-                    let category = (row['업태구분명'] || '').toString().trim();
-                    category = categoryRenameMap[category] || category;
-
-                    // 날짜 포맷
-                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
-                    let formattedDate = '';
-                    if (dateStr.length >= 8) {
-                        formattedDate = `${dateStr.substring(0, 4)}-${dateStr.substring(4, 6)}-${dateStr.substring(6, 8)}`;
-                    }
-
-                    // 평형 계산
-                    const area = parseFloat(row['소재지면적'] || row['시설총규모'] || 0);
-                    const pyeong = (area / 3.3).toFixed(1);
-
-                    // 주소 처리
-                    const jibunAddr = (row['소재지전체주소'] || '').toString().trim();
-                    const roadAddr = (row['도로명전체주소'] || jibunAddr).toString().trim();
-
-                    // 주소 3단계 분리 (고양시 특수처리)
-                    const tokens = jibunAddr.split(' ');
-                    let addr1 = '', addr2 = '', addr3 = '';
-
-                    if (tokens.length >= 2) {
-                        addr1 = tokens[0];
-                        addr2 = tokens[1];
-
-                        // 고양시 특수처리
-                        if (addr2.startsWith('고양시') && tokens.length > 2) {
-                            addr2 = `${tokens[1]} ${tokens[2]}`;
-                            addr3 = tokens[3] || '';
-                        } else {
-                            addr3 = tokens[2] || '';
-                        }
-                    } else {
-                        addr1 = '확인필요';
-                        addr2 = '확인필요';
-                        addr3 = '확인필요';
-                    }
-
-                    // 담당자 매핑 (동적 설정 사용)
-                    // managerMap에 해당 지역(addr2)이 있으면 사용, 없으면 '미지정'
-                    // 데이터 로드 시점보다 managerConfig 로드가 늦을 수 있으므로 체크
-                    const manager = managerMap[addr2] || '미지정';
-
-                    // 순위 계산
-                    let rank = '3';
-                    if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
-                    else if (parseFloat(pyeong) >= 10) rank = '2';
-
-                    // 좌표 변환 (EPSG:5174 -> WGS84)
-                    // 쉼표 제거 및 문자열 변환 후 파싱
-                    const cleanCoord = (val) => {
-                        if (!val) return 0;
-                        return parseFloat(val.toString().replace(/,/g, '').trim());
-                    };
-
-                    const xCol = cleanCoord(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X']);
-                    const yCol = cleanCoord(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y']);
-
-                    let lat = 0, lng = 0;
-
-                    if (xCol > 0 && yCol > 0) {
-                        try {
-                            // EPSG:5174 (중부원점) 정의
-                            // 보정값(towgs84)은 지역마다 다를 수 있으나 일반적인 값 사용
-                            const epsg5174 = "+proj=tmerc +lat_0=38 +lon_0=127.0028902777778 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43";
-                            const wgs84 = "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs";
-
-                            const converted = proj4(epsg5174, wgs84, [xCol, yCol]);
-                            lng = converted[0];
-                            lat = converted[1];
-                        } catch (e) {
-                            console.warn('좌표 변환 실패:', name, e);
-                        }
-                    }
-
-                    // 앱시트등록일
-                    const uploadDate = new Date().toISOString().split('T')[0];
-
-                    return {
-                        'NO': row['번호'] || '',
-                        '영업 허가일': formattedDate,
-                        '사업장명': name,
-                        '거래여부(기입예정)': '인허가',
-                        '업태구분명': category,
-                        '평형': pyeong,
-                        '도로명전체주소': roadAddr,
-                        '주소1': addr1,
-                        '주소2': addr2,
-                        '주소3': addr3,
-                        '순위': rank,
-                        '담당자': manager,
-                        '앱시트등록일': uploadDate,
-                        '위도': lat, // 변환된 위도
-                        '경도': lng, // 변환된 경도
-                        '_pyeong_num': parseFloat(pyeong),
-                        '_sort_score': 99
-                    };
-                });
-
-                // 6. 한식 필터링 (100평 이상만)
-                processedData = processedData.filter(row => {
-                    if (row['업태구분명'] === '한식' && row['_pyeong_num'] < 100) {
-                        return false;
-                    }
-                    return true;
-                });
-
-                // 7. 담당자 미지정 제외
-                processedData = processedData.filter(row => row['담당자'] !== '미지정');
-
-                // 8. 지오코딩 (좌표 없는 데이터 주소로 변환)
-                const missingCoords = processedData.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
-                if (missingCoords.length > 0) {
-                    const loadingMsg = document.querySelector('#loading1 p');
-                    const originalMsg = loadingMsg ? loadingMsg.innerText : '데이터 가공 중...';
-
-                    if (loadingMsg) loadingMsg.innerText = `좌표 변환 중... (0/${missingCoords.length})`;
-
-                    let count = 0;
-                    // 순차 처리 (Naver API Rate Limit 고려)
-                    for (const item of missingCoords) {
-                        try {
-                            const coords = await geocodeAddress(item['도로명전체주소']);
-                            if (coords) {
-                                item['위도'] = coords.lat;
-                                item['경도'] = coords.lng;
-                            }
-                        } catch (e) {
-                            console.warn('지오코딩 실패:', item['사업장명']);
-                        }
-                        count++;
-                        if (loadingMsg) loadingMsg.innerText = `좌표 변환 중... (${count}/${missingCoords.length})`;
-                        // 약간의 딜레이 (선택사항, API 제한에 따라 조정)
-                        await new Promise(r => setTimeout(r, 50));
-                    }
-
-                    if (loadingMsg) loadingMsg.innerText = originalMsg;
-                }
-
-                // 8. F/C 키워드 처리
-                const fcKeywords = [
-                    '스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피',
-                    '투썸플레이스', '투썸', '할리스', '파스쿠찌', '폴바셋', '풀바셋', '엔제리너스',
-                    '카페베네', '탐앤탐스', '설빙', '공차', '아마스빈', '더벤티', '쥬씨', '감성커피', '백억커피', '김준호의', '만랩',
-                    '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피',
-                    '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
-                ];
-
-                processedData.forEach(row => {
-                    const name = row['사업장명'];
-                    if (fcKeywords.some(keyword => name.includes(keyword))) {
-                        row['업태구분명'] = 'F/C';
-                    }
-                });
-
-                // 9. 인천공항 처리
-                processedData.forEach(row => {
-                    const addr = row['도로명전체주소'];
-                    const name = row['사업장명'];
-                    if (addr.includes('인천공항') || name.includes('인천공항')) {
-                        row['업태구분명'] = '인천공항';
-                    }
-                });
-
-                // 10. 정렬 점수 계산
-                processedData.forEach(row => {
-                    if (row['업태구분명'] === 'F/C') {
-                        row['_sort_score'] = 60;
-                    } else if (row['업태구분명'] === '인천공항') {
-                        row['_sort_score'] = 50;
-                    } else if (row['순위'] === '1') {
-                        row['_sort_score'] = 10;
-                    } else if (row['순위'] === '2') {
-                        row['_sort_score'] = 20;
-                    } else if (row['순위'] === '3') {
-                        row['_sort_score'] = 30;
-                    }
-                });
-
-                // 11. 정렬 (점수 오름차순 -> 평형 내림차순)
-                processedData.sort((a, b) => {
-                    if (a['_sort_score'] !== b['_sort_score']) {
-                        return a['_sort_score'] - b['_sort_score'];
-                    }
-                    return b['_pyeong_num'] - a['_pyeong_num'];
-                });
-
-                // 12. 임시 컬럼 제거
-                processedData.forEach(row => {
-                    delete row['_pyeong_num'];
-                    delete row['_sort_score'];
-                });
-
-
-                document.getElementById('loading1').classList.remove('active');
-                document.getElementById('downloadBtn').disabled = false;
-                showAlert('alert1', 'success', `✅ ${processedData.length}건 완료`);
-
-            } catch (err) {
-                console.error('전처리 오류:', err);
-                document.getElementById('loading1').classList.remove('active');
-                showAlert('alert1', 'error', '❌ 전처리 오류: ' + err.message);
-            }
-        }
-
-        document.getElementById('downloadBtn').onclick = function () {
-            const ws = XLSX.utils.json_to_sheet(processedData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "가공데이터");
-            XLSX.writeFile(wb, '인허가_1차가공_' + new Date().toISOString().slice(0, 10) + '.xlsx');
-        };
-
-        // 데이터 업로드는 upload.html 에서 처리
-
 
 
         function geocodeAddress(address) {

@@ -13,6 +13,10 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- proj4 (EPSG:5174 → WGS84 좌표 변환, RAW 인허가 전처리용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <!-- 네이버 지도 SDK (지오코딩, RAW 인허가 전처리용) -->
+    <script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=uipaxmujrl&submodules=geocoder"></script>
 
     <link rel="stylesheet" href="common.css">
 
@@ -793,6 +797,30 @@
             <!-- 오른쪽: 엑셀 업로드 + 미리보기 -->
             <div class="grid-right">
 
+                <!-- 0. RAW 파일 전처리 (인허가 탭 전용) -->
+                <div class="card" id="rawPreprocessCard" style="display:none;">
+                    <div class="card-header">RAW 파일 전처리 <span style="font-size:11px;font-weight:400;color:#86868b;">공공데이터포털 원본 → 1차 가공본 다운로드</span></div>
+                    <div class="card-body">
+                        <div class="dropzone" id="rawDropzone" onclick="document.getElementById('rawFileInput').click()"
+                            ondragover="event.preventDefault(); this.classList.add('drag')"
+                            ondragleave="this.classList.remove('drag')" ondrop="handleRawDrop(event)">
+                            <div class="dz-icon">📂</div>
+                            <div id="rawDropzoneText">공공데이터포털 RAW 파일을 여기에 드롭하거나 클릭하세요</div>
+                            <div class="dz-hint">.xlsx, .xls 파일 지원 (복수 파일 가능)</div>
+                        </div>
+                        <input type="file" id="rawFileInput" accept=".xlsx,.xls" multiple style="display:none"
+                            onchange="handleRawFileInput(event)">
+                        <div id="rawLoading" style="display:none; padding:12px; text-align:center; color:#86868b; font-size:13px;">
+                            <div style="margin-bottom:6px;">⏳</div>
+                            <div id="rawLoadingMsg">데이터 가공 중...</div>
+                        </div>
+                        <div id="rawAlert" style="margin-top:8px;"></div>
+                        <button id="rawDownloadBtn" style="display:none; margin-top:10px; width:100%; padding:10px; background:#34c759; color:#fff; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer;">
+                            📥 1차 가공본 다운로드
+                        </button>
+                    </div>
+                </div>
+
                 <!-- 3. 템플릿 + 파일 업로드 -->
                 <div class="card" id="uploadCard">
                     <div class="card-header">엑셀 업로드 (대량 데이터 추가)</div>
@@ -1025,6 +1053,10 @@
             // 공공인허가 조회 패널: 인허가 탭일 때만 표시
             const searchCard = document.getElementById('publicSearchCard');
             if (searchCard) searchCard.style.display = type === 'licenses' ? '' : 'none';
+
+            // RAW 전처리 카드: 인허가 탭일 때만 표시
+            const rawCard = document.getElementById('rawPreprocessCard');
+            if (rawCard) rawCard.style.display = type === 'licenses' ? '' : 'none';
 
             // 레시피는 CLI로만 관리 — 업로드 카드 숨김
             const uploadCard = document.getElementById('uploadCard');
@@ -1742,6 +1774,30 @@
                     const fileHeaders = raw[0].map(h => String(h || '').trim());
                     const rows = raw.slice(1).filter(row => row.some(c => c !== '' && c != null));
 
+                    // ── 컬럼 검증 ─────────────────────────────────────
+                    if (cfg.columnMap) {
+                        const fileHeaderSet = new Set(fileHeaders);
+                        // 필수 컬럼 헤더명 역방향 조회 (db컬럼 → 파일헤더)
+                        const requiredHeader = Object.entries(cfg.columnMap)
+                            .find(([, dbCol]) => dbCol === cfg.requiredCol)?.[0];
+                        if (requiredHeader && !fileHeaderSet.has(requiredHeader)) {
+                            showToast(`필수 컬럼 "**${requiredHeader}**"이 파일에 없습니다. 템플릿을 확인해주세요.`, 'error', 5000);
+                            return;
+                        }
+                        // 선택 컬럼 누락 목록 (필수 제외, NO 제외)
+                        const missingOptional = Object.keys(cfg.columnMap).filter(h =>
+                            h !== requiredHeader && h !== 'NO' && !fileHeaderSet.has(h)
+                        );
+                        // 인식 불가 컬럼 (columnMap에도 없고 NO도 아닌 것)
+                        const unrecognized = fileHeaders.filter(h =>
+                            h && h !== 'NO' && !cfg.columnMap[h]
+                        );
+                        // 검증 결과를 나중에 배너에 표시하기 위해 저장
+                        window._uploadColWarnings = { missingOptional, unrecognized };
+                    } else {
+                        window._uploadColWarnings = null;
+                    }
+
                     // 날짜 정규화: 엑셀 로케일/포맷 무관하게 YYYY-MM-DD 보장
                     const normalizeToYMD = (val) => {
                         if (!val) return null;
@@ -1808,12 +1864,28 @@
 
                     const isAppend = cfg.mode === 'append';
                     const isAddNewOnly = cfg.mode === 'add_new_only';
-                    document.getElementById('uploadBanner').className = 'banner banner-warn';
-                    document.getElementById('uploadBanner').innerHTML = isAppend
-                        ? `➕ <strong>${cfg.label}</strong> 기존 데이터에 <strong>${parsedData.length}건</strong>을 추가합니다. (seq_no 중복 시 덮어씀)`
-                        : isAddNewOnly
-                        ? `➕ <strong>${cfg.label}</strong> <strong>${parsedData.length}건</strong>을 추가합니다. 상호명이 이미 존재하는 항목은 자동으로 건너뜁니다.`
-                        : `⚠️ 기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedData.length}건</strong>으로 교체됩니다.`;
+                    const colWarn = window._uploadColWarnings;
+                    let bannerClass = 'banner banner-warn';
+                    let bannerLines = [];
+
+                    if (isAppend) {
+                        bannerLines.push(`➕ <strong>${cfg.label}</strong> 기존 데이터에 <strong>${parsedData.length}건</strong>을 추가합니다. (seq_no 중복 시 덮어씀)`);
+                    } else if (isAddNewOnly) {
+                        bannerLines.push(`➕ <strong>${cfg.label}</strong> <strong>${parsedData.length}건</strong>을 추가합니다. 상호명이 이미 존재하는 항목은 자동으로 건너뜁니다.`);
+                    } else {
+                        bannerLines.push(`⚠️ 기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedData.length}건</strong>으로 교체됩니다.`);
+                    }
+
+                    if (colWarn?.missingOptional?.length) {
+                        bannerClass = 'banner banner-warn';
+                        bannerLines.push(`⚠️ 파일에 없는 컬럼 (빈값으로 처리됨): <strong>${colWarn.missingOptional.join(', ')}</strong>`);
+                    }
+                    if (colWarn?.unrecognized?.length) {
+                        bannerLines.push(`ℹ️ 인식되지 않아 무시된 컬럼: ${colWarn.unrecognized.join(', ')}`);
+                    }
+
+                    document.getElementById('uploadBanner').className = bannerClass;
+                    document.getElementById('uploadBanner').innerHTML = bannerLines.join('<br>');
                     document.getElementById('btnUpload').textContent = isAppend
                         ? `업로드 확인 (${parsedData.length}건 추가/갱신)`
                         : isAddNewOnly
@@ -2030,6 +2102,260 @@
                 showToast('❌ ' + e.message);
             }
         }
+
+        // ── RAW 파일 전처리 ──────────────────────────────────
+
+        let rawProcessedData = null;
+        let rawManagerMap = {};
+
+        // managers 테이블에서 region2 → manager_name 매핑 로드
+        async function loadRawManagerMap() {
+            try {
+                const bu = await getBusinessUnit();
+                if (!bu) return;
+                const { data: { session } } = await client.auth.getSession();
+                const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                const token = session?.access_token || anonKey;
+                const res = await fetch(
+                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region2,manager_name`,
+                    { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
+                );
+                if (!res.ok) return;
+                const rows = await res.json();
+                rawManagerMap = {};
+                rows.forEach(r => { if (r.region2) rawManagerMap[r.region2] = r.manager_name; });
+            } catch (e) {
+                console.warn('담당자 맵 로드 실패:', e);
+            }
+        }
+        loadRawManagerMap();
+
+        function geocodeAddress(address) {
+            return new Promise((resolve) => {
+                if (!window.naver || !naver.maps || !naver.maps.Service) { resolve(null); return; }
+                naver.maps.Service.geocode({ query: address }, function (status, response) {
+                    if (status !== naver.maps.Service.Status.OK) { resolve(null); return; }
+                    try {
+                        const result = response.v2.addresses[0];
+                        resolve({ lat: parseFloat(result.y), lng: parseFloat(result.x) });
+                    } catch (e) { resolve(null); }
+                });
+            });
+        }
+
+        function handleRawDrop(e) {
+            e.preventDefault();
+            document.getElementById('rawDropzone').classList.remove('drag');
+            if (e.dataTransfer.files.length > 0) processRawFiles(e.dataTransfer.files);
+        }
+
+        function handleRawFileInput(e) {
+            if (e.target.files.length > 0) processRawFiles(e.target.files);
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(new Uint8Array(e.target.result));
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function showRawAlert(type, msg) {
+            const el = document.getElementById('rawAlert');
+            const cls = type === 'success' ? '#34c759' : type === 'error' ? '#ff3b30' : '#ff9500';
+            el.innerHTML = `<div style="padding:10px 12px;border-radius:8px;background:${cls}15;border:1px solid ${cls}40;font-size:13px;color:#1d1d1f;">${msg}</div>`;
+        }
+
+        async function processRawFiles(files) {
+            const loadingEl = document.getElementById('rawLoading');
+            const loadingMsg = document.getElementById('rawLoadingMsg');
+            const downloadBtn = document.getElementById('rawDownloadBtn');
+            const alertEl = document.getElementById('rawAlert');
+
+            loadingEl.style.display = 'block';
+            downloadBtn.style.display = 'none';
+            alertEl.innerHTML = '';
+            rawProcessedData = null;
+
+            try {
+                const allRawData = [];
+                for (const file of Array.from(files)) {
+                    const data = await readFileAsArrayBuffer(file);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    allRawData.push(...rawData);
+                }
+                await processRawData(allRawData, loadingMsg);
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                if (err.message && err.message.includes('Encrypted')) {
+                    showRawAlert('error',
+                        '❌ 암호화된 파일입니다!<br><strong>해결 방법:</strong> Excel에서 파일 열기 → [파일] → [다른 이름으로 저장] → 새 파일로 저장 후 다시 업로드'
+                    );
+                } else {
+                    showRawAlert('error', '❌ 오류: ' + err.message);
+                }
+            }
+        }
+
+        async function processRawData(rawData, loadingMsg) {
+            const loadingEl = document.getElementById('rawLoading');
+            const downloadBtn = document.getElementById('rawDownloadBtn');
+
+            try {
+                // 1. 영업/정상만 필터링
+                let data = rawData.filter(row => {
+                    const status = (row['영업상태명'] || row['상세영업상태명'] || '').toString().trim();
+                    return status === '영업/정상' || status === '영업' || status === '정상';
+                });
+
+                // 2. 업종 필터링 & 명칭 변경
+                const targetCategories = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
+                const categoryRenameMap = { '커피숍': '카페', '제과점영업': '베이커리', '기타 휴게음식점': 'FS기타', '기타': 'FS기타', '경양식': '레스토랑' };
+                data = data.filter(row => targetCategories.includes((row['업태구분명'] || '').toString().trim()));
+
+                // 3. 블랙리스트 필터링
+                const excludeKeywords = [
+                    '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
+                    'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
+                    '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
+                    '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치'
+                ];
+                data = data.filter(row => !excludeKeywords.some(kw => (row['사업장명'] || '').toString().includes(kw)));
+
+                // 4. 날짜 필터링 (기본 1년)
+                const filterFrom = new Date(); filterFrom.setFullYear(filterFrom.getFullYear() - 1);
+                const filterTo = new Date();
+                data = data.filter(row => {
+                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
+                    if (dateStr.length < 8) return false;
+                    const d = new Date(parseInt(dateStr.slice(0,4)), parseInt(dateStr.slice(4,6))-1, parseInt(dateStr.slice(6,8)));
+                    return d >= filterFrom && d <= filterTo;
+                });
+
+                // 5. 데이터 가공
+                const uploadDate = new Date().toISOString().split('T')[0];
+                let processed = data.map(row => {
+                    const name = (row['사업장명'] || '').toString().trim();
+                    let category = (row['업태구분명'] || '').toString().trim();
+                    category = categoryRenameMap[category] || category;
+
+                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
+                    const formattedDate = dateStr.length >= 8
+                        ? `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}` : '';
+
+                    const area = parseFloat(row['소재지면적'] || row['시설총규모'] || 0);
+                    const pyeong = (area / 3.3).toFixed(1);
+
+                    const jibunAddr = (row['소재지전체주소'] || '').toString().trim();
+                    const roadAddr = (row['도로명전체주소'] || jibunAddr).toString().trim();
+                    const tokens = jibunAddr.split(' ');
+                    let addr1 = '', addr2 = '', addr3 = '';
+                    if (tokens.length >= 2) {
+                        addr1 = tokens[0]; addr2 = tokens[1];
+                        if (addr2.startsWith('고양시') && tokens.length > 2) {
+                            addr2 = `${tokens[1]} ${tokens[2]}`; addr3 = tokens[3] || '';
+                        } else { addr3 = tokens[2] || ''; }
+                    } else { addr1 = '확인필요'; addr2 = '확인필요'; addr3 = '확인필요'; }
+
+                    const manager = rawManagerMap[addr2] || '미지정';
+                    let rank = '3';
+                    if (parseFloat(pyeong) >= 30 || parseFloat(pyeong) == 0) rank = '1';
+                    else if (parseFloat(pyeong) >= 10) rank = '2';
+
+                    const cleanCoord = (val) => val ? parseFloat(val.toString().replace(/,/g, '').trim()) : 0;
+                    const xCol = cleanCoord(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X']);
+                    const yCol = cleanCoord(row['좌표정보Y(EPSG5174)'] || row['좌표정보(Y)'] || row['좌표정보Y']);
+                    let lat = 0, lng = 0;
+                    if (xCol > 0 && yCol > 0) {
+                        try {
+                            const epsg5174 = "+proj=tmerc +lat_0=38 +lon_0=127.0028902777778 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43";
+                            const converted = proj4(epsg5174, "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs", [xCol, yCol]);
+                            lng = converted[0]; lat = converted[1];
+                        } catch (e) { console.warn('좌표 변환 실패:', name); }
+                    }
+
+                    return {
+                        'NO': row['번호'] || '', '영업 허가일': formattedDate, '사업장명': name,
+                        '거래여부(기입예정)': '인허가', '업태구분명': category, '평형': pyeong,
+                        '도로명전체주소': roadAddr, '주소1': addr1, '주소2': addr2, '주소3': addr3,
+                        '순위': rank, '담당자': manager, '앱시트등록일': uploadDate,
+                        '위도': lat, '경도': lng,
+                        _pyeong_num: parseFloat(pyeong), _sort_score: 99
+                    };
+                });
+
+                // 6. 한식 100평 미만 제외
+                processed = processed.filter(row => !(row['업태구분명'] === '한식' && row._pyeong_num < 100));
+
+                // 7. 담당자 미지정 제외
+                processed = processed.filter(row => row['담당자'] !== '미지정');
+
+                // 8. 지오코딩 (좌표 없는 항목)
+                const missingCoords = processed.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
+                if (missingCoords.length > 0) {
+                    loadingMsg.innerText = `좌표 변환 중... (0/${missingCoords.length})`;
+                    let count = 0;
+                    for (const item of missingCoords) {
+                        try {
+                            const coords = await geocodeAddress(item['도로명전체주소']);
+                            if (coords) { item['위도'] = coords.lat; item['경도'] = coords.lng; }
+                        } catch (e) { console.warn('지오코딩 실패:', item['사업장명']); }
+                        count++;
+                        loadingMsg.innerText = `좌표 변환 중... (${count}/${missingCoords.length})`;
+                        await new Promise(r => setTimeout(r, 50));
+                    }
+                }
+
+                // 9. F/C 키워드 처리
+                const fcKeywords = ['스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피', '투썸플레이스', '투썸', '할리스', '파스쿠찌', '폴바셋', '풀바셋', '엔제리너스', '카페베네', '탐앤탐스', '설빙', '공차', '아마스빈', '더벤티', '쥬씨', '감성커피', '백억커피', '김준호의', '만랩', '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피', '브레댄코', '카페일리터', '하삼동', '텐퍼센트'];
+                processed.forEach(row => {
+                    if (fcKeywords.some(kw => row['사업장명'].includes(kw))) row['업태구분명'] = 'F/C';
+                });
+
+                // 10. 인천공항 처리
+                processed.forEach(row => {
+                    if (row['도로명전체주소'].includes('인천공항') || row['사업장명'].includes('인천공항')) row['업태구분명'] = '인천공항';
+                });
+
+                // 11. 정렬
+                processed.forEach(row => {
+                    if (row['업태구분명'] === 'F/C') row._sort_score = 60;
+                    else if (row['업태구분명'] === '인천공항') row._sort_score = 50;
+                    else if (row['순위'] === '1') row._sort_score = 10;
+                    else if (row['순위'] === '2') row._sort_score = 20;
+                    else row._sort_score = 30;
+                });
+                processed.sort((a, b) => a._sort_score !== b._sort_score ? a._sort_score - b._sort_score : b._pyeong_num - a._pyeong_num);
+
+                // 12. 임시 컬럼 제거
+                processed.forEach(row => { delete row._pyeong_num; delete row._sort_score; });
+
+                rawProcessedData = processed;
+                loadingEl.style.display = 'none';
+                downloadBtn.style.display = 'block';
+                document.getElementById('rawDropzoneText').textContent = `✅ ${processed.length}건 가공 완료`;
+                showRawAlert('success', `✅ ${processed.length}건 처리 완료. 아래 버튼으로 다운로드 후 엑셀 업로드 카드에서 DB에 추가하세요.`);
+
+            } catch (err) {
+                loadingEl.style.display = 'none';
+                showRawAlert('error', '❌ 전처리 오류: ' + err.message);
+            }
+        }
+
+        document.getElementById('rawDownloadBtn').onclick = function () {
+            if (!rawProcessedData) return;
+            const ws = XLSX.utils.json_to_sheet(rawProcessedData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '가공데이터');
+            const today = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `FS_MISO_인허가_가공본_${today}.xlsx`);
+        };
+
+        // rawPreprocessCard 초기 상태 (인허가 탭이 기본 선택이므로 바로 표시)
+        document.getElementById('rawPreprocessCard').style.display = '';
 
         // ── 공공인허가 조회 ───────────────────────────────────
 
