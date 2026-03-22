@@ -1884,6 +1884,17 @@
                         bannerLines.push(`ℹ️ 인식되지 않아 무시된 컬럼: ${colWarn.unrecognized.join(', ')}`);
                     }
 
+                    // 거래여부 유효성 검사 (인허가 데이터 전용)
+                    if (selectedType === 'licenses') {
+                        const VALID_STATUSES = new Set(['거래', '미거래', '인허가', '공사중', 'DROP', '기타']);
+                        const invalidRows = parsedData.filter(row => row.trade_status && !VALID_STATUSES.has(row.trade_status));
+                        if (invalidRows.length > 0) {
+                            const invalidVals = [...new Set(invalidRows.map(r => `"${r.trade_status}"`))].join(', ');
+                            bannerClass = 'banner banner-warn';
+                            bannerLines.push(`⚠️ 유효하지 않은 거래여부 값 ${invalidRows.length}건: ${invalidVals}<br><small style="color:#86868b;">허용값: 거래 / 미거래 / 인허가 / 공사중 / DROP / 기타</small>`);
+                        }
+                    }
+
                     document.getElementById('uploadBanner').className = bannerClass;
                     document.getElementById('uploadBanner').innerHTML = bannerLines.join('<br>');
                     document.getElementById('btnUpload').textContent = isAppend
