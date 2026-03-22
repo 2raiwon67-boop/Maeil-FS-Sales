@@ -806,9 +806,9 @@
                             ondragleave="this.classList.remove('drag')" ondrop="handleRawDrop(event)">
                             <div class="dz-icon">📂</div>
                             <div id="rawDropzoneText">공공데이터포털 RAW 파일을 여기에 드롭하거나 클릭하세요</div>
-                            <div class="dz-hint">.xlsx, .xls 파일 지원 (복수 파일 가능)</div>
+                            <div class="dz-hint">.xlsx, .xls, .csv 파일 지원 (복수 파일 가능)</div>
                         </div>
-                        <input type="file" id="rawFileInput" accept=".xlsx,.xls" multiple style="display:none"
+                        <input type="file" id="rawFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none"
                             onchange="handleRawFileInput(event)">
                         <div id="rawLoading" style="display:none; padding:12px; text-align:center; color:#86868b; font-size:13px;">
                             <div style="margin-bottom:6px;">⏳</div>
@@ -2231,8 +2231,15 @@
             try {
                 const allRawData = [];
                 for (const file of Array.from(files)) {
-                    const data = await readFileAsArrayBuffer(file);
-                    const wb = XLSX.read(data, { type: 'array' });
+                    const isCsv = file.name.toLowerCase().endsWith('.csv');
+                    let wb;
+                    if (isCsv) {
+                        const text = await file.text();
+                        wb = XLSX.read(text, { type: 'string' });
+                    } else {
+                        const data = await readFileAsArrayBuffer(file);
+                        wb = XLSX.read(data, { type: 'array' });
+                    }
                     const rawData = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
                     allRawData.push(...rawData);
                 }
