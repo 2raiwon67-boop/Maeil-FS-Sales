@@ -2253,17 +2253,7 @@
                 ];
                 data = data.filter(row => !excludeKeywords.some(kw => (row['사업장명'] || '').toString().includes(kw)));
 
-                // 4. 날짜 필터링 (기본 1년)
-                const filterFrom = new Date(); filterFrom.setFullYear(filterFrom.getFullYear() - 1);
-                const filterTo = new Date();
-                data = data.filter(row => {
-                    const dateStr = (row['인허가일자'] || row['영업허가일'] || '').toString().replace(/\D/g, '');
-                    if (dateStr.length < 8) return false;
-                    const d = new Date(parseInt(dateStr.slice(0,4)), parseInt(dateStr.slice(4,6))-1, parseInt(dateStr.slice(6,8)));
-                    return d >= filterFrom && d <= filterTo;
-                });
-
-                // 5. 데이터 가공
+                // 4. 데이터 가공
                 const uploadDate = new Date().toISOString().split('T')[0];
                 let processed = data.map(row => {
                     const name = (row['사업장명'] || '').toString().trim();
