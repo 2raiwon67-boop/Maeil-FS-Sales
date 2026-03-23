@@ -25,6 +25,9 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: '환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, BREVO_API_KEY 확인' });
     }
 
+    // ?dryRun=true 시 이메일 발송 없이 대상 목록만 반환
+    const dryRun = req.query?.dryRun === 'true';
+
     try {
         const sbHeaders = {
             'apikey': SERVICE_KEY,
@@ -138,25 +141,31 @@ export default async function handler(req, res) {
                 const targets   = { newObj: myNew, revisitObj: myRevisit };
                 const html = buildAlertEmailHtml(managerName, targets);
 
-                const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-                    method: 'POST',
-                    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sender:      { name: FROM_NAME, email: FROM_EMAIL },
-                        to:          [{ email }],
-                        subject:     `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
-                        htmlContent: html
-                    })
-                });
-
-                const sendData = await sendRes.json();
-                results.push({
-                    manager: managerName, bu, email,
-                    status:  sendRes.ok ? 'sent' : 'failed',
-                    new:     myNew.length, revisit: myRevisit.length,
-                    id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
-                });
-                await sleep(600);
+                if (dryRun) {
+                    results.push({
+                        manager: managerName, bu, email,
+                        status: 'dry-run', new: myNew.length, revisit: myRevisit.length
+                    });
+                } else {
+                    const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+                        method: 'POST',
+                        headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sender:      { name: FROM_NAME, email: FROM_EMAIL },
+                            to:          [{ email }],
+                            subject:     `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
+                            htmlContent: html
+                        })
+                    });
+                    const sendData = await sendRes.json();
+                    results.push({
+                        manager: managerName, bu, email,
+                        status:  sendRes.ok ? 'sent' : 'failed',
+                        new:     myNew.length, revisit: myRevisit.length,
+                        id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
+                    });
+                    await sleep(600);
+                }
             }
 
             // 4-2. 지점장: 본인 지점 전체 건
@@ -164,25 +173,31 @@ export default async function handler(req, res) {
                 const targets    = { newObj: unitNew, revisitObj: unitRevisit };
                 const html = buildAlertEmailHtml('전체', targets);
 
-                const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-                    method: 'POST',
-                    headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        sender:      { name: FROM_NAME, email: FROM_EMAIL },
-                        to:          [{ email }],
-                        subject:     `[인허가 알림] 신규 ${unitNew.length}건 / 재확인 ${unitRevisit.length}건 (${bu} 전체)`,
-                        htmlContent: html
-                    })
-                });
-
-                const sendData = await sendRes.json();
-                results.push({
-                    manager: '지점장', bu, email,
-                    status:  sendRes.ok ? 'sent' : 'failed',
-                    new:     unitNew.length, revisit: unitRevisit.length,
-                    id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
-                });
-                await sleep(600);
+                if (dryRun) {
+                    results.push({
+                        manager: '지점장', bu, email,
+                        status: 'dry-run', new: unitNew.length, revisit: unitRevisit.length
+                    });
+                } else {
+                    const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+                        method: 'POST',
+                        headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            sender:      { name: FROM_NAME, email: FROM_EMAIL },
+                            to:          [{ email }],
+                            subject:     `[인허가 알림] 신규 ${unitNew.length}건 / 재확인 ${unitRevisit.length}건 (${bu} 전체)`,
+                            htmlContent: html
+                        })
+                    });
+                    const sendData = await sendRes.json();
+                    results.push({
+                        manager: '지점장', bu, email,
+                        status:  sendRes.ok ? 'sent' : 'failed',
+                        new:     unitNew.length, revisit: unitRevisit.length,
+                        id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
+                    });
+                    await sleep(600);
+                }
             }
         }
 
