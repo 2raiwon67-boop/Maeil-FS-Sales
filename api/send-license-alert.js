@@ -55,9 +55,10 @@ export default async function handler(req, res) {
         const revisitTargets = []; // D+28 이상 + 공사중 상태
 
         allLicenses.forEach(row => {
-            // 순위 1, 2만 대상
+            // 순위 1, 2만 대상 ('1', '1순위', '1위' 등 모두 허용)
             const p = String(row.priority || '').trim();
-            if (p !== '1' && p !== '2') return;
+            const rank = p.replace(/[^0-9]/g, '');
+            if (rank !== '1' && rank !== '2') return;
 
             const permitDateStr = row.permit_date;
             if (!permitDateStr) return;
