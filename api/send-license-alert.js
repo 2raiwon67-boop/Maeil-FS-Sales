@@ -89,6 +89,25 @@ export default async function handler(req, res) {
             }
         });
 
+        // dry-run 시 지점별 진단 정보 추가
+        if (dryRun) {
+            const diagByUnit = {};
+            allLicenses.forEach(row => {
+                const bu = row.business_unit || '미지정';
+                if (!diagByUnit[bu]) diagByUnit[bu] = { total: 0, noRank: 0, noDate: 0, statusMap: {} };
+                diagByUnit[bu].total++;
+                const p = String(row.priority || '').trim();
+                const rank = p.replace(/[^0-9]/g, '');
+                if (rank !== '1' && rank !== '2') diagByUnit[bu].noRank++;
+                if (!row.permit_date) diagByUnit[bu].noDate++;
+                const s = (row.trade_status || '없음').trim();
+                diagByUnit[bu].statusMap[s] = (diagByUnit[bu].statusMap[s] || 0) + 1;
+            });
+            if (newTargets.length === 0 && revisitTargets.length === 0) {
+                return res.status(200).json({ success: true, message: '대상 없음', diagByUnit });
+            }
+        }
+
         if (newTargets.length === 0 && revisitTargets.length === 0) {
             return res.status(200).json({ success: true, message: '이메일 발송 대상 없음 (D+14, D+28 조건 만족 0건)' });
         }
@@ -202,14 +221,33 @@ export default async function handler(req, res) {
             }
         }
 
-        return res.status(200).json({
+        const response = {
             success:        true,
             newTargets:     newTargets.length,
             revisitTargets: revisitTargets.length,
             sent:           results.filter(r => r.status === 'sent').length,
             failed:         results.filter(r => r.status === 'failed').length,
             results
-        });
+        };
+
+        // dry-run 시 지점별 진단 정보 포함
+        if (dryRun) {
+            const diagByUnit = {};
+            allLicenses.forEach(row => {
+                const bu = row.business_unit || '미지정';
+                if (!diagByUnit[bu]) diagByUnit[bu] = { total: 0, noRank: 0, noDate: 0, statusMap: {} };
+                diagByUnit[bu].total++;
+                const p = String(row.priority || '').trim();
+                const rank = p.replace(/[^0-9]/g, '');
+                if (rank !== '1' && rank !== '2') diagByUnit[bu].noRank++;
+                if (!row.permit_date) diagByUnit[bu].noDate++;
+                const s = (row.trade_status || '없음').trim();
+                diagByUnit[bu].statusMap[s] = (diagByUnit[bu].statusMap[s] || 0) + 1;
+            });
+            response.diagByUnit = diagByUnit;
+        }
+
+        return res.status(200).json(response);
 
     } catch (e) {
         return res.status(500).json({ error: e.message });
