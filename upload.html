@@ -979,16 +979,18 @@
                 label: '담당자관리', table: 'managers',
                 editable: true,
                 columns: [
-                    { key: 'region1', label: '시도' },
-                    { key: 'region2', label: '시군구' },
+                    { key: 'region1', label: '지역1' },
+                    { key: 'region2', label: '지역2' },
+                    { key: 'region3', label: '지역3' },
                     { key: 'manager_name', label: '담당자' },
                     { key: 'email', label: '이메일' }
                 ],
-                templateHeaders: ['시도', '시군구', '담당자', '이메일'],
-                sampleRow: ['경기도', '포천시', '홍길동', 'hong@example.com'],
+                templateHeaders: ['지역1', '지역2', '지역3', '담당자', '이메일'],
+                sampleRow: ['경기도', '화성시', '동탄구', '홍길동', 'hong@example.com'],
                 columnMap: {
-                    '시도': 'region1',
-                    '시군구': 'region2',
+                    '지역1': 'region1',
+                    '지역2': 'region2',
+                    '지역3': 'region3',
                     '담당자': 'manager_name',
                     '이메일': 'email'
                 },
