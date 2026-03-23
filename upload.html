@@ -1779,16 +1779,8 @@
                             showToast(`필수 컬럼 "**${requiredHeader}**"이 파일에 없습니다. 템플릿을 확인해주세요.`, 'error', 5000);
                             return;
                         }
-                        // 선택 컬럼 누락 목록 (필수 제외, NO 제외)
-                        const missingOptional = Object.keys(cfg.columnMap).filter(h =>
-                            h !== requiredHeader && h !== 'NO' && !fileHeaderSet.has(h)
-                        );
-                        // 인식 불가 컬럼 (columnMap에도 없고 NO도 아닌 것)
-                        const unrecognized = fileHeaders.filter(h =>
-                            h && h !== 'NO' && !cfg.columnMap[h]
-                        );
-                        // 검증 결과를 나중에 배너에 표시하기 위해 저장
-                        window._uploadColWarnings = { missingOptional, unrecognized };
+                        // 검증 결과를 나중에 배너에 표시하기 위해 저장 (선택/인식불가 컬럼 경고 제거)
+                        window._uploadColWarnings = {};
                     } else {
                         window._uploadColWarnings = null;
                     }
@@ -1871,13 +1863,6 @@
                         bannerLines.push(`⚠️ 기존 <strong>${cfg.label}</strong> 데이터가 모두 삭제되고 새 데이터 <strong>${parsedData.length}건</strong>으로 교체됩니다.`);
                     }
 
-                    if (colWarn?.missingOptional?.length) {
-                        bannerClass = 'banner banner-warn';
-                        bannerLines.push(`⚠️ 파일에 없는 컬럼 (빈값으로 처리됨): <strong>${colWarn.missingOptional.join(', ')}</strong>`);
-                    }
-                    if (colWarn?.unrecognized?.length) {
-                        bannerLines.push(`ℹ️ 인식되지 않아 무시된 컬럼: ${colWarn.unrecognized.join(', ')}`);
-                    }
 
                     // 거래여부 유효성 검사 (인허가 데이터 전용)
                     let hasStatusError = false;
