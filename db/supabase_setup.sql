@@ -145,13 +145,14 @@ CREATE POLICY "visit_logs_delete_own" ON visit_logs
 
 -- ─────────────────────────────────────────────────────────────
 -- 4. managers (담당자관리)
--- region1: 시도, region2: 시군구 (지점장은 region2='지점장')
+-- region1: 시도, region2: 시군구 (지점장은 region2='지점장'), region3: 구 (선택, 시 내 구 단위 분리 시 사용)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS managers (
     id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     business_unit     TEXT NOT NULL,
     region1           TEXT,
     region2           TEXT,
+    region3           TEXT,
     manager_name      TEXT NOT NULL,
     email             TEXT,
     is_branch_manager BOOLEAN DEFAULT false,
@@ -159,6 +160,7 @@ CREATE TABLE IF NOT EXISTS managers (
     uploaded_at       TIMESTAMPTZ DEFAULT now()
 );
 
+ALTER TABLE managers ADD COLUMN IF NOT EXISTS region3 TEXT;
 ALTER TABLE managers ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "managers_select_same_unit" ON managers;

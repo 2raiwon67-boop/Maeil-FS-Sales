@@ -425,3 +425,12 @@ ADMIN_CODE                  관리자 API 인증 (= 532753)
   - 구버전 텍스트(①②③④) 폴백 유지 (기존 캐시 7일 후 자동 전환)
   - UI: 블록 → 인라인 행 형식 (`briefing-row`: 아이콘 + 라벨 + 내용)
   - product 빈 문자열이면 행 숨김
+
+### 회원가입 rate limit 해결 + 승인 후 자동 이동 (82b227c)
+
+- **문제 1**: 회원가입 시 "email rate limit exceeded" 에러 → Supabase 무료 플랜 이메일 발송 시간당 4건 제한
+  - **해결**: Supabase Dashboard → Authentication → Sign In / Providers → Email → "Confirm email" 비활성화
+  - 관리자 승인이 이미 접근 통제 역할을 하므로 이메일 인증 불필요
+- **문제 2**: 관리자가 승인해도 `pending.html` 사용자가 메인으로 자동 이동하지 않음
+  - 원인: 페이지 로드 시 1회만 승인 여부 확인, JWT 토큰 자동 갱신 없음
+  - **해결**: `setInterval` 30초 폴링 → `client.auth.refreshSession()` 호출 → `approved !== false` 확인 시 `index.html` 이동

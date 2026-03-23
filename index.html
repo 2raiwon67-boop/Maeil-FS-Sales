@@ -2873,15 +2873,19 @@
 
                 const { data, error } = await client
                     .from('managers')
-                    .select('region1, region2, manager_name, email')
+                    .select('region1, region2, region3, manager_name, email')
                     .eq('business_unit', businessUnit);
                 if (error) throw error;
 
                 managerMap = {};
                 (data || []).forEach(row => {
-                    const region = row.region2 || row.region1;
-                    if (region && row.manager_name) {
-                        managerMap[region] = row.manager_name;
+                    if (!row.manager_name) return;
+                    if (row.region3) {
+                        // 구 단위 키: "화성시|동탄구"
+                        managerMap[row.region2 + '|' + row.region3] = row.manager_name;
+                    } else {
+                        const region = row.region2 || row.region1;
+                        if (region) managerMap[region] = row.manager_name;
                     }
                 });
 

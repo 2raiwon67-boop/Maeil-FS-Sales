@@ -2162,7 +2162,7 @@
                 const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
                 const token = session?.access_token || anonKey;
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,manager_name`,
+                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,region3,manager_name`,
                     { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
                 );
                 if (!res.ok) return;
@@ -2170,8 +2170,14 @@
                 rawManagerMap = {};
                 rows.forEach(r => {
                     if (!r.region2 || r.region2 === '지점장') return;
-                    const key = normalizeRegion1(r.region1) + '|' + r.region2;
-                    rawManagerMap[key] = r.manager_name;
+                    const base = normalizeRegion1(r.region1) + '|' + r.region2;
+                    if (r.region3) {
+                        // region3 있으면 구 단위 키 우선 등록
+                        rawManagerMap[base + '|' + r.region3] = r.manager_name;
+                    } else {
+                        // region3 없으면 시 단위 키 등록 (폴백 포함)
+                        rawManagerMap[base] = r.manager_name;
+                    }
                 });
             } catch (e) {
                 console.warn('담당자 맵 로드 실패:', e);
@@ -2306,7 +2312,10 @@
                         } else { addr3 = tokens[2] || ''; }
                     } else { addr1 = '확인필요'; addr2 = '확인필요'; addr3 = '확인필요'; }
 
-                    const manager = rawManagerMap[normalizeRegion1(addr1) + '|' + addr2] || '미지정';
+                    const managerKey = normalizeRegion1(addr1) + '|' + addr2;
+                    const manager = (addr3 ? rawManagerMap[managerKey + '|' + addr3] : null)
+                                 || rawManagerMap[managerKey]
+                                 || '미지정';
 
                     const cleanCoord = (val) => val ? parseFloat(val.toString().replace(/,/g, '').trim()) : 0;
                     const xCol = cleanCoord(row['좌표정보X(EPSG5174)'] || row['좌표정보(X)'] || row['좌표정보X']);
