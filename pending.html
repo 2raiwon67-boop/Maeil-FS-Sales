@@ -106,6 +106,15 @@
             document.getElementById('userEmail').textContent = user.email;
             document.getElementById('userCreated').textContent =
                 new Date(user.created_at).toLocaleDateString('ko-KR');
+
+            // 30초마다 승인 여부 재확인 (관리자 승인 시 자동 이동)
+            setInterval(async () => {
+                const { data, error } = await client.auth.refreshSession();
+                const refreshed = data?.user;
+                if (refreshed && refreshed.user_metadata?.approved !== false) {
+                    window.location.href = 'index.html';
+                }
+            }, 30000);
         };
 
         async function doSignOut() {
