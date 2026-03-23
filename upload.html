@@ -688,60 +688,53 @@
                 <!-- 담당자관리 가이드 (담당자 탭 전용) -->
                 <div class="card" id="managersGuideCard" style="display:none; border-left:3px solid #0071e3;">
                     <div class="card-header" style="color:#0071e3;">📋 담당자 등록 안내</div>
-                    <div class="card-body" style="font-size:13px; line-height:1.8; color:#3a3a3c;">
-                        <p style="margin:0 0 10px 0;">인허가 알림 이메일 및 앱 담당자 필터가 정상 작동하려면 아래 절차대로 담당자를 등록해주세요.</p>
-                        <p style="margin:0 0 6px 0; font-weight:600;">① 엑셀 작성 방법</p>
-                        <table style="width:100%; border-collapse:collapse; margin-bottom:12px; font-size:12px;">
+                    <div class="card-body" style="font-size:12px; line-height:1.6; color:#3a3a3c; padding:12px 16px;">
+                        <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
                             <thead>
                                 <tr style="background:#f5f5f7;">
-                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">컬럼</th>
-                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">입력 예시</th>
-                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">설명</th>
+                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0; width:70px;">컬럼</th>
+                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0; width:130px;">입력 예시</th>
+                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0;">설명</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">시도</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">경기도</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">도/광역시 전체 명칭</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">시군구</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">포천시</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">담당 지역 시/군/구 명칭</td></tr>
-                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">담당자</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">담당자 실명 (방문일지 작성자명과 동일하게)</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">이메일</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">hong@example.com</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">인허가 알림 수신 이메일 (필수)</td></tr>
+                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">지역1</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">경기도</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">도/광역시 명칭</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">지역2</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">화성시</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">시/군/구 명칭</td></tr>
+                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">지역3</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">동탄구 <span style="color:#86868b;">(선택)</span></td><td style="padding:3px 8px; border:1px solid #e0e0e0;">같은 시 안에서 구 단위로 담당자가 다를 때만 입력. 비워두면 지역2 기준으로 매칭</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자 실명 (방문일지 작성자명과 동일하게)</td></tr>
+                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">이메일</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">hong@example.com</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">인허가 알림 수신 이메일</td></tr>
                             </tbody>
                         </table>
-                        <p style="margin:0 0 6px 0; font-weight:600;">② 지점장 등록 방안</p>
-                        <p style="margin:0 0 10px 0; padding:8px 12px; background:#fff3cd; border-radius:6px;">지점장님은 시군구 컬럼에 <strong>지점장</strong>이라고 입력하세요.</p>
-                        <p style="margin:0 0 6px 0; font-weight:600;">③ 업로드 절차</p>
-                        <p style="margin:0; color:#555;">템플릿 다운로드 → 작성 → 드래그앤드롭 업로드 → 확인 버튼<br>기존 담당자를 수정하려면 DB 다운로드 또는 현재 DB 현황에서 각 셀을 클릭하여 변경 가능합니다.</p>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;">
+                            <p style="margin:0; padding:6px 10px; background:#fff3cd; border-radius:6px; flex:1; min-width:200px;">💡 지점장은 지역2에 <strong>지점장</strong>이라고 입력하세요.</p>
+                            <p style="margin:0; padding:6px 10px; background:#f0f4ff; border-radius:6px; flex:2; min-width:200px; color:#555;">템플릿 다운로드 → 작성 → 업로드 → 확인. 기존 수정은 현재 DB 현황에서 셀 클릭으로 변경 가능합니다.</p>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 방문일지 가이드 (방문일지 탭 전용) -->
                 <div class="card" id="visitLogGuideCard" style="display:none; border-left:3px solid #ff9500;">
                     <div class="card-header" style="color:#ff9500;">📋 방문일지 업로드 안내</div>
-                    <div class="card-body" style="font-size:13px; line-height:1.8; color:#3a3a3c;">
-                        <p style="margin:0 0 10px 0;"><strong>작성일 + 작성자 + 방문처(거래처)</strong> 조합이 기존과 동일하면 건너뛰고 <strong>신규 행만 추가</strong>됩니다. 매주 방문일지 누적분을 그대로 업로드하면 됩니다.</p>
-                        <p style="margin:0 0 6px 0; font-weight:600;">① 필수 컬럼</p>
-                        <table style="width:100%; border-collapse:collapse; margin-bottom:12px; font-size:12px;">
+                    <div class="card-body" style="font-size:12px; line-height:1.6; color:#3a3a3c; padding:12px 16px;">
+                        <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
                             <thead>
                                 <tr style="background:#f5f5f7;">
-                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">컬럼</th>
-                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">입력 예시</th>
-                                    <th style="padding:6px 10px; text-align:left; border:1px solid #e0e0e0;">설명</th>
+                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0; width:100px;">컬럼</th>
+                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0; width:130px;">입력 예시</th>
+                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0;">설명</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">NO</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">1</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">업로드 시 무시됨 — 임의 번호 입력 가능</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">작성일</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">2026-03-10</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">YYYY-MM-DD 형식 (필수)</td></tr>
-                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">작성자</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">담당자 이름 (담당자관리와 동일하게)</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:5px 10px; border:1px solid #e0e0e0;">방문처(거래처)</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">행복카페</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">거래처 상호명 (필수)</td></tr>
-                                <tr><td style="padding:5px 10px; border:1px solid #e0e0e0;">내용</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">원장님 면담...</td><td style="padding:5px 10px; border:1px solid #e0e0e0;">방문 내용 (AI 브리핑 품질에 영향)</td></tr>
+                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">작성일</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">2026-03-10</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">YYYY-MM-DD 형식 (필수)</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">작성자</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자 이름 (담당자관리와 동일하게)</td></tr>
+                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">방문처(거래처)</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">행복카페</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">거래처 상호명 (필수)</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">내용</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">원장님 면담...</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">방문 내용 (AI 브리핑 품질에 영향)</td></tr>
                             </tbody>
                         </table>
-                        <p style="margin:0 0 6px 0; font-weight:600;">② 자주 발생하는 오류</p>
-                        <ul style="margin:0 0 10px 0; padding-left:18px; color:#555;">
-                            <li>날짜가 텍스트 형식인 경우 → 셀 서식을 날짜(YYYY-MM-DD)로 변경</li>
-                            <li>작성자 이름이 담당자관리와 다른 경우 → AI 브리핑에서 본인 거래처를 인식 못함</li>
-                            <li>동일한 <strong>작성일 + 작성자 + 방문처(거래처)</strong> 조합이 이미 DB에 있으면 업로드가 건너뜀 (정상 동작)</li>
-                        </ul>
-                        <p style="margin:0; padding:8px 12px; background:#fff3cd; border-radius:6px; font-size:12px;">💡 템플릿 컬럼에 맞춰 <strong>방문일지의 동일한 컬럼 내용을 채워 업로드</strong>하세요. NO 컬럼은 업로드 시 무시됩니다.</p>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <p style="margin:0; padding:6px 10px; background:#fff3cd; border-radius:6px; flex:1; min-width:200px;">⚠️ <strong>작성일 + 작성자 + 방문처</strong> 조합이 동일하면 자동 건너뜀 — 누적분 그대로 업로드 가능</p>
+                            <p style="margin:0; padding:6px 10px; background:#fff0ef; border-radius:6px; flex:1; min-width:200px; color:#555;">날짜 텍스트 형식 오류 시 셀 서식을 YYYY-MM-DD로 변경. 작성자명은 담당자관리와 정확히 일치해야 합니다.</p>
+                        </div>
                     </div>
                 </div>
 
