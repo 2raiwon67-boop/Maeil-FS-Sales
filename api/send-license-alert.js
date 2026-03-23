@@ -37,8 +37,8 @@ export default async function handler(req, res) {
 
         // ── 1. 데이터 조회 ────────────────────────────────────
         const [licResult, mgrResult] = await Promise.allSettled([
-            fetch(`${SUPABASE_URL}/rest/v1/licenses?select=*`, { headers: sbHeaders }).then(r => r.json()),
-            fetch(`${SUPABASE_URL}/rest/v1/managers?select=*`,  { headers: sbHeaders }).then(r => r.json())
+            fetch(`${SUPABASE_URL}/rest/v1/licenses?select=*&limit=10000`, { headers: sbHeaders }).then(r => r.json()),
+            fetch(`${SUPABASE_URL}/rest/v1/managers?select=*&limit=10000`,  { headers: sbHeaders }).then(r => r.json())
         ]);
 
         const allLicenses = licResult.status === 'fulfilled' && Array.isArray(licResult.value) ? licResult.value : [];
@@ -184,7 +184,7 @@ export default async function handler(req, res) {
                         new:     myNew.length, revisit: myRevisit.length,
                         id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
                     });
-                    await sleep(600);
+                    await sleep(200);
                 }
             }
 
@@ -216,7 +216,7 @@ export default async function handler(req, res) {
                         new:     unitNew.length, revisit: unitRevisit.length,
                         id:      sendData.messageId || sendData.id || sendData.error || 'unknown'
                     });
-                    await sleep(600);
+                    await sleep(200);
                 }
             }
         }
