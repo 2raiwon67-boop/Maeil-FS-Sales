@@ -14,7 +14,7 @@ proposal.html    견적서 / 매장 맞춤 분석
 upload.html      데이터 관리 (업로드 + DB현황 + 공공인허가 조회)
 report.html      월별 보고서
 admin.html       관리자 페이지 (사용자 관리 + 소속 변경)
-login.html / confirm.html / pending.html  인증 흐름
+login.html / pending.html  인증 흐름 (confirm.html 삭제 — 이메일 인증 미사용)
 common.css       디자인 토큰 + 공통 컴포넌트 (Toast, Spinner, Skeleton)
 js/
   auth.js            Supabase 인증 + BUSINESS_UNITS 목록
@@ -434,3 +434,26 @@ ADMIN_CODE                  관리자 API 인증 (= 532753)
 - **문제 2**: 관리자가 승인해도 `pending.html` 사용자가 메인으로 자동 이동하지 않음
   - 원인: 페이지 로드 시 1회만 승인 여부 확인, JWT 토큰 자동 갱신 없음
   - **해결**: `setInterval` 30초 폴링 → `client.auth.refreshSession()` 호출 → `approved !== false` 확인 시 `index.html` 이동
+
+### managers 테이블 region3 추가 + 안내 UI 개선 (e19450c → 0a9654a)
+
+- **배경**: 경기남부처럼 시(市)가 넓어 구(區) 단위로 담당자가 다른 경우 처리 필요
+- **DB**: `managers` 테이블 `region3 TEXT` 컬럼 추가 (멱등성 ALTER TABLE 포함)
+- **upload.html `loadRawManagerMap()`**:
+  - region3 포함 select
+  - region3 있으면 `region1|region2|region3` 키 등록, 없으면 `region1|region2` 키 등록
+- **upload.html 매칭 로직**: `region1|region2|region3` 우선 → `region1|region2` 폴백
+- **고양시 기존 데이터 영향 없음**: region2="고양시 덕양구" compound 방식 유지
+- **컬럼명 변경**: 시도→지역1, 시군구→지역2, 지역3 신규 추가 (templateHeaders/columnMap/label 모두 반영)
+- **담당자 등록 안내 / 방문일지 업로드 안내**: 컴팩트 리디자인 (font 13→12px, 줄간격 1.8→1.6, 셀패딩 축소), 지역3 선택입력 설명 추가
+
+### 인허가 자동 알림 점검 및 개선 (b906f83 → 717ae66)
+
+- **문제**: 서울FS지점 담당자들이 월요일 자동 알림을 못 받음
+- **원인**: 순위 컬럼 값이 `'1순위'` 형식으로 저장된 경우 `=== '1'` 비교에서 탈락
+- **fix**: `p.replace(/[^0-9]/g, '')` 로 숫자만 추출해서 비교 — '1순위','1위' 등 모두 허용
+- **dry-run 모드 추가**: `?dryRun=true` 파라미터로 이메일 발송 없이 대상 목록 확인 가능
+- **diagByUnit 진단 정보**: dry-run 시 지점별 total/noRank/noDate/statusMap 반환 (영구 유지)
+- **Supabase 조회 한도**: 기본 1000건 → `limit=10000` 으로 증가 (무료)
+- **이메일 발송 간격**: 600ms → 200ms (Brevo 초당 10건 제한 내, 5개 지점 ~35초로 안전)
+- **타임아웃 여유**: vercel.json maxDuration=60s, 5개 지점 35명 기준 약 35초 소요

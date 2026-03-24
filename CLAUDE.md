@@ -14,7 +14,7 @@ proposal.html    견적서 / 매장 맞춤 분석
 upload.html      데이터 관리 (업로드 + DB현황 + 공공인허가 조회)
 report.html      월별 보고서
 admin.html       관리자 페이지 (사용자 관리 + 소속 변경)
-login.html / confirm.html / pending.html  인증 흐름
+login.html / pending.html  인증 흐름 (이메일 인증 미사용 — Supabase Confirm email OFF, 관리자 승인 방식)
 common.css       디자인 토큰 + 공통 컴포넌트 (Toast, Spinner, Skeleton)
 js/
   auth.js            Supabase 인증 + BUSINESS_UNITS 목록
