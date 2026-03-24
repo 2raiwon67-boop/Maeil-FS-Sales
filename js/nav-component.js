@@ -142,8 +142,11 @@
     if (colorblindToggle) {
         colorblindToggle.checked = localStorage.getItem('fs_colorblind_mode') === 'true';
         colorblindToggle.addEventListener('change', function () {
-            localStorage.setItem('fs_colorblind_mode', this.checked ? 'true' : 'false');
-            location.reload();
+            const enabled = this.checked;
+            localStorage.setItem('fs_colorblind_mode', enabled ? 'true' : 'false');
+            document.body.classList.toggle('colorblind', enabled);
+            // index.html 마커 색상 즉시 갱신 (새로고침 없이)
+            if (typeof window.updateMap === 'function') window.updateMap();
         });
     }
 
