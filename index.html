@@ -5141,6 +5141,7 @@
         }
 
         function openRoutePanel() {
+            if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
             document.getElementById('routePanel').classList.add('active');
             updateRouteTargetSummary();
             // 날짜: 저장된 값 복원, 없으면 오늘
