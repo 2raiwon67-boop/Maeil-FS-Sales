@@ -2826,12 +2826,9 @@
                 // 지도 배경 클릭 시 정보창 닫기
                 naver.maps.Event.addListener(naverMap, 'click', function (e) {
                     if (window._markerClickedAt && Date.now() - window._markerClickedAt < 300) return;
-                    if (currentInfoWindow) {
-                        closeCurrentInfoWindow();
-                    }
-                    if (typeof closeBottomSheet === 'function') {
-                        closeBottomSheet();
-                    }
+                    if (currentInfoWindow) closeCurrentInfoWindow();
+                    if (typeof closeBottomSheet === 'function') closeBottomSheet();
+                    if (typeof closeRecPanel === 'function') closeRecPanel();
                 });
 
             } catch (error) {
