@@ -5091,13 +5091,21 @@
             const today = new Date();
             const visits = window.visitLogCache || [];
 
-            // 담당자 인허가 목록
-            const myLicenses = allData.filter(d =>
-                (d['담당자'] || '').trim() === myManagerName && d['사업장명']
+            // 내 담당 주요거래처 (거래 + 미거래 모두)
+            const myAccounts = accountsData.filter(a =>
+                (a['담당자명'] || '').trim() === myManagerName && a['거래처명']
             );
 
-            const scored = myLicenses.map(item => {
-                const name = item['사업장명'];
+            const scored = myAccounts.map(account => {
+                const name = (account['거래처명'] || '').trim();
+                const dealStatus = account['거래상태'] || '';
+
+                // 좌표는 accountMarkers에서 조회
+                const marker = accountMarkers.find(m => (m._name || '').trim() === name);
+                const lat = marker?._lat || 0;
+                const lng = marker?._lng || 0;
+                if (!lat || !lng) return null;
+
                 // 가장 최근 방문일
                 const lastVisitEntry = visits
                     .filter(v => (v['방문처(거래처)'] || '').trim() === name)
@@ -5114,10 +5122,8 @@
                 else if (daysSince >= 60) { priority = 2; reason = `${daysSince}일 미방문`; }
                 else if (daysSince >= 30) { priority = 1; reason = `${daysSince}일 미방문`; }
 
-                const lat = parseFloat(item['위도']) || 0;
-                const lng = parseFloat(item['경도']) || 0;
-                return { name, reason, priority, daysSince, lat, lng };
-            }).filter(r => r.priority > 0 && r.lat && r.lng)
+                return { name, dealStatus, reason, priority, daysSince, lat, lng };
+            }).filter(r => r && r.priority > 0)
               .sort((a, b) => b.priority - a.priority || b.daysSince - a.daysSince);
 
             return scored;
@@ -5128,18 +5134,16 @@
             const body = document.getElementById('recPanelBody');
             if (!panel || !body) return;
 
-            // 현재 위치 기준 20km 이내 필터 (출발지 설정 > 지도 중심 순)
+            // 1순위 거래처 기준 20km 이내 필터
             const MAX_KM = 20;
-            let refLat = null, refLng = null;
-            if (routeStartCoord) {
-                refLat = routeStartCoord.lat; refLng = routeStartCoord.lng;
-            } else if (naverMap) {
-                const c = naverMap.getCenter();
-                refLat = c.lat(); refLng = c.lng();
+            if (_todayRecs.length > 0) {
+                const anchor = _todayRecs[0];
+                _displayedRecs = _todayRecs
+                    .filter(r => r === anchor || haversineKm(anchor.lat, anchor.lng, r.lat, r.lng) <= MAX_KM)
+                    .slice(0, 3);
+            } else {
+                _displayedRecs = [];
             }
-            _displayedRecs = (refLat && refLng)
-                ? _todayRecs.filter(r => haversineKm(refLat, refLng, r.lat, r.lng) <= MAX_KM).slice(0, 3)
-                : _todayRecs.slice(0, 3);
 
             if (_displayedRecs.length === 0) {
                 body.innerHTML = '<div style="font-size:12px;color:#86868b;">주변 20km 내 추천 없음</div>';
@@ -5150,8 +5154,11 @@
                         const briefingLine = r.briefing
                             ? r.briefing.split('\n').find(l => l.trim()) || r.briefing.substring(0, 80)
                             : null;
+                        const dealBadge = r.dealStatus === '거래'
+                            ? `<span style="font-size:10px;background:#007AFF;color:white;border-radius:4px;padding:1px 5px;margin-left:4px;">거래</span>`
+                            : `<span style="font-size:10px;background:#8e8e93;color:white;border-radius:4px;padding:1px 5px;margin-left:4px;">미거래</span>`;
                         return `<div class="rec-item">
-                            <div class="rec-item-name">${_cartEsc(r.name)}</div>
+                            <div class="rec-item-name">${_cartEsc(r.name)}${dealBadge}</div>
                             <div class="rec-item-reason">${_cartEsc(r.reason)}</div>
                             ${briefingLine ? `<div class="rec-item-briefing">${_cartEsc(briefingLine)}</div>` : ''}
                         </div>`;
@@ -5174,7 +5181,7 @@
                 const key = `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`;
                 if (routeCart.some(c => c._key === key)) continue;
                 const addr = (allData.find(d => (d['사업장명'] || '').trim() === (r.name || '').trim()) || {})['도로명전체주소'] || '';
-                routeCart.push({ lat: r.lat, lng: r.lng, name: r.name, address: addr, type: 'license', _key: key });
+                routeCart.push({ lat: r.lat, lng: r.lng, name: r.name, address: addr, type: 'account', _key: key });
                 _applyCartMarkerColor(key);
                 added++;
             }
