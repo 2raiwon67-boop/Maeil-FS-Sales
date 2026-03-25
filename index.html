@@ -5052,6 +5052,7 @@
 
         // ── 오늘 가볼 곳 추천 ──
         let _todayRecs = [];
+        let _displayedRecs = [];  // 거리 필터 후 실제 표시되는 추천 목록
 
         async function loadTodayRecommendations() {
             if (!myManagerName) return;
@@ -5113,10 +5114,11 @@
                 else if (daysSince >= 60) { priority = 2; reason = `${daysSince}일 미방문`; }
                 else if (daysSince >= 30) { priority = 1; reason = `${daysSince}일 미방문`; }
 
-                return { name, reason, priority, daysSince };
-            }).filter(r => r.priority > 0)
-              .sort((a, b) => b.priority - a.priority || b.daysSince - a.daysSince)
-              .slice(0, 5);
+                const lat = parseFloat(item['위도']) || 0;
+                const lng = parseFloat(item['경도']) || 0;
+                return { name, reason, priority, daysSince, lat, lng };
+            }).filter(r => r.priority > 0 && r.lat && r.lng)
+              .sort((a, b) => b.priority - a.priority || b.daysSince - a.daysSince);
 
             return scored;
         }
@@ -5126,12 +5128,25 @@
             const body = document.getElementById('recPanelBody');
             if (!panel || !body) return;
 
-            if (_todayRecs.length === 0) {
-                body.innerHTML = '<div style="font-size:12px;color:#86868b;">추천 데이터 없음</div>';
+            // 현재 위치 기준 20km 이내 필터 (출발지 설정 > 지도 중심 순)
+            const MAX_KM = 20;
+            let refLat = null, refLng = null;
+            if (routeStartCoord) {
+                refLat = routeStartCoord.lat; refLng = routeStartCoord.lng;
+            } else if (naverMap) {
+                const c = naverMap.getCenter();
+                refLat = c.lat(); refLng = c.lng();
+            }
+            _displayedRecs = (refLat && refLng)
+                ? _todayRecs.filter(r => haversineKm(refLat, refLng, r.lat, r.lng) <= MAX_KM).slice(0, 3)
+                : _todayRecs.slice(0, 3);
+
+            if (_displayedRecs.length === 0) {
+                body.innerHTML = '<div style="font-size:12px;color:#86868b;">주변 20km 내 추천 없음</div>';
             } else {
                 body.innerHTML =
                     `<button onclick="addAllRecsToCart()" style="width:100%;padding:9px;background:#5856d6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;">전부 담기</button>` +
-                    _todayRecs.map((r, i) => {
+                    _displayedRecs.map((r, i) => {
                         const briefingLine = r.briefing
                             ? r.briefing.split('\n').find(l => l.trim()) || r.briefing.substring(0, 80)
                             : null;
@@ -5153,17 +5168,13 @@
 
         function addAllRecsToCart() {
             let added = 0;
-            for (const r of _todayRecs) {
+            for (const r of _displayedRecs) {
                 if (routeCart.length >= 4) break;
-                const item = allData.find(d => (d['사업장명'] || '').trim() === (r.name || '').trim());
-                if (!item) continue;
-                const lat = parseFloat(item['위도']);
-                const lng = parseFloat(item['경도']);
-                if (!lat || !lng) continue;
-                const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                if (!r.lat || !r.lng) continue;
+                const key = `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`;
                 if (routeCart.some(c => c._key === key)) continue;
-                const addr = item['도로명전체주소'] || '';
-                routeCart.push({ lat, lng, name: r.name, address: addr, type: 'license', _key: key });
+                const addr = (allData.find(d => (d['사업장명'] || '').trim() === (r.name || '').trim()) || {})['도로명전체주소'] || '';
+                routeCart.push({ lat: r.lat, lng: r.lng, name: r.name, address: addr, type: 'license', _key: key });
                 _applyCartMarkerColor(key);
                 added++;
             }
