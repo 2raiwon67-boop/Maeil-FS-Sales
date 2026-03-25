@@ -5127,6 +5127,7 @@
         }
 
         function openRecPanel() {
+            if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
             const panel = document.getElementById('recPanel');
             const body = document.getElementById('recPanelBody');
             if (!panel || !body) return;
