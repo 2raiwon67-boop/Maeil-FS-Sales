@@ -5126,24 +5126,54 @@
             const body = document.getElementById('recPanelBody');
             if (!panel || !body) return;
 
-            body.innerHTML = _todayRecs.length === 0
-                ? '<div style="font-size:12px;color:#86868b;">추천 데이터 없음</div>'
-                : _todayRecs.map((r, i) => {
-                    const briefingLine = r.briefing
-                        ? r.briefing.split('\n').find(l => l.trim()) || r.briefing.substring(0, 80)
-                        : null;
-                    return `<div class="rec-item">
-                        <div class="rec-item-name">${_cartEsc(r.name)}</div>
-                        <div class="rec-item-reason">${_cartEsc(r.reason)}</div>
-                        ${briefingLine ? `<div class="rec-item-briefing">${_cartEsc(briefingLine)}</div>` : ''}
-                    </div>`;
-                }).join('') + `<div style="font-size:11px;color:#86868b;margin-top:8px;text-align:center;">오늘 일정을 저장하면 다음부터 자동으로 사라집니다</div>`;
+            if (_todayRecs.length === 0) {
+                body.innerHTML = '<div style="font-size:12px;color:#86868b;">추천 데이터 없음</div>';
+            } else {
+                body.innerHTML =
+                    `<button onclick="addAllRecsToCart()" style="width:100%;padding:9px;background:#5856d6;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:10px;">전부 담기</button>` +
+                    _todayRecs.map((r, i) => {
+                        const briefingLine = r.briefing
+                            ? r.briefing.split('\n').find(l => l.trim()) || r.briefing.substring(0, 80)
+                            : null;
+                        return `<div class="rec-item">
+                            <div class="rec-item-name">${_cartEsc(r.name)}</div>
+                            <div class="rec-item-reason">${_cartEsc(r.reason)}</div>
+                            ${briefingLine ? `<div class="rec-item-briefing">${_cartEsc(briefingLine)}</div>` : ''}
+                        </div>`;
+                    }).join('') +
+                    `<div style="font-size:11px;color:#86868b;margin-top:8px;text-align:center;">오늘 일정을 저장하면 다음부터 자동으로 사라집니다</div>`;
+            }
 
             panel.classList.add('active');
         }
 
         function closeRecPanel() {
             document.getElementById('recPanel')?.classList.remove('active');
+        }
+
+        function addAllRecsToCart() {
+            let added = 0;
+            for (const r of _todayRecs) {
+                if (routeCart.length >= 4) break;
+                const item = allData.find(d => (d['사업장명'] || '').trim() === r.name);
+                if (!item) continue;
+                const lat = parseFloat(item['위도']);
+                const lng = parseFloat(item['경도']);
+                if (!lat || !lng) continue;
+                const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+                if (routeCart.some(c => c._key === key)) continue;
+                const addr = item['도로명전체주소'] || '';
+                routeCart.push({ lat, lng, name: r.name, address: addr, type: 'license', _key: key });
+                _applyCartMarkerColor(key);
+                added++;
+            }
+            if (added > 0) {
+                renderCartUI();
+                showCartToast(`${added}곳이 담겼습니다`);
+                closeRecPanel();
+            } else {
+                showCartToast('담을 수 있는 곳이 없습니다 (최대 4곳)');
+            }
         }
 
         function openRoutePanel() {
