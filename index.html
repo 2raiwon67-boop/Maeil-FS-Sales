@@ -5155,7 +5155,7 @@
             let added = 0;
             for (const r of _todayRecs) {
                 if (routeCart.length >= 4) break;
-                const item = allData.find(d => (d['사업장명'] || '').trim() === r.name);
+                const item = allData.find(d => (d['사업장명'] || '').trim() === (r.name || '').trim());
                 if (!item) continue;
                 const lat = parseFloat(item['위도']);
                 const lng = parseFloat(item['경도']);
@@ -5172,7 +5172,7 @@
                 showCartToast(`${added}곳이 담겼습니다`);
                 closeRecPanel();
             } else {
-                showCartToast('담을 수 있는 곳이 없습니다 (최대 4곳)');
+                showCartToast(routeCart.length >= 4 ? '경유지가 이미 4곳입니다' : '담을 항목이 없습니다');
             }
         }
 
