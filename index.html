@@ -3832,8 +3832,8 @@
                                         </div>
                                         <div class="info-footer">
                                             <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${coords.lat}, ${coords.lng}, '${escapedAccName}')">📍 네이버</button>
-                                            <button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')">🛒 경유지</button>
-                                            <button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')">🗺️ 동선최적화</button>
+                                            <button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')" title="여러 곳 모아서 한 번에 최적화">담아두기</button>
+                                            <button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')" title="이 가게를 1번 목적지로 바로 루트 생성">지금 출발</button>
                                         </div>
                                     </div>`,
                                 backgroundColor: 'transparent',
@@ -4076,8 +4076,8 @@
                     </div>
                     <div class="info-footer">
                         ${mapBtn}
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')">🛒 경유지</button>` : ''}
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">🗺️ 동선최적화</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')" title="여러 곳 모아서 한 번에 최적화">담아두기</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">지금 출발</button>` : ''}
                     </div>
                 </div>
             `;
@@ -4518,8 +4518,8 @@
                     </div>
                     <div style="display:flex;gap:6px;margin-top:12px;">
                         <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${safeSheetName}')">📍 네이버</button>
-                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn')">🛒 경유지</button>` : ''}
-                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}'); closeBottomSheet();">🗺️ 동선최적화</button>` : ''}
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn')" title="여러 곳 모아서 한 번에 최적화">담아두기</button>` : ''}
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}'); closeBottomSheet();" title="이 가게를 1번 목적지로 바로 루트 생성">지금 출발</button>` : ''}
                     </div>
                 `;
             }
@@ -4547,6 +4547,7 @@
         let routeStartCoord = null;
         let forcedFirstStop = null;       // 마커 클릭으로 선택된 1번 목적지
         let currentLocationMarker = null; // 현재 위치 붉은 원 마커
+        let _savedVisitPlanDate = null;   // 방문 일정 날짜 유지
         let routeCart = [];               // 장바구니 경유지 목록
 
         function addToCart(lat, lng, name, address, type, btnId) {
@@ -5143,9 +5144,12 @@
         function openRoutePanel() {
             document.getElementById('routePanel').classList.add('active');
             updateRouteTargetSummary();
-            // 날짜 기본값: 오늘
+            // 날짜: 저장된 값 복원, 없으면 오늘
             const dateInput = document.getElementById('visitPlanDate');
-            if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+            if (dateInput) {
+                dateInput.value = _savedVisitPlanDate || new Date().toISOString().split('T')[0];
+                dateInput.onchange = () => { _savedVisitPlanDate = dateInput.value; };
+            }
             renderCartUI();
             // 모바일: FAB 숨기고 딤처리 표시
             const fab = document.getElementById('routeMobileFab');
