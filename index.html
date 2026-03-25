@@ -2044,7 +2044,7 @@
 
             <!-- 모바일 루트 FAB 버튼 -->
             <button class="route-mobile-fab" id="routeMobileFab" onclick="openRoutePanel()"
-                title="영업 루트 최적화">🗺️</button>
+                title="영업동선">🗺️</button>
 
             <!-- 모바일 배경 딤처리 -->
             <div class="route-panel-backdrop" id="routePanelBackdrop" onclick="closeRoutePanel()"></div>
@@ -2072,7 +2072,7 @@
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
                 <div class="route-panel-header">
-                    <h3>🗺️ 영업 루트 최적화</h3>
+                    <h3>🗺️ 영업동선</h3>
                     <button onclick="closeRoutePanel()"
                         style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
                 </div>
@@ -2110,16 +2110,15 @@
 
                     <button onclick="startRouteOptimization()" class="route-btn route-btn-primary"
                         style="margin-top:14px;">
-                        🔄 루트 최적화 시작
+                        동선 최적화
                     </button>
 
                     <div id="routeResult" style="display:none;">
                         <div class="route-section-label" style="margin-top:16px;">최적화 결과</div>
                         <div id="routeStopList"></div>
                         <div class="route-summary-box" id="routeSummaryBox"></div>
-                        <button id="routeNavBtn" onclick="openNaverMapsRoute()" class="route-btn route-btn-naver">📱 네이버
-                            지도 앱으로 열기</button>
-                        <button onclick="clearRoute()" class="route-btn route-btn-clear">🔄 루트 초기화</button>
+                        <button id="routeNavBtn" onclick="openNaverMapsRoute()" class="route-btn route-btn-naver">네이버지도 연결</button>
+                        <button onclick="clearRoute()" class="route-btn route-btn-clear">동선 초기화</button>
                     </div>
                 </div>
             </div>
@@ -4538,7 +4537,7 @@
 
     <script>
         // ============================================================
-        // 영업 루트 최적화
+        // 영업동선
         // ============================================================
 
         let routeStops = [];
@@ -5160,7 +5159,7 @@
 
         function closeRoutePanel() {
             document.getElementById('routePanel').classList.remove('active');
-            // 경로는 지도에 유지 — clearRoute()는 '루트 초기화' 버튼으로만 호출
+            // 경로는 지도에 유지 — clearRoute()는 '동선 초기화' 버튼으로만 호출
             const fab = document.getElementById('routeMobileFab');
             const backdrop = document.getElementById('routePanelBackdrop');
             if (fab) fab.classList.remove('panel-open');
