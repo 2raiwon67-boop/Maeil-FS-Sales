@@ -3781,6 +3781,8 @@
 
                             const escapedAccName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                             const escapedAccAddr = (address || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                            const _accCartKey = `${parseFloat(coords.lat).toFixed(5)},${parseFloat(coords.lng).toFixed(5)}`;
+                            const _accInCart = routeCart.some(c => c._key === _accCartKey);
 
                             // 거래 상태별 별 SVG (클릭 시점 상태 기준)
                             const _sc = currentStatus === '거래' ? '#FFD700' : '#AAAAAA';
@@ -3831,7 +3833,7 @@
                                         </div>
                                         <div class="info-footer">
                                             <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${coords.lat}, ${coords.lng}, '${escapedAccName}')">📍 네이버</button>
-                                            <button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')" title="여러 곳 모아서 한 번에 최적화">담아두기</button>
+                                            <button class="naver-map-btn" style="background:${_accInCart ? '#34C759' : '#5856d6'};" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')" title="여러 곳 모아서 한 번에 최적화">${_accInCart ? '✓ 담겼음' : '담아두기'}</button>
                                             <button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')" title="이 가게를 1번 목적지로 바로 루트 생성">지금 출발</button>
                                         </div>
                                     </div>`,
@@ -4007,6 +4009,8 @@
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
             const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
             const mapBtn = `<button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">📍 네이버</button>`;
+            const _cartKey = `${parseFloat(lat).toFixed(5)},${parseFloat(lng).toFixed(5)}`;
+            const _inCart = routeCart.some(c => c._key === _cartKey);
 
             // 메모 (localStorage)
             const memoKey = 'maeil_memo_' + name;
@@ -4075,7 +4079,7 @@
                     </div>
                     <div class="info-footer">
                         ${mapBtn}
-                        ${lat && lng ? `<button class="naver-map-btn" style="background:#5856d6;" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')" title="여러 곳 모아서 한 번에 최적화">담아두기</button>` : ''}
+                        ${lat && lng ? `<button class="naver-map-btn" style="background:${_inCart ? '#34C759' : '#5856d6'};" id="cartBtn_${memoUid}" onclick="addToCart(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}', 'license', 'cartBtn_${memoUid}')" title="여러 곳 모아서 한 번에 최적화">${_inCart ? '✓ 담겼음' : '담아두기'}</button>` : ''}
                         ${lat && lng ? `<button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${lat}, ${lng}, '${escapedName}', '${address.replace(/'/g, "\\'").replace(/"/g, '&quot;')}')">지금 출발</button>` : ''}
                     </div>
                 </div>
@@ -4506,6 +4510,8 @@
                 const sheetSavedMemo = localStorage.getItem(sheetMemoKey) || '';
                 const safeSheetName = sheetName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeSheetAddr = sheetAddr.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const _sheetCartKey = `${parseFloat(itemLat).toFixed(5)},${parseFloat(itemLng).toFixed(5)}`;
+                const _sheetInCart = routeCart.some(c => c._key === _sheetCartKey);
                 sheetActionBtns.innerHTML = `
                     <div style="margin-top:16px;">
                         <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
@@ -4517,7 +4523,7 @@
                     </div>
                     <div style="display:flex;gap:6px;margin-top:14px;">
                         <button class="naver-map-btn" style="background:#03C75A;padding:14px 4px;font-size:14px;font-weight:700;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${safeSheetName}')">네이버</button>
-                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#5856d6;padding:14px 4px;font-size:14px;font-weight:700;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn')" title="여러 곳 모아서 한 번에 최적화">담아두기</button>` : ''}
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:${_sheetInCart ? '#34C759' : '#5856d6'};padding:14px 4px;font-size:14px;font-weight:700;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn')" title="여러 곳 모아서 한 번에 최적화">${_sheetInCart ? '✓ 담겼음' : '담아두기'}</button>` : ''}
                         ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;padding:14px 4px;font-size:14px;font-weight:700;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}'); closeBottomSheet();" title="이 가게를 1번 목적지로 바로 루트 생성">지금 출발</button>` : ''}
                     </div>
                 `;
@@ -4551,8 +4557,13 @@
 
         function addToCart(lat, lng, name, address, type, btnId) {
             const key = `${parseFloat(lat).toFixed(5)},${parseFloat(lng).toFixed(5)}`;
-            if (routeCart.some(c => c._key === key)) {
-                showCartToast(`이미 담겨있습니다: ${name}`);
+            const existIdx = routeCart.findIndex(c => c._key === key);
+            if (existIdx !== -1) {
+                // 이미 담긴 경우 → 제거 (토글)
+                removeFromCart(existIdx);
+                showCartToast(`${name} 취소됨`);
+                const btn = document.getElementById(btnId);
+                if (btn) { btn.innerHTML = '담아두기'; btn.style.background = '#5856d6'; }
                 return;
             }
             if (routeCart.length >= 4) {
@@ -4562,17 +4573,12 @@
             routeCart.push({ lat: parseFloat(lat), lng: parseFloat(lng), name, address, type: type || 'license', _key: key });
             _applyCartMarkerColor(key);
             renderCartUI();
-            showCartToast(`🛒 담겼습니다: ${name}`);
+            showCartToast(`담겼습니다: ${name}`);
             // 모바일: 바텀시트 자동 닫기
             if (isMobile() && typeof closeBottomSheet === 'function') closeBottomSheet();
             // 버튼 피드백
             const btn = document.getElementById(btnId);
-            if (btn) {
-                const orig = btn.innerHTML;
-                btn.innerHTML = '✓ 담겼음';
-                btn.style.background = '#34C759';
-                setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#5856d6'; }, 1500);
-            }
+            if (btn) { btn.innerHTML = '✓ 담겼음'; btn.style.background = '#34C759'; }
         }
 
         function removeFromCart(idx) {
