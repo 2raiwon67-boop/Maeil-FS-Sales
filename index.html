@@ -2051,7 +2051,7 @@
 
             <!-- 오늘 추천 플로팅 뱃지 -->
             <div id="recFloatBadge" onclick="openRecPanel()" style="display:none;position:absolute;bottom:125px;right:16px;z-index:200;background:#ff9f0a;color:white;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(255,159,10,0.45);align-items:center;gap:6px;user-select:none;">
-                📍 오늘 추천 <span id="recFloatCount">0</span>곳
+                방문 추천
             </div>
 
             <!-- 오늘 추천 패널 -->
@@ -5081,10 +5081,9 @@
 
             _todayRecs = recs.map(r => ({ ...r, briefing: briefingMap[r.name] || null }));
 
-            // 플로팅 뱃지 표시
+            // 플로팅 뱃지 표시 (추천 후보가 있을 때만)
             const badge = document.getElementById('recFloatBadge');
-            const count = document.getElementById('recFloatCount');
-            if (badge) { count.textContent = _todayRecs.length; badge.style.display = 'flex'; }
+            if (badge) badge.style.display = _todayRecs.length > 0 ? 'flex' : 'none';
         }
 
         function computeRecommendations() {
@@ -5157,8 +5156,10 @@
                         const dealBadge = r.dealStatus === '거래'
                             ? `<span style="font-size:10px;background:#007AFF;color:white;border-radius:4px;padding:1px 5px;margin-left:4px;">거래</span>`
                             : `<span style="font-size:10px;background:#8e8e93;color:white;border-radius:4px;padding:1px 5px;margin-left:4px;">미거래</span>`;
-                        return `<div class="rec-item">
-                            <div class="rec-item-name">${_cartEsc(r.name)}${dealBadge}</div>
+                        const recKey = `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`;
+                        const inCart = routeCart.some(c => c._key === recKey);
+                        return `<div class="rec-item" onclick="toggleRecItem(${i})" style="cursor:pointer;${inCart ? 'background:#e8f5e9;border-left:3px solid #34C759;' : ''}">
+                            <div class="rec-item-name">${_cartEsc(r.name)}${dealBadge}${inCart ? '<span style="float:right;color:#34C759;font-weight:700;">✓</span>' : ''}</div>
                             <div class="rec-item-reason">${_cartEsc(r.reason)}</div>
                             ${briefingLine ? `<div class="rec-item-briefing">${_cartEsc(briefingLine)}</div>` : ''}
                         </div>`;
@@ -5171,6 +5172,26 @@
 
         function closeRecPanel() {
             document.getElementById('recPanel')?.classList.remove('active');
+        }
+
+        function toggleRecItem(idx) {
+            const r = _displayedRecs[idx];
+            if (!r) return;
+            const key = `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`;
+            const existIdx = routeCart.findIndex(c => c._key === key);
+            if (existIdx !== -1) {
+                removeFromCart(existIdx);
+                showCartToast(`${r.name} 취소됨`);
+            } else {
+                if (routeCart.length >= 4) { showCartToast('경유지가 이미 4곳입니다'); return; }
+                const addr = (accountsData.find(a => (a['거래처명'] || '').trim() === r.name) || {})['주소'] || '';
+                routeCart.push({ lat: r.lat, lng: r.lng, name: r.name, address: addr, type: 'account', _key: key });
+                _applyCartMarkerColor(key);
+                renderCartUI();
+                showCartToast(`담겼습니다: ${r.name}`);
+            }
+            // 패널 목록 갱신 (담김 상태 반영)
+            openRecPanel();
         }
 
         function addAllRecsToCart() {
