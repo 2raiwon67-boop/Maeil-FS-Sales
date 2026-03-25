@@ -4523,7 +4523,7 @@
                     </div>
                     <div style="display:flex;gap:6px;margin-top:14px;">
                         <button class="naver-map-btn" style="background:#03C75A;padding:14px 4px;font-size:14px;font-weight:700;" onclick="openNaverMapApp(${itemLat}, ${itemLng}, '${safeSheetName}')">네이버</button>
-                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:${_sheetInCart ? '#34C759' : '#5856d6'};padding:14px 4px;font-size:14px;font-weight:700;" id="sheetCartBtn" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn')" title="여러 곳 모아서 한 번에 최적화">${_sheetInCart ? '✓ 담겼음' : '담아두기'}</button>` : ''}
+                        ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:${_sheetInCart ? '#34C759' : '#5856d6'};padding:14px 4px;font-size:14px;font-weight:700;" id="sheetCartBtn_${sheetMemoUid}" onclick="addToCart(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}', '${isAccount ? 'account' : 'license'}', 'sheetCartBtn_${sheetMemoUid}')" title="여러 곳 모아서 한 번에 최적화">${_sheetInCart ? '✓ 담겼음' : '담아두기'}</button>` : ''}
                         ${itemLat && itemLng ? `<button class="naver-map-btn" style="background:#1d1d1f;padding:14px 4px;font-size:14px;font-weight:700;" onclick="openRouteFromCoord(${itemLat}, ${itemLng}, '${safeSheetName}', '${safeSheetAddr}'); closeBottomSheet();" title="이 가게를 1번 목적지로 바로 루트 생성">지금 출발</button>` : ''}
                     </div>
                 `;
@@ -5101,8 +5101,9 @@
 
                 // 좌표는 accountMarkers에서 조회
                 const marker = accountMarkers.find(m => (m._name || '').trim() === name);
-                const lat = marker?._lat || 0;
-                const lng = marker?._lng || 0;
+                if (!marker) return null;
+                const lat = marker._lat;
+                const lng = marker._lng;
                 if (!lat || !lng) return null;
 
                 // 가장 최근 방문일
@@ -5201,7 +5202,7 @@
                 if (!r.lat || !r.lng) continue;
                 const key = `${r.lat.toFixed(5)},${r.lng.toFixed(5)}`;
                 if (routeCart.some(c => c._key === key)) continue;
-                const addr = (allData.find(d => (d['사업장명'] || '').trim() === (r.name || '').trim()) || {})['도로명전체주소'] || '';
+                const addr = (accountsData.find(a => (a['거래처명'] || '').trim() === (r.name || '').trim()) || {})['주소'] || '';
                 routeCart.push({ lat: r.lat, lng: r.lng, name: r.name, address: addr, type: 'account', _key: key });
                 _applyCartMarkerColor(key);
                 added++;
