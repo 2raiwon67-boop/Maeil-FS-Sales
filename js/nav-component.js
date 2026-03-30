@@ -61,7 +61,7 @@
             + extraActions
             + '<span id="userNameDisplay" class="nav-hide-mobile" onclick="window._pcToggleProfile(event)" style="color:#a1a1a6;font-size:13px;margin-right:14px;cursor:pointer;" title="프로필"></span>'
             + adminLink
-            + '<a href="#" id="logoutBtn" class="nav-link" style="color: #ff6b6b; margin: 0;">로그아웃</a>'
+            + '<a href="#" id="logoutBtn" class="nav-link" style="display:none;">로그아웃</a>'
             + '</div>'
             + '</nav>';
     }
@@ -107,6 +107,7 @@
             + '<div class="mob-profile-name" id="mobProfileName">로딩 중...</div>'
             + '<button class="mob-profile-plan-btn" onclick="window._mobOpenMyPlans()">📅 내 일정</button>'
             + '<button class="mob-profile-plan-btn" onclick="window._mobCloseProfile();window._openSettings()">⚙️ 설정</button>'
+            + '<button class="mob-profile-plan-btn" onclick="window._mobCloseProfile();window.showOnboarding&&window.showOnboarding()">📖 이용 가이드</button>'
             + '<button class="mob-profile-logout-btn" onclick="window._mobDoLogout()">로그아웃</button>'
             + '</div>';
 
@@ -118,6 +119,7 @@
         + '<div class="pc-profile-dropdown" id="pcProfileDropdown">'
         + '<button class="pc-profile-btn" onclick="window._pcCloseProfile();window._mobOpenMyPlans()">📅 내 일정</button>'
         + '<button class="pc-profile-btn" onclick="window._pcCloseProfile();window._openSettings()">⚙️ 설정</button>'
+        + '<button class="pc-profile-btn" onclick="window._pcCloseProfile();window.showOnboarding&&window.showOnboarding()">📖 이용 가이드</button>'
         + '<button class="pc-profile-btn logout" onclick="window._mobDoLogout()">로그아웃</button>'
         + '</div>';
 
@@ -132,7 +134,6 @@
         + '</div>'
         + '<label class="miso-toggle"><input type="checkbox" id="colorblindToggle"><span class="miso-toggle-slider"></span></label>'
         + '</div>'
-        + '<button class="pc-profile-btn" onclick="window._closeSettings();window.showOnboarding&&window.showOnboarding()" style="width:100%;margin-bottom:8px;">📖 이용 가이드 보기</button>'
         + '<button class="settings-close-btn" onclick="window._closeSettings()">닫기</button>'
         + '</div>';
 
