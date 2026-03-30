@@ -132,6 +132,7 @@
         + '</div>'
         + '<label class="miso-toggle"><input type="checkbox" id="colorblindToggle"><span class="miso-toggle-slider"></span></label>'
         + '</div>'
+        + '<button class="pc-profile-btn" onclick="window._closeSettings();window.showOnboarding&&window.showOnboarding()" style="width:100%;margin-bottom:8px;">📖 이용 가이드 보기</button>'
         + '<button class="settings-close-btn" onclick="window._closeSettings()">닫기</button>'
         + '</div>';
 
