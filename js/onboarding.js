@@ -2,7 +2,7 @@
  * onboarding.js — FS MISO 이용 가이드
  * 첫 로그인 후 1회 슬라이드 모달 표시
  * localStorage 'fsmiso_onboarding_v1' 키로 표시 여부 저장
- * window.showOnboarding() — 언제든 다시 열기 (설정 모달에서 호출)
+ * window.showOnboarding() — 언제든 다시 열기 (프로필 드롭다운에서 호출)
  */
 
 (function () {
@@ -281,6 +281,7 @@
 
     // ── 공개 API ──
     window.showOnboarding = function () {
+        if (document.querySelector('.ob-overlay')) return; // 이미 열려있으면 무시
         createModal();
     };
 
