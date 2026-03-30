@@ -3061,10 +3061,11 @@
             }
 
             // ── 거래 현황 드롭다운 렌더링 ──
+            const _cb = document.body.classList.contains('colorblind');
             const _statusItems = [
                 { key: '거래',  label: '거래',   color: '#0050FF' },
-                { key: '미거래', label: '미거래', color: _isColorblind ? '#CC0099' : '#FF1A1A' },
-                { key: '인허가', label: '인허가', color: _isColorblind ? '#0099CC' : '#00B33C' },
+                { key: '미거래', label: '미거래', color: _cb ? '#CC0099' : '#FF1A1A' },
+                { key: '인허가', label: '인허가', color: _cb ? '#0099CC' : '#00B33C' },
                 { key: '공사중', label: '공사중', color: '#FF7700' },
                 { key: 'DROP',  label: 'DROP',   color: '#8e8e93' },
             ];
@@ -3104,7 +3105,7 @@
             const milkEl = document.getElementById('milkDropdownList');
             if (milkEl) {
                 const _milkTypes  = ['매일', '서울', '남양', '연세', '기타'];
-                const _milkColors = { '매일': '#0071e3', '서울': _isColorblind ? '#CC0099' : '#ff3b30', '남양': '#ff9500', '연세': _isColorblind ? '#0099CC' : '#34c759', '기타': '#8e8e93' };
+                const _milkColors = { '매일': '#0071e3', '서울': _cb ? '#CC0099' : '#ff3b30', '남양': '#ff9500', '연세': _cb ? '#0099CC' : '#34c759', '기타': '#8e8e93' };
                 const milkCounts  = {};
                 filteredData.forEach(d => {
                     const m = (d['사용우유'] || '').trim();
@@ -3209,27 +3210,15 @@
         // 지도 업데이트 — 마커 재사용
         // ============================================================
 
-        const _isColorblind = document.body.classList.contains('colorblind');
-
-        // 색각 보정 모드: 모바일 레이어 이모지 교체
-        if (_isColorblind) {
-            const lbLicense = document.getElementById('layerLabel인허가');
-            const lbNoDeal  = document.getElementById('layerLabel미거래');
-            if (lbLicense) lbLicense.textContent = '🔵 인허가';
-            if (lbNoDeal)  lbNoDeal.textContent  = '🟣 미거래';
-        }
-
-        const _markerColorMap = {
-            '거래':  '#007AFF',
-            '미거래': _isColorblind ? '#CC0099' : '#FF3B30',
-            '인허가': _isColorblind ? '#0099CC' : '#34C759',
-            '공사중': '#FF9500'
-            // DROP은 마커 없음
-        };
-
         /** 상태와 item 기반으로 마커 아이콘 객체를 생성합니다. */
         function _buildMarkerIcon(status, item) {
-            const color = _markerColorMap[status];
+            const _cb = document.body.classList.contains('colorblind');
+            const color = ({
+                '거래':  '#007AFF',
+                '미거래': _cb ? '#CC0099' : '#FF3B30',
+                '인허가': _cb ? '#0099CC' : '#34C759',
+                '공사중': '#FF9500'
+            })[status];
             if (!color) return null;
             let isOldPermit = false;
             if (status === '인허가' || status === '') {
@@ -3481,6 +3470,19 @@
             }
             filterAccountMarkers();
         }
+
+        /**
+         * refreshColorblind() — 색각 보정 토글 시 마커 색상 + 레이어 레이블 + 대시보드 즉시 갱신
+         */
+        window.refreshColorblind = function () {
+            const cb = document.body.classList.contains('colorblind');
+            const lbLicense = document.getElementById('layerLabel인허가');
+            const lbNoDeal  = document.getElementById('layerLabel미거래');
+            if (lbLicense) lbLicense.textContent = cb ? '🔵 인허가' : '🟢 인허가';
+            if (lbNoDeal)  lbNoDeal.textContent  = cb ? '🟣 미거래' : '🔴 미거래';
+            initAllMarkers();
+            updateDashboard();
+        };
 
         /**
          * updateMap() — 필터 상태를 마커에 반영합니다.

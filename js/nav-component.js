@@ -148,7 +148,8 @@
             localStorage.setItem('fs_colorblind_mode', enabled ? 'true' : 'false');
             document.body.classList.toggle('colorblind', enabled);
             // index.html 마커 색상 즉시 갱신 (새로고침 없이)
-            if (typeof window.updateMap === 'function') window.updateMap();
+            if (typeof window.refreshColorblind === 'function') window.refreshColorblind();
+            else if (typeof window.updateMap === 'function') window.updateMap();
         });
     }
 
