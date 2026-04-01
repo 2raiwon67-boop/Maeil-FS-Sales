@@ -25,7 +25,7 @@ api/
   batch-briefings.js     야간 배치 브리핑 + Mother Brain 임베딩 — gemini-2.5-flash-lite
   naver-reviews.js       네이버 검색 + Gemini 분석 — gemini-2.5-flash
   update-visit-log.js    방문일지 인라인 수정 (Service Role Key)
-  send-license-alert.js  인허가 주간 알림 (Vercel Cron 월 09:15 KST)
+  send-license-alert.js  인허가 알림 + 공사중 오픈 감지 (Vercel Cron 월~금 09:15 KST)
   public-license.js      공공데이터 API 프록시
   admin-all-data.js      관리자 전체 지점 데이터 조회
   admin-users.js         관리자 사용자 관리
@@ -102,6 +102,38 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 - 사이드 필터 기본 접힘, 색각 보정 필터 색상 연동
 - 캐시 TTL: 인허가·거래처 12h / 방문일지 24h / 지오코딩 영구
 - 코드 점검: alert() 교체, report_cache await 수정
+
+### 2026-04-01
+- **공사중 거래처 오픈 감지 자동화**:
+  - `licenses.open_detected_at` 컬럼 추가 (Supabase migration)
+  - Vercel Cron 스케줄 월요일 → 월~금 매일 09:15 KST 변경
+  - 화~금: 공사중 전체 네이버 지역 검색 API 폴링 → 새로 감지된 매장만 담당자 이메일
+  - 월요일: 기존 D+14/D+28 알림 유지 + 오픈예상 뱃지(초록) 표시 + 검색결과 버튼
+  - 지점장은 오픈예상 미표시 (공사중 그대로) — 불필요한 잡도리 방지
+  - `open_detected_at` 저장으로 중복 알림 방지; trade_status 변경 시 자동 제외
+  - 오픈 감지 후 담당자 미업데이트 시 → 월요일 섹션2에 계속 오픈예상 리마인드
+  - 네이버 검색 5개씩 배치 처리 (300ms 간격), PATCH Promise.allSettled로 부분 실패 방지
+  - 이메일 스타일 상수 모듈 레벨 추출, 6-B 그룹핑 로직 unitManagers 재사용
+
+### 2026-03-25 (v133~v148)
+- **성능 개선**: 미사용 XLSX 라이브러리 제거 → FCP 4.9s→3.3s (Lighthouse 53→58점)
+- **렌더 블로킹 해소**: chart.js·supabase-js·auth.js 전부 `defer` 처리
+- **영업동선 UX 전면 개편**: 루트→동선, 경유지→담아두기, 동선최적화→지금 출발, 네이버지도 연결
+- **모바일 바텀시트**: 상태버튼/메모버튼 컴팩트화, 네비 버튼 확대 (핵심 액션 우선)
+- **담아두기 토글**: 이미 담긴 경유지 재클릭 시 제거 (장바구니 패널 불필요한 이동 제거)
+- **InfoWindow 초기 상태**: 3개 진입점(인허가 IW, 거래처 IW, 바텀시트) 모두 담김 여부 반영
+- **패널 연동**: 루트 패널/추천 패널 열릴 때 InfoWindow 자동 닫기; 지도 클릭 시 추천 패널 닫기
+- **방문 추천 시스템 전면 개편**:
+  - 데이터 소스: licenses(allData) → accounts(accountsData), 내 담당 거래처만
+  - 수량: 5→3개
+  - 거리 필터: 1순위 거래처 앵커 기준 20km 이내
+  - 좌표: accountMarkers._lat/_lng 에서 조회 (지오코딩 추가 없음)
+  - 클릭 토글: `toggleRecItem(idx)` — 패널 항목 클릭으로 담기/취소, 상태 즉시 반영
+  - 전부 담기 버튼 유지
+  - 뱃지: "오늘 추천 N곳" → "방문 추천" (숫자 제거)
+- **날짜 유지**: `_savedVisitPlanDate` 변수 — 루트 패널 닫아도 날짜 유지
+- **바텀시트 id 유일성**: `sheetCartBtn_${sheetMemoUid}` (기존 단일 id 버그 수정)
+- 코드 점검: 버그 4개 수정 (id 중복, 데이터 소스 불일치 등)
 
 ---
 
@@ -212,6 +244,22 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v119 | 견적서 저장 개선 (메모 필드, 저장 피드백, 덮어쓰기/복사 선택, 수정일 정렬) |
 | v120 | AI 브리핑 구조화 응답 + 컴팩트 UI (형식 불일치·공간 과점유 해결) |
 | v121 | 지도 현재위치 과녁 버튼 추가 — 지도 이동 + 동선최적화 출발지 자동 설정, 동그라미 모양, 플로팅 버튼 위 배치 |
+| v133 | 색각 보정 모드 즉시 적용 (새로고침 없이 CSS 변수 교체) |
+| v134 | 미사용 XLSX 라이브러리 제거 (FCP 4.9s → 3.3s) |
+| v135 | chart.js·supabase-js·auth.js defer 처리 (렌더 블로킹 해소) |
+| v136 | 루트 버튼 텍스트 개선 + 방문 날짜 패널 재진입 시 유지 |
+| v137 | 영업동선 텍스트 통일 (루트→동선, 경유지→담아두기, 동선최적화→지금 출발) |
+| v138 | 모바일 바텀시트 상태버튼·메모버튼 컴팩트, 네비 버튼 확대 |
+| v139 | 루트 패널 열릴 때 InfoWindow 자동 닫기 |
+| v140 | 담아두기 토글: 이미 담긴 경유지 재클릭 시 제거 |
+| v141 | 방문 추천 패널 전부 담기 버튼 추가 |
+| v142 | addAllRecsToCart 이름 비교 trim 통일 + 토스트 정확도 개선 |
+| v143 | 추천 3개로 축소, 현재위치 기준 20km 거리 필터 |
+| v144 | 추천 대상 licenses→accountsData 전환, 1순위 기준 20km 앵커 필터 |
+| v145 | 추천 패널 항목 클릭으로 담기/취소 토글, 뱃지 텍스트 "방문 추천" |
+| v146 | 코드 점검 — 버그 4개 수정 (addAllRecsToCart·id 중복 등) |
+| v147 | 지도 클릭 시 방문 추천 패널 자동 닫기 |
+| v148 | 방문 추천 패널 열릴 때 InfoWindow 자동 닫기 |
 
 ---
 

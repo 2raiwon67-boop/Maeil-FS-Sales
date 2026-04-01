@@ -157,14 +157,16 @@ export default async function handler(req, res) {
             }
 
             // 월요일: revisitTargets에 openExpected 반영 후 위로 정렬
-            if (isMonday && newlyDetected.length > 0) {
-                const detectedIds = new Set(newlyDetected.map(i => i.id));
-                revisitTargets.forEach(t => {
-                    if (detectedIds.has(t.id)) {
-                        t.openExpected = true;
-                        t.naverLink = newlyDetected.find(i => i.id === t.id)?.naverLink || null;
-                    }
-                });
+            if (isMonday) {
+                if (newlyDetected.length > 0) {
+                    const detectedIds = new Set(newlyDetected.map(i => i.id));
+                    revisitTargets.forEach(t => {
+                        if (detectedIds.has(t.id)) {
+                            t.openExpected = true;
+                            t.naverLink = newlyDetected.find(i => i.id === t.id)?.naverLink || null;
+                        }
+                    });
+                }
                 revisitTargets.sort((a, b) => (b.openExpected ? 1 : 0) - (a.openExpected ? 1 : 0));
             }
         }
