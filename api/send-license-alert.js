@@ -107,6 +107,9 @@ export default async function handler(req, res) {
                 newTargets.push(item);
             } else if (daysDiff >= 28 && status === '공사중' && !row.open_detected_at) {
                 revisitTargets.push(item);
+            } else if (status === '공사중' && row.open_detected_at) {
+                // 이미 오픈 감지됐지만 아직 거래 상태 미변경 → 월요일 리마인드
+                revisitTargets.push({ ...item, openExpected: true, naverLink: `https://map.naver.com/v5/search/${encodeURIComponent(row.business_name || '')}` });
             }
         });
 
