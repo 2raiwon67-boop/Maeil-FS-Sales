@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FS MISO — 신규 발굴</title>
+    <title>FS MISO — 매장 검색</title>
     <link rel="icon" href="icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <link rel="stylesheet" href="common.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --primary: #0071e3;
@@ -317,11 +316,10 @@
     </div>
 </div>
 
-<script src="js/auth.js"></script>
 <script>
     const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         ? 'http://localhost:3000'
-        : 'https://fs-miso.vercel.app';
+        : 'https://maeilfs-sales.vercel.app';
 
     let allResults = [];   // 전체 누적 결과
     let currentPage = 1;
@@ -509,5 +507,12 @@
     window._NAV_OPTIONS = {};
 </script>
 <script src="js/nav-component.js"></script>
+<script src="js/auth.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof setupLogoutButton === 'function') setupLogoutButton();
+    });
+</script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>
