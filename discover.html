@@ -509,6 +509,7 @@
 <script src="js/nav-component.js"></script>
 <script src="js/auth.js"></script>
 <script>
+    window.addEventListener('load', () => document.body.classList.add('loaded'));
     document.addEventListener('DOMContentLoaded', function () {
         if (typeof setupLogoutButton === 'function') setupLogoutButton();
     });
