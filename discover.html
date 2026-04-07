@@ -375,10 +375,8 @@
             places.forEach(p => { if (!existingIds.has(p.id)) allResults.push(p); });
 
             currentPage = page;
-            totalPages = meta.is_end === false ? Math.min(page + 1, 3) : page;
             // 카카오는 total_count 제공하지만 실제 조회 가능은 최대 3페이지
-            const maxPage = meta.is_end ? page : Math.min(3, Math.ceil((meta.total_count || 15) / 15));
-            totalPages = maxPage;
+            totalPages = meta.is_end ? page : Math.min(3, Math.ceil((meta.total_count || 15) / 15));
 
             renderPage(page, places, meta);
 
@@ -395,7 +393,6 @@
         document.getElementById('resultSection').style.display = 'block';
 
         const totalCount = meta.total_count || 0;
-        const isEnd = meta.is_end;
         const displayMax = Math.min(totalCount, 45);
 
         document.getElementById('resultCount').innerHTML =
@@ -424,7 +421,7 @@
                 <td><span class="category-badge">${escapeHtml(category)}</span></td>
                 <td>${escapeHtml(phone)}</td>
                 <td>${escapeHtml(addr)}</td>
-                <td><a class="kakao-link" href="${p.place_url}" target="_blank" rel="noopener">지도 보기</a></td>
+                <td><a class="kakao-link" href="${escapeHtml(p.place_url)}" target="_blank" rel="noopener">지도 보기</a></td>
             </tr>`;
         }).join('');
 
