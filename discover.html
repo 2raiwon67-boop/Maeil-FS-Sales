@@ -461,11 +461,33 @@
         }
     }
 
-    function downloadExcel() {
+    async function downloadExcel() {
         if (!allResults.length) return;
 
         const region = document.getElementById('queryRegion').value.trim();
         const keyword = document.getElementById('queryKeyword').value.trim();
+        const query = [region, keyword].filter(Boolean).join(' ');
+
+        // 아직 불러오지 않은 페이지 자동으로 가져오기
+        const btnExcel = document.getElementById('btnExcel');
+        btnExcel.disabled = true;
+        btnExcel.textContent = '불러오는 중...';
+        try {
+            for (let p = currentPage + 1; p <= totalPages; p++) {
+                const params = new URLSearchParams({ query, page: p, size: 15 });
+                const res = await fetch(`${API_BASE}/api/kakao-search?${params}`);
+                if (!res.ok) break;
+                const data = await res.json();
+                const places = data.documents || [];
+                const existingIds = new Set(allResults.map(r => r.id));
+                places.forEach(r => { if (!existingIds.has(r.id)) allResults.push(r); });
+                if (data.meta?.is_end) break;
+            }
+        } catch (err) {
+            console.error(err);
+        }
+        btnExcel.textContent = '엑셀 다운로드';
+        btnExcel.disabled = false;
 
         const rows = allResults.map((p, i) => ({
             '번호': i + 1,
