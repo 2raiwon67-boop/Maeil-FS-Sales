@@ -32,11 +32,10 @@ const FC_KEYWORDS = [
     '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피', '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
 ];
 
-// 경기북부 기본 조회 지역 (regions 파라미터가 비어있을 때 fallback)
-const DEFAULT_REGIONS = [
-    '의정부', '양주', '동두천', '포천', '연천',
-    '파주', '고양', '남양주', '구리', '가평', '김포', '부천', '인천'
-];
+// regions 파라미터가 비어있을 때 fallback (시도 단위)
+const DEFAULT_REGIONS = ['경기도 의정부시', '경기도 양주시', '경기도 동두천시', '경기도 포천시', '경기도 연천군',
+    '경기도 파주시', '경기도 고양시', '경기도 남양주시', '경기도 구리시', '경기도 가평군', '경기도 김포시',
+    '인천광역시 부평구', '인천광역시 계양구', '인천광역시 중구'];
 
 const ALLOWED_ORIGINS = [
     'https://2raiwon67-boop.github.io',
@@ -92,24 +91,30 @@ async function fetchPage(typeCode, apiKey, startDate, endDate, regionHint, pageN
     }
 }
 
-// ── 업종 × 지역 전체 페이지 조회 ─────────────────────────
+// ── 업종 × 시도 단위 전체 페이지 조회 ───────────────────
+// regions = ['경기도 의정부시', '경기도 양주시', '인천광역시 중구', ...]
+// → 시도별로 묶어서 요청 수 최소화 (기존 지역별 69개 → 시도별 6~9개)
 async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
-    // 1단계: 지역별로 1페이지씩 병렬 조회
+    // 시도(첫 번째 단어) 기준으로 중복 제거
+    const sidoSet = new Set(regions.map(r => r.split(' ')[0]).filter(Boolean));
+    const sidoList = [...sidoSet];
+
+    // 1단계: 시도별 1페이지씩 병렬 조회
     const firstPages = await Promise.all(
-        regions.map(r => fetchPage(typeCode, apiKey, startDate, endDate, r, 1))
+        sidoList.map(sido => fetchPage(typeCode, apiKey, startDate, endDate, sido, 1))
     );
 
     const all = [];
     const followUps = [];
-    const failedRegions = [];
+    const failedSido = [];
 
     firstPages.forEach((page, idx) => {
-        if (page.failed) { failedRegions.push(regions[idx]); return; }
+        if (page.failed) { failedSido.push(sidoList[idx]); return; }
         all.push(...page.items);
-        // numOfRows=100 기준으로 남은 페이지 큐잉 (최대 10페이지/지역 = 1000건 안전망)
-        const totalPages = Math.min(Math.ceil((page.totalCount || 0) / 100), 10);
+        // 남은 페이지 큐잉 (최대 20페이지/시도 = 2000건 안전망)
+        const totalPages = Math.min(Math.ceil((page.totalCount || 0) / 100), 20);
         for (let p = 2; p <= totalPages; p++) {
-            followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, regions[idx], p));
+            followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, sidoList[idx], p));
         }
     });
 
@@ -118,7 +123,7 @@ async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
         more.forEach(({ items }) => all.push(...items));
     }
 
-    return { items: all, failedRegions };
+    return { items: all, failedRegions: failedSido };
 }
 
 // ── 한 건을 upload.html 포맷으로 정규화 ──────────────────
