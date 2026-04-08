@@ -32,10 +32,6 @@ const FC_KEYWORDS = [
     '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피', '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
 ];
 
-// regions 파라미터가 비어있을 때 fallback (시도 단위)
-const DEFAULT_REGIONS = ['경기도 의정부시', '경기도 양주시', '경기도 동두천시', '경기도 포천시', '경기도 연천군',
-    '경기도 파주시', '경기도 고양시', '경기도 남양주시', '경기도 구리시', '경기도 가평군', '경기도 김포시',
-    '인천광역시 부평구', '인천광역시 계양구', '인천광역시 중구'];
 
 const ALLOWED_ORIGINS = [
     'https://2raiwon67-boop.github.io',
@@ -227,11 +223,18 @@ export default async function handler(req, res) {
         return res.status(400).json({ success: false, error: 'startDate, endDate는 필수입니다. (YYYYMMDD)' });
     }
 
+    if (!regions) {
+        return res.status(400).json({ success: false, error: '지역(regions)을 하나 이상 선택해주세요.' });
+    }
+
     const typeList   = types.split(',').map(t => t.trim()).filter(t => ENDPOINTS[t]);
-    const regionList = regions ? regions.split(',').map(r => r.trim()).filter(Boolean) : DEFAULT_REGIONS;
+    const regionList = regions.split(',').map(r => r.trim()).filter(Boolean);
 
     if (!typeList.length) {
         return res.status(400).json({ success: false, error: '유효한 업종 코드가 없습니다.' });
+    }
+    if (!regionList.length) {
+        return res.status(400).json({ success: false, error: '유효한 지역이 없습니다.' });
     }
 
     // 날짜 범위 유효성 (YYYY-MM-DD로 들어올 경우 대비 정리)
