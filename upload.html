@@ -2407,27 +2407,31 @@
                 const token = session?.access_token || anonKey;
 
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2&order=region2`,
+                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`,
                     { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
                 );
                 if (!res.ok) throw new Error('조회 실패');
                 const rows = await res.json();
 
-                // region1+region2 조합 기준 중복 제거 (중구·동구 등 전국 동명 시군구 오필터 방지)
+                // region1+region2+region3 조합 기준 중복 제거 (중구·동구 등 전국 동명 시군구 오필터 방지)
                 const seen = new Set();
                 const chips = [];
                 for (const r of rows) {
                     if (!r.region2) continue;
-                    const key = `${r.region1 || ''} ${r.region2}`.trim();
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    chips.push({ ...r, fullRegion: key });
+                    const dedupKey = `${r.region1||''}|${r.region2}|${r.region3||''}`;
+                    if (seen.has(dedupKey)) continue;
+                    seen.add(dedupKey);
+                    // 주소 필터용: region1+region2 (예: '경기도 수원시') — region3는 담당자 구분용이라 필터엔 region2까지면 충분
+                    const filterRegion = `${r.region1 || ''} ${r.region2}`.trim();
+                    // 칩 표시: region3 있으면 '수원시 동탄구', 없으면 '의정부시'
+                    const label = r.region3 ? `${r.region2} ${r.region3}` : r.region2;
+                    chips.push({ ...r, filterRegion, label });
                 }
 
                 if (chips.length === 0) throw new Error('지역 없음');
 
                 chipContainer.innerHTML = chips.map(r =>
-                    `<span class="chip active" data-region="${r.fullRegion}">${r.region2}</span>`
+                    `<span class="chip active" data-region="${r.filterRegion}" data-label="${r.label}">${r.label}</span>`
                 ).join('');
             } catch (e) {
                 chipContainer.innerHTML = '<span style="font-size:12px;color:#c00;">지역 로드 실패 — 담당자 관리에서 시도/시군구를 입력해주세요.</span>';
@@ -2474,7 +2478,14 @@
 
                 if (!data.success) throw new Error(data.error || '조회 실패');
 
-                srchResults = data.items;
+                // 담당자 매핑 (rawManagerMap: normalizeRegion1(addr1)|addr2[|addr3] → manager_name)
+                srchResults = data.items.map(item => {
+                    const key = normalizeRegion1(item.address1) + '|' + item.address2;
+                    const manager = (item.address3 ? rawManagerMap[key + '|' + item.address3] : null)
+                                 || rawManagerMap[key]
+                                 || '';
+                    return { ...item, manager };
+                });
                 srchSelected = new Set();
                 renderSearchResults();
 
@@ -2563,7 +2574,7 @@
                 item.address2 || '',
                 item.address3 || '',
                 '1',
-                '',
+                item.manager || '',
                 '',
                 item.lat || '',
                 item.lng || '',
