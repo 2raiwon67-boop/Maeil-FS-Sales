@@ -2413,19 +2413,21 @@
                 if (!res.ok) throw new Error('조회 실패');
                 const rows = await res.json();
 
-                // region2 기준 중복 제거
+                // region1+region2 조합 기준 중복 제거 (중구·동구 등 전국 동명 시군구 오필터 방지)
                 const seen = new Set();
                 const chips = [];
                 for (const r of rows) {
-                    if (!r.region2 || seen.has(r.region2)) continue;
-                    seen.add(r.region2);
-                    chips.push(r);
+                    if (!r.region2) continue;
+                    const key = `${r.region1 || ''} ${r.region2}`.trim();
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    chips.push({ ...r, fullRegion: key });
                 }
 
                 if (chips.length === 0) throw new Error('지역 없음');
 
                 chipContainer.innerHTML = chips.map(r =>
-                    `<span class="chip active" data-region="${r.region2}">${r.region2}</span>`
+                    `<span class="chip active" data-region="${r.fullRegion}">${r.region2}</span>`
                 ).join('');
             } catch (e) {
                 chipContainer.innerHTML = '<span style="font-size:12px;color:#c00;">지역 로드 실패 — 담당자 관리에서 시도/시군구를 입력해주세요.</span>';
