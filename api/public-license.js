@@ -134,18 +134,13 @@ function normalize(item, typeCode) {
     const roadAddr = (item.ROAD_NM_ADDR || item.LOTNO_ADDR || '').toString().trim();
     const jibunAddr = (item.LOTNO_ADDR || '').toString().trim();
 
-    // 주소 1/2/3 분리 (upload.html processRawData와 동일 로직)
+    // 주소 1/2/3 분리: 시도 / 시군구 / 구·읍면동
     const tokens = jibunAddr.split(' ').filter(Boolean);
     let addr1 = '', addr2 = '', addr3 = '';
     if (tokens.length >= 2) {
         addr1 = tokens[0];
         addr2 = tokens[1];
-        if (addr2.startsWith('고양시') && tokens.length > 2) {
-            addr2 = `${tokens[1]} ${tokens[2]}`;
-            addr3 = tokens[3] || '';
-        } else {
-            addr3 = tokens[2] || '';
-        }
+        addr3 = tokens[2] || '';
     } else {
         addr1 = '확인필요'; addr2 = '확인필요'; addr3 = '확인필요';
     }
