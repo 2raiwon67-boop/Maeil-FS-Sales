@@ -2407,7 +2407,7 @@
                 const token = session?.access_token || anonKey;
 
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2&order=region2`,
+                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2&order=region2`,
                     { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
                 );
                 if (!res.ok) throw new Error('조회 실패');
