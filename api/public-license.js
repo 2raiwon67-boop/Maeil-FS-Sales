@@ -1,5 +1,6 @@
 // 공공데이터포털 지방행정 인허가 데이터 API 프록시
-// GET /api/public-license?types=general_restaurants,rest_cafes,bakeries&startDate=20260224&endDate=20260302&regions=의정부,양주
+// 2026-03-23 신규 스키마 대응 (cond[] 쿼리 문법 + 신규 컬럼명)
+// GET /api/public-license?types=general_restaurants,rest_cafes,bakeries&startDate=20260401&endDate=20260408&regions=의정부,양주
 
 const ENDPOINTS = {
     general_restaurants: 'https://apis.data.go.kr/1741000/general_restaurants/info',
@@ -13,7 +14,25 @@ const TYPE_LABELS = {
     rest_cafes:          '휴게음식점'
 };
 
-// 경기북부 기본 조회 지역
+// ── upload.html processRawData 로직과 동일 ──────────────
+const TARGET_CATEGORIES = ['한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'];
+const CATEGORY_RENAME   = { '커피숍':'카페', '제과점영업':'베이커리', '기타 휴게음식점':'FS기타', '기타':'FS기타', '경양식':'레스토랑' };
+
+const EXCLUDE_KEYWORDS = [
+    '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
+    'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
+    '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
+    '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치'
+];
+
+const FC_KEYWORDS = [
+    '스타벅스', '메가커피', '메가엠지씨', '컴포즈', '빽다방', '이디야', '메가', '메가MGC', '우지커피',
+    '투썸플레이스', '투썸', '할리스', '파스쿠찌', '폴바셋', '풀바셋', '엔제리너스', '카페베네', '탐앤탐스',
+    '설빙', '공차', '아마스빈', '더벤티', '쥬씨', '감성커피', '백억커피', '김준호의', '만랩',
+    '파리바게뜨', '뚜레쥬르', '던킨', '베스킨라빈스', '매머드커피', '브레댄코', '카페일리터', '하삼동', '텐퍼센트'
+];
+
+// 경기북부 기본 조회 지역 (regions 파라미터가 비어있을 때 fallback)
 const DEFAULT_REGIONS = [
     '의정부', '양주', '동두천', '포천', '연천',
     '파주', '고양', '남양주', '구리', '가평', '김포', '부천', '인천'
@@ -28,51 +47,67 @@ const ALLOWED_ORIGINS = [
     'http://localhost:8080'
 ];
 
+// ── 쿼리스트링 수동 조립 (키의 [ :: ] 를 보존) ───────────
+function buildQS(params) {
+    const parts = [];
+    for (const [k, v] of Object.entries(params)) {
+        if (v === undefined || v === null || v === '') continue;
+        parts.push(`${k}=${encodeURIComponent(v)}`);
+    }
+    return parts.join('&');
+}
+
 // ── data.go.kr 단일 페이지 조회 ──────────────────────────
 async function fetchPage(typeCode, apiKey, startDate, endDate, regionHint, pageNo) {
-    const params = new URLSearchParams({
+    const qs = buildQS({
         serviceKey: apiKey,
-        pageNo:     String(pageNo),
-        numOfRows:  '1000',
+        pageNo: String(pageNo),
+        numOfRows: '100',                        // 신규 API 최대치
         returnType: 'json',
-        SALS_STTS_CD: '01'   // 영업 중만
+        'cond[LCPMT_YMD::GTE]': startDate,        // 인허가일자 ≥ startDate
+        'cond[LCPMT_YMD::LTE]': endDate,          // 인허가일자 ≤ endDate
+        'cond[SALS_STTS_CD::EQ]': '01',           // 영업 중
+        ...(regionHint ? { 'cond[LOTNO_ADDR::LIKE]': regionHint } : {})
     });
-    if (startDate)   params.set('startDate', startDate);
-    if (endDate)     params.set('endDate',   endDate);
-    if (regionHint)  params.set('LOTNO_ADDR', regionHint);
 
     const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 8000);
+    const timer = setTimeout(() => ctrl.abort(), 7000);
     try {
-        const res = await fetch(`${ENDPOINTS[typeCode]}?${params}`, { signal: ctrl.signal });
+        const res = await fetch(`${ENDPOINTS[typeCode]}?${qs}`, { signal: ctrl.signal });
         clearTimeout(timer);
-        if (!res.ok) return { items: [], totalCount: 0 };
+        if (!res.ok) return { items: [], totalCount: 0, failed: true, status: res.status };
 
         const json = await res.json();
-        const body = json?.response?.body ?? json?.body ?? {};
-        const raw  = body?.items?.item ?? body?.items ?? [];
+        const body = json?.response?.body ?? json?.body ?? json ?? {};
+        const raw  = body?.items?.item ?? body?.items ?? body?.data ?? [];
         const items = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-        return { items, totalCount: parseInt(body?.totalCount ?? '0', 10) };
-    } catch {
+        const totalCount = parseInt(
+            body?.totalCount ?? body?.total_count ?? body?.total ?? items.length,
+            10
+        );
+        return { items, totalCount };
+    } catch (e) {
         clearTimeout(timer);
-        return { items: [], totalCount: 0, failed: true };
+        return { items: [], totalCount: 0, failed: true, error: e.message };
     }
 }
 
-// ── 업종 × 지역 병렬 전체 조회 ───────────────────────────
+// ── 업종 × 지역 전체 페이지 조회 ─────────────────────────
 async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
+    // 1단계: 지역별로 1페이지씩 병렬 조회
     const firstPages = await Promise.all(
         regions.map(r => fetchPage(typeCode, apiKey, startDate, endDate, r, 1))
     );
 
     const all = [];
     const followUps = [];
-    let failedRegions = [];
+    const failedRegions = [];
 
-    firstPages.forEach(({ items, totalCount, failed, region }, idx) => {
-        if (failed) { failedRegions.push(regions[idx]); return; }
-        all.push(...items);
-        const totalPages = Math.ceil(totalCount / 1000);
+    firstPages.forEach((page, idx) => {
+        if (page.failed) { failedRegions.push(regions[idx]); return; }
+        all.push(...page.items);
+        // numOfRows=100 기준으로 남은 페이지 큐잉 (최대 10페이지/지역 = 1000건 안전망)
+        const totalPages = Math.min(Math.ceil((page.totalCount || 0) / 100), 10);
         for (let p = 2; p <= totalPages; p++) {
             followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, regions[idx], p));
         }
@@ -86,30 +121,79 @@ async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
     return { items: all, failedRegions };
 }
 
-// ── API 응답 → 정제 객체 변환 ─────────────────────────────
+// ── 한 건을 upload.html 포맷으로 정규화 ──────────────────
 function normalize(item, typeCode) {
-    const roadAddr = (item.ROAD_NM_ADDR || item.LOTNO_ADDR || '').trim();
-    const lotAddr  = (item.LOTNO_ADDR   || '').trim();
+    const name        = (item.BPLC_NM || '').toString().trim();
+    const rawCategory = (item.BZSTAT_SE_NM || item.UPTAE_NM || TYPE_LABELS[typeCode] || '').toString().trim();
+    const permitRaw   = (item.LCPMT_YMD || '').toString().replace(/\D/g, '');
+    const permitDate  = permitRaw.length >= 8
+        ? `${permitRaw.slice(0,4)}-${permitRaw.slice(4,6)}-${permitRaw.slice(6,8)}`
+        : '';
 
-    // 주소1/2/3 분리 (시도 / 시군구 / 읍면동)
-    const parts   = lotAddr.split(' ').filter(Boolean);
-    const address1 = parts[0] || '';
-    const address2 = parts[1] || '';
-    const address3 = parts.slice(2).join(' ') || '';
+    const roadAddr = (item.ROAD_NM_ADDR || item.LOTNO_ADDR || '').toString().trim();
+    const jibunAddr = (item.LOTNO_ADDR || '').toString().trim();
+
+    // 주소 1/2/3 분리 (upload.html processRawData와 동일 로직)
+    const tokens = jibunAddr.split(' ').filter(Boolean);
+    let addr1 = '', addr2 = '', addr3 = '';
+    if (tokens.length >= 2) {
+        addr1 = tokens[0];
+        addr2 = tokens[1];
+        if (addr2.startsWith('고양시') && tokens.length > 2) {
+            addr2 = `${tokens[1]} ${tokens[2]}`;
+            addr3 = tokens[3] || '';
+        } else {
+            addr3 = tokens[2] || '';
+        }
+    } else {
+        addr1 = '확인필요'; addr2 = '확인필요'; addr3 = '확인필요';
+    }
+
+    // 평형 계산 (소재지면적 우선 → 시설총규모 폴백)
+    const areaM2 = parseFloat(
+        (item.LCTN_AREA || item.FCLT_TOTAL_SCL || '0').toString().replace(/,/g, '')
+    ) || 0;
+    const pyeong = areaM2 > 0 ? +(areaM2 / 3.3).toFixed(1) : 0;
+
+    // 업태 리네이밍
+    let category = CATEGORY_RENAME[rawCategory] || rawCategory;
+
+    // F/C 태깅
+    if (FC_KEYWORDS.some(kw => name.includes(kw))) category = 'F/C';
+    // 인천공항 태깅
+    if (roadAddr.includes('인천공항') || name.includes('인천공항')) category = '인천공항';
 
     return {
-        id:           item.MNG_NO || `${item.BPLC_NM}_${lotAddr}`,
-        business_name: (item.BPLC_NM || '').trim(),
-        business_type: (item.UPTAE_NM || item.BZSTAT_SE_NM || TYPE_LABELS[typeCode] || '').trim(),
-        permit_date:   item.LCPMT_YMD || '',    // YYYY-MM-DD
+        id:            item.MNG_NO || `${name}_${jibunAddr}`,
+        business_name: name,
+        business_type: category,
+        _rawCategory:  rawCategory,   // 필터링용 (rename 전 원본)
+        permit_date:   permitDate,
         road_address:  roadAddr,
-        address1,
-        address2,
-        address3,
-        area:          item.FCLT_TOTAL_SCL ? String(item.FCLT_TOTAL_SCL) : '',
+        address1:      addr1,
+        address2:      addr2,
+        address3:      addr3,
+        area:          pyeong > 0 ? pyeong.toString() : '',
+        _pyeong:       pyeong,
         lat:           null,
-        lng:           null,
+        lng:           null
     };
+}
+
+// ── upload.html processRawData 필터 로직 ─────────────────
+function applyBusinessLogic(items, regionList) {
+    return items.filter(it => {
+        // 1. 업태 타겟 카테고리만 (rename 전 원본 기준)
+        if (!TARGET_CATEGORIES.includes(it._rawCategory)) return false;
+        // 2. 블랙리스트 키워드 제외
+        if (EXCLUDE_KEYWORDS.some(kw => it.business_name.includes(kw))) return false;
+        // 3. 한식 100평 미만 제외
+        if (it._rawCategory === '한식' && it._pyeong < 100) return false;
+        // 4. 지역 필터 (서버 LIKE 힌트 보조 — 정확 매칭)
+        const addrStr = (it.road_address || '') + (it.address1 || '') + (it.address2 || '');
+        if (!regionList.some(r => addrStr.includes(r))) return false;
+        return true;
+    });
 }
 
 // ── Vercel 핸들러 ─────────────────────────────────────────
@@ -123,7 +207,9 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
 
     const API_KEY = process.env.PUBLIC_DATA_API_KEY;
-    if (!API_KEY) return res.status(500).json({ success: false, error: 'PUBLIC_DATA_API_KEY 환경변수가 설정되지 않았습니다.' });
+    if (!API_KEY) {
+        return res.status(500).json({ success: false, error: 'PUBLIC_DATA_API_KEY 환경변수가 설정되지 않았습니다.' });
+    }
 
     const {
         types      = 'general_restaurants,bakeries,rest_cafes',
@@ -140,44 +226,50 @@ export default async function handler(req, res) {
     const regionList = regions ? regions.split(',').map(r => r.trim()).filter(Boolean) : DEFAULT_REGIONS;
 
     if (!typeList.length) {
-        return res.status(400).json({ success: false, error: '유효한 업종 코드가 없습니다. (general_restaurants / bakeries / rest_cafes)' });
+        return res.status(400).json({ success: false, error: '유효한 업종 코드가 없습니다.' });
     }
 
+    // 날짜 범위 유효성 (YYYY-MM-DD로 들어올 경우 대비 정리)
+    const cleanStart = startDate.replace(/-/g, '');
+    const cleanEnd   = endDate.replace(/-/g, '');
+    const startISO   = `${cleanStart.slice(0,4)}-${cleanStart.slice(4,6)}-${cleanStart.slice(6,8)}`;
+    const endISO     = `${cleanEnd.slice(0,4)}-${cleanEnd.slice(4,6)}-${cleanEnd.slice(6,8)}`;
+
     try {
-        // 업종별 병렬 조회
         const results = await Promise.all(
-            typeList.map(t => fetchAllForType(t, API_KEY, startDate, endDate, regionList))
+            typeList.map(t => fetchAllForType(t, API_KEY, cleanStart, cleanEnd, regionList))
         );
 
-        // 인허가일 날짜 범위 (YYYY-MM-DD 형식으로 변환)
-        const startISO = `${startDate.slice(0,4)}-${startDate.slice(4,6)}-${startDate.slice(6,8)}`;
-        const endISO   = `${endDate.slice(0,4)}-${endDate.slice(4,6)}-${endDate.slice(6,8)}`;
-
-        // 취합 + 중복 제거 + 지역 필터 + 인허가일 필터
-        const seen  = new Set();
-        const items = [];
+        // 취합 + ID 중복 제거 + 날짜 이중 필터 (서버 cond 무시될 경우 대비)
+        const seen = new Set();
+        let merged = [];
         const allFailedRegions = [];
 
-        results.forEach(({ items: rawItems, failedRegions }, i) => {
+        results.forEach(({ items, failedRegions }, i) => {
             if (failedRegions?.length) allFailedRegions.push(...failedRegions);
-            rawItems.forEach(item => {
-                const norm = normalize(item, typeList[i]);
-                if (seen.has(norm.id)) return;
+            items.forEach(raw => {
+                const norm = normalize(raw, typeList[i]);
+                if (!norm.id || seen.has(norm.id)) return;
                 seen.add(norm.id);
-
-                // JS 정밀 지역 필터 (서버 힌트가 완벽하지 않으므로)
-                const addrStr = norm.road_address + norm.address1 + norm.address2;
-                if (!regionList.some(r => addrStr.includes(r))) return;
-
-                // 영업허가일 기준 날짜 필터 (data.go.kr은 수정일 기준으로 반환하므로 필수)
+                // 인허가일 범위 이중 확인
                 if (norm.permit_date && (norm.permit_date < startISO || norm.permit_date > endISO)) return;
-
-                items.push(norm);
+                merged.push(norm);
             });
         });
 
-        // 인허가일 내림차순 정렬
-        items.sort((a, b) => (b.permit_date || '').localeCompare(a.permit_date || ''));
+        // 사용자 로직 적용 (업태 필터 + 블랙리스트 + 한식 100평 미만 + 지역 매칭)
+        merged = applyBusinessLogic(merged, regionList);
+
+        // 정렬: 평형 내림차순, F/C·인천공항은 맨 뒤
+        merged.sort((a, b) => {
+            const aSp = a.business_type === 'F/C' || a.business_type === '인천공항';
+            const bSp = b.business_type === 'F/C' || b.business_type === '인천공항';
+            if (aSp !== bSp) return aSp ? 1 : -1;
+            return (b._pyeong || 0) - (a._pyeong || 0);
+        });
+
+        // 내부 필드 제거
+        const items = merged.map(({ _rawCategory, _pyeong, ...rest }) => rest);
 
         const uniqueFailed = [...new Set(allFailedRegions)];
         return res.json({
