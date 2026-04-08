@@ -2414,7 +2414,7 @@
                 const seen = new Set();
                 const chips = [];
                 for (const r of rows) {
-                    if (!r.region2) continue;
+                    if (!r.region2 || r.region2 === '지점장' || r.region2 === '전체') continue;
                     const dedupKey = `${r.region1||''}|${r.region2}|${r.region3||''}`;
                     if (seen.has(dedupKey)) continue;
                     seen.add(dedupKey);
