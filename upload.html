@@ -2214,6 +2214,12 @@
             alertEl.innerHTML = '';
             rawProcessedData = null;
 
+            // 담당자 맵이 아직 로드 전이면 대기 (레이스 방지)
+            if (Object.keys(rawManagerMap).length === 0) {
+                loadingMsg.innerText = '담당자 정보 로드 중...';
+                await loadRawManagerMap();
+            }
+
             try {
                 const allRawData = [];
                 for (const file of Array.from(files)) {
@@ -2319,8 +2325,13 @@
                 // 6. 한식 100평 미만 제외
                 processed = processed.filter(row => !(row['업태구분명'] === '한식' && row._pyeong_num < 100));
 
-                // 7. 담당자 미지정 제외
+                // 7. 담당자 미지정 제외 (건수 카운트해서 경고)
+                const unassigned = processed.filter(row => row['담당자'] === '미지정');
                 processed = processed.filter(row => row['담당자'] !== '미지정');
+                if (unassigned.length > 0) {
+                    const sampleAddrs = [...new Set(unassigned.map(r => `${r['주소1']} ${r['주소2']}${r['주소3'] ? ' ' + r['주소3'] : ''}`))].slice(0, 5);
+                    console.warn(`[인허가] 담당자 미매핑 ${unassigned.length}건 제외됨. 예시 지역:`, sampleAddrs);
+                }
 
                 // 8. 지오코딩 (좌표 없는 항목)
                 const missingCoords = processed.filter(d => (!d['위도'] || d['위도'] === 0) && d['도로명전체주소']);
@@ -2363,7 +2374,10 @@
                 loadingEl.style.display = 'none';
                 downloadBtn.style.display = 'block';
                 document.getElementById('rawDropzoneText').textContent = `✅ ${processed.length}건 가공 완료`;
-                showRawAlert('success', `✅ ${processed.length}건 처리 완료. 아래 버튼으로 다운로드 후 엑셀 업로드 카드에서 DB에 추가하세요.`);
+                const warnMsg = unassigned.length > 0
+                    ? `<br><span style="color:#c95;">⚠️ 담당자 미매핑 ${unassigned.length}건 제외됨 (콘솔에서 지역 확인)</span>`
+                    : '';
+                showRawAlert('success', `✅ ${processed.length}건 처리 완료. 아래 버튼으로 다운로드 후 엑셀 업로드 카드에서 DB에 추가하세요.${warnMsg}`);
 
             } catch (err) {
                 loadingEl.style.display = 'none';
@@ -2507,9 +2521,12 @@
             }
 
             const allChecked = srchSelected.size === srchResults.length;
-            const headerHtml = ['영업 허가일', '사업장명', '업태구분명', '평형', '도로명전체주소'].map(h => `<th>${h}</th>`).join('');
+            const headerHtml = ['영업 허가일', '사업장명', '업태구분명', '평형', '도로명전체주소', '담당자'].map(h => `<th>${h}</th>`).join('');
             const rowsHtml = srchResults.map((item, i) => {
                 const chk = srchSelected.has(i) ? 'checked' : '';
+                const mgrCell = item.manager
+                    ? escapeAttr(item.manager)
+                    : '<span style="color:#c95;">미지정</span>';
                 return `<tr>
                     <td><input type="checkbox" ${chk} onchange="toggleSrchItem(${i}, this.checked)" style="cursor:pointer;"></td>
                     <td title="${escapeAttr(item.permit_date)}">${item.permit_date || '-'}</td>
@@ -2517,6 +2534,7 @@
                     <td>${escapeAttr(item.business_type)}</td>
                     <td>${item.area || '-'}</td>
                     <td title="${escapeAttr(item.road_address)}">${escapeAttr(item.road_address) || '-'}</td>
+                    <td>${mgrCell}</td>
                 </tr>`;
             }).join('');
 
