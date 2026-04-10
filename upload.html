@@ -738,24 +738,7 @@
                     </div>
                 </div>
 
-                <!-- 2. 현재 DB 현황 -->
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-header-row">
-                            <span>2 — 현재 DB 현황 (<span id="dbCurrentCount">—</span>)</span>
-                            <div style="display:flex;gap:6px;">
-                                <button onclick="runDataCheck()" title="데이터 정합성 점검" style="font-size:12px;padding:4px 10px;border:1px solid #d1d1d6;border-radius:6px;background:#fff;cursor:pointer;color:#1d1d1f;">🔍 데이터 점검</button>
-                                <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="dataCheckPanel" style="display:none;padding:14px 16px;border-bottom:1px solid #f0f0f0;background:#fafafa;font-size:13px;"></div>
-                    <div class="card-body" id="dbCurrentBody">
-                        <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
-                    </div>
-                </div>
-
-                <!-- 2-1. 공공인허가 데이터 조회 (인허가 탭 전용) -->
+                <!-- 2. 공공인허가 데이터 조회 (인허가 탭 전용) -->
                 <div class="card" id="publicSearchCard">
                     <div class="card-header">공공인허가 데이터 조회 (data.go.kr)</div>
                     <div class="card-body">
@@ -782,6 +765,23 @@
                             <span style="font-size:12px;color:#888;">지역 로딩 중...</span>
                         </div>
                         <div id="searchResultArea"></div>
+                    </div>
+                </div>
+
+                <!-- 3. 현재 DB 현황 -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-header-row">
+                            <span>현재 DB 현황 (<span id="dbCurrentCount">—</span>)</span>
+                            <div style="display:flex;gap:6px;">
+                                <button onclick="runDataCheck()" title="데이터 정합성 점검" style="font-size:12px;padding:4px 10px;border:1px solid #d1d1d6;border-radius:6px;background:#fff;cursor:pointer;color:#1d1d1f;">🔍 데이터 점검</button>
+                                <button class="btn-refresh" onclick="loadCurrentData()" title="새로고침">🔄</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="dataCheckPanel" style="display:none;padding:14px 16px;border-bottom:1px solid #f0f0f0;background:#fafafa;font-size:13px;"></div>
+                    <div class="card-body" id="dbCurrentBody">
+                        <div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>
                     </div>
                 </div>
 
