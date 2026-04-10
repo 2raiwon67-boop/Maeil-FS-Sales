@@ -2255,8 +2255,17 @@
                 srchSelected = new Set();
                 renderSearchResults();
 
+                if (data.truncated?.length) {
+                    const truncMsg = data.truncated.map(t => `${t.sido}(${t.total.toLocaleString()}건)`).join(', ');
+                    document.getElementById('searchResultArea').insertAdjacentHTML('afterbegin',
+                        `<div class="banner banner-error" style="margin:0 0 10px;">
+                            ⚠️ <strong>데이터 누락 가능성:</strong> ${truncMsg} — 2,000건 상한 초과.<br>
+                            조회 기간을 나눠서 재조회하세요.
+                        </div>`
+                    );
+                }
                 if (data.failedRegions?.length) {
-                    showToast(`⚠️ 일부 지역 조회 실패 (재시도 권장): ${data.failedRegions.join(', ')}`);
+                    showToast(`⚠️ 일부 지역 조회 실패 (재시도 권장): ${data.failedRegions.join(', ')}`, 'warning', 5000);
                 }
 
             } catch (e) {

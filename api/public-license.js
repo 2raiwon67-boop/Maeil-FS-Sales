@@ -103,13 +103,16 @@ async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
     const all = [];
     const followUps = [];
     const failedSido = [];
+    const truncatedSido = [];
 
     firstPages.forEach((page, idx) => {
         if (page.failed) { failedSido.push(sidoList[idx]); return; }
         all.push(...page.items);
-        // 남은 페이지 큐잉 (최대 20페이지/시도 = 2000건 안전망)
-        const totalPages = Math.min(Math.ceil((page.totalCount || 0) / 100), 20);
-        for (let p = 2; p <= totalPages; p++) {
+        const realPages = Math.ceil((page.totalCount || 0) / 100);
+        const cappedPages = Math.min(realPages, 20);
+        // 20페이지(2000건) 상한에 걸린 경우 → 누락 가능성 기록
+        if (realPages > 20) truncatedSido.push({ sido: sidoList[idx], total: page.totalCount });
+        for (let p = 2; p <= cappedPages; p++) {
             followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, sidoList[idx], p));
         }
     });
@@ -119,7 +122,7 @@ async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
         more.forEach(({ items }) => all.push(...items));
     }
 
-    return { items: all, failedRegions: failedSido };
+    return { items: all, failedRegions: failedSido, truncatedSido };
 }
 
 // ── 한 건을 upload.html 포맷으로 정규화 ──────────────────
@@ -247,9 +250,11 @@ export default async function handler(req, res) {
         const seen = new Set();
         let merged = [];
         const allFailedRegions = [];
+        const allTruncated = [];
 
-        results.forEach(({ items, failedRegions }, i) => {
+        results.forEach(({ items, failedRegions, truncatedSido }, i) => {
             if (failedRegions?.length) allFailedRegions.push(...failedRegions);
+            if (truncatedSido?.length) allTruncated.push(...truncatedSido);
             items.forEach(raw => {
                 const norm = normalize(raw, typeList[i]);
                 if (!norm.id || seen.has(norm.id)) return;
@@ -279,7 +284,8 @@ export default async function handler(req, res) {
             success: true,
             totalCount: items.length,
             items,
-            ...(uniqueFailed.length > 0 && { failedRegions: uniqueFailed })
+            ...(uniqueFailed.length > 0 && { failedRegions: uniqueFailed }),
+            ...(allTruncated.length > 0 && { truncated: allTruncated })
         });
 
     } catch (e) {
