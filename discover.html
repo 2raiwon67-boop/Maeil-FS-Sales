@@ -3,536 +3,1112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FS MISO — 매장 검색</title>
+    <title>FS MISO — 상권 인텔리전스</title>
     <link rel="icon" href="icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <link rel="stylesheet" href="common.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* ═══════════════════════════════════════
+           PALANTIR DARK DESIGN SYSTEM
+        ═══════════════════════════════════════ */
         :root {
-            --primary: #0071e3;
-            --bg: #f5f5f7;
+            --bg:          #06090f;
+            --surface:     #0d1426;
+            --surface-2:   #111c34;
+            --surface-3:   #1a2545;
+            --border:      rgba(0, 212, 255, 0.12);
+            --border-dim:  rgba(0, 212, 255, 0.05);
+            --accent:      #00d4ff;
+            --accent-dim:  rgba(0, 212, 255, 0.15);
+            --success:     #22c55e;
+            --danger:      #ef4444;
+            --warning:     #f59e0b;
+            --purple:      #a78bfa;
+            --text:        #e2e8f0;
+            --text-dim:    #94a3b8;
+            --text-muted:  #475569;
+            --mono:        'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
         }
 
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            margin: 0;
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
             background: var(--bg);
-            color: #1d1d1f;
-        }
-
-        .main-container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 36px 24px 100px;
-        }
-
-        .page-header {
-            margin-bottom: 28px;
-        }
-
-        .page-title {
-            font-size: 26px;
-            font-weight: 700;
-            margin: 0 0 6px;
-        }
-
-        .page-subtitle {
-            font-size: 14px;
-            color: #86868b;
-            margin: 0;
-        }
-
-        /* ── 검색 바 ── */
-        .search-card {
-            background: white;
-            border-radius: 14px;
-            padding: 20px 24px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-            margin-bottom: 20px;
-        }
-
-        .search-row {
+            color: var(--text);
+            height: 100vh;
             display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        .search-input {
-            flex: 1;
-            min-width: 160px;
-            padding: 10px 14px;
-            border: 1px solid #d2d2d7;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: inherit;
-            outline: none;
-            transition: border-color 0.15s;
-        }
-
-        .search-input:focus {
-            border-color: var(--primary);
-        }
-
-        .search-input::placeholder {
-            color: #b0b0b5;
-        }
-
-        .btn-primary {
-            padding: 10px 20px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.15s;
-        }
-
-        .btn-primary:hover { background: #0062c4; }
-        .btn-primary:disabled { background: #b0b0b5; cursor: not-allowed; }
-
-        .btn-secondary {
-            padding: 10px 18px;
-            background: white;
-            color: #1d1d1f;
-            border: 1px solid #d2d2d7;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            font-family: inherit;
-            cursor: pointer;
-            white-space: nowrap;
-            transition: background 0.15s;
-        }
-
-        .btn-secondary:hover { background: #f5f5f7; }
-        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-        .search-hint {
-            margin-top: 10px;
-            font-size: 12px;
-            color: #86868b;
-        }
-
-        /* ── 결과 영역 ── */
-        .result-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .result-count {
-            font-size: 14px;
-            color: #86868b;
-        }
-
-        .result-count strong {
-            color: #1d1d1f;
-            font-weight: 600;
-        }
-
-        /* ── 테이블 ── */
-        .table-wrap {
-            background: white;
-            border-radius: 14px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+            flex-direction: column;
             overflow: hidden;
         }
 
-        .result-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
+        #nav-placeholder { flex-shrink: 0; }
+
+        /* ─── MAIN LAYOUT ─── */
+        .intel-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
         }
 
-        .result-table th {
-            background: #f5f5f7;
-            padding: 11px 14px;
-            text-align: left;
+        /* ─── TOP HEADER ─── */
+        .intel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 18px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 6px var(--success);
+            animation: blink 2.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+        .header-title {
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .header-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+            letter-spacing: .04em;
+        }
+
+        .header-right {
+            font-size: 10px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+        }
+
+        /* ─── KPI STRIP ─── */
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            background: var(--border);
+            gap: 1px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .kpi-card {
+            background: var(--surface);
+            padding: 12px 18px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+        .kpi-card.c-blue::after   { background: var(--accent); }
+        .kpi-card.c-green::after  { background: var(--success); }
+        .kpi-card.c-red::after    { background: var(--danger); }
+        .kpi-card.c-yellow::after { background: var(--warning); }
+
+        .kpi-label {
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            margin-bottom: 4px;
+        }
+
+        .kpi-val {
+            font-size: 26px;
+            font-weight: 700;
+            font-family: var(--mono);
+            line-height: 1;
+        }
+        .kpi-card.c-blue   .kpi-val { color: var(--accent); }
+        .kpi-card.c-green  .kpi-val { color: var(--success); }
+        .kpi-card.c-red    .kpi-val { color: var(--danger); }
+        .kpi-card.c-yellow .kpi-val { color: var(--warning); }
+
+        .kpi-sub {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+            margin-top: 3px;
+        }
+
+        /* ─── BODY ─── */
+        .intel-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        /* ─── LEFT PANEL ─── */
+        .side-left {
+            width: 210px;
+            flex-shrink: 0;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .s-block {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .s-label {
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .14em;
+            margin-bottom: 8px;
+        }
+
+        .chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .chip {
+            padding: 3px 9px;
+            border-radius: 2px;
+            font-size: 11px;
             font-weight: 600;
-            color: #86868b;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: inherit;
+            transition: all .15s;
+        }
+        .chip:hover { border-color: var(--accent); color: var(--accent); }
+        .chip.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+        .chip.a-green.active { background: rgba(34,197,94,.15); border-color: var(--success); color: var(--success); }
+        .chip.a-red.active   { background: rgba(239,68,68,.12); border-color: var(--danger);  color: var(--danger); }
+
+        .search-input {
+            width: 100%;
+            padding: 7px 9px;
+            background: var(--surface-3);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            color: var(--text);
             font-size: 12px;
-            border-bottom: 1px solid #e5e5ea;
+            font-family: inherit;
+            outline: none;
+        }
+        .search-input::placeholder { color: var(--text-muted); }
+        .search-input:focus { border-color: var(--accent); }
+
+        .mini-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 14px;
+        }
+        .mini-row-label { font-size: 11px; color: var(--text-dim); }
+        .mini-row-val   { font-size: 11px; font-weight: 700; font-family: var(--mono); color: var(--text); }
+
+        .btn-export {
+            width: calc(100% - 28px);
+            margin: 12px 14px;
+            padding: 7px;
+            font-size: 10px;
+            font-weight: 700;
+            font-family: var(--mono);
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            border-radius: 3px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            transition: all .15s;
+        }
+        .btn-export:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-export:disabled { opacity: .4; cursor: not-allowed; }
+
+        /* ─── MAP ─── */
+        .map-area {
+            flex: 1;
+            position: relative;
+            background: #080d18;
+        }
+
+        #intel-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            background: rgba(10, 16, 35, .92);
+            backdrop-filter: blur(6px);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            padding: 7px 12px;
+            z-index: 500;
+            display: flex;
+            gap: 14px;
+            font-size: 10px;
+            font-family: var(--mono);
+            color: var(--text-dim);
+        }
+
+        .leg-item { display: flex; align-items: center; gap: 5px; }
+        .leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+        /* ─── RIGHT PANEL ─── */
+        .side-right {
+            width: 270px;
+            flex-shrink: 0;
+            background: var(--surface);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-title {
+            padding: 9px 13px;
+            border-bottom: 1px solid var(--border);
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            flex-shrink: 0;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .region-row {
+            padding: 8px 13px;
+            border-bottom: 1px solid var(--border-dim);
+            cursor: default;
+        }
+        .region-row:hover { background: var(--surface-2); }
+
+        .region-name-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .region-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .pop-badge {
+            font-size: 9px;
+            font-family: var(--mono);
+            font-weight: 600;
+        }
+        .pop-up    { color: var(--success); }
+        .pop-down  { color: var(--danger); }
+        .pop-flat  { color: var(--text-muted); }
+
+        .region-bar-bg {
+            height: 3px;
+            background: var(--surface-3);
+            border-radius: 2px;
+            margin-bottom: 5px;
+            overflow: hidden;
+        }
+
+        .region-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+
+        .region-nums {
+            display: flex;
+            gap: 12px;
+            font-size: 10px;
+            font-family: var(--mono);
+        }
+
+        .rnum { display: flex; flex-direction: column; gap: 1px; }
+        .rnum-label { color: var(--text-muted); font-size: 9px; }
+        .rnum-val   { font-weight: 600; }
+
+        .pop-row {
+            margin-top: 3px;
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+        }
+
+        /* ─── BOTTOM ─── */
+        .intel-bottom {
+            flex-shrink: 0;
+            height: 240px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            background: var(--surface);
+            overflow: hidden;
+        }
+
+        .chart-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 12px 16px 10px;
+            border-right: 1px solid var(--border);
+        }
+
+        .chart-panel-title {
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .12em;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        .chart-wrap {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        .table-panel {
+            width: 480px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .table-panel-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 13px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .table-panel-title {
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .12em;
+        }
+
+        .table-panel-count {
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+        }
+
+        .table-scroll {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .intel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+
+        .intel-table th {
+            position: sticky;
+            top: 0;
+            background: var(--surface-3);
+            padding: 6px 10px;
+            text-align: left;
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            border-bottom: 1px solid var(--border);
             white-space: nowrap;
         }
 
-        .result-table td {
-            padding: 12px 14px;
-            border-bottom: 1px solid #f0f0f5;
-            vertical-align: middle;
+        .intel-table td {
+            padding: 6px 10px;
+            border-bottom: 1px solid var(--border-dim);
+            color: var(--text-dim);
+            white-space: nowrap;
         }
 
-        .result-table tr:last-child td {
-            border-bottom: none;
-        }
+        .intel-table tr:hover td { background: var(--surface-2); }
 
-        .result-table tr:hover td {
-            background: #fafafa;
-        }
-
-        .place-name {
-            font-weight: 600;
-            color: #1d1d1f;
-        }
-
-        .category-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: #f0f0f5;
-            border-radius: 4px;
-            font-size: 11px;
-            color: #555;
-        }
-
-        .kakao-link {
-            color: var(--primary);
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-        }
-
-        .kakao-link:hover { text-decoration: underline; }
-
-        .no-data {
-            text-align: center;
-            padding: 60px 20px;
-            color: #86868b;
-            font-size: 14px;
-        }
-
-        /* ── 페이지네이션 ── */
-        .pagination {
-            display: flex;
-            justify-content: center;
+        .badge {
+            display: inline-flex;
             align-items: center;
-            gap: 6px;
-            margin-top: 20px;
-        }
-
-        .page-btn {
-            padding: 7px 13px;
-            border: 1px solid #d2d2d7;
-            border-radius: 7px;
-            background: white;
-            font-size: 13px;
-            font-family: inherit;
-            cursor: pointer;
-            color: #1d1d1f;
-            transition: background 0.1s;
-        }
-
-        .page-btn:hover { background: #f5f5f7; }
-        .page-btn.active {
-            background: var(--primary);
-            border-color: var(--primary);
-            color: white;
+            gap: 3px;
+            padding: 2px 5px;
+            border-radius: 2px;
+            font-size: 9px;
+            font-family: var(--mono);
             font-weight: 600;
         }
-        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .badge.open   { background: rgba(34,197,94,.14);  color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+        .badge.closed { background: rgba(239,68,68,.1);   color: var(--danger);  border: 1px solid rgba(239,68,68,.25); }
+        .badge.other  { background: rgba(148,163,184,.08);color: var(--text-muted); border: 1px solid var(--border); }
 
-        /* ── 로딩 ── */
-        .loading-row td {
-            text-align: center;
-            padding: 50px;
-            color: #86868b;
+        .cat-tag {
+            display: inline-block;
+            padding: 1px 5px;
+            font-size: 9px;
+            font-family: var(--mono);
+            color: var(--purple);
+            border: 1px solid rgba(167,139,250,.28);
+            border-radius: 2px;
         }
 
-        @media (max-width: 768px) {
-            .main-container { padding: 20px 16px 100px; }
-            .page-title { font-size: 22px; }
+        /* ─── SCROLLBAR ─── */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 2px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-            .result-table th:nth-child(4),
-            .result-table td:nth-child(4) { display: none; }
+        /* ─── LEAFLET DARK POPUP ─── */
+        .dark-popup .leaflet-popup-content-wrapper {
+            background: #0d1426;
+            border: 1px solid rgba(0,212,255,.2);
+            border-radius: 4px;
+            box-shadow: 0 6px 24px rgba(0,0,0,.6);
+            color: #e2e8f0;
+        }
+        .dark-popup .leaflet-popup-tip { background: #0d1426; }
+        .dark-popup .leaflet-popup-content { margin: 10px 13px; font-size: 12px; line-height: 1.7; min-width: 160px; }
+        .dark-popup .leaflet-popup-content strong { font-size: 13px; display: block; margin-bottom: 2px; }
 
-            .result-table th:nth-child(5),
-            .result-table td:nth-child(5) { display: none; }
+        /* ─── MOBILE ─── */
+        @media (max-width: 900px) {
+            .side-left  { display: none; }
+            .side-right { display: none; }
+            .table-panel { display: none; }
+            .intel-bottom { height: 200px; }
+        }
+
+        @media (max-width: 600px) {
+            .kpi-strip { grid-template-columns: repeat(2,1fr); }
+            .intel-bottom { height: 180px; }
         }
     </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
 
-<div class="main-container">
-    <div class="page-header">
-        <h1 class="page-title">매장 검색</h1>
-        <p class="page-subtitle">원하는 매장 및 업종을 검색하여 신규 타겟 매장을 찾고 엑셀로 저장하세요.</p>
+<div class="intel-wrap">
+
+    <!-- ─── HEADER ─── -->
+    <div class="intel-header">
+        <div class="header-left">
+            <div class="status-dot"></div>
+            <div>
+                <div class="header-title">상권 인텔리전스</div>
+                <div class="header-sub">BUSINESS LICENSE INTELLIGENCE · 경기북부 FS</div>
+            </div>
+        </div>
+        <div class="header-right">
+            SYNC <span id="lastSync" style="color:var(--text-dim);">—</span>
+        </div>
     </div>
 
-    <div class="search-card">
-        <div class="search-row">
-            <input
-                type="text"
-                id="queryRegion"
-                class="search-input"
-                placeholder="지역 (예: 의정부시)"
-                style="max-width: 200px;"
-            />
-            <input
-                type="text"
-                id="queryKeyword"
-                class="search-input"
-                placeholder="업종 / 키워드 (예: 버거, 카페)"
-            />
-            <button class="btn-primary" id="btnSearch" onclick="doSearch(1)">검색</button>
+    <!-- ─── KPI STRIP ─── -->
+    <div class="kpi-strip">
+        <div class="kpi-card c-blue">
+            <div class="kpi-label">전체 인허가</div>
+            <div class="kpi-val" id="kpiTotal">—</div>
+            <div class="kpi-sub">조회 대상 매장</div>
         </div>
-        <p class="search-hint">지역과 업종을 함께 입력하면 더 정확한 결과를 얻을 수 있습니다. 페이지당 최대 15건, 3페이지까지 조회 가능합니다.</p>
+        <div class="kpi-card c-green">
+            <div class="kpi-label">영업중</div>
+            <div class="kpi-val" id="kpiActive">—</div>
+            <div class="kpi-sub" id="kpiActiveRate">—</div>
+        </div>
+        <div class="kpi-card c-red">
+            <div class="kpi-label">폐업 / 취소</div>
+            <div class="kpi-val" id="kpiClosed">—</div>
+            <div class="kpi-sub" id="kpiClosedRate">—</div>
+        </div>
+        <div class="kpi-card c-yellow">
+            <div class="kpi-label">이번달 신규</div>
+            <div class="kpi-val" id="kpiNew">—</div>
+            <div class="kpi-sub" id="kpiNewSub">—</div>
+        </div>
     </div>
 
-    <div id="resultSection" style="display:none;">
-        <div class="result-header">
-            <div class="result-count" id="resultCount"></div>
-            <button class="btn-secondary" id="btnExcel" onclick="downloadExcel()" disabled>엑셀 다운로드</button>
+    <!-- ─── BODY ─── -->
+    <div class="intel-body">
+
+        <!-- LEFT PANEL -->
+        <div class="side-left">
+            <div class="s-block">
+                <div class="s-label">매장 검색</div>
+                <input class="search-input" id="searchInput" placeholder="매장명 검색..." oninput="applyFilters()">
+            </div>
+
+            <div class="s-block">
+                <div class="s-label">업종</div>
+                <div class="chip-row">
+                    <button class="chip active" data-cat="all"        onclick="setCat(this,'all')">전체</button>
+                    <button class="chip"         data-cat="cafe"       onclick="setCat(this,'cafe')">카페</button>
+                    <button class="chip"         data-cat="bakery"     onclick="setCat(this,'bakery')">베이커리</button>
+                    <button class="chip"         data-cat="restaurant" onclick="setCat(this,'restaurant')">음식점</button>
+                </div>
+            </div>
+
+            <div class="s-block">
+                <div class="s-label">영업 상태</div>
+                <div class="chip-row">
+                    <button class="chip active"   data-st="all"    onclick="setStatus(this,'all')">전체</button>
+                    <button class="chip a-green"  data-st="open"   onclick="setStatus(this,'open')">영업중</button>
+                    <button class="chip a-red"    data-st="closed" onclick="setStatus(this,'closed')">폐업</button>
+                </div>
+            </div>
+
+            <div style="padding: 4px 0;">
+                <div class="mini-row"><span class="mini-row-label">지도 마커</span><span class="mini-row-val" id="mapCount">—</span></div>
+                <div class="mini-row"><span class="mini-row-label">좌표 없음</span><span class="mini-row-val" id="noGeoCount">—</span></div>
+                <div class="mini-row"><span class="mini-row-label">목록 건수</span><span class="mini-row-val" id="listCount">—</span></div>
+            </div>
+
+            <button class="btn-export" id="btnExport" onclick="exportExcel()">XLSX 내보내기</button>
         </div>
 
-        <div class="table-wrap">
-            <table class="result-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>매장명</th>
-                        <th>카테고리</th>
-                        <th>전화번호</th>
-                        <th>도로명 주소</th>
-                        <th>카카오맵</th>
-                    </tr>
-                </thead>
-                <tbody id="resultBody">
-                    <tr class="loading-row"><td colspan="6">검색 결과가 없습니다.</td></tr>
-                </tbody>
-            </table>
+        <!-- MAP -->
+        <div class="map-area">
+            <div id="intel-map"></div>
+            <div class="map-legend">
+                <div class="leg-item"><div class="leg-dot" style="background:var(--success);box-shadow:0 0 4px var(--success)"></div><span>영업중</span></div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--danger)"></div><span>폐업</span></div>
+                <div class="leg-item"><div class="leg-dot" style="background:var(--text-muted)"></div><span>상태미상</span></div>
+            </div>
         </div>
 
-        <div class="pagination" id="pagination"></div>
+        <!-- RIGHT PANEL -->
+        <div class="side-right">
+            <div class="panel-title">지역별 현황 · 인구 데이터</div>
+            <div class="panel-body" id="regionPanel">
+                <div style="padding:20px;text-align:center;color:var(--text-muted);font-size:12px;">
+                    데이터 로딩 중...
+                </div>
+            </div>
+        </div>
+
+    </div><!-- /intel-body -->
+
+    <!-- ─── BOTTOM ─── -->
+    <div class="intel-bottom">
+        <div class="chart-panel">
+            <div class="chart-panel-title">월별 신규 인허가 추이 — 최근 12개월</div>
+            <div class="chart-wrap">
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+
+        <div class="table-panel">
+            <div class="table-panel-head">
+                <div class="table-panel-title">인허가 목록</div>
+                <div class="table-panel-count" id="tableCount">—</div>
+            </div>
+            <div class="table-scroll">
+                <table class="intel-table">
+                    <thead>
+                        <tr>
+                            <th>매장명</th>
+                            <th>분류</th>
+                            <th>지역</th>
+                            <th>인허가일</th>
+                            <th>상태</th>
+                        </tr>
+                    </thead>
+                    <tbody id="licenseTable">
+                        <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">로딩 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
-</div>
+
+</div><!-- /intel-wrap -->
+
+<!-- ─── SCRIPTS ─── -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
 <script>
-    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-        ? 'http://localhost:3000'
-        : 'https://maeilfs-sales.vercel.app';
+/* ═══════════════════════════════════════════════════
+   인구 데이터 (2024 경기도 추계인구, 통계청 기준)
+   ─ 행정구역별 인구 + 전년 대비 증감률(%)
+═══════════════════════════════════════════════════ */
+const POPULATION = {
+    '고양시':   { pop: 1085000, yoy: +0.8  },
+    '남양주시': { pop:  726000, yoy: +2.1  },
+    '파주시':   { pop:  508000, yoy: +3.2  },
+    '의정부시': { pop:  457000, yoy: -0.3  },
+    '양주시':   { pop:  245000, yoy: +1.8  },
+    '구리시':   { pop:  197000, yoy: +0.1  },
+    '양평군':   { pop:  122000, yoy: +1.4  },
+    '여주시':   { pop:  111000, yoy: +0.5  },
+    '포천시':   { pop:  150000, yoy: -1.2  },
+    '동두천시': { pop:   95000, yoy: -1.5  },
+    '가평군':   { pop:   65000, yoy: +2.8  },
+    '연천군':   { pop:   42000, yoy: -2.1  },
+};
 
-    let allResults = [];   // 전체 누적 결과
-    let currentPage = 1;
-    let totalPages = 1;
-    let lastQuery = '';
+/* ═══════════════════════════════════════════════════
+   업종 분류 키워드
+═══════════════════════════════════════════════════ */
+const KEYWORDS = {
+    bakery:     ['제과', '베이커리', '빵', '케이크', '도넛', '디저트'],
+    cafe:       ['커피', '카페', 'cafe', 'coffee', '음료', '주스', '티', '휴게음식', '아이스크림', '요거트'],
+    restaurant: ['일반음식', '음식점', '레스토랑', '한식', '양식', '중식', '일식', '분식',
+                 '치킨', '피자', '햄버거', '패스트', '고기', '삼겹', '족발', '순대',
+                 '국밥', '냉면', '칼국수', '쌀국수'],
+};
 
-    // Enter 키 검색
-    document.getElementById('queryRegion').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') doSearch(1);
-    });
-    document.getElementById('queryKeyword').addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') doSearch(1);
-    });
+function classify(btype) {
+    if (!btype) return 'other';
+    const t = btype.toLowerCase();
+    if (KEYWORDS.bakery.some(k => t.includes(k.toLowerCase())))     return 'bakery';
+    if (KEYWORDS.cafe.some(k => t.includes(k.toLowerCase())))       return 'cafe';
+    if (KEYWORDS.restaurant.some(k => t.includes(k.toLowerCase()))) return 'restaurant';
+    return 'other';
+}
 
-    async function doSearch(page) {
-        const region = document.getElementById('queryRegion').value.trim();
-        const keyword = document.getElementById('queryKeyword').value.trim();
+const CAT_LABEL = { cafe:'카페', bakery:'베이커리', restaurant:'음식점', other:'기타' };
 
-        if (!region && !keyword) {
-            showToast('지역 또는 업종을 입력해주세요.', 'warning');
-            return;
-        }
+function isOpen(status) {
+    if (!status) return null;
+    const s = status.trim();
+    if (['영업', '영업중', '운영중', '정상'].some(v => s.includes(v))) return true;
+    if (['폐업', '취소', '말소', '휴업', '중지', '정지', '만료'].some(v => s.includes(v))) return false;
+    return null;
+}
 
-        const query = [region, keyword].filter(Boolean).join(' ');
+function extractRegion(r) {
+    const src = r.road_address || r.address1 || r.area || '';
+    const m = src.match(/([가-힣]+[시군구])/);
+    return m ? m[1] : (r.area || '기타');
+}
 
-        // 새 검색어면 기존 결과 초기화
-        if (query !== lastQuery) {
-            allResults = [];
-            lastQuery = query;
-        }
+/* ═══════════════════════════════════════════════════
+   APP STATE
+═══════════════════════════════════════════════════ */
+let allData   = [];
+let filtered  = [];
+let activeCat = 'all';
+let activeSt  = 'all';
+let map, markers, chart;
 
-        const btnSearch = document.getElementById('btnSearch');
-        btnSearch.disabled = true;
-        btnSearch.textContent = '검색 중...';
+/* ═══════════════════════════════════════════════════
+   MAP INIT
+═══════════════════════════════════════════════════ */
+function initMap() {
+    map = L.map('intel-map', { center:[37.72, 127.08], zoom:10, zoomControl:false });
 
-        setLoading(true);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CartoDB</a>',
+        maxZoom: 19,
+    }).addTo(map);
 
-        try {
-            const params = new URLSearchParams({ query, page, size: 15 });
-            const res = await fetch(`${API_BASE}/api/kakao-search?${params}`);
-            const data = await res.json();
+    L.control.zoom({ position:'bottomright' }).addTo(map);
+    markers = L.layerGroup().addTo(map);
+}
 
-            if (!res.ok) {
-                showToast(data.error || '검색 중 오류가 발생했습니다.', 'error');
-                return;
-            }
+/* ═══════════════════════════════════════════════════
+   DATA LOAD
+═══════════════════════════════════════════════════ */
+async function loadData() {
+    try {
+        const { data:{ session } } = await client.auth.getSession();
+        if (!session) { window.location.href = 'login.html'; return; }
 
-            const places = data.documents || [];
-            const meta = data.meta || {};
+        const { data, error } = await client
+            .from('licenses')
+            .select('business_name,business_type,trade_status,permit_date,road_address,address1,area,lat,lng,manager')
+            .order('permit_date', { ascending: false });
 
-            // 해당 페이지 결과를 allResults에 병합 (중복 제거)
-            const existingIds = new Set(allResults.map(p => p.id));
-            places.forEach(p => { if (!existingIds.has(p.id)) allResults.push(p); });
+        if (error) throw error;
 
-            currentPage = page;
-            // 카카오는 total_count 제공하지만 실제 조회 가능은 최대 3페이지
-            totalPages = meta.is_end ? page : Math.min(3, Math.ceil((meta.total_count || 15) / 15));
-
-            renderPage(page, places, meta);
-
-        } catch (err) {
-            console.error(err);
-            showToast('네트워크 오류가 발생했습니다.', 'error');
-        } finally {
-            btnSearch.disabled = false;
-            btnSearch.textContent = '검색';
-        }
-    }
-
-    function renderPage(page, places, meta) {
-        document.getElementById('resultSection').style.display = 'block';
-
-        const totalCount = meta.total_count || 0;
-        const displayMax = Math.min(totalCount, 45);
-
-        document.getElementById('resultCount').innerHTML =
-            `총 <strong>${totalCount.toLocaleString()}</strong>건 중 최대 <strong>${displayMax}</strong>건 조회 가능`;
-
-        const tbody = document.getElementById('resultBody');
-
-        if (!places.length) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:50px;color:#86868b;">검색 결과가 없습니다.</td></tr>';
-            document.getElementById('btnExcel').disabled = true;
-            renderPagination(page, 1, meta);
-            return;
-        }
-
-        const offset = (page - 1) * 15;
-        tbody.innerHTML = places.map((p, i) => {
-            const num = offset + i + 1;
-            const phone = p.phone || '-';
-            const addr = p.road_address_name || p.address_name || '-';
-            const category = p.category_name
-                ? p.category_name.split(' > ').slice(-2).join(' > ')
-                : '-';
-            return `<tr>
-                <td style="color:#86868b;">${num}</td>
-                <td><span class="place-name">${escapeHtml(p.place_name)}</span></td>
-                <td><span class="category-badge">${escapeHtml(category)}</span></td>
-                <td>${escapeHtml(phone)}</td>
-                <td>${escapeHtml(addr)}</td>
-                <td><a class="kakao-link" href="${escapeHtml(p.place_url)}" target="_blank" rel="noopener">지도 보기</a></td>
-            </tr>`;
-        }).join('');
-
-        document.getElementById('btnExcel').disabled = allResults.length === 0;
-        renderPagination(page, totalPages, meta);
-    }
-
-    function renderPagination(currentPg, maxPg, meta) {
-        const container = document.getElementById('pagination');
-        if (maxPg <= 1 && meta.is_end) {
-            container.innerHTML = '';
-            return;
-        }
-
-        let html = '';
-        // 이전 페이지
-        html += `<button class="page-btn" ${currentPg <= 1 ? 'disabled' : ''} onclick="doSearch(${currentPg - 1})">이전</button>`;
-
-        for (let p = 1; p <= Math.max(maxPg, currentPg); p++) {
-            html += `<button class="page-btn ${p === currentPg ? 'active' : ''}" onclick="doSearch(${p})">${p}</button>`;
-        }
-
-        // 다음 페이지 (카카오 최대 3페이지)
-        const canNext = !meta.is_end && currentPg < 3;
-        html += `<button class="page-btn" ${!canNext ? 'disabled' : ''} onclick="doSearch(${currentPg + 1})">다음</button>`;
-
-        container.innerHTML = html;
-    }
-
-    function setLoading(on) {
-        if (on) {
-            document.getElementById('resultSection').style.display = 'block';
-            document.getElementById('resultBody').innerHTML =
-                '<tr class="loading-row"><td colspan="6">검색 중...</td></tr>';
-            document.getElementById('pagination').innerHTML = '';
-            document.getElementById('btnExcel').disabled = true;
-        }
-    }
-
-    async function downloadExcel() {
-        if (!allResults.length) return;
-
-        const region = document.getElementById('queryRegion').value.trim();
-        const keyword = document.getElementById('queryKeyword').value.trim();
-        const query = [region, keyword].filter(Boolean).join(' ');
-
-        // 아직 불러오지 않은 페이지 자동으로 가져오기
-        const btnExcel = document.getElementById('btnExcel');
-        btnExcel.disabled = true;
-        btnExcel.textContent = '불러오는 중...';
-        try {
-            for (let p = currentPage + 1; p <= totalPages; p++) {
-                const params = new URLSearchParams({ query, page: p, size: 15 });
-                const res = await fetch(`${API_BASE}/api/kakao-search?${params}`);
-                if (!res.ok) break;
-                const data = await res.json();
-                const places = data.documents || [];
-                const existingIds = new Set(allResults.map(r => r.id));
-                places.forEach(r => { if (!existingIds.has(r.id)) allResults.push(r); });
-                if (data.meta?.is_end) break;
-            }
-        } catch (err) {
-            console.error(err);
-        }
-        btnExcel.textContent = '엑셀 다운로드';
-        btnExcel.disabled = false;
-
-        const rows = allResults.map((p, i) => ({
-            '번호': i + 1,
-            '매장명': p.place_name || '',
-            '카테고리': p.category_name || '',
-            '전화번호': p.phone || '',
-            '도로명 주소': p.road_address_name || '',
-            '지번 주소': p.address_name || '',
-            '카카오맵 링크': p.place_url || '',
+        allData = (data || []).map(r => ({
+            ...r,
+            _cat:    classify(r.business_type),
+            _open:   isOpen(r.trade_status),
+            _region: extractRegion(r),
         }));
 
-        const ws = XLSX.utils.json_to_sheet(rows);
+        const now = new Date();
+        document.getElementById('lastSync').textContent =
+            now.toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
 
-        // 컬럼 너비 설정
-        ws['!cols'] = [
-            { wch: 6 }, { wch: 24 }, { wch: 28 }, { wch: 16 },
-            { wch: 36 }, { wch: 36 }, { wch: 40 },
-        ];
+        applyFilters();
+    } catch(e) {
+        console.error('loadData error', e);
+        showToast?.('데이터 로드 실패: ' + e.message, 'error');
+    }
+}
 
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, '신규발굴');
+/* ═══════════════════════════════════════════════════
+   FILTERS
+═══════════════════════════════════════════════════ */
+function setCat(el, val) {
+    document.querySelectorAll('[data-cat]').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    activeCat = val;
+    applyFilters();
+}
 
-        const dateStr = new Date().toISOString().slice(0,10).replace(/-/g, '');
-        const queryStr = [region, keyword].filter(Boolean).join('_') || '검색결과';
-        XLSX.writeFile(wb, `신규발굴_${queryStr}_${dateStr}.xlsx`);
+function setStatus(el, val) {
+    document.querySelectorAll('[data-st]').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    activeSt = val;
+    applyFilters();
+}
 
-        showToast(`${allResults.length}건 엑셀 저장 완료`, 'success');
+function applyFilters() {
+    const q = (document.getElementById('searchInput')?.value || '').trim().toLowerCase();
+
+    filtered = allData.filter(r => {
+        if (activeCat !== 'all' && r._cat !== activeCat)      return false;
+        if (activeSt === 'open'   && r._open !== true)        return false;
+        if (activeSt === 'closed' && r._open !== false)       return false;
+        if (q && !r.business_name?.toLowerCase().includes(q)) return false;
+        return true;
+    });
+
+    renderKPIs();
+    renderMap();
+    renderRegionPanel();
+    renderTable();
+    renderChart();
+}
+
+/* ═══════════════════════════════════════════════════
+   KPI
+═══════════════════════════════════════════════════ */
+function renderKPIs() {
+    const total  = filtered.length;
+    const active = filtered.filter(r => r._open === true).length;
+    const closed = filtered.filter(r => r._open === false).length;
+
+    const now = new Date();
+    const ym  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const newN = filtered.filter(r => r.permit_date?.startsWith(ym)).length;
+
+    setText('kpiTotal',       total.toLocaleString());
+    setText('kpiActive',      active.toLocaleString());
+    setText('kpiClosed',      closed.toLocaleString());
+    setText('kpiNew',         newN.toLocaleString());
+    setText('kpiActiveRate',  total ? `${((active/total)*100).toFixed(1)}% 비율` : '—');
+    setText('kpiClosedRate',  total ? `${((closed/total)*100).toFixed(1)}% 비율` : '—');
+    setText('kpiNewSub',      `${now.getMonth()+1}월 신규 인허가`);
+}
+
+/* ═══════════════════════════════════════════════════
+   MAP MARKERS
+═══════════════════════════════════════════════════ */
+function renderMap() {
+    markers.clearLayers();
+
+    const withGeo = filtered.filter(r => r.lat && r.lng);
+    const noGeo   = filtered.length - withGeo.length;
+
+    setText('mapCount',   withGeo.length.toLocaleString());
+    setText('noGeoCount', noGeo.toLocaleString());
+    setText('listCount',  filtered.length.toLocaleString());
+
+    withGeo.forEach(r => {
+        const col = r._open === true  ? '#22c55e'
+                  : r._open === false ? '#ef4444'
+                  :                     '#475569';
+
+        const m = L.circleMarker([Number(r.lat), Number(r.lng)], {
+            radius:      5,
+            fillColor:   col,
+            fillOpacity: 0.9,
+            color:       col,
+            weight:      1,
+            opacity:     0.6,
+        });
+
+        const status = r.trade_status || '—';
+        const date   = r.permit_date?.slice(0,10) || '—';
+        const addr   = r.road_address || '—';
+
+        m.bindPopup(`
+            <strong>${esc(r.business_name)}</strong>
+            <span style="color:#94a3b8;">${esc(r.business_type || '—')}</span>
+            <span style="color:#94a3b8;font-size:11px;">${esc(addr)}</span>
+            <span style="color:${r._open ? '#22c55e' : r._open === false ? '#ef4444' : '#94a3b8'};font-size:11px;">${esc(status)}</span>
+            <span style="color:#475569;font-size:10px;">인허가 ${date}</span>
+        `.split('\n').map(l=>l.trim()).join('<br>'),
+        { className:'dark-popup', maxWidth:220 });
+
+        markers.addLayer(m);
+    });
+}
+
+/* ═══════════════════════════════════════════════════
+   REGION PANEL
+═══════════════════════════════════════════════════ */
+function renderRegionPanel() {
+    const map = {};
+    filtered.forEach(r => {
+        const k = r._region;
+        if (!map[k]) map[k] = { name:k, total:0, open:0, closed:0 };
+        map[k].total++;
+        if (r._open === true)  map[k].open++;
+        if (r._open === false) map[k].closed++;
+    });
+
+    const rows = Object.values(map).sort((a,b) => b.total - a.total).slice(0, 20);
+    const maxT = rows[0]?.total || 1;
+
+    const html = rows.map(r => {
+        const pct   = Math.round((r.total / maxT) * 100);
+        const barC  = r.open >= r.closed ? 'var(--success)' : 'var(--danger)';
+        const pop   = POPULATION[r.name];
+        let popHtml = '';
+
+        if (pop) {
+            const dir = pop.yoy > 0.3 ? 'pop-up' : pop.yoy < -0.2 ? 'pop-down' : 'pop-flat';
+            const arr = pop.yoy > 0.3 ? '▲' : pop.yoy < -0.2 ? '▼' : '─';
+            popHtml = `<div class="pop-row">
+                인구 ${(pop.pop/10000).toFixed(0)}만 &nbsp;
+                <span class="${dir}">${arr}${Math.abs(pop.yoy).toFixed(1)}%</span>
+                &nbsp;(전년비)
+            </div>`;
+        }
+
+        return `<div class="region-row">
+            <div class="region-name-row">
+                <span class="region-name">${esc(r.name)}</span>
+                <span class="pop-badge ${pop ? (pop.yoy > 0.3 ? 'pop-up' : pop.yoy < -0.2 ? 'pop-down' : 'pop-flat') : 'pop-flat'}">
+                    ${pop ? `${(pop.pop/10000).toFixed(0)}만명` : ''}
+                </span>
+            </div>
+            <div class="region-bar-bg">
+                <div class="region-bar-fill" style="width:${pct}%;background:${barC};"></div>
+            </div>
+            <div class="region-nums">
+                <div class="rnum">
+                    <span class="rnum-label">전체</span>
+                    <span class="rnum-val" style="color:var(--text)">${r.total}</span>
+                </div>
+                <div class="rnum">
+                    <span class="rnum-label" style="color:var(--success)">영업</span>
+                    <span class="rnum-val" style="color:var(--success)">${r.open}</span>
+                </div>
+                <div class="rnum">
+                    <span class="rnum-label" style="color:var(--danger)">폐업</span>
+                    <span class="rnum-val" style="color:var(--danger)">${r.closed}</span>
+                </div>
+            </div>
+            ${popHtml}
+        </div>`;
+    }).join('');
+
+    document.getElementById('regionPanel').innerHTML =
+        html || '<div style="padding:20px;color:var(--text-muted);font-size:12px;text-align:center;">데이터 없음</div>';
+}
+
+/* ═══════════════════════════════════════════════════
+   MONTHLY CHART
+═══════════════════════════════════════════════════ */
+function renderChart() {
+    const now = new Date();
+    const months = [];
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        months.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
+    const counts = Object.fromEntries(months.map(m => [m, 0]));
+    filtered.forEach(r => {
+        const m = r.permit_date?.slice(0,7);
+        if (m && counts[m] !== undefined) counts[m]++;
+    });
+
+    const labels = months.map(m => {
+        const [y, mo] = m.split('-');
+        return `${y.slice(2)}/${mo}`;
+    });
+    const data = months.map(m => counts[m]);
+
+    if (chart) chart.destroy();
+    const ctx = document.getElementById('monthlyChart').getContext('2d');
+
+    chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: '신규 인허가',
+                data,
+                backgroundColor: 'rgba(0,212,255,.25)',
+                borderColor:     'rgba(0,212,255,.75)',
+                borderWidth: 1,
+                borderRadius: 2,
+                hoverBackgroundColor: 'rgba(0,212,255,.4)',
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#0d1426',
+                    borderColor:     'rgba(0,212,255,.25)',
+                    borderWidth: 1,
+                    titleColor: '#e2e8f0',
+                    bodyColor:  '#94a3b8',
+                    padding: 8,
+                    callbacks: { label: c => `신규: ${c.parsed.y}건` }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color:'#475569', font:{ size:9, family:'monospace' } },
+                    grid:  { color:'rgba(255,255,255,0.04)' },
+                },
+                y: {
+                    ticks: { color:'#475569', font:{ size:9, family:'monospace' }, stepSize:1 },
+                    grid:  { color:'rgba(255,255,255,0.04)' },
+                    beginAtZero: true,
+                }
+            }
+        }
+    });
+}
+
+/* ═══════════════════════════════════════════════════
+   TABLE
+═══════════════════════════════════════════════════ */
+function renderTable() {
+    setText('tableCount', `${filtered.length.toLocaleString()}건`);
+
+    const rows = filtered.slice(0, 200).map(r => {
+        const sc = r._open === true ? 'open' : r._open === false ? 'closed' : 'other';
+        const st = r.trade_status || '—';
+        const dt = r.permit_date?.slice(0,10) || '—';
+        return `<tr>
+            <td style="color:var(--text);font-weight:500;max-width:130px;overflow:hidden;text-overflow:ellipsis">${esc(r.business_name)}</td>
+            <td><span class="cat-tag">${CAT_LABEL[r._cat]||'기타'}</span></td>
+            <td style="font-size:10px;">${esc(r._region)}</td>
+            <td style="font-family:var(--mono);font-size:10px;">${dt}</td>
+            <td><span class="badge ${sc}">${esc(st)}</span></td>
+        </tr>`;
+    }).join('');
+
+    document.getElementById('licenseTable').innerHTML =
+        rows || '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted);">데이터 없음</td></tr>';
+}
+
+/* ═══════════════════════════════════════════════════
+   EXCEL EXPORT
+═══════════════════════════════════════════════════ */
+function exportExcel() {
+    if (!filtered.length) return;
+    const data = filtered.map((r, i) => ({
+        '#':         i + 1,
+        '매장명':    r.business_name || '',
+        '업종':      r.business_type  || '',
+        '분류':      CAT_LABEL[r._cat] || '',
+        '영업상태':  r.trade_status   || '',
+        '지역':      r._region        || '',
+        '도로명주소':r.road_address   || '',
+        '인허가일':  r.permit_date    || '',
+        '담당자':    r.manager        || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws['!cols'] = [{wch:5},{wch:24},{wch:20},{wch:8},{wch:10},{wch:12},{wch:36},{wch:12},{wch:10}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '인허가현황');
+    const d = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    XLSX.writeFile(wb, `경기북부_인허가현황_${d}.xlsx`);
+    showToast?.(`${filtered.length}건 엑셀 저장 완료`, 'success');
+}
+
+/* ─── UTILS ─── */
+function setText(id, txt) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = txt;
+}
+
+function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 </script>
-<script>
-    window._NAV_OPTIONS = {};
-</script>
+
+<script>window._NAV_OPTIONS = {};</script>
 <script src="js/nav-component.js"></script>
 <script src="js/auth.js"></script>
+
 <script>
-    window.addEventListener('load', () => document.body.classList.add('loaded'));
-    document.addEventListener('DOMContentLoaded', function () {
-        if (typeof setupLogoutButton === 'function') setupLogoutButton();
-    });
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+
+    // client는 auth.js가 로드된 뒤 전역에서 접근 가능
+    let attempts = 0;
+    const poll = setInterval(() => {
+        attempts++;
+        if (typeof client !== 'undefined' && client) {
+            clearInterval(poll);
+            loadData();
+        }
+        if (attempts > 40) {
+            clearInterval(poll);
+            console.error('[discover] Supabase client not ready');
+        }
+    }, 150);
+});
+
+window.addEventListener('load', () => document.body.classList.add('loaded'));
 </script>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </body>
 </html>
