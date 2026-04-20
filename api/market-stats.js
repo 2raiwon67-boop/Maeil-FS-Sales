@@ -1,14 +1,16 @@
 // api/market-stats.js — 상권 인텔리전스 API (discover.html 전용)
-// GET /api/market-stats?sido=경기도&months=12
+// GET /api/market-stats?sido=경기도&months=12[&save=true]
 //
-// 공공인허가 API에서 카페/베이커리 신규 오픈·폐업 건수를 집계하여 반환
-// ─ 신규: LCPMT_YMD(인허가일) 기준
-// ─ 폐업: CLSBIZ_YMD(폐업일) 기준 (column_mapping_260323 확인)
-// upload.html의 FS 타겟 필터 미적용 — 시장 전체 규모 파악 목적
+// 공공인허가 API에서 카페/베이커리/일반음식점 신규·폐업 건수를 집계하여 반환
+// ─ 신규: LCPMT_YMD(인허가일) + SALS_STTS_CD=01(영업중)
+// ─ 폐업: CLSBIZ_YMD(폐업일)
+// ─ 블랙리스트·업태 필터: public-license.js의 applyBusinessLogic과 동일 기준
+// ─ save=true: 집계 결과를 market_snapshots 테이블에 upsert
 
 const ENDPOINTS = {
-    rest_cafes: 'https://apis.data.go.kr/1741000/rest_cafes/info',
-    bakeries:   'https://apis.data.go.kr/1741000/bakeries/info',
+    general_restaurants: 'https://apis.data.go.kr/1741000/general_restaurants/info',
+    rest_cafes:          'https://apis.data.go.kr/1741000/rest_cafes/info',
+    bakeries:            'https://apis.data.go.kr/1741000/bakeries/info',
 };
 
 const ALLOWED_ORIGINS = [
@@ -20,7 +22,21 @@ const ALLOWED_ORIGINS = [
     'http://localhost:8080',
 ];
 
-// 시도명 정규화 (managers 테이블 다양한 표기 → API 약칭)
+// ── 블랙리스트 (public-license.js와 동일) ───────────────────
+const EXCLUDE_KEYWORDS = [
+    '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
+    'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
+    '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
+    '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치',
+    '곱창', '닭', '이자카야', '라멘', '라면', '우동', '스시', '카츠', '돈까스', '야끼',
+];
+
+// FS 타겟 업태 카테고리 (general_restaurants 필터링용)
+const TARGET_CATEGORIES = [
+    '한식', '기타 휴게음식점', '기타', '커피숍', '제과점영업', '레스토랑', '키즈카페', '경양식'
+];
+
+// ── 시도명 정규화 ──────────────────────────────────────────
 const SIDO_SHORT = {
     '서울특별시': '서울', '서울시': '서울', '서울': '서울',
     '부산광역시': '부산', '부산시': '부산', '부산': '부산',
@@ -48,6 +64,17 @@ function buildQS(params) {
         .filter(([, v]) => v !== undefined && v !== null && v !== '')
         .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
         .join('&');
+}
+
+// ── FS 타겟 여부 판별 ────────────────────────────────────
+function isTarget(item) {
+    const bizName  = (item.BPLCNM || item.BIZPLC_NM || '').toString().trim();
+    const category = (item.INDUTY_NM || item.INDUTY_CD_NM || '').toString().trim();
+    // 업태 필터 (카테고리가 있는 경우에만 적용 — rest_cafes/bakeries는 카테고리 없을 수 있음)
+    if (category && !TARGET_CATEGORIES.includes(category)) return false;
+    // 블랙리스트 키워드 제외
+    if (EXCLUDE_KEYWORDS.some(kw => bizName.includes(kw))) return false;
+    return true;
 }
 
 // ── 단일 페이지 조회 ──────────────────────────────────────
@@ -104,8 +131,8 @@ async function fetchAll(type, apiKey, sido, mode, start, end) {
 
 // ── 아이템에서 시군구 + 월 추출 ──────────────────────────
 function extract(item, mode) {
-    const addr   = (item.LOTNO_ADDR || '').toString().trim();
-    const tokens = addr.split(' ').filter(Boolean);
+    const addr    = (item.LOTNO_ADDR || '').toString().trim();
+    const tokens  = addr.split(' ').filter(Boolean);
     const sigungu = tokens[1] || '';
 
     const raw = (mode === 'new'
@@ -118,6 +145,46 @@ function extract(item, mode) {
         : '';
 
     return { sigungu, month };
+}
+
+// ── Supabase upsert ─────────────────────────────────────
+async function saveToSupabase(sidoShort, detail) {
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!SUPABASE_URL || !SERVICE_KEY) return { saved: 0, error: 'env 누락' };
+
+    const rows = [];
+    for (const [sigungu, months] of Object.entries(detail)) {
+        for (const [month, counts] of Object.entries(months)) {
+            rows.push({
+                sido:         sidoShort,
+                sigungu,
+                month,
+                new_count:    counts.new    || 0,
+                closed_count: counts.closed || 0,
+                updated_at:   new Date().toISOString(),
+            });
+        }
+    }
+    if (!rows.length) return { saved: 0 };
+
+    // 100건씩 배치 upsert
+    let saved = 0;
+    for (let i = 0; i < rows.length; i += 100) {
+        const batch = rows.slice(i, i + 100);
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/market_snapshots`, {
+            method: 'POST',
+            headers: {
+                'apikey':        SERVICE_KEY,
+                'Authorization': `Bearer ${SERVICE_KEY}`,
+                'Content-Type':  'application/json',
+                'Prefer':        'resolution=merge-duplicates',
+            },
+            body: JSON.stringify(batch),
+        });
+        if (res.ok) saved += batch.length;
+    }
+    return { saved };
 }
 
 // ── Vercel 핸들러 ─────────────────────────────────────────
@@ -133,13 +200,14 @@ export default async function handler(req, res) {
     const API_KEY = process.env.PUBLIC_DATA_API_KEY;
     if (!API_KEY) return res.status(500).json({ success: false, error: 'API key missing' });
 
-    const { sido, months = '12' } = req.query;
+    const { sido, months = '12', save = '' } = req.query;
     if (!sido) return res.status(400).json({ success: false, error: 'sido 파라미터 필요' });
 
     const sidoShort  = toShort(sido);
     const monthCount = Math.min(Math.max(parseInt(months) || 12, 1), 24);
+    const doSave     = save === 'true';
 
-    // 날짜 범위 (최근 N개월)
+    // 날짜 범위
     const now   = new Date();
     const start = new Date(now.getFullYear(), now.getMonth() - monthCount, 1);
     const fmt   = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -156,20 +224,28 @@ export default async function handler(req, res) {
         ]);
 
         // 집계
-        const monthly = {};
-        const regions = {};
+        const monthly  = {};
+        const regions  = {};
+        const detail   = {};  // detail[sigungu][month] = {new, closed} — Supabase 저장용
 
         function tally(results, mode) {
             results.forEach(({ items }) => {
                 items.forEach(item => {
+                    if (!isTarget(item)) return;
                     const { sigungu, month } = extract(item, mode);
                     if (!month || !sigungu) return;
 
+                    const key = mode === 'new' ? 'new' : 'closed';
+
                     if (!monthly[month]) monthly[month] = { new: 0, closed: 0 };
-                    monthly[month][mode === 'new' ? 'new' : 'closed']++;
+                    monthly[month][key]++;
 
                     if (!regions[sigungu]) regions[sigungu] = { new: 0, closed: 0 };
-                    regions[sigungu][mode === 'new' ? 'new' : 'closed']++;
+                    regions[sigungu][key]++;
+
+                    if (!detail[sigungu]) detail[sigungu] = {};
+                    if (!detail[sigungu][month]) detail[sigungu][month] = { new: 0, closed: 0 };
+                    detail[sigungu][month][key]++;
                 });
             });
         }
@@ -204,6 +280,12 @@ export default async function handler(req, res) {
         const totalNew    = monthlyArr.reduce((s, m) => s + m.new,    0);
         const totalClosed = monthlyArr.reduce((s, m) => s + m.closed, 0);
 
+        // Supabase 저장 (옵션)
+        let saveResult = null;
+        if (doSave) {
+            saveResult = await saveToSupabase(sidoShort, detail);
+        }
+
         return res.json({
             success:  true,
             sido:     sidoShort,
@@ -211,6 +293,7 @@ export default async function handler(req, res) {
             summary:  { totalNew, totalClosed, net: totalNew - totalClosed },
             monthly:  monthlyArr,
             regions:  regionsArr,
+            ...(doSave ? { saved: saveResult } : {}),
         });
 
     } catch (e) {

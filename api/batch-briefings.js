@@ -23,13 +23,35 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: '환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY' });
     }
 
+    // ── 1. market_snapshots 갱신 (현재월 + 전월) ──────────
+    // 브리핑보다 먼저 실행 — 병렬 조회라 빠름 (~30초)
+    const marketResult = {};
+    try {
+        const host     = req.headers.host || 'maeilfs-sales.vercel.app';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const base     = `${protocol}://${host}`;
+
+        await Promise.all(['경기도', '서울', '인천'].map(async sido => {
+            try {
+                const url = `${base}/api/market-stats?sido=${encodeURIComponent(sido)}&months=2&save=true`;
+                const r   = await fetch(url, { headers: { Authorization: authHeader || '' } });
+                const j   = await r.json();
+                marketResult[sido] = j.saved ?? { error: j.error };
+            } catch (e) {
+                marketResult[sido] = { error: e.message };
+            }
+        }));
+    } catch (_e) {
+        // market snapshot 실패해도 브리핑 계속 진행
+    }
+
     const sbHeaders = {
         'apikey': SERVICE_KEY,
         'Authorization': `Bearer ${SERVICE_KEY}`,
         'Content-Type': 'application/json'
     };
 
-    // ── 1. 어제 이후 방문일지 조회 ──
+    // ── 2. 어제 이후 방문일지 조회 ──
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const cutoff = yesterday.toISOString().split('T')[0];
@@ -43,14 +65,14 @@ export default async function handler(req, res) {
         return res.status(200).json({ message: '처리할 새 방문일지 없음', total: 0 });
     }
 
-    // ── 2. 영향받은 거래처 목록 추출 (중복 제거) ──
+    // ── 3. 영향받은 거래처 목록 추출 (중복 제거) ──
     const affectedKeys = new Set(
         recentLogs
             .filter(l => l.business_name)
             .map(l => `${l.business_name}__${l.business_unit || ''}`)
     );
 
-    // ── 3. 기존 캐시 확인 ──
+    // ── 4. 기존 캐시 확인 ──
     const cacheRes = await fetch(
         `${SUPABASE_URL}/rest/v1/ai_briefings?select=account_name,business_unit,last_visit_date,visit_count,generated_at`,
         { headers: sbHeaders }
@@ -65,7 +87,7 @@ export default async function handler(req, res) {
             }])
     );
 
-    // ── 4. 각 거래처의 전체 방문 기록 조회 & 갱신 필요 여부 판단 ──
+    // ── 5. 각 거래처의 전체 방문 기록 조회 & 갱신 필요 여부 판단 ──
     // 최근 6개월 데이터만 사용 (온보딩 대용량 방지)
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
@@ -108,7 +130,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ message: '모든 캐시 최신 상태', total: 0 });
     }
 
-    // ── 5. 순차 처리 (10 RPM → 6초 간격) ──
+    // ── 6. 순차 처리 (10 RPM → 6초 간격) ──
     const results = { success: 0, failed: 0, total: toProcess.length };
 
     for (const acc of toProcess) {
@@ -166,7 +188,7 @@ ${visitText}
         await new Promise(r => setTimeout(r, 6000));
     }
 
-    // ── 6. Mother Brain 임베딩 배치 ──
+    // ── 7. Mother Brain 임베딩 배치 ──
     // embedding=null 이면서 개척완료/개척 완료/연결완료 포함 레코드 자동 처리
     const embedResults = { success: 0, failed: 0 };
     try {
@@ -222,5 +244,5 @@ ${visitText}
         // 임베딩 배치 실패해도 브리핑 결과는 정상 반환
     }
 
-    return res.status(200).json({ ...results, embed: embedResults });
+    return res.status(200).json({ ...results, embed: embedResults, market: marketResult });
 }
