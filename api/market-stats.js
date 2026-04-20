@@ -128,9 +128,19 @@ async function fetchAll(type, apiKey, sido, mode, start, end) {
 }
 
 // ── 아이템에서 시군구 + 월 추출 ──────────────────────────
-function extract(item, mode) {
+// expectedSido: 쿼리에 사용한 sido (예: '경기도', '인천')
+// 주소 첫 토큰이 expectedSido와 다르면 오염 데이터로 간주해 빈 값 반환
+// (예: '강원도 횡성군 인천리...' → LIKE '인천' 에 걸렸지만 경기도 주소 아님)
+function extract(item, mode, expectedSido) {
     const addr    = (item.LOTNO_ADDR || '').toString().trim();
     const tokens  = addr.split(' ').filter(Boolean);
+
+    // 시도 검증: 주소 첫 토큰을 정규화 후 expectedSido와 비교
+    if (expectedSido) {
+        const addrSido = toShort(tokens[0] || '');
+        if (addrSido && addrSido !== expectedSido) return { sigungu: '', month: '' };
+    }
+
     const sigungu = tokens[1] || '';
 
     const raw = (mode === 'new'
@@ -230,7 +240,7 @@ export default async function handler(req, res) {
             results.forEach(({ items }) => {
                 items.forEach(item => {
                     if (!isTarget(item)) return;
-                    const { sigungu, month } = extract(item, mode);
+                    const { sigungu, month } = extract(item, mode, sidoShort);
                     if (!month || !sigungu) return;
 
                     const key = mode === 'new' ? 'new' : 'closed';
