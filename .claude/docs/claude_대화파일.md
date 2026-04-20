@@ -614,3 +614,38 @@ ADMIN_CODE                  관리자 API 인증 (= 532753)
 - **Supabase 조회 한도**: 기본 1000건 → `limit=10000` 으로 증가 (무료)
 - **이메일 발송 간격**: 600ms → 200ms (Brevo 초당 10건 제한 내, 5개 지점 ~35초로 안전)
 - **타임아웃 여유**: vercel.json maxDuration=60s, 5개 지점 35명 기준 약 35초 소요
+
+---
+
+## 2026-04-20 — discover.html 전면 리디자인 (v164)
+
+### 목적
+기존 discover.html 상권 분석 페이지를 common.css Apple 디자인 시스템과 통일하고 더 현대적인 UI로 개선.
+
+### 변경사항
+
+**색상 토큰 전환** — `:root` 자체 변수를 common.css 기반으로 교체
+- `--blue: #3b82f6` → `--color-primary: #0071e3`
+- `--green: #16a34a` → `--color-success: #34c759`
+- `--red: #dc2626` → `--color-danger: #ff3b30`
+- `--amber: #d97706` → `--color-warning: #ff9500`
+- `--bg: #f1f4f8` → `--color-bg: #f5f5f7`
+- `--r: 8px` → `--radius-md: 12px`
+
+**KPI 카드 개선**
+- 왼쪽 4px 세로 바 → 상단 3px 가로 컬러 바
+- `border-radius: 12px`, `box-shadow` 카드 형태로 전환
+- 카드 사이 `gap: 12px`, 패딩 `16px`으로 여백 확보
+- 호버 시 `translateY(-2px)` + shadow 강화 효과 추가
+
+**필터 툴바 개선**
+- 단순 회색 바 → 흰색 카드 (radius 12px, margin 12px)
+- 칩(`.chip`) active 색상 → `--color-primary` 블루
+- 월 네비게이션 버튼 크기 28px → 32px
+
+**기타 통일**
+- 사이드바 항목 신규/폐업 색상 → common.css 변수
+- 지도 마커 색상 → `#34c759`/`#ff3b30`/`#a1a1a6`
+- Chart.js 색상 → 동일 팔레트
+- Leaflet 팝업 radius 10px → 12px
+- 비교 strip primary blue 기반 배경으로 통일

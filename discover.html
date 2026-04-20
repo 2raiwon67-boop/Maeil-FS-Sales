@@ -13,31 +13,30 @@
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --bg:       #f1f4f8;
-            --surface:  #ffffff;
-            --dim:      #f8fafc;
-            --border:   #e2e8f0;
-            --border2:  #f1f5f9;
-            --blue:     #3b82f6;
-            --blue-bg:  #eff6ff;
-            --blue-br:  #bfdbfe;
-            --green:    #16a34a;
-            --red:      #dc2626;
-            --amber:    #d97706;
-            --text:     #1e293b;
-            --text2:    #475569;
-            --text3:    #64748b;
-            --text4:    #94a3b8;
-            --r:        8px;
-            --shadow:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+            --color-primary:        #0071e3;
+            --color-primary-hover:  #0077ed;
+            --color-success:        #34c759;
+            --color-danger:         #ff3b30;
+            --color-warning:        #ff9500;
+            --color-text:           #1d1d1f;
+            --color-text-secondary: #6e6e73;
+            --color-text-tertiary:  #a1a1a6;
+            --color-bg:             #f5f5f7;
+            --color-surface:        #ffffff;
+            --color-border:         #e0e0e5;
+            --radius-sm:  8px;
+            --radius-md:  12px;
+            --radius-lg:  16px;
+            --shadow-sm:  0 1px 4px rgba(0,0,0,0.08);
+            --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
         }
 
         html, body { height: 100%; overflow: hidden; }
         body {
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             font-size: 14px;
-            color: var(--text);
-            background: var(--bg);
+            color: var(--color-text);
+            background: var(--color-bg);
             display: flex;
             flex-direction: column;
         }
@@ -59,163 +58,164 @@
             gap: 12px;
             padding: 0 24px;
             height: 52px;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            box-shadow: var(--shadow);
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            box-shadow: var(--shadow-sm);
             flex-shrink: 0;
         }
         .ph-title {
             font-size: 15px; font-weight: 700;
-            color: var(--text); letter-spacing: -.01em;
+            color: var(--color-text); letter-spacing: -.01em;
             white-space: nowrap;
         }
-        .ph-vline { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+        .ph-vline { width: 1px; height: 18px; background: var(--color-border); flex-shrink: 0; }
         .ph-sub {
-            font-size: 12px; color: var(--text3);
+            font-size: 12px; color: var(--color-text-tertiary);
             flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
-        .ph-sync { font-size: 12px; color: var(--text4); white-space: nowrap; }
+        .ph-sync { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; }
         .btn-refresh {
             height: 32px; padding: 0 14px;
-            border: 1px solid var(--border);
-            border-radius: var(--r);
-            background: var(--surface);
-            color: var(--text3);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: var(--color-surface);
+            color: var(--color-text-secondary);
             cursor: pointer;
             display: flex; align-items: center; gap: 5px;
             font-size: 13px; font-weight: 500;
-            transition: all .15s;
+            transition: all 0.15s ease;
             white-space: nowrap;
         }
-        .btn-refresh:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+        .btn-refresh:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.08); }
         .btn-refresh:disabled { opacity: .4; cursor: not-allowed; }
 
         /* ── KPI STRIP ── */
         .kpi-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            border-bottom: 1px solid var(--border);
+            gap: 12px;
+            padding: 12px;
             flex-shrink: 0;
-            background: var(--surface);
+            background: var(--color-bg);
         }
         .kpi-cell {
-            padding: 14px 22px;
-            border-right: 1px solid var(--border2);
+            padding: 16px;
             position: relative;
-            transition: background .15s;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            border-top: 3px solid;
         }
-        .kpi-cell:last-child { border-right: none; }
-        .kpi-cell::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0; width: 4px;
-            border-radius: 0 2px 2px 0;
-        }
-        .kc-g::before { background: var(--green); }
-        .kc-r::before { background: var(--red);   }
-        .kc-b::before { background: var(--blue);  }
-        .kc-a::before { background: var(--amber); }
+        .kpi-cell:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .kc-g { border-top-color: var(--color-success); }
+        .kc-r { border-top-color: var(--color-danger); }
+        .kc-b { border-top-color: var(--color-primary); }
+        .kc-a { border-top-color: var(--color-warning); }
         .kpi-lbl {
-            font-size: 11px; font-weight: 600; color: var(--text3);
-            margin-bottom: 5px;
+            font-size: 11px; font-weight: 600; color: var(--color-text-secondary);
+            margin-bottom: 6px;
         }
         .kpi-val {
             font-size: 28px; font-weight: 800; line-height: 1;
             font-variant-numeric: tabular-nums;
             letter-spacing: -.02em;
         }
-        .kc-g .kpi-val { color: var(--green); }
-        .kc-r .kpi-val { color: var(--red);   }
-        .kc-b .kpi-val { color: var(--blue);  }
-        .kc-a .kpi-val { color: var(--amber); }
-        .kpi-sub { font-size: 11px; color: var(--text4); margin-top: 4px; }
+        .kc-g .kpi-val { color: var(--color-success); }
+        .kc-r .kpi-val { color: var(--color-danger); }
+        .kc-b .kpi-val { color: var(--color-primary); }
+        .kc-a .kpi-val { color: var(--color-warning); }
+        .kpi-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
 
         /* ── TOOLBAR ── */
         .toolbar {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 0 22px;
-            height: 46px;
-            background: var(--dim);
-            border-bottom: 1px solid var(--border);
+            gap: 16px;
+            padding: 12px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
             flex-shrink: 0;
             overflow-x: auto;
+            margin: 0 12px;
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
         }
         .tb-lbl {
-            font-size: 12px; font-weight: 600; color: var(--text3);
+            font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
             white-space: nowrap; flex-shrink: 0;
         }
-        .tb-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
-        .chips { display: flex; gap: 6px; }
+        .tb-sep { width: 1px; height: 20px; background: var(--color-border); flex-shrink: 0; }
+        .chips { display: flex; gap: 8px; }
         .chip {
-            height: 30px; padding: 0 14px;
+            height: 32px; padding: 0 16px;
             font-size: 13px; font-weight: 500;
-            border-radius: 15px;
-            border: 1.5px solid var(--border);
-            background: var(--surface);
-            color: var(--text2);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-secondary);
             cursor: pointer; white-space: nowrap;
-            transition: all .15s;
+            transition: all 0.15s ease;
         }
-        .chip:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+        .chip:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.08); }
         .chip.active {
-            background: var(--blue); border-color: var(--blue);
+            background: var(--color-primary); border-color: var(--color-primary);
             color: #fff; font-weight: 600;
         }
 
         .mnav { display: flex; align-items: center; gap: 4px; }
         .marr {
-            width: 28px; height: 28px;
-            border: 1.5px solid var(--border); border-radius: 6px;
-            background: var(--surface); color: var(--text2);
+            width: 32px; height: 32px;
+            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text-secondary);
             cursor: pointer; font-size: 16px;
             display: flex; align-items: center; justify-content: center;
-            transition: all .15s; font-weight: 600;
+            transition: all 0.15s ease; font-weight: 600;
         }
-        .marr:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-bg); }
+        .marr:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.08); }
         #monthLabel {
-            font-size: 13px; font-weight: 700; color: var(--text);
+            font-size: 13px; font-weight: 700; color: var(--color-text);
             min-width: 72px; text-align: center;
         }
         .btn-mclear {
-            height: 26px; padding: 0 10px;
+            height: 28px; padding: 0 12px;
             font-size: 12px; font-weight: 500;
-            border-radius: 5px;
-            border: 1px solid var(--border);
-            background: var(--surface); color: var(--text3);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface); color: var(--color-text-secondary);
             cursor: pointer; display: none;
-            transition: all .15s;
+            transition: all 0.15s ease;
         }
-        .btn-mclear:hover { border-color: var(--red); color: var(--red); background: #fef2f2; }
+        .btn-mclear:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(255,59,48,0.08); }
 
         /* ── COMPARISON STRIP ── */
         .cmp-strip {
             display: none; flex-shrink: 0;
-            border-bottom: 2px solid var(--blue-br);
-            background: var(--blue-bg);
+            border-bottom: 2px solid rgba(0,113,227,0.2);
+            background: rgba(0,113,227,0.06);
+            padding: 0 12px;
         }
         .cmp-strip.on { display: flex; }
         .cmp-col {
-            flex: 1; padding: 12px 22px;
-            border-right: 1px solid var(--blue-br);
+            flex: 1; padding: 12px 16px;
+            border-right: 1px solid rgba(0,113,227,0.1);
         }
         .cmp-col:last-child { border-right: none; }
         .cmp-ctitle {
-            font-size: 11px; font-weight: 700; color: var(--text3);
+            font-size: 11px; font-weight: 700; color: var(--color-text-secondary);
             margin-bottom: 8px;
         }
-        .cmp-col.col-cur .cmp-ctitle { color: var(--blue); }
+        .cmp-col.col-cur .cmp-ctitle { color: var(--color-primary); }
         .cmp-ms { display: flex; gap: 22px; }
         .cmp-m { display: flex; flex-direction: column; gap: 2px; }
-        .cmp-ml { font-size: 11px; color: var(--text4); }
+        .cmp-ml { font-size: 11px; color: var(--color-text-tertiary); }
         .cmp-mv { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-        .cv-g { color: var(--green); }
-        .cv-r { color: var(--red);   }
-        .cv-b { color: var(--blue);  }
-        .cmp-delta { margin-top: 5px; font-size: 12px; color: var(--text3); }
-        .du { color: var(--green); font-weight: 600; }
-        .dd { color: var(--red);   font-weight: 600; }
+        .cv-g { color: var(--color-success); }
+        .cv-r { color: var(--color-danger); }
+        .cv-b { color: var(--color-primary); }
+        .cmp-delta { margin-top: 5px; font-size: 12px; color: var(--color-text-secondary); }
+        .du { color: var(--color-success); font-weight: 600; }
+        .dd { color: var(--color-danger); font-weight: 600; }
 
         /* ── BODY ── */
         .page-body {
@@ -230,12 +230,12 @@
             position: absolute; bottom: 14px; left: 14px; z-index: 500;
             background: rgba(255,255,255,.96);
             backdrop-filter: blur(8px);
-            border: 1px solid var(--border);
-            border-radius: var(--r);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
             padding: 8px 14px;
             display: flex; gap: 14px;
-            font-size: 12px; color: var(--text2);
-            box-shadow: var(--shadow);
+            font-size: 12px; color: var(--color-text-secondary);
+            box-shadow: var(--shadow-md);
         }
         .leg-i { display: flex; align-items: center; gap: 6px; }
         .leg-d { width: 10px; height: 10px; border-radius: 50%; }
@@ -243,62 +243,62 @@
         /* ── SIDEBAR ── */
         .sidebar {
             width: 272px; flex-shrink: 0;
-            border-left: 1px solid var(--border);
+            border-left: 1px solid var(--color-border);
             display: flex; flex-direction: column;
-            background: var(--surface); overflow: hidden;
+            background: var(--color-surface); overflow: hidden;
         }
         .sb-hd {
-            padding: 11px 16px;
-            border-bottom: 1px solid var(--border);
-            font-size: 12px; font-weight: 700; color: var(--text2);
-            flex-shrink: 0; background: var(--dim);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 12px; font-weight: 700; color: var(--color-text-secondary);
+            flex-shrink: 0; background: var(--color-bg);
             letter-spacing: -.01em;
         }
         .sb-body { flex: 1; overflow-y: auto; }
 
         .rrow {
-            padding: 11px 16px;
-            border-bottom: 1px solid var(--border2);
-            transition: background .12s;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--color-border);
+            transition: background 0.12s ease;
             cursor: default;
         }
-        .rrow:hover { background: var(--dim); }
+        .rrow:hover { background: var(--color-bg); }
         .rrow-top {
             display: flex; justify-content: space-between;
             align-items: center; margin-bottom: 6px;
         }
         .rrow-name {
-            font-size: 13px; font-weight: 700; color: var(--text);
+            font-size: 13px; font-weight: 700; color: var(--color-text);
             display: flex; align-items: center; gap: 6px;
         }
         .rrow-rank {
             font-size: 10px; font-weight: 600;
-            color: var(--text4); min-width: 16px;
+            color: var(--color-text-tertiary); min-width: 16px;
         }
         .rrow-net { font-size: 13px; font-weight: 700; }
-        .rn-pos { color: var(--green); }
-        .rn-neg { color: var(--red); }
-        .rn-0   { color: var(--text4); }
+        .rn-pos { color: var(--color-success); }
+        .rn-neg { color: var(--color-danger); }
+        .rn-0   { color: var(--color-text-tertiary); }
         .rbar {
-            height: 4px; background: var(--border);
+            height: 4px; background: var(--color-border);
             border-radius: 2px; margin-bottom: 7px; overflow: hidden;
         }
-        .rbar-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+        .rbar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
         .rnums { display: flex; gap: 14px; }
         .rnum { display: flex; flex-direction: column; gap: 1px; }
-        .rnum-l { font-size: 10px; color: var(--text4); font-weight: 500; }
+        .rnum-l { font-size: 10px; color: var(--color-text-tertiary); font-weight: 500; }
         .rnum-v { font-size: 13px; font-weight: 700; }
 
         /* ── CHART ── */
         .chart-bar {
             flex-shrink: 0; height: 200px;
-            border-top: 1px solid var(--border);
-            background: var(--surface);
+            border-top: 1px solid var(--color-border);
+            background: var(--color-surface);
             display: flex; flex-direction: column;
             padding: 12px 22px 10px;
         }
         .chart-title {
-            font-size: 12px; font-weight: 600; color: var(--text3);
+            font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
             margin-bottom: 8px; flex-shrink: 0;
         }
         .chart-wrap { flex: 1; position: relative; min-height: 0; }
@@ -307,16 +307,16 @@
         .state-msg {
             height: 100%; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            gap: 10px; color: var(--text4); font-size: 13px;
+            gap: 10px; color: var(--color-text-tertiary); font-size: 13px;
             text-align: center; padding: 24px; line-height: 1.6;
         }
         .state-ico { font-size: 32px; }
 
         /* ── LEAFLET ── */
         .leaflet-popup-content-wrapper {
-            border-radius: 10px !important;
+            border-radius: 12px !important;
             box-shadow: 0 4px 24px rgba(0,0,0,.13) !important;
-            border: 1px solid var(--border) !important;
+            border: 1px solid var(--color-border) !important;
         }
         .leaflet-popup-content { font-size: 13px; line-height: 1.8; }
 
@@ -330,10 +330,10 @@
             .chart-bar { height: 170px; }
         }
         @media (max-width: 640px) {
-            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; }
             .kpi-val { font-size: 22px; }
             .ph { padding: 0 16px; }
-            .toolbar { padding: 0 14px; }
+            .toolbar { margin: 0 8px; padding: 10px; gap: 12px; }
         }
     </style>
 </head>
@@ -930,21 +930,22 @@ function renderMap(regions) {
         if (!coords) return;
 
         const radius = 7 + Math.round((r.new / maxNew) * 22);
-        const color  = r.net > 2 ? '#059669' : r.net < -2 ? '#dc2626' : '#9ca3af';
+        const color  = r.net > 2 ? 'var(--color-success)' : r.net < -2 ? 'var(--color-danger)' : 'var(--color-text-tertiary)';
+        const colorVal = r.net > 2 ? '#34c759' : r.net < -2 ? '#ff3b30' : '#a1a1a6';
 
         const circle = L.circleMarker(coords, {
-            radius, fillColor:color, fillOpacity:.6,
-            color:color, weight:2, opacity:.85,
+            radius, fillColor:colorVal, fillOpacity:.6,
+            color:colorVal, weight:2, opacity:.85,
         });
 
         const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
         circle.bindPopup(`
             <div style="min-width:130px;padding:2px 0">
                 <div style="font-weight:700;font-size:13px;margin-bottom:5px">${esc(r.region)}</div>
-                <div style="color:#059669">신규 ${r.new}건</div>
-                <div style="color:#dc2626">폐업 ${r.closed}건</div>
-                <hr style="margin:5px 0;border:none;border-top:1px solid #e5e7eb">
-                <div style="font-weight:600;color:${r.net >= 0 ? '#059669' : '#dc2626'}">순증 ${netStr}건</div>
+                <div style="color:#34c759">신규 ${r.new}건</div>
+                <div style="color:#ff3b30">폐업 ${r.closed}건</div>
+                <hr style="margin:5px 0;border:none;border-top:1px solid #e0e0e5">
+                <div style="font-weight:600;color:${r.net >= 0 ? '#34c759' : '#ff3b30'}">순증 ${netStr}건</div>
             </div>
         `);
         markersLayer.addLayer(circle);
@@ -961,7 +962,7 @@ function renderRegionPanel(regions) {
     const maxNew = Math.max(...regions.map(r => r.new), 1);
     panel.innerHTML = regions.map((r, i) => {
         const pct    = Math.round((r.new / maxNew) * 100);
-        const barC   = r.net > 0 ? '#059669' : r.net < 0 ? '#dc2626' : '#d1d5db';
+        const barC   = r.net > 0 ? '#34c759' : r.net < 0 ? '#ff3b30' : '#d1d5db';
         const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
         const netCls = r.net > 0 ? 'rn-pos' : r.net < 0 ? 'rn-neg' : 'rn-0';
         return `<div class="rrow">
@@ -974,12 +975,12 @@ function renderRegionPanel(regions) {
             <div class="rbar"><div class="rbar-fill" style="width:${pct}%;background:${barC}"></div></div>
             <div class="rnums">
                 <div class="rnum">
-                    <span class="rnum-l" style="color:#059669">신규</span>
-                    <span class="rnum-v" style="color:#059669">${r.new}</span>
+                    <span class="rnum-l" style="color:#34c759">신규</span>
+                    <span class="rnum-v" style="color:#34c759">${r.new}</span>
                 </div>
                 <div class="rnum">
-                    <span class="rnum-l" style="color:#dc2626">폐업</span>
-                    <span class="rnum-v" style="color:#dc2626">${r.closed}</span>
+                    <span class="rnum-l" style="color:#ff3b30">폐업</span>
+                    <span class="rnum-v" style="color:#ff3b30">${r.closed}</span>
                 </div>
                 <div class="rnum">
                     <span class="rnum-l">성장률</span>
@@ -1014,8 +1015,8 @@ function renderTrendChart(monthly, highlightMonth) {
         return baseLow;
     }
 
-    const bgNew    = newData.map((_,i) => mkColor(i,'rgba(5,150,105,.25)','rgba(5,150,105,.8)','rgba(5,150,105,.07)'));
-    const bgClosed = closedData.map((_,i) => mkColor(i,'rgba(220,38,38,.2)','rgba(220,38,38,.7)','rgba(220,38,38,.06)'));
+    const bgNew    = newData.map((_,i) => mkColor(i,'rgba(52,199,89,.25)','rgba(52,199,89,.8)','rgba(52,199,89,.07)'));
+    const bgClosed = closedData.map((_,i) => mkColor(i,'rgba(255,59,48,.2)','rgba(255,59,48,.7)','rgba(255,59,48,.06)'));
 
     if (trendChart) trendChart.destroy();
     const ctx = document.getElementById('trendChart').getContext('2d');
@@ -1025,20 +1026,20 @@ function renderTrendChart(monthly, highlightMonth) {
             datasets: [
                 {
                     type:'bar', label:'신규 오픈', data:newData,
-                    backgroundColor:bgNew, borderColor:'rgba(5,150,105,.6)',
+                    backgroundColor:bgNew, borderColor:'rgba(52,199,89,.6)',
                     borderWidth:1, borderRadius:2, yAxisID:'y',
                 },
                 {
                     type:'bar', label:'폐업', data:closedData,
-                    backgroundColor:bgClosed, borderColor:'rgba(220,38,38,.5)',
+                    backgroundColor:bgClosed, borderColor:'rgba(255,59,48,.5)',
                     borderWidth:1, borderRadius:2, yAxisID:'y',
                 },
                 {
                     type:'line', label:'순증', data:netData,
-                    borderColor:'rgba(37,99,235,.8)',
-                    backgroundColor:'rgba(37,99,235,.07)',
+                    borderColor:'rgba(0,113,227,.8)',
+                    backgroundColor:'rgba(0,113,227,.07)',
                     borderWidth:2, pointRadius:2.5,
-                    pointBackgroundColor:'rgba(37,99,235,.9)',
+                    pointBackgroundColor:'rgba(0,113,227,.9)',
                     fill:true, tension:0.35, yAxisID:'y',
                 },
             ],
@@ -1047,19 +1048,19 @@ function renderTrendChart(monthly, highlightMonth) {
             responsive:true, maintainAspectRatio:false,
             plugins: {
                 legend: {
-                    labels: { color:'#475569', font:{ size:12 }, boxWidth:11, padding:16 },
+                    labels: { color:'#6e6e73', font:{ size:12 }, boxWidth:11, padding:16 },
                 },
                 tooltip: {
-                    backgroundColor:'#fff', borderColor:'#e2e8f0', borderWidth:1,
-                    titleColor:'#1e293b', bodyColor:'#475569', padding:11,
+                    backgroundColor:'#fff', borderColor:'#e0e0e5', borderWidth:1,
+                    titleColor:'#1d1d1f', bodyColor:'#6e6e73', padding:11,
                     titleFont:{ size:13, weight:'600' },
                     bodyFont:{ size:13 },
                     callbacks: { label: c => ` ${c.dataset.label}: ${c.raw}건` },
                 },
             },
             scales: {
-                x: { ticks:{ color:'#94a3b8', font:{ size:11 } }, grid:{ color:'rgba(0,0,0,.04)' } },
-                y: { ticks:{ color:'#94a3b8', font:{ size:11 }, stepSize:5 }, grid:{ color:'rgba(0,0,0,.04)' }, beginAtZero:true },
+                x: { ticks:{ color:'#a1a1a6', font:{ size:11 } }, grid:{ color:'rgba(0,0,0,.04)' } },
+                y: { ticks:{ color:'#a1a1a6', font:{ size:11 }, stepSize:5 }, grid:{ color:'rgba(0,0,0,.04)' }, beginAtZero:true },
             },
         },
     });
