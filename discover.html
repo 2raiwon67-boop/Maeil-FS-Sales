@@ -654,6 +654,8 @@ function updateMonthUI() {
     if (strip) strip.classList.toggle('on', !!selectedMonth);
     const newSub = document.getElementById('kpiNewSub');
     if (newSub) newSub.textContent = selectedMonth ? `${selectedMonth} 기준` : '인허가 기준 누적';
+    // 비교 strip 토글로 지도 높이 변경 → Leaflet 재계산
+    setTimeout(() => map?.invalidateSize(), 60);
 }
 
 /* ═══════════════════════════════════════════════
@@ -712,6 +714,9 @@ async function initDashboard() {
         const el = document.getElementById('headerSub');
         if (el) el.textContent = `${sidoLabels} · ${regionLabel} · 2025.01 ~ 현재`;
 
+        // 사용자명 + 로그아웃 버튼 표시
+        setupLogoutButton?.();
+
         buildSidoChips();
         await loadDashboard();
 
@@ -747,7 +752,7 @@ async function buildSidoChips() {
 /* ═══════════════════════════════════════════════
    DATA LOAD
 ═══════════════════════════════════════════════ */
-async function loadDashboard(force = false) {
+async function loadDashboard() {
     const btnRef = document.getElementById('btnRefresh');
     const syncEl = document.getElementById('lastSync');
     if (btnRef) btnRef.disabled = true;
@@ -839,7 +844,7 @@ function applyFilters() {
     const regionsArr = Object.entries(regions)
         .map(([region, { new:n, closed:c }]) => ({
             region, new:n, closed:c, net:n-c,
-            netRate: n > 0 ? Math.round(((n-c)/n)*100) : 0,
+            netRate: n > 0 ? Math.round(((n-c)/n)*100) : (c > 0 ? -100 : 0),
         }))
         .sort((a, b) => b.new - a.new);
 
