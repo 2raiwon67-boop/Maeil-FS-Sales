@@ -552,8 +552,10 @@ const SIDO_CENTER = {
    APP STATE
 ═══════════════════════════════════════════════════ */
 let map, markersLayer, trendChart;
-let branchSigunguList = [];  // 이 지점의 시군구 목록 (managers.region2)
-let branchSido        = '';  // 지도 중심 기준
+// { '경기도': ['의정부시','양주시',...], '인천': ['연수구',...] }
+let sidoSigunguMap  = {};
+// sigungu → sido 역매핑 (renderMap 좌표 조회용)
+let sigunguSidoMap  = {};
 
 /* ═══════════════════════════════════════════════════
    MAP INIT
@@ -591,26 +593,32 @@ async function initDashboard() {
 
         const rows = mgrs || [];
 
-        // region2 = 시군구 목록 (null/공백 제외)
-        branchSigunguList = [...new Set(
-            rows.map(m => m.region2?.trim()).filter(Boolean)
-        )];
+        // sido → sigungu 목록 매핑 (다중 시도 지점 대응)
+        sidoSigunguMap = {};
+        sigunguSidoMap = {};
+        rows.forEach(m => {
+            const sido = normSido(m.region1);
+            const sgu  = m.region2?.trim();
+            if (!sido || !sgu) return;
+            if (!sidoSigunguMap[sido]) sidoSigunguMap[sido] = [];
+            if (!sidoSigunguMap[sido].includes(sgu)) sidoSigunguMap[sido].push(sgu);
+            sigunguSidoMap[sgu] = sido;  // 마지막 sido로 덮어쓰기 (중복 시군구명은 드묾)
+        });
 
-        // 지도 중심: 첫 번째 region1 → 정규 단축명으로 변환
-        branchSido = normSido(rows[0]?.region1) || '경기도';
-
-        if (!branchSigunguList.length) {
+        const allSiguList = Object.values(sidoSigunguMap).flat();
+        if (!allSiguList.length) {
             document.getElementById('regionPanel').innerHTML =
                 '<div class="state-msg"><div class="icon">⚠️</div><span>담당 지역이 설정되지 않았습니다.<br>관리자에게 문의하세요.</span></div>';
             return;
         }
 
-        // 헤더 지역 표시
-        const regionLabel = branchSigunguList.length <= 3
-            ? branchSigunguList.join(' · ')
-            : `${branchSigunguList.slice(0,3).join(' · ')} 외 ${branchSigunguList.length - 3}개`;
+        // 헤더: 시도 목록 + 시군구 요약
+        const sidoLabels  = Object.keys(sidoSigunguMap).join(' · ');
+        const regionLabel = allSiguList.length <= 3
+            ? allSiguList.join(' · ')
+            : `${allSiguList.slice(0,3).join(' · ')} 외 ${allSiguList.length - 3}개`;
         document.getElementById('headerSub').textContent =
-            `${branchSido} · ${regionLabel} · 2025.01 ~ 현재`;
+            `${sidoLabels} · ${regionLabel} · 2025.01 ~ 현재`;
 
         await loadDashboard();
 
@@ -628,17 +636,20 @@ async function loadDashboard(force = false) {
     document.getElementById('lastSync').textContent = '로딩 중...';
 
     try {
-        const { data: rows, error } = await client
-            .from('market_snapshots')
-            .select('sigungu, month, new_count, closed_count, updated_at')
-            .eq('sido', branchSido)
-            .in('sigungu', branchSigunguList)
-            .gte('month', '2025-01')
-            .order('month', { ascending: true });
+        // 시도별로 쿼리 후 합산 (다중 시도 지점 대응)
+        const allSnaps = (await Promise.all(
+            Object.entries(sidoSigunguMap).map(([sido, siguList]) =>
+                client.from('market_snapshots')
+                    .select('sido, sigungu, month, new_count, closed_count, updated_at')
+                    .eq('sido', sido)
+                    .in('sigungu', siguList)
+                    .gte('month', '2025-01')
+                    .order('month', { ascending: true })
+                    .then(({ data, error }) => { if (error) throw error; return data || []; })
+            )
+        )).flat();
 
-        if (error) throw error;
-
-        if (!rows || rows.length === 0) {
+        if (!allSnaps.length) {
             document.getElementById('regionPanel').innerHTML =
                 '<div class="state-msg"><div class="icon">📭</div><span>데이터 준비 중입니다.<br>내일 새벽 3시 이후 확인하세요.</span></div>';
             document.getElementById('lastSync').textContent = '데이터 없음';
@@ -650,7 +661,7 @@ async function loadDashboard(force = false) {
         const regions  = {};  // { 'sigungu':  { new, closed } }
         let   lastUpdated = '';
 
-        rows.forEach(row => {
+        allSnaps.forEach(row => {
             // monthly
             if (!monthly[row.month]) monthly[row.month] = { new: 0, closed: 0 };
             monthly[row.month].new     += row.new_count    || 0;
@@ -733,13 +744,16 @@ function renderMap(regions) {
 
     const maxNew = Math.max(...regions.map(r => r.new), 1);
 
-    // 지도 중심
-    const cfg = SIDO_CENTER[branchSido];
+    // 지도 중심: 가장 많은 시군구를 가진 시도 기준
+    const primarySido = Object.entries(sidoSigunguMap)
+        .sort((a, b) => b[1].length - a[1].length)[0]?.[0] || '경기도';
+    const cfg = SIDO_CENTER[primarySido];
     if (cfg) map.setView(cfg.center, cfg.zoom, { animate: true });
 
     regions.forEach(r => {
-        // sido_sigungu 조합키로 조회 → 동명 구(중구·동구·서구 등) 완전 분리
-        const coords = CENTROIDS[`${branchSido}_${r.region}`];
+        // sigungu → sido 역매핑으로 정확한 좌표 조회 (동명 구 완전 분리)
+        const sido   = sigunguSidoMap[r.region] || primarySido;
+        const coords = CENTROIDS[`${sido}_${r.region}`];
         if (!coords) return;
 
         const radius = 7 + Math.round((r.new / maxNew) * 22);   // 7~29px
