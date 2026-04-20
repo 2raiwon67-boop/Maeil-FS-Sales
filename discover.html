@@ -248,6 +248,78 @@
         }
         .leaflet-popup-content { font-size: 13px; line-height: 1.7; }
 
+        /* ─── FILTER BAR ─── */
+        .filter-bar {
+            display: flex; align-items: center; gap: 14px;
+            padding: 7px 20px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0; flex-wrap: wrap;
+        }
+        .filter-label {
+            font-size: 10px; font-weight: 700; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: .07em; white-space: nowrap;
+        }
+        .chip-group { display: flex; gap: 5px; flex-wrap: wrap; }
+        .chip {
+            padding: 4px 11px; font-size: 12px; font-weight: 500;
+            border-radius: 20px; border: 1px solid var(--border);
+            background: var(--surface); color: var(--text-dim);
+            cursor: pointer; transition: all .15s;
+        }
+        .chip:hover { border-color: var(--info); color: var(--info); }
+        .chip.active { background: var(--info); border-color: var(--info); color: #fff; }
+        .filter-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+        .month-nav { display: flex; align-items: center; gap: 5px; }
+        .month-nav .nav-btn {
+            width: 24px; height: 24px; border-radius: 5px;
+            border: 1px solid var(--border); background: var(--surface);
+            color: var(--text-dim); cursor: pointer; font-size: 15px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .15s; line-height: 1;
+        }
+        .month-nav .nav-btn:hover { border-color: var(--info); color: var(--info); }
+        #monthLabel {
+            font-size: 13px; font-weight: 600; color: var(--text);
+            min-width: 68px; text-align: center;
+        }
+        .btn-month-clear {
+            font-size: 11px; padding: 3px 8px; border-radius: 4px;
+            border: 1px solid var(--border); background: var(--bg);
+            color: var(--text-muted); cursor: pointer; display: none;
+            transition: all .15s;
+        }
+        .btn-month-clear:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* ─── COMPARISON STRIP (월 선택 시) ─── */
+        .cmp-strip {
+            display: none; flex-shrink: 0; overflow-x: auto;
+            background: var(--surface);
+            border-bottom: 2px solid var(--info-border);
+        }
+        .cmp-strip.visible { display: flex; }
+        .cmp-col {
+            flex: 1; min-width: 150px;
+            padding: 10px 18px;
+            border-right: 1px solid var(--border);
+        }
+        .cmp-col:last-child { border-right: none; }
+        .cmp-col-title {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .07em; color: var(--text-muted); margin-bottom: 8px;
+        }
+        .cmp-col.col-cur .cmp-col-title { color: var(--info); }
+        .cmp-metrics { display: flex; gap: 16px; }
+        .cmp-metric { display: flex; flex-direction: column; gap: 1px; }
+        .cmp-metric-label { font-size: 10px; color: var(--text-muted); }
+        .cmp-metric-val { font-size: 17px; font-weight: 700; }
+        .cv-green { color: var(--success); }
+        .cv-red   { color: var(--danger);  }
+        .cv-blue  { color: var(--info);    }
+        .cmp-change { margin-top: 5px; font-size: 11px; color: var(--text-muted); }
+        .delta-up   { color: var(--success); font-weight: 600; }
+        .delta-down { color: var(--danger);  font-weight: 600; }
+
         /* ─── SCROLLBAR ─── */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -261,6 +333,7 @@
         @media (max-width: 600px) {
             .kpi-strip { grid-template-columns: repeat(2, 1fr); }
             .intel-header { padding: 8px 14px; }
+            .filter-bar { padding: 7px 12px; gap: 10px; }
         }
     </style>
 </head>
@@ -306,6 +379,39 @@
             <div class="kpi-label">성장률</div>
             <div class="kpi-val" id="kpiRate">—</div>
             <div class="kpi-sub">순증 / 신규</div>
+        </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+        <span class="filter-label">지역</span>
+        <div class="chip-group" id="regionChips">
+            <button class="chip active" id="chip-branch" onclick="setRegionMode('branch')">내 지점</button>
+            <!-- sido 칩은 initDashboard에서 동적 생성 -->
+        </div>
+        <div class="filter-sep"></div>
+        <span class="filter-label">월 선택</span>
+        <div class="month-nav">
+            <button class="nav-btn" onclick="shiftMonth(-1)">‹</button>
+            <span id="monthLabel">전체</span>
+            <button class="nav-btn" onclick="shiftMonth(1)">›</button>
+            <button class="btn-month-clear" id="btnMonthClear" onclick="clearMonth()">전체 보기</button>
+        </div>
+    </div>
+
+    <!-- COMPARISON STRIP (월 선택 시 노출) -->
+    <div class="cmp-strip" id="cmpStrip">
+        <div class="cmp-col">
+            <div class="cmp-col-title" id="cmpTitleYoy">전년동월</div>
+            <div id="cmpYoy"></div>
+        </div>
+        <div class="cmp-col">
+            <div class="cmp-col-title" id="cmpTitlePrev">전월</div>
+            <div id="cmpPrev"></div>
+        </div>
+        <div class="cmp-col col-cur">
+            <div class="cmp-col-title" id="cmpTitleCur">당월</div>
+            <div id="cmpCur"></div>
         </div>
     </div>
 
@@ -552,10 +658,58 @@ const SIDO_CENTER = {
    APP STATE
 ═══════════════════════════════════════════════════ */
 let map, markersLayer, trendChart;
-// { '경기도': ['의정부시','양주시',...], '인천': ['연수구',...] }
-let sidoSigunguMap  = {};
-// sigungu → sido 역매핑 (renderMap 좌표 조회용)
-let sigunguSidoMap  = {};
+let sidoSigunguMap  = {};   // { '경기도': ['의정부시',...], '인천': [...] }
+let sigunguSidoMap  = {};   // sigungu → sido 역매핑 (CENTROIDS 조회)
+let cachedSnaps     = [];   // 현재 지역 로드된 전체 스냅샷
+let viewMode        = 'branch';   // 'branch' | 'sido'
+let viewSido        = null;       // sido 모드일 때 선택된 시도
+let selectedMonth   = null;       // 'YYYY-MM' | null (전체)
+
+/* ─── 월 헬퍼 ─── */
+function addMonths(ym, delta) {
+    let [y, m] = ym.split('-').map(Number);
+    m += delta;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1)  { m += 12; y--; }
+    return `${y}-${String(m).padStart(2,'0')}`;
+}
+function currentYM() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+/* ─── 지역 모드 전환 ─── */
+async function setRegionMode(mode, sido) {
+    viewMode = mode;
+    viewSido = sido || null;
+    document.querySelectorAll('#regionChips .chip').forEach(c => c.classList.remove('active'));
+    document.getElementById(mode === 'branch' ? 'chip-branch' : `chip-sido-${sido}`)?.classList.add('active');
+    await loadDashboard();
+}
+
+/* ─── 월 네비게이션 ─── */
+function shiftMonth(delta) {
+    const cur  = currentYM();
+    const base = selectedMonth || cur;
+    const next = addMonths(base, delta);
+    if (next < '2025-01' || next > cur) return;
+    selectedMonth = next;
+    updateMonthUI();
+    applyFilters();
+}
+function clearMonth() {
+    selectedMonth = null;
+    updateMonthUI();
+    applyFilters();
+}
+function updateMonthUI() {
+    document.getElementById('monthLabel').textContent    = selectedMonth || '전체';
+    document.getElementById('btnMonthClear').style.display = selectedMonth ? '' : 'none';
+    document.getElementById('cmpStrip').classList.toggle('visible', !!selectedMonth);
+    // KPI 라벨 업데이트
+    const kpiSub = document.querySelector('.kpi-card.c-green .kpi-sub');
+    if (kpiSub) kpiSub.textContent = selectedMonth ? `${selectedMonth} 기준` : '인허가 기준 누적';
+}
 
 /* ═══════════════════════════════════════════════════
    MAP INIT
@@ -620,6 +774,9 @@ async function initDashboard() {
         document.getElementById('headerSub').textContent =
             `${sidoLabels} · ${regionLabel} · 2025.01 ~ 현재`;
 
+        // sido 칩 생성 (데이터 있는 시도 조회)
+        buildSidoChips();
+
         await loadDashboard();
 
     } catch(e) {
@@ -629,90 +786,72 @@ async function initDashboard() {
 }
 
 /* ═══════════════════════════════════════════════════
-   Supabase에서 market_snapshots 조회
+   sido 칩 동적 생성
+═══════════════════════════════════════════════════ */
+async function buildSidoChips() {
+    try {
+        const { data } = await client
+            .from('market_snapshots')
+            .select('sido')
+            .gte('month', '2025-01');
+        const sidos = [...new Set((data || []).map(r => r.sido))].sort();
+        const chips = document.getElementById('regionChips');
+        sidos.forEach(sido => {
+            if (document.getElementById(`chip-sido-${sido}`)) return;
+            const btn = document.createElement('button');
+            btn.className   = 'chip';
+            btn.id          = `chip-sido-${sido}`;
+            btn.textContent = sido;
+            btn.onclick     = () => setRegionMode('sido', sido);
+            chips.appendChild(btn);
+        });
+    } catch(_) {}
+}
+
+/* ═══════════════════════════════════════════════════
+   Supabase에서 market_snapshots 조회 → cachedSnaps
 ═══════════════════════════════════════════════════ */
 async function loadDashboard(force = false) {
     document.getElementById('btnRefresh').disabled = true;
     document.getElementById('lastSync').textContent = '로딩 중...';
+    cachedSnaps = [];
 
     try {
-        // 시도별로 쿼리 후 합산 (다중 시도 지점 대응)
-        const allSnaps = (await Promise.all(
-            Object.entries(sidoSigunguMap).map(([sido, siguList]) =>
-                client.from('market_snapshots')
-                    .select('sido, sigungu, month, new_count, closed_count, updated_at')
-                    .eq('sido', sido)
-                    .in('sigungu', siguList)
-                    .gte('month', '2025-01')
-                    .order('month', { ascending: true })
-                    .then(({ data, error }) => { if (error) throw error; return data || []; })
-            )
-        )).flat();
-
-        if (!allSnaps.length) {
-            document.getElementById('regionPanel').innerHTML =
-                '<div class="state-msg"><div class="icon">📭</div><span>데이터 준비 중입니다.<br>내일 새벽 3시 이후 확인하세요.</span></div>';
-            document.getElementById('lastSync').textContent = '데이터 없음';
-            return;
+        if (viewMode === 'sido' && viewSido) {
+            // 시도 전체 조회
+            const { data, error } = await client
+                .from('market_snapshots')
+                .select('sido, sigungu, month, new_count, closed_count, updated_at')
+                .eq('sido', viewSido)
+                .gte('month', '2025-01')
+                .order('month', { ascending: true });
+            if (error) throw error;
+            cachedSnaps = data || [];
+            // sido 모드에서 sigunguSidoMap 갱신
+            cachedSnaps.forEach(r => { sigunguSidoMap[r.sigungu] = r.sido; });
+        } else {
+            // 내 지점: 시도별 쿼리 병렬 실행
+            cachedSnaps = (await Promise.all(
+                Object.entries(sidoSigunguMap).map(([sido, siguList]) =>
+                    client.from('market_snapshots')
+                        .select('sido, sigungu, month, new_count, closed_count, updated_at')
+                        .eq('sido', sido)
+                        .in('sigungu', siguList)
+                        .gte('month', '2025-01')
+                        .order('month', { ascending: true })
+                        .then(({ data, error }) => { if (error) throw error; return data || []; })
+                )
+            )).flat();
         }
 
-        // 클라이언트 집계
-        const monthly  = {};  // { 'YYYY-MM': { new, closed } }
-        const regions  = {};  // { 'sigungu':  { new, closed } }
-        let   lastUpdated = '';
-
-        allSnaps.forEach(row => {
-            // monthly
-            if (!monthly[row.month]) monthly[row.month] = { new: 0, closed: 0 };
-            monthly[row.month].new     += row.new_count    || 0;
-            monthly[row.month].closed  += row.closed_count || 0;
-
-            // regions
-            if (!regions[row.sigungu]) regions[row.sigungu] = { new: 0, closed: 0 };
-            regions[row.sigungu].new    += row.new_count    || 0;
-            regions[row.sigungu].closed += row.closed_count || 0;
-
-            if (row.updated_at > lastUpdated) lastUpdated = row.updated_at;
-        });
-
-        // 월 목록 (2025-01 ~ 현재월)
-        const now = new Date();
-        const monthList = [];
-        const cursor = new Date(2025, 0, 1);
-        while (cursor <= now) {
-            monthList.push(`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,'0')}`);
-            cursor.setMonth(cursor.getMonth() + 1);
+        // 갱신 시각
+        const lastUpd = cachedSnaps.reduce((max, r) => r.updated_at > max ? r.updated_at : max, '');
+        if (lastUpd) {
+            const d = new Date(lastUpd).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+            document.getElementById('lastSync').textContent = `갱신 ${d}`;
         }
 
-        const monthlyArr = monthList.map(m => ({
-            month:  m,
-            new:    monthly[m]?.new    || 0,
-            closed: monthly[m]?.closed || 0,
-            net:    (monthly[m]?.new || 0) - (monthly[m]?.closed || 0),
-        }));
-
-        const regionsArr = Object.entries(regions)
-            .map(([region, { new: n, closed: c }]) => ({
-                region, new: n, closed: c, net: n - c,
-                netRate: n > 0 ? Math.round(((n - c) / n) * 100) : 0,
-            }))
-            .sort((a, b) => b.new - a.new);
-
-        const totalNew    = regionsArr.reduce((s, r) => s + r.new,    0);
-        const totalClosed = regionsArr.reduce((s, r) => s + r.closed, 0);
-        const summary = { totalNew, totalClosed, net: totalNew - totalClosed };
-
-        // 업데이트 시각
-        const updatedDate = lastUpdated
-            ? new Date(lastUpdated).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
-            : '—';
-        document.getElementById('lastSync').textContent = `갱신 ${updatedDate}`;
-
-        // 렌더
-        renderKPIs(summary);
-        renderMap(regionsArr);
-        renderRegionPanel(regionsArr);
-        renderTrendChart(monthlyArr);
+        applyFilters();
 
     } catch(e) {
         console.error('[discover] load error', e);
@@ -721,6 +860,119 @@ async function loadDashboard(force = false) {
     } finally {
         document.getElementById('btnRefresh').disabled = false;
     }
+}
+
+/* ═══════════════════════════════════════════════════
+   필터 적용 → 렌더 (월 선택 반영)
+═══════════════════════════════════════════════════ */
+function applyFilters() {
+    if (!cachedSnaps.length) {
+        document.getElementById('regionPanel').innerHTML =
+            '<div class="state-msg"><div class="icon">📭</div><span>데이터 준비 중입니다.<br>내일 새벽 3시 이후 확인하세요.</span></div>';
+        return;
+    }
+
+    // 지도·패널은 선택 월만, 차트는 전체 기간
+    const displaySnaps = selectedMonth
+        ? cachedSnaps.filter(r => r.month === selectedMonth)
+        : cachedSnaps;
+
+    // 전체 월별 집계 (차트용)
+    const monthlyAll = {};
+    cachedSnaps.forEach(row => {
+        if (!monthlyAll[row.month]) monthlyAll[row.month] = { new: 0, closed: 0 };
+        monthlyAll[row.month].new    += row.new_count    || 0;
+        monthlyAll[row.month].closed += row.closed_count || 0;
+    });
+
+    // 표시 대상 집계 (KPI·지도·패널)
+    const regions = {};
+    displaySnaps.forEach(row => {
+        if (!regions[row.sigungu]) regions[row.sigungu] = { new: 0, closed: 0 };
+        regions[row.sigungu].new    += row.new_count    || 0;
+        regions[row.sigungu].closed += row.closed_count || 0;
+    });
+
+    const regionsArr = Object.entries(regions)
+        .map(([region, { new: n, closed: c }]) => ({
+            region, new: n, closed: c, net: n - c,
+            netRate: n > 0 ? Math.round(((n - c) / n) * 100) : 0,
+        }))
+        .sort((a, b) => b.new - a.new);
+
+    const totalNew    = regionsArr.reduce((s, r) => s + r.new,    0);
+    const totalClosed = regionsArr.reduce((s, r) => s + r.closed, 0);
+
+    // 월 목록 (2025-01 ~ 현재월)
+    const now = new Date();
+    const monthList = [];
+    const cur = new Date(2025, 0, 1);
+    while (cur <= now) {
+        monthList.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
+        cur.setMonth(cur.getMonth() + 1);
+    }
+    const monthlyArr = monthList.map(m => ({
+        month: m,
+        new:    monthlyAll[m]?.new    || 0,
+        closed: monthlyAll[m]?.closed || 0,
+        net:   (monthlyAll[m]?.new || 0) - (monthlyAll[m]?.closed || 0),
+    }));
+
+    renderKPIs({ totalNew, totalClosed, net: totalNew - totalClosed });
+    renderMap(regionsArr);
+    renderRegionPanel(regionsArr);
+    renderTrendChart(monthlyArr, selectedMonth);
+    if (selectedMonth) renderMonthComparison();
+}
+
+/* ═══════════════════════════════════════════════════
+   월별 3구간 비교 렌더 (당월 / 전월 / 전년동월)
+═══════════════════════════════════════════════════ */
+function renderMonthComparison() {
+    if (!selectedMonth) return;
+    const prevM = addMonths(selectedMonth, -1);
+    const prevY = addMonths(selectedMonth, -12);
+
+    function sumMonth(ym) {
+        const rows = cachedSnaps.filter(r => r.month === ym);
+        const n = rows.reduce((s, r) => s + (r.new_count    || 0), 0);
+        const c = rows.reduce((s, r) => s + (r.closed_count || 0), 0);
+        return { new: n, closed: c, net: n - c };
+    }
+    const cur  = sumMonth(selectedMonth);
+    const prev = sumMonth(prevM);
+    const yoy  = sumMonth(prevY);
+
+    function deltaHtml(val, base, label) {
+        if (!base || base.new === 0) return '';
+        const d = val.new - base.new;
+        const cls = d > 0 ? 'delta-up' : d < 0 ? 'delta-down' : '';
+        return `<div class="cmp-change">신규 ${label} 대비 <span class="${cls}">${d > 0 ? '+' : ''}${d}건</span></div>`;
+    }
+
+    function colHtml(data, base, label) {
+        return `<div class="cmp-metrics">
+            <div class="cmp-metric">
+                <span class="cmp-metric-label">신규</span>
+                <span class="cmp-metric-val cv-green">${data.new.toLocaleString()}</span>
+            </div>
+            <div class="cmp-metric">
+                <span class="cmp-metric-label">폐업</span>
+                <span class="cmp-metric-val cv-red">${data.closed.toLocaleString()}</span>
+            </div>
+            <div class="cmp-metric">
+                <span class="cmp-metric-label">순증</span>
+                <span class="cmp-metric-val cv-blue">${data.net > 0 ? '+' : ''}${data.net.toLocaleString()}</span>
+            </div>
+        </div>${deltaHtml(cur, base, label)}`;
+    }
+
+    document.getElementById('cmpTitleYoy').textContent  = `전년동월 (${prevY})`;
+    document.getElementById('cmpTitlePrev').textContent  = `전월 (${prevM})`;
+    document.getElementById('cmpTitleCur').textContent   = `당월 (${selectedMonth})`;
+    document.getElementById('cmpYoy').innerHTML   = colHtml(yoy,  null, '');
+    document.getElementById('cmpPrev').innerHTML  = colHtml(prev, null, '');
+    document.getElementById('cmpCur').innerHTML   = colHtml(cur,  prev, '전월');
 }
 
 /* ═══════════════════════════════════════════════════
@@ -829,10 +1081,9 @@ function renderRegionPanel(regions) {
     document.getElementById('regionPanel').innerHTML = html;
 }
 
-function renderTrendChart(monthly) {
+function renderTrendChart(monthly, highlightMonth) {
     if (!monthly?.length) return;
 
-    // 데이터가 있는 월만 표시
     const filtered = monthly.filter(m => m.new + m.closed > 0);
     if (!filtered.length) return;
 
@@ -840,6 +1091,27 @@ function renderTrendChart(monthly) {
     const newData    = filtered.map(m => m.new);
     const closedData = filtered.map(m => m.closed);
     const netData    = filtered.map(m => m.net);
+
+    // 선택 월 하이라이트
+    const hlMonths = highlightMonth ? [
+        highlightMonth,
+        addMonths(highlightMonth, -1),
+        addMonths(highlightMonth, -12),
+    ] : [];
+    const bgNew = newData.map((_, i) => {
+        const m = '20' + labels[i];
+        if (!hlMonths.length) return 'rgba(22,163,74,.25)';
+        if (m === highlightMonth) return 'rgba(22,163,74,.75)';
+        if (hlMonths.includes(m)) return 'rgba(22,163,74,.4)';
+        return 'rgba(22,163,74,.08)';
+    });
+    const bgClosed = closedData.map((_, i) => {
+        const m = '20' + labels[i];
+        if (!hlMonths.length) return 'rgba(220,38,38,.2)';
+        if (m === highlightMonth) return 'rgba(220,38,38,.65)';
+        if (hlMonths.includes(m)) return 'rgba(220,38,38,.35)';
+        return 'rgba(220,38,38,.06)';
+    });
 
     if (trendChart) trendChart.destroy();
 
@@ -851,14 +1123,14 @@ function renderTrendChart(monthly) {
                 {
                     type: 'bar', label: '신규 오픈',
                     data: newData,
-                    backgroundColor: 'rgba(22,163,74,.25)',
+                    backgroundColor: bgNew,
                     borderColor:     'rgba(22,163,74,.7)',
                     borderWidth: 1, borderRadius: 3, yAxisID: 'y',
                 },
                 {
                     type: 'bar', label: '폐업',
                     data: closedData,
-                    backgroundColor: 'rgba(220,38,38,.2)',
+                    backgroundColor: bgClosed,
                     borderColor:     'rgba(220,38,38,.6)',
                     borderWidth: 1, borderRadius: 3, yAxisID: 'y',
                 },
