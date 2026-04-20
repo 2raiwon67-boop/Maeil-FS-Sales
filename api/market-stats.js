@@ -181,7 +181,7 @@ async function saveToSupabase(sidoShort, detail) {
     let lastError = null;
     for (let i = 0; i < rows.length; i += 100) {
         const batch = rows.slice(i, i + 100);
-        const res = await fetch(`${SUPABASE_URL}/rest/v1/market_snapshots`, {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/market_snapshots?on_conflict=sido,sigungu,month`, {
             method: 'POST',
             headers: {
                 'apikey':        SERVICE_KEY,
