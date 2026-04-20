@@ -3,53 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FS MISO — 상권 분석</title>
+    <title>상권 분석 — FS MISO</title>
     <link rel="icon" href="icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <link rel="stylesheet" href="common.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
         :root {
-            --bg:          #f1f5f9;
-            --surface:     #ffffff;
-            --surface-2:   #f8fafc;
-            --border:      #e2e8f0;
-            --border-dim:  #f1f5f9;
-            --success:     #16a34a;
-            --success-bg:  #f0fdf4;
-            --success-border: #bbf7d0;
-            --danger:      #dc2626;
-            --danger-bg:   #fef2f2;
-            --danger-border: #fecaca;
-            --info:        #2563eb;
-            --info-bg:     #eff6ff;
-            --info-border: #bfdbfe;
-            --warning:     #d97706;
-            --warning-bg:  #fffbeb;
-            --warning-border: #fde68a;
-            --text:        #1e293b;
-            --text-dim:    #64748b;
-            --text-muted:  #94a3b8;
-            --shadow-sm:   0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
-            --shadow-md:   0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.05);
+            --bg:      #f0f2f5;
+            --surface: #ffffff;
+            --dim:     #f8fafc;
+            --border:  #e5e7eb;
+            --border2: #f3f4f6;
+            --blue:    #2563eb;
+            --blue-bg: #eff6ff;
+            --blue-br: #bfdbfe;
+            --green:   #059669;
+            --green-bg:#ecfdf5;
+            --red:     #dc2626;
+            --red-bg:  #fef2f2;
+            --amber:   #d97706;
+            --text:    #111827;
+            --text2:   #374151;
+            --text3:   #6b7280;
+            --text4:   #9ca3af;
+            --r:       6px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
+        html, body { height: 100%; overflow: hidden; }
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-            background: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Segoe UI', system-ui, sans-serif;
+            font-size: 13px;
             color: var(--text);
-            height: 100vh;
+            background: var(--bg);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
         }
 
         #nav-placeholder { flex-shrink: 0; }
 
-        .intel-wrap {
+        .page {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -57,419 +53,366 @@
             min-height: 0;
         }
 
-        /* ─── HEADER ─── */
-        .intel-header {
+        /* ── HEADER ── */
+        .ph {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 10px 20px;
+            gap: 10px;
+            padding: 0 20px;
+            height: 46px;
             background: var(--surface);
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
-            gap: 12px;
-            flex-wrap: wrap;
-            box-shadow: var(--shadow-sm);
         }
-
-        .header-left { display: flex; align-items: center; gap: 10px; }
-
-        .header-icon {
-            width: 32px; height: 32px; border-radius: 8px;
-            background: var(--info-bg);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px; flex-shrink: 0;
-        }
-
-        .header-title {
-            font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2;
-        }
-        .header-sub {
-            font-size: 11px; color: var(--text-muted); margin-top: 1px;
-        }
-
-        .header-right {
-            display: flex; align-items: center; gap: 10px;
-        }
-
-        .sync-badge {
-            font-size: 11px; color: var(--text-muted);
-            background: var(--bg); border: 1px solid var(--border);
-            padding: 4px 10px; border-radius: 20px;
-        }
-
+        .ph-title { font-size: 13px; font-weight: 700; letter-spacing: -.01em; }
+        .ph-vline { width: 1px; height: 14px; background: var(--border); }
+        .ph-sub { font-size: 11px; color: var(--text3); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .ph-sync { font-size: 11px; color: var(--text4); white-space: nowrap; }
         .btn-refresh {
-            padding: 6px 14px; font-size: 12px; font-weight: 600;
-            border-radius: 6px; cursor: pointer;
+            width: 28px; height: 28px;
             border: 1px solid var(--border);
-            background: var(--surface); color: var(--text-dim);
+            border-radius: var(--r);
+            background: var(--surface);
+            color: var(--text3);
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 15px; line-height: 1;
             transition: all .15s;
         }
-        .btn-refresh:hover { background: var(--bg); border-color: var(--info); color: var(--info); }
-        .btn-refresh:disabled { opacity: .45; cursor: not-allowed; }
+        .btn-refresh:hover { border-color: var(--blue); color: var(--blue); }
+        .btn-refresh:disabled { opacity: .35; cursor: not-allowed; }
 
-        /* ─── KPI STRIP ─── */
-        .kpi-strip {
+        /* ── KPI STRIP ── */
+        .kpi-row {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 0;
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
-            background: var(--border);
-        }
-
-        .kpi-card {
             background: var(--surface);
-            padding: 14px 20px;
-            border-left: 4px solid transparent;
         }
-
-        .kpi-card.c-green  { border-left-color: var(--success); }
-        .kpi-card.c-red    { border-left-color: var(--danger); }
-        .kpi-card.c-blue   { border-left-color: var(--info); }
-        .kpi-card.c-yellow { border-left-color: var(--warning); }
-
-        .kpi-label {
-            font-size: 10px; font-weight: 600; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: .08em; margin-bottom: 5px;
+        .kpi-cell {
+            padding: 11px 18px;
+            border-right: 1px solid var(--border2);
+            position: relative;
         }
-        .kpi-val { font-size: 26px; font-weight: 700; line-height: 1; }
-        .kpi-card.c-green  .kpi-val { color: var(--success); }
-        .kpi-card.c-red    .kpi-val { color: var(--danger); }
-        .kpi-card.c-blue   .kpi-val { color: var(--info); }
-        .kpi-card.c-yellow .kpi-val { color: var(--warning); }
+        .kpi-cell:last-child { border-right: none; }
+        .kpi-cell::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 3px;
+        }
+        .kc-g::before { background: var(--green); }
+        .kc-r::before { background: var(--red);   }
+        .kc-b::before { background: var(--blue);  }
+        .kc-a::before { background: var(--amber); }
+        .kpi-lbl {
+            font-size: 9px; font-weight: 700; color: var(--text4);
+            text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px;
+        }
+        .kpi-val {
+            font-size: 22px; font-weight: 800; line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .kc-g .kpi-val { color: var(--green); }
+        .kc-r .kpi-val { color: var(--red);   }
+        .kc-b .kpi-val { color: var(--blue);  }
+        .kc-a .kpi-val { color: var(--amber); }
+        .kpi-sub { font-size: 10px; color: var(--text4); margin-top: 3px; }
 
-        .kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        /* ── TOOLBAR ── */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 18px;
+            height: 36px;
+            background: var(--dim);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            overflow-x: auto;
+        }
+        .tb-lbl {
+            font-size: 9px; font-weight: 700; color: var(--text4);
+            text-transform: uppercase; letter-spacing: .07em;
+            white-space: nowrap; flex-shrink: 0;
+        }
+        .tb-sep { width: 1px; height: 14px; background: var(--border); flex-shrink: 0; }
+        .chips { display: flex; gap: 4px; }
+        .chip {
+            height: 22px; padding: 0 9px;
+            font-size: 11px; font-weight: 500;
+            border-radius: 11px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text3);
+            cursor: pointer; white-space: nowrap;
+            transition: all .12s;
+        }
+        .chip:hover { border-color: var(--blue); color: var(--blue); }
+        .chip.active { background: var(--blue); border-color: var(--blue); color: #fff; }
 
-        /* ─── BODY ─── */
-        .intel-body {
+        .mnav { display: flex; align-items: center; gap: 3px; }
+        .marr {
+            width: 20px; height: 20px;
+            border: 1px solid var(--border); border-radius: 4px;
+            background: var(--surface); color: var(--text3);
+            cursor: pointer; font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+            transition: all .12s;
+        }
+        .marr:hover { border-color: var(--blue); color: var(--blue); }
+        #monthLabel {
+            font-size: 12px; font-weight: 600; color: var(--text);
+            min-width: 66px; text-align: center;
+        }
+        .btn-mclear {
+            font-size: 10px; padding: 1px 6px;
+            border-radius: 3px;
+            border: 1px solid var(--border);
+            background: none; color: var(--text4);
+            cursor: pointer; display: none;
+        }
+        .btn-mclear:hover { border-color: var(--red); color: var(--red); }
+
+        /* ── COMPARISON STRIP ── */
+        .cmp-strip {
+            display: none; flex-shrink: 0;
+            border-bottom: 2px solid var(--blue-br);
+            background: var(--blue-bg);
+        }
+        .cmp-strip.on { display: flex; }
+        .cmp-col {
+            flex: 1; padding: 9px 18px;
+            border-right: 1px solid var(--blue-br);
+        }
+        .cmp-col:last-child { border-right: none; }
+        .cmp-ctitle {
+            font-size: 9px; font-weight: 700; color: var(--text4);
+            text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+        }
+        .cmp-col.col-cur .cmp-ctitle { color: var(--blue); }
+        .cmp-ms { display: flex; gap: 18px; }
+        .cmp-m { display: flex; flex-direction: column; gap: 0; }
+        .cmp-ml { font-size: 9px; color: var(--text4); }
+        .cmp-mv { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+        .cv-g { color: var(--green); }
+        .cv-r { color: var(--red);   }
+        .cv-b { color: var(--blue);  }
+        .cmp-delta { margin-top: 4px; font-size: 10px; color: var(--text4); }
+        .du { color: var(--green); font-weight: 600; }
+        .dd { color: var(--red);   font-weight: 600; }
+
+        /* ── BODY ── */
+        .page-body {
             flex: 1; display: flex; overflow: hidden; min-height: 0;
         }
 
-        /* ─── MAP ─── */
-        .map-area { flex: 1; position: relative; background: #e8edf2; }
+        /* ── MAP ── */
+        .map-wrap { flex: 1; position: relative; min-width: 0; }
         #intel-map { width: 100%; height: 100%; }
 
         .map-legend {
-            position: absolute; bottom: 14px; left: 14px;
-            background: rgba(255,255,255,.92);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 8px 14px; z-index: 500;
-            display: flex; gap: 14px;
-            font-size: 11px; color: var(--text-dim);
-            box-shadow: var(--shadow-sm);
+            position: absolute; bottom: 12px; left: 12px; z-index: 500;
+            background: rgba(255,255,255,.95);
+            backdrop-filter: blur(6px);
+            border: 1px solid var(--border); border-radius: var(--r);
+            padding: 6px 12px;
+            display: flex; gap: 10px;
+            font-size: 10px; color: var(--text3);
         }
-        .leg-item { display: flex; align-items: center; gap: 6px; }
-        .leg-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+        .leg-i { display: flex; align-items: center; gap: 5px; }
+        .leg-d { width: 8px; height: 8px; border-radius: 50%; }
 
-        /* ─── RIGHT PANEL ─── */
-        .side-right {
-            width: 280px; flex-shrink: 0;
-            background: var(--surface);
+        /* ── SIDEBAR ── */
+        .sidebar {
+            width: 252px; flex-shrink: 0;
             border-left: 1px solid var(--border);
-            display: flex; flex-direction: column; overflow: hidden;
+            display: flex; flex-direction: column;
+            background: var(--surface); overflow: hidden;
         }
-
-        .panel-header {
-            padding: 11px 16px;
+        .sb-hd {
+            padding: 9px 14px;
             border-bottom: 1px solid var(--border);
-            font-size: 11px; font-weight: 600; color: var(--text-dim);
-            text-transform: uppercase; letter-spacing: .06em;
-            flex-shrink: 0; background: var(--surface-2);
+            font-size: 9px; font-weight: 700; color: var(--text4);
+            text-transform: uppercase; letter-spacing: .07em;
+            flex-shrink: 0; background: var(--dim);
         }
+        .sb-body { flex: 1; overflow-y: auto; }
 
-        .panel-body { flex: 1; overflow-y: auto; }
-
-        /* 시군구 행 */
-        .region-row {
-            padding: 10px 16px;
-            border-bottom: 1px solid var(--border-dim);
+        .rrow {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border2);
             transition: background .1s;
         }
-        .region-row:hover { background: var(--surface-2); }
-
-        .region-top {
+        .rrow:hover { background: var(--dim); }
+        .rrow-top {
             display: flex; justify-content: space-between;
-            align-items: center; margin-bottom: 6px;
+            align-items: baseline; margin-bottom: 4px;
         }
-        .region-name { font-size: 13px; font-weight: 600; color: var(--text); }
-        .region-net {
-            font-size: 12px; font-weight: 700;
-        }
-        .net-pos { color: var(--success); }
-        .net-neg { color: var(--danger); }
-        .net-zero { color: var(--text-muted); }
+        .rrow-name { font-size: 12px; font-weight: 600; }
+        .rrow-rank { font-size: 9px; color: var(--text4); margin-right: 4px; }
+        .rrow-net { font-size: 11px; font-weight: 700; }
+        .rn-pos { color: var(--green); }
+        .rn-neg { color: var(--red); }
+        .rn-0   { color: var(--text4); }
+        .rbar { height: 3px; background: var(--border); border-radius: 2px; margin-bottom: 5px; overflow: hidden; }
+        .rbar-fill { height: 100%; border-radius: 2px; }
+        .rnums { display: flex; gap: 10px; }
+        .rnum { display: flex; flex-direction: column; }
+        .rnum-l { font-size: 9px; color: var(--text4); text-transform: uppercase; }
+        .rnum-v { font-size: 11px; font-weight: 600; }
 
-        .region-bar-bg {
-            height: 4px; background: var(--bg);
-            border-radius: 2px; margin-bottom: 6px; overflow: hidden;
-        }
-        .region-bar-fill { height: 100%; border-radius: 2px; transition: width .4s; }
-
-        .region-nums { display: flex; gap: 14px; font-size: 11px; }
-        .rnum { display: flex; flex-direction: column; gap: 1px; }
-        .rnum-label { color: var(--text-muted); font-size: 10px; }
-        .rnum-val { font-weight: 600; }
-
-        /* ─── BOTTOM CHART ─── */
-        .intel-bottom {
-            flex-shrink: 0; height: 220px;
+        /* ── CHART ── */
+        .chart-bar {
+            flex-shrink: 0; height: 185px;
             border-top: 1px solid var(--border);
             background: var(--surface);
-            display: flex; overflow: hidden;
-        }
-        .chart-panel {
-            flex: 1; min-width: 0;
-            padding: 12px 20px 10px;
             display: flex; flex-direction: column;
+            padding: 10px 18px 8px;
         }
-        .chart-panel-title {
-            font-size: 11px; font-weight: 600; color: var(--text-dim);
-            text-transform: uppercase; letter-spacing: .06em;
-            margin-bottom: 8px; flex-shrink: 0;
+        .chart-title {
+            font-size: 9px; font-weight: 700; color: var(--text4);
+            text-transform: uppercase; letter-spacing: .07em;
+            margin-bottom: 7px; flex-shrink: 0;
         }
         .chart-wrap { flex: 1; position: relative; min-height: 0; }
 
-        /* ─── EMPTY / LOADING ─── */
+        /* ── STATE ── */
         .state-msg {
-            display: flex; flex-direction: column;
+            height: 100%; display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            height: 100%; gap: 10px;
-            color: var(--text-muted); font-size: 13px;
+            gap: 8px; color: var(--text4); font-size: 12px;
+            text-align: center; padding: 20px;
         }
-        .state-msg .icon { font-size: 32px; }
+        .state-ico { font-size: 26px; }
 
-        /* ─── LEAFLET POPUP (light) ─── */
+        /* ── LEAFLET ── */
         .leaflet-popup-content-wrapper {
             border-radius: 8px !important;
-            box-shadow: var(--shadow-md) !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,.12) !important;
             border: 1px solid var(--border) !important;
         }
-        .leaflet-popup-content { font-size: 13px; line-height: 1.7; }
+        .leaflet-popup-content { font-size: 12px; line-height: 1.75; }
 
-        /* ─── FILTER BAR ─── */
-        .filter-bar {
-            display: flex; align-items: center; gap: 14px;
-            padding: 7px 20px;
-            background: var(--surface-2);
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0; flex-wrap: wrap;
-        }
-        .filter-label {
-            font-size: 10px; font-weight: 700; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: .07em; white-space: nowrap;
-        }
-        .chip-group { display: flex; gap: 5px; flex-wrap: wrap; }
-        .chip {
-            padding: 4px 11px; font-size: 12px; font-weight: 500;
-            border-radius: 20px; border: 1px solid var(--border);
-            background: var(--surface); color: var(--text-dim);
-            cursor: pointer; transition: all .15s;
-        }
-        .chip:hover { border-color: var(--info); color: var(--info); }
-        .chip.active { background: var(--info); border-color: var(--info); color: #fff; }
-        .filter-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
-        .month-nav { display: flex; align-items: center; gap: 5px; }
-        .month-nav .nav-btn {
-            width: 24px; height: 24px; border-radius: 5px;
-            border: 1px solid var(--border); background: var(--surface);
-            color: var(--text-dim); cursor: pointer; font-size: 15px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all .15s; line-height: 1;
-        }
-        .month-nav .nav-btn:hover { border-color: var(--info); color: var(--info); }
-        #monthLabel {
-            font-size: 13px; font-weight: 600; color: var(--text);
-            min-width: 68px; text-align: center;
-        }
-        .btn-month-clear {
-            font-size: 11px; padding: 3px 8px; border-radius: 4px;
-            border: 1px solid var(--border); background: var(--bg);
-            color: var(--text-muted); cursor: pointer; display: none;
-            transition: all .15s;
-        }
-        .btn-month-clear:hover { border-color: var(--danger); color: var(--danger); }
-
-        /* ─── COMPARISON STRIP (월 선택 시) ─── */
-        .cmp-strip {
-            display: none; flex-shrink: 0; overflow-x: auto;
-            background: var(--surface);
-            border-bottom: 2px solid var(--info-border);
-        }
-        .cmp-strip.visible { display: flex; }
-        .cmp-col {
-            flex: 1; min-width: 150px;
-            padding: 10px 18px;
-            border-right: 1px solid var(--border);
-        }
-        .cmp-col:last-child { border-right: none; }
-        .cmp-col-title {
-            font-size: 10px; font-weight: 700; text-transform: uppercase;
-            letter-spacing: .07em; color: var(--text-muted); margin-bottom: 8px;
-        }
-        .cmp-col.col-cur .cmp-col-title { color: var(--info); }
-        .cmp-metrics { display: flex; gap: 16px; }
-        .cmp-metric { display: flex; flex-direction: column; gap: 1px; }
-        .cmp-metric-label { font-size: 10px; color: var(--text-muted); }
-        .cmp-metric-val { font-size: 17px; font-weight: 700; }
-        .cv-green { color: var(--success); }
-        .cv-red   { color: var(--danger);  }
-        .cv-blue  { color: var(--info);    }
-        .cmp-change { margin-top: 5px; font-size: 11px; color: var(--text-muted); }
-        .delta-up   { color: var(--success); font-weight: 600; }
-        .delta-down { color: var(--danger);  font-weight: 600; }
-
-        /* ─── SCROLLBAR ─── */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
+        /* ── SCROLL ── */
+        ::-webkit-scrollbar { width: 3px; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-        /* ─── MOBILE ─── */
+        /* ── RESPONSIVE ── */
         @media (max-width: 900px) {
-            .side-right { display: none; }
-            .intel-bottom { height: 180px; }
+            .sidebar { display: none; }
+            .chart-bar { height: 155px; }
         }
         @media (max-width: 600px) {
-            .kpi-strip { grid-template-columns: repeat(2, 1fr); }
-            .intel-header { padding: 8px 14px; }
-            .filter-bar { padding: 7px 12px; gap: 10px; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .ph { padding: 0 14px; }
+            .toolbar { padding: 0 12px; }
         }
     </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
-
-<div class="intel-wrap">
+<div class="page">
 
     <!-- HEADER -->
-    <div class="intel-header">
-        <div class="header-left">
-            <div class="header-icon">📊</div>
-            <div>
-                <div class="header-title">상권 분석</div>
-                <div class="header-sub" id="headerSub">카페·베이커리·음식점 신규·폐업 트렌드 (2025.01~)</div>
-            </div>
-        </div>
+    <header class="ph">
+        <span class="ph-title">📊 상권 분석</span>
+        <div class="ph-vline"></div>
+        <span class="ph-sub" id="headerSub">카페 · 베이커리 · 음식점 신규·폐업 트렌드</span>
+        <span class="ph-sync" id="lastSync">로딩 중...</span>
+        <button class="btn-refresh" id="btnRefresh" onclick="loadDashboard(true)" title="새로고침">↺</button>
+    </header>
 
-        <div class="header-right">
-            <div class="sync-badge" id="lastSync">로딩 중...</div>
-            <button class="btn-refresh" id="btnRefresh" onclick="loadDashboard(true)">새로고침</button>
-        </div>
-    </div>
-
-    <!-- KPI STRIP -->
-    <div class="kpi-strip">
-        <div class="kpi-card c-green">
-            <div class="kpi-label">신규 오픈</div>
+    <!-- KPI -->
+    <div class="kpi-row">
+        <div class="kpi-cell kc-g">
+            <div class="kpi-lbl">신규 오픈</div>
             <div class="kpi-val" id="kpiNew">—</div>
-            <div class="kpi-sub">인허가 기준 누적</div>
+            <div class="kpi-sub" id="kpiNewSub">인허가 기준 누적</div>
         </div>
-        <div class="kpi-card c-red">
-            <div class="kpi-label">폐업</div>
+        <div class="kpi-cell kc-r">
+            <div class="kpi-lbl">폐업</div>
             <div class="kpi-val" id="kpiClosed">—</div>
             <div class="kpi-sub">폐업일 기준 누적</div>
         </div>
-        <div class="kpi-card c-blue">
-            <div class="kpi-label">순증가</div>
+        <div class="kpi-cell kc-b">
+            <div class="kpi-lbl">순증가</div>
             <div class="kpi-val" id="kpiNet">—</div>
             <div class="kpi-sub" id="kpiNetSub">신규 − 폐업</div>
         </div>
-        <div class="kpi-card c-yellow">
-            <div class="kpi-label">성장률</div>
+        <div class="kpi-cell kc-a">
+            <div class="kpi-lbl">성장률</div>
             <div class="kpi-val" id="kpiRate">—</div>
             <div class="kpi-sub">순증 / 신규</div>
         </div>
     </div>
 
-    <!-- FILTER BAR -->
-    <div class="filter-bar">
-        <span class="filter-label">지역</span>
-        <div class="chip-group" id="regionChips">
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+        <span class="tb-lbl">지역</span>
+        <div class="chips" id="regionChips">
             <button class="chip active" id="chip-branch" onclick="setRegionMode('branch')">내 지점</button>
-            <!-- sido 칩은 initDashboard에서 동적 생성 -->
         </div>
-        <div class="filter-sep"></div>
-        <span class="filter-label">월 선택</span>
-        <div class="month-nav">
-            <button class="nav-btn" onclick="shiftMonth(-1)">‹</button>
+        <div class="tb-sep"></div>
+        <span class="tb-lbl">월</span>
+        <div class="mnav">
+            <button class="marr" onclick="shiftMonth(-1)">‹</button>
             <span id="monthLabel">전체</span>
-            <button class="nav-btn" onclick="shiftMonth(1)">›</button>
-            <button class="btn-month-clear" id="btnMonthClear" onclick="clearMonth()">전체 보기</button>
+            <button class="marr" onclick="shiftMonth(1)">›</button>
         </div>
+        <button class="btn-mclear" id="btnMonthClear" onclick="clearMonth()">전체 보기</button>
     </div>
 
-    <!-- COMPARISON STRIP (월 선택 시 노출) -->
+    <!-- COMPARISON STRIP -->
     <div class="cmp-strip" id="cmpStrip">
         <div class="cmp-col">
-            <div class="cmp-col-title" id="cmpTitleYoy">전년동월</div>
+            <div class="cmp-ctitle" id="cmpTitleYoy">전년동월</div>
             <div id="cmpYoy"></div>
         </div>
         <div class="cmp-col">
-            <div class="cmp-col-title" id="cmpTitlePrev">전월</div>
+            <div class="cmp-ctitle" id="cmpTitlePrev">전월</div>
             <div id="cmpPrev"></div>
         </div>
         <div class="cmp-col col-cur">
-            <div class="cmp-col-title" id="cmpTitleCur">당월</div>
+            <div class="cmp-ctitle" id="cmpTitleCur">당월</div>
             <div id="cmpCur"></div>
         </div>
     </div>
 
     <!-- BODY -->
-    <div class="intel-body">
-
-        <!-- MAP -->
-        <div class="map-area">
+    <div class="page-body">
+        <div class="map-wrap">
             <div id="intel-map"></div>
             <div class="map-legend">
-                <div class="leg-item">
-                    <div class="leg-dot" style="background:#16a34a"></div>
-                    <span>순증</span>
-                </div>
-                <div class="leg-item">
-                    <div class="leg-dot" style="background:#dc2626"></div>
-                    <span>순감</span>
-                </div>
-                <div class="leg-item">
-                    <div class="leg-dot" style="background:#94a3b8"></div>
-                    <span>보합</span>
-                </div>
-                <div class="leg-item" style="margin-left:4px;border-left:1px solid #e2e8f0;padding-left:10px;color:#94a3b8">
-                    크기 = 신규 건수
-                </div>
+                <div class="leg-i"><div class="leg-d" style="background:var(--green)"></div>순증</div>
+                <div class="leg-i"><div class="leg-d" style="background:var(--red)"></div>순감</div>
+                <div class="leg-i"><div class="leg-d" style="background:var(--text4)"></div>보합</div>
             </div>
         </div>
-
-        <!-- RIGHT: 시군구 랭킹 -->
-        <div class="side-right">
-            <div class="panel-header">시군구별 현황 · 신규순</div>
-            <div class="panel-body" id="regionPanel">
-                <div class="state-msg"><div class="icon">⏳</div><span>데이터 불러오는 중...</span></div>
-            </div>
-        </div>
-
-    </div><!-- /intel-body -->
-
-    <!-- BOTTOM: 월별 트렌드 -->
-    <div class="intel-bottom">
-        <div class="chart-panel">
-            <div class="chart-panel-title">월별 신규 오픈 / 폐업 추이 · 2025.01~</div>
-            <div class="chart-wrap">
-                <canvas id="trendChart"></canvas>
+        <div class="sidebar">
+            <div class="sb-hd">시군구 현황 · 신규순</div>
+            <div class="sb-body" id="regionPanel">
+                <div class="state-msg"><div class="state-ico">⏳</div>데이터 불러오는 중...</div>
             </div>
         </div>
     </div>
 
-</div><!-- /intel-wrap -->
+    <!-- CHART -->
+    <div class="chart-bar">
+        <div class="chart-title" id="chartTitle">월별 신규 오픈 / 폐업 추이 · 2025.01 ~</div>
+        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+    </div>
+
+</div><!-- /page -->
 
 <!-- ─── SCRIPTS ─── -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
-/* ═══════════════════════════════════════════════════
-   시도명 정규화 (managers.region1 → 정규 단축명)
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   시도명 정규화
+═══════════════════════════════════════════════ */
 const SIDO_NORM = {
     '서울특별시':'서울','서울시':'서울','서울':'서울',
     '부산광역시':'부산','부산시':'부산','부산':'부산',
@@ -491,94 +434,93 @@ const SIDO_NORM = {
 };
 function normSido(s) { return SIDO_NORM[s?.trim()] || s?.trim() || ''; }
 
-/* ═══════════════════════════════════════════════════
-   시군구 중심 좌표 — 전국 (키: '정규시도_시군구')
-   동명 시군구 완전 분리 (중구·동구·서구·남구·북구·강서구·고성군 등)
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   시군구 중심 좌표 (시도_시군구 복합 키)
+═══════════════════════════════════════════════ */
 const CENTROIDS = {
-    // ── 서울 (25구) ─────────────────────────────
-    '서울_강남구':  [37.5172,127.0473], '서울_강동구':  [37.5301,127.1238],
-    '서울_강북구':  [37.6397,127.0258], '서울_강서구':  [37.5509,126.8496],
-    '서울_관악구':  [37.4784,126.9516], '서울_광진구':  [37.5385,127.0823],
-    '서울_구로구':  [37.4954,126.8874], '서울_금천구':  [37.4569,126.8953],
-    '서울_노원구':  [37.6542,127.0568], '서울_도봉구':  [37.6688,127.0471],
-    '서울_동대문구':[37.5744,127.0396], '서울_동작구':  [37.5124,126.9393],
-    '서울_마포구':  [37.5663,126.9014], '서울_서대문구':[37.5791,126.9368],
-    '서울_서초구':  [37.4837,127.0324], '서울_성동구':  [37.5633,127.0369],
-    '서울_성북구':  [37.5894,127.0167], '서울_송파구':  [37.5145,127.1059],
-    '서울_양천구':  [37.5170,126.8664], '서울_영등포구':[37.5264,126.8962],
-    '서울_용산구':  [37.5324,126.9904], '서울_은평구':  [37.6027,126.9291],
-    '서울_종로구':  [37.5735,126.9790], '서울_중구':    [37.5640,126.9975],
-    '서울_중랑구':  [37.6063,127.0927],
-    // ── 부산 (16구 1군) ──────────────────────────
-    '부산_강서구':  [35.2121,128.9806], '부산_금정구':  [35.2435,129.0927],
-    '부산_기장군':  [35.2446,129.2224], '부산_남구':    [35.1367,129.0862],
-    '부산_동구':    [35.1392,129.0454], '부산_동래구':  [35.2047,129.0828],
-    '부산_부산진구':[35.1624,129.0532], '부산_북구':    [35.1977,128.9901],
-    '부산_사상구':  [35.1518,128.9922], '부산_사하구':  [35.1038,128.9747],
-    '부산_서구':    [35.0979,129.0245], '부산_수영구':  [35.1452,129.1133],
-    '부산_연제구':  [35.1762,129.0809], '부산_영도구':  [35.0905,129.0689],
-    '부산_중구':    [35.1067,129.0322], '부산_해운대구':[35.1632,129.1635],
-    // ── 대구 (7구 1군) ───────────────────────────
-    '대구_남구':    [35.8464,128.5973], '대구_달서구':  [35.8299,128.5328],
-    '대구_달성군':  [35.7747,128.4313], '대구_동구':    [35.8869,128.6351],
-    '대구_북구':    [35.8853,128.5824], '대구_서구':    [35.8716,128.5594],
-    '대구_수성구':  [35.8581,128.6306], '대구_중구':    [35.8694,128.6058],
-    // ── 인천 (8구 2군) ───────────────────────────
-    '인천_강화군':  [37.7469,126.4879], '인천_계양구':  [37.5374,126.7376],
-    '인천_남동구':  [37.4473,126.8979], '인천_동구':    [37.4739,126.6432],
-    '인천_미추홀구':[37.4629,126.6505], '인천_부평구':  [37.5034,126.7218],
-    '인천_서구':    [37.5454,126.6756], '인천_연수구':  [37.4102,126.6784],
-    '인천_옹진군':  [37.4512,126.3624], '인천_중구':    [37.4745,126.6214],
-    // ── 광주 (5구) ───────────────────────────────
-    '광주_광산구':  [35.1396,126.7936], '광주_남구':    [35.1333,126.9030],
-    '광주_동구':    [35.1459,126.9231], '광주_북구':    [35.1745,126.9119],
-    '광주_서구':    [35.1518,126.8895],
-    // ── 대전 (5구) ───────────────────────────────
-    '대전_대덕구':  [36.3466,127.4148], '대전_동구':    [36.3121,127.4547],
-    '대전_서구':    [36.3553,127.3832], '대전_유성구':  [36.3624,127.3563],
-    '대전_중구':    [36.3247,127.4211],
-    // ── 울산 (4구 1군) ───────────────────────────
-    '울산_남구':    [35.5384,129.3114], '울산_동구':    [35.5049,129.4166],
-    '울산_북구':    [35.5821,129.3612], '울산_울주군':  [35.5228,129.2381],
-    '울산_중구':    [35.5695,129.3323],
-    // ── 세종 ────────────────────────────────────
-    '세종_세종시':  [36.4800,127.2890],
-    // ── 경기도 (31시군) ──────────────────────────
-    '경기도_가평군': [37.8314,127.5097], '경기도_고양시': [37.6584,126.8320],
-    '경기도_과천시': [37.4290,126.9876], '경기도_광명시': [37.4784,126.8642],
-    '경기도_광주시': [37.4296,127.2553], '경기도_구리시': [37.5940,127.1296],
-    '경기도_군포시': [37.3616,126.9350], '경기도_김포시': [37.6151,126.7159],
+    // 서울 (25구)
+    '서울_강남구':[37.5172,127.0473],'서울_강동구':[37.5301,127.1238],
+    '서울_강북구':[37.6397,127.0258],'서울_강서구':[37.5509,126.8496],
+    '서울_관악구':[37.4784,126.9516],'서울_광진구':[37.5385,127.0823],
+    '서울_구로구':[37.4954,126.8874],'서울_금천구':[37.4569,126.8953],
+    '서울_노원구':[37.6542,127.0568],'서울_도봉구':[37.6688,127.0471],
+    '서울_동대문구':[37.5744,127.0396],'서울_동작구':[37.5124,126.9393],
+    '서울_마포구':[37.5663,126.9014],'서울_서대문구':[37.5791,126.9368],
+    '서울_서초구':[37.4837,127.0324],'서울_성동구':[37.5633,127.0369],
+    '서울_성북구':[37.5894,127.0167],'서울_송파구':[37.5145,127.1059],
+    '서울_양천구':[37.5170,126.8664],'서울_영등포구':[37.5264,126.8962],
+    '서울_용산구':[37.5324,126.9904],'서울_은평구':[37.6027,126.9291],
+    '서울_종로구':[37.5735,126.9790],'서울_중구':[37.5640,126.9975],
+    '서울_중랑구':[37.6063,127.0927],
+    // 부산 (16구 1군)
+    '부산_강서구':[35.2121,128.9806],'부산_금정구':[35.2435,129.0927],
+    '부산_기장군':[35.2446,129.2224],'부산_남구':[35.1367,129.0862],
+    '부산_동구':[35.1392,129.0454],'부산_동래구':[35.2047,129.0828],
+    '부산_부산진구':[35.1624,129.0532],'부산_북구':[35.1977,128.9901],
+    '부산_사상구':[35.1518,128.9922],'부산_사하구':[35.1038,128.9747],
+    '부산_서구':[35.0979,129.0245],'부산_수영구':[35.1452,129.1133],
+    '부산_연제구':[35.1762,129.0809],'부산_영도구':[35.0905,129.0689],
+    '부산_중구':[35.1067,129.0322],'부산_해운대구':[35.1632,129.1635],
+    // 대구 (7구 1군)
+    '대구_남구':[35.8464,128.5973],'대구_달서구':[35.8299,128.5328],
+    '대구_달성군':[35.7747,128.4313],'대구_동구':[35.8869,128.6351],
+    '대구_북구':[35.8853,128.5824],'대구_서구':[35.8716,128.5594],
+    '대구_수성구':[35.8581,128.6306],'대구_중구':[35.8694,128.6058],
+    // 인천 (8구 2군)
+    '인천_강화군':[37.7469,126.4879],'인천_계양구':[37.5374,126.7376],
+    '인천_남동구':[37.4473,126.8979],'인천_동구':[37.4739,126.6432],
+    '인천_미추홀구':[37.4629,126.6505],'인천_부평구':[37.5034,126.7218],
+    '인천_서구':[37.5454,126.6756],'인천_연수구':[37.4102,126.6784],
+    '인천_옹진군':[37.4512,126.3624],'인천_중구':[37.4745,126.6214],
+    // 광주 (5구)
+    '광주_광산구':[35.1396,126.7936],'광주_남구':[35.1333,126.9030],
+    '광주_동구':[35.1459,126.9231],'광주_북구':[35.1745,126.9119],
+    '광주_서구':[35.1518,126.8895],
+    // 대전 (5구)
+    '대전_대덕구':[36.3466,127.4148],'대전_동구':[36.3121,127.4547],
+    '대전_서구':[36.3553,127.3832],'대전_유성구':[36.3624,127.3563],
+    '대전_중구':[36.3247,127.4211],
+    // 울산 (4구 1군)
+    '울산_남구':[35.5384,129.3114],'울산_동구':[35.5049,129.4166],
+    '울산_북구':[35.5821,129.3612],'울산_울주군':[35.5228,129.2381],
+    '울산_중구':[35.5695,129.3323],
+    // 세종
+    '세종_세종시':[36.4800,127.2890],
+    // 경기도 (31시군)
+    '경기도_가평군':[37.8314,127.5097],'경기도_고양시':[37.6584,126.8320],
+    '경기도_과천시':[37.4290,126.9876],'경기도_광명시':[37.4784,126.8642],
+    '경기도_광주시':[37.4296,127.2553],'경기도_구리시':[37.5940,127.1296],
+    '경기도_군포시':[37.3616,126.9350],'경기도_김포시':[37.6151,126.7159],
     '경기도_남양주시':[37.6362,127.2161],'경기도_동두천시':[37.9034,127.0607],
-    '경기도_부천시': [37.5035,126.7660], '경기도_성남시': [37.4201,127.1264],
-    '경기도_수원시': [37.2636,127.0286], '경기도_시흥시': [37.3800,126.8030],
-    '경기도_안산시': [37.3219,126.8309], '경기도_안성시': [37.0083,127.2799],
-    '경기도_안양시': [37.3943,126.9568], '경기도_양주시': [37.7850,127.0454],
-    '경기도_양평군': [37.4916,127.4874], '경기도_여주시': [37.2983,127.6377],
-    '경기도_연천군': [38.0965,127.0745], '경기도_오산시': [37.1496,127.0771],
-    '경기도_용인시': [37.2411,127.1776], '경기도_의왕시': [37.3449,126.9678],
-    '경기도_의정부시':[37.7382,127.0337],'경기도_이천시': [37.2726,127.4353],
-    '경기도_파주시': [37.7600,126.7797], '경기도_평택시': [37.0000,127.1126],
-    '경기도_포천시': [37.8946,127.2003], '경기도_하남시': [37.5392,127.2148],
-    '경기도_화성시': [37.1994,126.8312],
-    // ── 강원도 (18시군) ──────────────────────────
-    '강원도_강릉시': [37.7519,128.8760], '강원도_고성군': [38.3800,128.4676],
-    '강원도_동해시': [37.5244,129.1143], '강원도_삼척시': [37.4499,129.1658],
-    '강원도_속초시': [38.2070,128.5918], '강원도_양구군': [38.1058,127.9899],
-    '강원도_양양군': [38.0748,128.6186], '강원도_영월군': [37.1838,128.4614],
-    '강원도_원주시': [37.3422,127.9202], '강원도_인제군': [38.0695,128.1705],
-    '강원도_정선군': [37.3798,128.6603], '강원도_철원군': [38.1464,127.3130],
-    '강원도_춘천시': [37.8813,127.7298], '강원도_태백시': [37.1655,128.9856],
-    '강원도_평창군': [37.3706,128.3904], '강원도_홍천군': [37.6934,127.8888],
-    '강원도_화천군': [38.1065,127.7071], '강원도_횡성군': [37.4918,127.9853],
-    // ── 충청북도 (11시군) ────────────────────────
+    '경기도_부천시':[37.5035,126.7660],'경기도_성남시':[37.4201,127.1264],
+    '경기도_수원시':[37.2636,127.0286],'경기도_시흥시':[37.3800,126.8030],
+    '경기도_안산시':[37.3219,126.8309],'경기도_안성시':[37.0083,127.2799],
+    '경기도_안양시':[37.3943,126.9568],'경기도_양주시':[37.7850,127.0454],
+    '경기도_양평군':[37.4916,127.4874],'경기도_여주시':[37.2983,127.6377],
+    '경기도_연천군':[38.0965,127.0745],'경기도_오산시':[37.1496,127.0771],
+    '경기도_용인시':[37.2411,127.1776],'경기도_의왕시':[37.3449,126.9678],
+    '경기도_의정부시':[37.7382,127.0337],'경기도_이천시':[37.2726,127.4353],
+    '경기도_파주시':[37.7600,126.7797],'경기도_평택시':[37.0000,127.1126],
+    '경기도_포천시':[37.8946,127.2003],'경기도_하남시':[37.5392,127.2148],
+    '경기도_화성시':[37.1994,126.8312],
+    // 강원도 (18시군)
+    '강원도_강릉시':[37.7519,128.8760],'강원도_고성군':[38.3800,128.4676],
+    '강원도_동해시':[37.5244,129.1143],'강원도_삼척시':[37.4499,129.1658],
+    '강원도_속초시':[38.2070,128.5918],'강원도_양구군':[38.1058,127.9899],
+    '강원도_양양군':[38.0748,128.6186],'강원도_영월군':[37.1838,128.4614],
+    '강원도_원주시':[37.3422,127.9202],'강원도_인제군':[38.0695,128.1705],
+    '강원도_정선군':[37.3798,128.6603],'강원도_철원군':[38.1464,127.3130],
+    '강원도_춘천시':[37.8813,127.7298],'강원도_태백시':[37.1655,128.9856],
+    '강원도_평창군':[37.3706,128.3904],'강원도_홍천군':[37.6934,127.8888],
+    '강원도_화천군':[38.1065,127.7071],'강원도_횡성군':[37.4918,127.9853],
+    // 충청북도 (11시군)
     '충청북도_괴산군':[36.8153,127.7872],'충청북도_단양군':[36.9845,128.3654],
     '충청북도_보은군':[36.4894,127.7291],'충청북도_영동군':[36.1748,127.7781],
     '충청북도_옥천군':[36.3063,127.5714],'충청북도_음성군':[36.9396,127.6909],
     '충청북도_제천시':[37.1323,128.1905],'충청북도_증평군':[36.7851,127.5815],
     '충청북도_진천군':[36.8549,127.4353],'충청북도_청주시':[36.6424,127.4890],
     '충청북도_충주시':[36.9910,127.9259],
-    // ── 충청남도 (15시군) ────────────────────────
+    // 충청남도 (15시군)
     '충청남도_계룡시':[36.2744,127.2488],'충청남도_공주시':[36.4467,127.1192],
     '충청남도_금산군':[36.1088,127.4881],'충청남도_논산시':[36.1872,127.0994],
     '충청남도_당진시':[36.8896,126.6458],'충청남도_보령시':[36.3333,126.6127],
@@ -587,7 +529,7 @@ const CENTROIDS = {
     '충청남도_예산군':[36.6801,126.8448],'충청남도_천안시':[36.8151,127.1139],
     '충청남도_청양군':[36.4594,126.8028],'충청남도_태안군':[36.7455,126.2982],
     '충청남도_홍성군':[36.6013,126.6603],
-    // ── 전라북도 (14시군) ────────────────────────
+    // 전라북도 (14시군)
     '전라북도_고창군':[35.4357,126.7016],'전라북도_군산시':[35.9680,126.7369],
     '전라북도_김제시':[35.8038,126.8809],'전라북도_남원시':[35.4164,127.3897],
     '전라북도_무주군':[36.0067,127.6614],'전라북도_부안군':[35.7317,126.7331],
@@ -595,7 +537,7 @@ const CENTROIDS = {
     '전라북도_익산시':[35.9483,126.9576],'전라북도_임실군':[35.6178,127.2891],
     '전라북도_장수군':[35.6474,127.5207],'전라북도_전주시':[35.8242,127.1480],
     '전라북도_정읍시':[35.5699,126.8567],'전라북도_진안군':[35.7914,127.4243],
-    // ── 전라남도 (22시군) ────────────────────────
+    // 전라남도 (22시군)
     '전라남도_강진군':[34.6427,126.7672],'전라남도_고흥군':[34.6115,127.2748],
     '전라남도_곡성군':[35.2821,127.2916],'전라남도_광양시':[34.9437,127.6955],
     '전라남도_구례군':[35.2025,127.4633],'전라남도_나주시':[35.0160,126.7108],
@@ -607,7 +549,7 @@ const CENTROIDS = {
     '전라남도_장성군':[35.3026,126.7847],'전라남도_장흥군':[34.6810,126.9076],
     '전라남도_진도군':[34.4870,126.2638],'전라남도_함평군':[35.0658,126.5177],
     '전라남도_해남군':[34.5731,126.5988],'전라남도_화순군':[35.0645,126.9869],
-    // ── 경상북도 (23시군) ────────────────────────
+    // 경상북도 (23시군)
     '경상북도_경산시':[35.8249,128.7413],'경상북도_경주시':[35.8562,129.2247],
     '경상북도_고령군':[35.7273,128.2639],'경상북도_구미시':[36.1197,128.3442],
     '경상북도_군위군':[36.2393,128.5725],'경상북도_김천시':[36.1398,128.1135],
@@ -620,7 +562,7 @@ const CENTROIDS = {
     '경상북도_의성군':[36.3527,128.6970],'경상북도_청도군':[35.6473,128.7337],
     '경상북도_청송군':[36.4359,129.0574],'경상북도_칠곡군':[35.9951,128.4016],
     '경상북도_포항시':[36.0320,129.3650],
-    // ── 경상남도 (18시군) ────────────────────────
+    // 경상남도 (18시군)
     '경상남도_거제시':[34.8804,128.6213],'경상남도_거창군':[35.6869,127.9091],
     '경상남도_고성군':[34.9731,128.3228],'경상남도_김해시':[35.2285,128.8894],
     '경상남도_남해군':[34.8376,127.8922],'경상남도_밀양시':[35.5036,128.7462],
@@ -630,8 +572,8 @@ const CENTROIDS = {
     '경상남도_창원시':[35.2279,128.6811],'경상남도_통영시':[34.8544,128.4333],
     '경상남도_하동군':[35.0671,127.7519],'경상남도_함안군':[35.2724,128.4070],
     '경상남도_함양군':[35.5206,127.7249],'경상남도_합천군':[35.5669,128.1652],
-    // ── 제주 (2시) ───────────────────────────────
-    '제주_서귀포시': [33.2541,126.5600], '제주_제주시':   [33.4996,126.5312],
+    // 제주 (2시)
+    '제주_서귀포시':[33.2541,126.5600],'제주_제주시':[33.4996,126.5312],
 };
 
 const SIDO_CENTER = {
@@ -654,16 +596,16 @@ const SIDO_CENTER = {
     '제주':   { center:[33.4890,126.4983], zoom:10 },
 };
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    APP STATE
-═══════════════════════════════════════════════════ */
+═══════════════════════════════════════════════ */
 let map, markersLayer, trendChart;
-let sidoSigunguMap  = {};   // { '경기도': ['의정부시',...], '인천': [...] }
-let sigunguSidoMap  = {};   // sigungu → sido 역매핑 (CENTROIDS 조회)
-let cachedSnaps     = [];   // 현재 지역 로드된 전체 스냅샷
-let viewMode        = 'branch';   // 'branch' | 'sido'
-let viewSido        = null;       // sido 모드일 때 선택된 시도
-let selectedMonth   = null;       // 'YYYY-MM' | null (전체)
+let sidoSigunguMap = {};   // { '경기도': ['의정부시',...] }
+let sigunguSidoMap = {};   // sigungu → sido 역매핑
+let cachedSnaps    = [];
+let viewMode       = 'branch';   // 'branch' | 'sido'
+let viewSido       = null;
+let selectedMonth  = null;       // 'YYYY-MM' | null
 
 /* ─── 월 헬퍼 ─── */
 function addMonths(ym, delta) {
@@ -683,7 +625,8 @@ async function setRegionMode(mode, sido) {
     viewMode = mode;
     viewSido = sido || null;
     document.querySelectorAll('#regionChips .chip').forEach(c => c.classList.remove('active'));
-    document.getElementById(mode === 'branch' ? 'chip-branch' : `chip-sido-${sido}`)?.classList.add('active');
+    const chipId = mode === 'branch' ? 'chip-branch' : `chip-sido-${sido}`;
+    document.getElementById(chipId)?.classList.add('active');
     await loadDashboard();
 }
 
@@ -703,33 +646,31 @@ function clearMonth() {
     applyFilters();
 }
 function updateMonthUI() {
-    document.getElementById('monthLabel').textContent    = selectedMonth || '전체';
-    document.getElementById('btnMonthClear').style.display = selectedMonth ? '' : 'none';
-    document.getElementById('cmpStrip').classList.toggle('visible', !!selectedMonth);
-    // KPI 라벨 업데이트
-    const kpiSub = document.querySelector('.kpi-card.c-green .kpi-sub');
-    if (kpiSub) kpiSub.textContent = selectedMonth ? `${selectedMonth} 기준` : '인허가 기준 누적';
+    const lbl = document.getElementById('monthLabel');
+    const btn = document.getElementById('btnMonthClear');
+    const strip = document.getElementById('cmpStrip');
+    if (lbl) lbl.textContent = selectedMonth || '전체';
+    if (btn) btn.style.display = selectedMonth ? '' : 'none';
+    if (strip) strip.classList.toggle('on', !!selectedMonth);
+    const newSub = document.getElementById('kpiNewSub');
+    if (newSub) newSub.textContent = selectedMonth ? `${selectedMonth} 기준` : '인허가 기준 누적';
 }
 
-/* ═══════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════
    MAP INIT
-═══════════════════════════════════════════════════ */
+═══════════════════════════════════════════════ */
 function initMap() {
-    map = L.map('intel-map', { center:[37.5, 127.1], zoom:9, zoomControl:false });
-
-    // CartoDB Positron (라이트 타일)
+    map = L.map('intel-map', { center:[37.5,127.1], zoom:9, zoomControl:false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
-        maxZoom: 19,
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a>', maxZoom:19,
     }).addTo(map);
-
     L.control.zoom({ position:'bottomright' }).addTo(map);
     markersLayer = L.layerGroup().addTo(map);
 }
 
-/* ═══════════════════════════════════════════════════
-   AUTH → managers → sigungu 목록
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   AUTH → managers → 초기화
+═══════════════════════════════════════════════ */
 async function initDashboard() {
     try {
         const { data:{ session } } = await client.auth.getSession();
@@ -742,52 +683,47 @@ async function initDashboard() {
             .select('region1, region2')
             .eq('business_unit', bu)
             .neq('region2', '지점장');
-
         if (error) throw error;
 
         const rows = mgrs || [];
-
-        // sido → sigungu 목록 매핑 (다중 시도 지점 대응)
         sidoSigunguMap = {};
         sigunguSidoMap = {};
+
         rows.forEach(m => {
             const sido = normSido(m.region1);
             const sgu  = m.region2?.trim();
             if (!sido || !sgu) return;
             if (!sidoSigunguMap[sido]) sidoSigunguMap[sido] = [];
             if (!sidoSigunguMap[sido].includes(sgu)) sidoSigunguMap[sido].push(sgu);
-            sigunguSidoMap[sgu] = sido;  // 마지막 sido로 덮어쓰기 (중복 시군구명은 드묾)
+            sigunguSidoMap[sgu] = sido;
         });
 
         const allSiguList = Object.values(sidoSigunguMap).flat();
         if (!allSiguList.length) {
             document.getElementById('regionPanel').innerHTML =
-                '<div class="state-msg"><div class="icon">⚠️</div><span>담당 지역이 설정되지 않았습니다.<br>관리자에게 문의하세요.</span></div>';
+                '<div class="state-msg"><div class="state-ico">⚠️</div><span>담당 지역이 설정되지 않았습니다.<br>관리자에게 문의하세요.</span></div>';
             return;
         }
 
-        // 헤더: 시도 목록 + 시군구 요약
         const sidoLabels  = Object.keys(sidoSigunguMap).join(' · ');
         const regionLabel = allSiguList.length <= 3
             ? allSiguList.join(' · ')
             : `${allSiguList.slice(0,3).join(' · ')} 외 ${allSiguList.length - 3}개`;
-        document.getElementById('headerSub').textContent =
-            `${sidoLabels} · ${regionLabel} · 2025.01 ~ 현재`;
+        const el = document.getElementById('headerSub');
+        if (el) el.textContent = `${sidoLabels} · ${regionLabel} · 2025.01 ~ 현재`;
 
-        // sido 칩 생성 (데이터 있는 시도 조회)
         buildSidoChips();
-
         await loadDashboard();
 
     } catch(e) {
         console.error('[discover] init error', e);
-        showToast?.('초기화 실패: ' + e.message, 'error');
+        document.getElementById('lastSync').textContent = '초기화 실패';
+        document.getElementById('regionPanel').innerHTML =
+            `<div class="state-msg"><div class="state-ico">⚠️</div><span>${esc(e.message)}</span></div>`;
     }
 }
 
-/* ═══════════════════════════════════════════════════
-   sido 칩 동적 생성
-═══════════════════════════════════════════════════ */
+/* ─── sido 칩 동적 생성 ─── */
 async function buildSidoChips() {
     try {
         const { data } = await client
@@ -808,17 +744,18 @@ async function buildSidoChips() {
     } catch(_) {}
 }
 
-/* ═══════════════════════════════════════════════════
-   Supabase에서 market_snapshots 조회 → cachedSnaps
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   DATA LOAD
+═══════════════════════════════════════════════ */
 async function loadDashboard(force = false) {
-    document.getElementById('btnRefresh').disabled = true;
-    document.getElementById('lastSync').textContent = '로딩 중...';
+    const btnRef = document.getElementById('btnRefresh');
+    const syncEl = document.getElementById('lastSync');
+    if (btnRef) btnRef.disabled = true;
+    if (syncEl) syncEl.textContent = '로딩 중...';
     cachedSnaps = [];
 
     try {
         if (viewMode === 'sido' && viewSido) {
-            // 시도 전체 조회
             const { data, error } = await client
                 .from('market_snapshots')
                 .select('sido, sigungu, month, new_count, closed_count, updated_at')
@@ -827,10 +764,14 @@ async function loadDashboard(force = false) {
                 .order('month', { ascending: true });
             if (error) throw error;
             cachedSnaps = data || [];
-            // sido 모드에서 sigunguSidoMap 갱신
+            // sido 모드에서 역매핑 갱신
             cachedSnaps.forEach(r => { sigunguSidoMap[r.sigungu] = r.sido; });
         } else {
-            // 내 지점: 시도별 쿼리 병렬 실행
+            // branch 모드: sigunguSidoMap을 managers 데이터로 재설정
+            sigunguSidoMap = {};
+            Object.entries(sidoSigunguMap).forEach(([sido, list]) => {
+                list.forEach(sgu => { sigunguSidoMap[sgu] = sido; });
+            });
             cachedSnaps = (await Promise.all(
                 Object.entries(sidoSigunguMap).map(([sido, siguList]) =>
                     client.from('market_snapshots')
@@ -844,66 +785,68 @@ async function loadDashboard(force = false) {
             )).flat();
         }
 
-        // 갱신 시각
-        const lastUpd = cachedSnaps.reduce((max, r) => r.updated_at > max ? r.updated_at : max, '');
-        if (lastUpd) {
+        const lastUpd = cachedSnaps.reduce((mx, r) => r.updated_at > mx ? r.updated_at : mx, '');
+        if (lastUpd && syncEl) {
             const d = new Date(lastUpd).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-            document.getElementById('lastSync').textContent = `갱신 ${d}`;
+            syncEl.textContent = `갱신 ${d}`;
+        } else if (syncEl) {
+            syncEl.textContent = '데이터 없음';
         }
 
         applyFilters();
 
     } catch(e) {
         console.error('[discover] load error', e);
-        showToast?.('데이터 조회 실패: ' + e.message, 'error');
-        document.getElementById('lastSync').textContent = '오류';
+        if (syncEl) syncEl.textContent = '오류';
+        document.getElementById('regionPanel').innerHTML =
+            `<div class="state-msg"><div class="state-ico">⚠️</div><span>데이터 조회 실패<br>${esc(e.message)}</span></div>`;
     } finally {
-        document.getElementById('btnRefresh').disabled = false;
+        if (btnRef) btnRef.disabled = false;
     }
 }
 
-/* ═══════════════════════════════════════════════════
-   필터 적용 → 렌더 (월 선택 반영)
-═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════
+   FILTER & RENDER
+═══════════════════════════════════════════════ */
 function applyFilters() {
     if (!cachedSnaps.length) {
         document.getElementById('regionPanel').innerHTML =
-            '<div class="state-msg"><div class="icon">📭</div><span>데이터 준비 중입니다.<br>내일 새벽 3시 이후 확인하세요.</span></div>';
+            '<div class="state-msg"><div class="state-ico">📭</div><span>데이터 준비 중입니다.<br>내일 새벽 3시 이후 확인하세요.</span></div>';
+        renderKPIs({ totalNew:0, totalClosed:0, net:0 });
         return;
     }
 
-    // 지도·패널은 선택 월만, 차트는 전체 기간
     const displaySnaps = selectedMonth
         ? cachedSnaps.filter(r => r.month === selectedMonth)
         : cachedSnaps;
 
     // 전체 월별 집계 (차트용)
     const monthlyAll = {};
-    cachedSnaps.forEach(row => {
-        if (!monthlyAll[row.month]) monthlyAll[row.month] = { new: 0, closed: 0 };
-        monthlyAll[row.month].new    += row.new_count    || 0;
-        monthlyAll[row.month].closed += row.closed_count || 0;
+    cachedSnaps.forEach(r => {
+        if (!monthlyAll[r.month]) monthlyAll[r.month] = { new:0, closed:0 };
+        monthlyAll[r.month].new    += r.new_count    || 0;
+        monthlyAll[r.month].closed += r.closed_count || 0;
     });
 
-    // 표시 대상 집계 (KPI·지도·패널)
+    // 표시 대상 집계
     const regions = {};
-    displaySnaps.forEach(row => {
-        if (!regions[row.sigungu]) regions[row.sigungu] = { new: 0, closed: 0 };
-        regions[row.sigungu].new    += row.new_count    || 0;
-        regions[row.sigungu].closed += row.closed_count || 0;
+    displaySnaps.forEach(r => {
+        if (!regions[r.sigungu]) regions[r.sigungu] = { new:0, closed:0 };
+        regions[r.sigungu].new    += r.new_count    || 0;
+        regions[r.sigungu].closed += r.closed_count || 0;
     });
 
     const regionsArr = Object.entries(regions)
-        .map(([region, { new: n, closed: c }]) => ({
-            region, new: n, closed: c, net: n - c,
-            netRate: n > 0 ? Math.round(((n - c) / n) * 100) : 0,
+        .map(([region, { new:n, closed:c }]) => ({
+            region, new:n, closed:c, net:n-c,
+            netRate: n > 0 ? Math.round(((n-c)/n)*100) : 0,
         }))
         .sort((a, b) => b.new - a.new);
 
     const totalNew    = regionsArr.reduce((s, r) => s + r.new,    0);
     const totalClosed = regionsArr.reduce((s, r) => s + r.closed, 0);
 
-    // 월 목록 (2025-01 ~ 현재월)
+    // 월 목록 (2025-01 ~ 현재)
     const now = new Date();
     const monthList = [];
     const cur = new Date(2025, 0, 1);
@@ -922,169 +865,102 @@ function applyFilters() {
     renderMap(regionsArr);
     renderRegionPanel(regionsArr);
     renderTrendChart(monthlyArr, selectedMonth);
-    if (selectedMonth) renderMonthComparison();
+    if (selectedMonth) renderComparison();
 }
 
-/* ═══════════════════════════════════════════════════
-   월별 3구간 비교 렌더 (당월 / 전월 / 전년동월)
-═══════════════════════════════════════════════════ */
-function renderMonthComparison() {
-    if (!selectedMonth) return;
-    const prevM = addMonths(selectedMonth, -1);
-    const prevY = addMonths(selectedMonth, -12);
-
-    function sumMonth(ym) {
-        const rows = cachedSnaps.filter(r => r.month === ym);
-        const n = rows.reduce((s, r) => s + (r.new_count    || 0), 0);
-        const c = rows.reduce((s, r) => s + (r.closed_count || 0), 0);
-        return { new: n, closed: c, net: n - c };
-    }
-    const cur  = sumMonth(selectedMonth);
-    const prev = sumMonth(prevM);
-    const yoy  = sumMonth(prevY);
-
-    function deltaHtml(val, base, label) {
-        if (!base || base.new === 0) return '';
-        const d = val.new - base.new;
-        const cls = d > 0 ? 'delta-up' : d < 0 ? 'delta-down' : '';
-        return `<div class="cmp-change">신규 ${label} 대비 <span class="${cls}">${d > 0 ? '+' : ''}${d}건</span></div>`;
-    }
-
-    function colHtml(data, base, label) {
-        return `<div class="cmp-metrics">
-            <div class="cmp-metric">
-                <span class="cmp-metric-label">신규</span>
-                <span class="cmp-metric-val cv-green">${data.new.toLocaleString()}</span>
-            </div>
-            <div class="cmp-metric">
-                <span class="cmp-metric-label">폐업</span>
-                <span class="cmp-metric-val cv-red">${data.closed.toLocaleString()}</span>
-            </div>
-            <div class="cmp-metric">
-                <span class="cmp-metric-label">순증</span>
-                <span class="cmp-metric-val cv-blue">${data.net > 0 ? '+' : ''}${data.net.toLocaleString()}</span>
-            </div>
-        </div>${deltaHtml(cur, base, label)}`;
-    }
-
-    document.getElementById('cmpTitleYoy').textContent  = `전년동월 (${prevY})`;
-    document.getElementById('cmpTitlePrev').textContent  = `전월 (${prevM})`;
-    document.getElementById('cmpTitleCur').textContent   = `당월 (${selectedMonth})`;
-    document.getElementById('cmpYoy').innerHTML   = colHtml(yoy,  null, '');
-    document.getElementById('cmpPrev').innerHTML  = colHtml(prev, null, '');
-    document.getElementById('cmpCur').innerHTML   = colHtml(cur,  prev, '전월');
-}
-
-/* ═══════════════════════════════════════════════════
-   RENDER
-═══════════════════════════════════════════════════ */
+/* ─── KPI ─── */
 function renderKPIs({ totalNew, totalClosed, net }) {
     setText('kpiNew',    totalNew.toLocaleString());
     setText('kpiClosed', totalClosed.toLocaleString());
-
-    const sign = net > 0 ? '+' : '';
-    setText('kpiNet', sign + net.toLocaleString());
-
+    setText('kpiNet',    (net > 0 ? '+' : '') + net.toLocaleString());
     const rate = totalNew > 0 ? Math.round((net / totalNew) * 100) : 0;
     setText('kpiRate', (rate > 0 ? '+' : '') + rate + '%');
     setText('kpiNetSub', net >= 0 ? '시장 성장 중' : '시장 축소 중');
 }
 
+/* ─── MAP ─── */
 function renderMap(regions) {
     markersLayer.clearLayers();
     if (!regions?.length) return;
 
-    const maxNew = Math.max(...regions.map(r => r.new), 1);
-
-    // 지도 중심: 가장 많은 시군구를 가진 시도 기준
-    const primarySido = Object.entries(sidoSigunguMap)
-        .sort((a, b) => b[1].length - a[1].length)[0]?.[0] || '경기도';
+    // 지도 중심: sido 모드면 viewSido, branch 모드면 가장 큰 sido
+    const primarySido = (viewMode === 'sido' && viewSido)
+        ? viewSido
+        : Object.entries(sidoSigunguMap).sort((a, b) => b[1].length - a[1].length)[0]?.[0] || '경기도';
     const cfg = SIDO_CENTER[primarySido];
     if (cfg) map.setView(cfg.center, cfg.zoom, { animate: true });
 
+    const maxNew = Math.max(...regions.map(r => r.new), 1);
+
     regions.forEach(r => {
-        // sigungu → sido 역매핑으로 정확한 좌표 조회 (동명 구 완전 분리)
         const sido   = sigunguSidoMap[r.region] || primarySido;
         const coords = CENTROIDS[`${sido}_${r.region}`];
         if (!coords) return;
 
-        const radius = 7 + Math.round((r.new / maxNew) * 22);   // 7~29px
-        const color  = r.net > 2  ? '#16a34a'
-                     : r.net < -2 ? '#dc2626'
-                     :              '#94a3b8';
+        const radius = 7 + Math.round((r.new / maxNew) * 22);
+        const color  = r.net > 2 ? '#059669' : r.net < -2 ? '#dc2626' : '#9ca3af';
 
         const circle = L.circleMarker(coords, {
-            radius,
-            fillColor:   color,
-            fillOpacity: .65,
-            color:       color,
-            weight:      2,
-            opacity:     .8,
+            radius, fillColor:color, fillOpacity:.6,
+            color:color, weight:2, opacity:.85,
         });
 
         const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
         circle.bindPopup(`
-            <div style="min-width:140px">
-                <div style="font-weight:700;font-size:14px;margin-bottom:4px">${esc(r.region)}</div>
-                <div style="color:#16a34a">신규 오픈 ${r.new}건</div>
+            <div style="min-width:130px;padding:2px 0">
+                <div style="font-weight:700;font-size:13px;margin-bottom:5px">${esc(r.region)}</div>
+                <div style="color:#059669">신규 ${r.new}건</div>
                 <div style="color:#dc2626">폐업 ${r.closed}건</div>
-                <div style="color:${r.net >= 0 ? '#16a34a' : '#dc2626'};font-weight:600;margin-top:2px">순증 ${netStr}건</div>
+                <hr style="margin:5px 0;border:none;border-top:1px solid #e5e7eb">
+                <div style="font-weight:600;color:${r.net >= 0 ? '#059669' : '#dc2626'}">순증 ${netStr}건</div>
             </div>
         `);
-
         markersLayer.addLayer(circle);
     });
 }
 
+/* ─── REGION PANEL ─── */
 function renderRegionPanel(regions) {
+    const panel = document.getElementById('regionPanel');
     if (!regions?.length) {
-        document.getElementById('regionPanel').innerHTML =
-            '<div class="state-msg"><div class="icon">📭</div><span>데이터 없음</span></div>';
+        panel.innerHTML = '<div class="state-msg"><div class="state-ico">📭</div>데이터 없음</div>';
         return;
     }
-
     const maxNew = Math.max(...regions.map(r => r.new), 1);
-
-    const html = regions.map((r, idx) => {
+    panel.innerHTML = regions.map((r, i) => {
         const pct    = Math.round((r.new / maxNew) * 100);
-        const barC   = r.net > 0 ? '#16a34a' : r.net < 0 ? '#dc2626' : '#cbd5e1';
+        const barC   = r.net > 0 ? '#059669' : r.net < 0 ? '#dc2626' : '#d1d5db';
         const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
-        const netCls = r.net > 0 ? 'net-pos' : r.net < 0 ? 'net-neg' : 'net-zero';
-
-        return `<div class="region-row">
-            <div class="region-top">
-                <span class="region-name">
-                    <span style="color:#94a3b8;font-size:11px;margin-right:4px">${idx+1}</span>${esc(r.region)}
+        const netCls = r.net > 0 ? 'rn-pos' : r.net < 0 ? 'rn-neg' : 'rn-0';
+        return `<div class="rrow">
+            <div class="rrow-top">
+                <span class="rrow-name">
+                    <span class="rrow-rank">${i+1}</span>${esc(r.region)}
                 </span>
-                <span class="region-net ${netCls}">${netStr}</span>
+                <span class="rrow-net ${netCls}">${netStr}</span>
             </div>
-            <div class="region-bar-bg">
-                <div class="region-bar-fill" style="width:${pct}%;background:${barC}"></div>
-            </div>
-            <div class="region-nums">
+            <div class="rbar"><div class="rbar-fill" style="width:${pct}%;background:${barC}"></div></div>
+            <div class="rnums">
                 <div class="rnum">
-                    <span class="rnum-label" style="color:#16a34a">신규</span>
-                    <span class="rnum-val" style="color:#16a34a">${r.new}</span>
+                    <span class="rnum-l" style="color:#059669">신규</span>
+                    <span class="rnum-v" style="color:#059669">${r.new}</span>
                 </div>
                 <div class="rnum">
-                    <span class="rnum-label" style="color:#dc2626">폐업</span>
-                    <span class="rnum-val" style="color:#dc2626">${r.closed}</span>
+                    <span class="rnum-l" style="color:#dc2626">폐업</span>
+                    <span class="rnum-v" style="color:#dc2626">${r.closed}</span>
                 </div>
                 <div class="rnum">
-                    <span class="rnum-label">성장률</span>
-                    <span class="rnum-val" style="color:#64748b">${r.netRate}%</span>
+                    <span class="rnum-l">성장률</span>
+                    <span class="rnum-v" style="color:#6b7280">${r.netRate}%</span>
                 </div>
             </div>
         </div>`;
     }).join('');
-
-    document.getElementById('regionPanel').innerHTML = html;
 }
 
+/* ─── CHART ─── */
 function renderTrendChart(monthly, highlightMonth) {
-    if (!monthly?.length) return;
-
-    const filtered = monthly.filter(m => m.new + m.closed > 0);
+    const filtered = (monthly || []).filter(m => m.new + m.closed > 0);
     if (!filtered.length) return;
 
     const labels     = filtered.map(m => m.month.slice(2));
@@ -1092,90 +968,103 @@ function renderTrendChart(monthly, highlightMonth) {
     const closedData = filtered.map(m => m.closed);
     const netData    = filtered.map(m => m.net);
 
-    // 선택 월 하이라이트
     const hlMonths = highlightMonth ? [
         highlightMonth,
         addMonths(highlightMonth, -1),
         addMonths(highlightMonth, -12),
     ] : [];
-    const bgNew = newData.map((_, i) => {
+
+    function mkColor(i, baseHi, baseMid, baseLow) {
         const m = '20' + labels[i];
-        if (!hlMonths.length) return 'rgba(22,163,74,.25)';
-        if (m === highlightMonth) return 'rgba(22,163,74,.75)';
-        if (hlMonths.includes(m)) return 'rgba(22,163,74,.4)';
-        return 'rgba(22,163,74,.08)';
-    });
-    const bgClosed = closedData.map((_, i) => {
-        const m = '20' + labels[i];
-        if (!hlMonths.length) return 'rgba(220,38,38,.2)';
-        if (m === highlightMonth) return 'rgba(220,38,38,.65)';
-        if (hlMonths.includes(m)) return 'rgba(220,38,38,.35)';
-        return 'rgba(220,38,38,.06)';
-    });
+        if (!hlMonths.length) return baseHi;
+        if (m === highlightMonth) return baseMid;
+        if (hlMonths.includes(m)) return baseMid.replace(/[\d.]+\)$/, '0.4)');
+        return baseLow;
+    }
+
+    const bgNew    = newData.map((_,i) => mkColor(i,'rgba(5,150,105,.25)','rgba(5,150,105,.8)','rgba(5,150,105,.07)'));
+    const bgClosed = closedData.map((_,i) => mkColor(i,'rgba(220,38,38,.2)','rgba(220,38,38,.7)','rgba(220,38,38,.06)'));
 
     if (trendChart) trendChart.destroy();
-
     const ctx = document.getElementById('trendChart').getContext('2d');
     trendChart = new Chart(ctx, {
         data: {
             labels,
             datasets: [
                 {
-                    type: 'bar', label: '신규 오픈',
-                    data: newData,
-                    backgroundColor: bgNew,
-                    borderColor:     'rgba(22,163,74,.7)',
-                    borderWidth: 1, borderRadius: 3, yAxisID: 'y',
+                    type:'bar', label:'신규 오픈', data:newData,
+                    backgroundColor:bgNew, borderColor:'rgba(5,150,105,.6)',
+                    borderWidth:1, borderRadius:2, yAxisID:'y',
                 },
                 {
-                    type: 'bar', label: '폐업',
-                    data: closedData,
-                    backgroundColor: bgClosed,
-                    borderColor:     'rgba(220,38,38,.6)',
-                    borderWidth: 1, borderRadius: 3, yAxisID: 'y',
+                    type:'bar', label:'폐업', data:closedData,
+                    backgroundColor:bgClosed, borderColor:'rgba(220,38,38,.5)',
+                    borderWidth:1, borderRadius:2, yAxisID:'y',
                 },
                 {
-                    type: 'line', label: '순증',
-                    data: netData,
-                    borderColor:     'rgba(37,99,235,.85)',
-                    backgroundColor: 'rgba(37,99,235,.08)',
-                    borderWidth: 2, pointRadius: 3,
-                    pointBackgroundColor: 'rgba(37,99,235,.9)',
-                    fill: true, tension: 0.3, yAxisID: 'y',
+                    type:'line', label:'순증', data:netData,
+                    borderColor:'rgba(37,99,235,.8)',
+                    backgroundColor:'rgba(37,99,235,.07)',
+                    borderWidth:2, pointRadius:2.5,
+                    pointBackgroundColor:'rgba(37,99,235,.9)',
+                    fill:true, tension:0.35, yAxisID:'y',
                 },
             ],
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive:true, maintainAspectRatio:false,
             plugins: {
                 legend: {
-                    labels: {
-                        color: '#64748b', font:{ size:11 },
-                        boxWidth: 10, padding: 14,
-                    },
+                    labels: { color:'#6b7280', font:{ size:10 }, boxWidth:9, padding:12 },
                 },
                 tooltip: {
-                    backgroundColor: '#fff',
-                    borderColor: '#e2e8f0', borderWidth: 1,
-                    titleColor: '#1e293b', bodyColor: '#64748b', padding: 10,
-                    callbacks: {
-                        label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}건`
-                    }
+                    backgroundColor:'#fff', borderColor:'#e5e7eb', borderWidth:1,
+                    titleColor:'#111827', bodyColor:'#6b7280', padding:9,
+                    callbacks: { label: c => ` ${c.dataset.label}: ${c.raw}건` },
                 },
             },
             scales: {
-                x: {
-                    ticks: { color:'#94a3b8', font:{ size:10 } },
-                    grid:  { color:'rgba(0,0,0,.04)' },
-                },
-                y: {
-                    ticks: { color:'#94a3b8', font:{ size:10 }, stepSize: 5 },
-                    grid:  { color:'rgba(0,0,0,.04)' },
-                    beginAtZero: true,
-                },
+                x: { ticks:{ color:'#9ca3af', font:{ size:9 } }, grid:{ color:'rgba(0,0,0,.03)' } },
+                y: { ticks:{ color:'#9ca3af', font:{ size:9 }, stepSize:5 }, grid:{ color:'rgba(0,0,0,.03)' }, beginAtZero:true },
             },
         },
     });
+}
+
+/* ─── COMPARISON ─── */
+function renderComparison() {
+    if (!selectedMonth) return;
+    const prevM = addMonths(selectedMonth, -1);
+    const prevY = addMonths(selectedMonth, -12);
+
+    function sum(ym) {
+        const rows = cachedSnaps.filter(r => r.month === ym);
+        const n = rows.reduce((s, r) => s + (r.new_count    || 0), 0);
+        const c = rows.reduce((s, r) => s + (r.closed_count || 0), 0);
+        return { new:n, closed:c, net:n-c };
+    }
+    const cur  = sum(selectedMonth);
+    const prev = sum(prevM);
+    const yoy  = sum(prevY);
+
+    function colHtml(data, base) {
+        const d = base ? cur.new - base.new : null;
+        const deltaHtml = (d !== null && base && base.new > 0)
+            ? `<div class="cmp-delta">신규 대비 <span class="${d > 0 ? 'du' : d < 0 ? 'dd' : ''}">${d > 0 ? '+' : ''}${d}건</span></div>`
+            : '';
+        return `<div class="cmp-ms">
+            <div class="cmp-m"><span class="cmp-ml">신규</span><span class="cmp-mv cv-g">${data.new.toLocaleString()}</span></div>
+            <div class="cmp-m"><span class="cmp-ml">폐업</span><span class="cmp-mv cv-r">${data.closed.toLocaleString()}</span></div>
+            <div class="cmp-m"><span class="cmp-ml">순증</span><span class="cmp-mv cv-b">${data.net > 0 ? '+' : ''}${data.net.toLocaleString()}</span></div>
+        </div>${deltaHtml}`;
+    }
+
+    setText('cmpTitleYoy', `전년동월 (${prevY})`);
+    setText('cmpTitlePrev', `전월 (${prevM})`);
+    setText('cmpTitleCur', `당월 (${selectedMonth})`);
+    document.getElementById('cmpYoy').innerHTML  = colHtml(yoy,  null);
+    document.getElementById('cmpPrev').innerHTML = colHtml(prev, null);
+    document.getElementById('cmpCur').innerHTML  = colHtml(cur,  prev);
 }
 
 /* ─── UTILS ─── */
@@ -1183,7 +1072,6 @@ function setText(id, txt) {
     const el = document.getElementById(id);
     if (el) el.textContent = txt;
 }
-
 function esc(s) {
     if (!s) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1197,7 +1085,6 @@ function esc(s) {
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
-
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
@@ -1207,7 +1094,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (attempts > 40) {
             clearInterval(poll);
-            console.error('[discover] Supabase client not ready');
+            console.error('[discover] Supabase client not ready after 6s');
+            document.getElementById('lastSync').textContent = '연결 실패';
+            document.getElementById('regionPanel').innerHTML =
+                '<div class="state-msg"><div class="state-ico">⚠️</div><span>Supabase 연결 실패<br>페이지를 새로고침 해주세요.</span></div>';
         }
     }, 150);
 });
