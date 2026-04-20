@@ -87,12 +87,29 @@ async function fetchPage(typeCode, apiKey, startDate, endDate, regionHint, pageN
     }
 }
 
+// ── 공공API 주소는 광역시·특별시를 약칭으로 저장 (서울특별시→서울, 인천광역시→인천 등)
+// managers 테이블의 정식명과 다르므로 LIKE 쿼리·필터 양쪽에서 약칭을 사용해야 함
+const SIDO_SHORT = {
+    '서울특별시':    '서울',
+    '부산광역시':    '부산',
+    '대구광역시':    '대구',
+    '인천광역시':    '인천',
+    '광주광역시':    '광주',
+    '대전광역시':    '대전',
+    '울산광역시':    '울산',
+    '세종특별자치시':'세종',
+    '제주특별자치도':'제주',
+};
+// 경기도·강원도 등 도 단위는 API에서도 정식명 그대로 사용 → 변환 불필요
+
+function toApiSido(sido) { return SIDO_SHORT[sido] || sido; }
+
 // ── 업종 × 시도 단위 전체 페이지 조회 ───────────────────
-// regions = ['경기도 의정부시', '경기도 양주시', '인천광역시 중구', ...]
+// regions = ['경기도 의정부시', '경기도 양주시', '서울특별시 강남구', ...]
 // → 시도별로 묶어서 요청 수 최소화 (기존 지역별 69개 → 시도별 6~9개)
 async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
-    // 시도(첫 번째 단어) 기준으로 중복 제거
-    const sidoSet = new Set(regions.map(r => r.split(' ')[0]).filter(Boolean));
+    // 시도(첫 번째 단어) 기준으로 중복 제거 + API 약칭 변환
+    const sidoSet = new Set(regions.map(r => toApiSido(r.split(' ')[0])).filter(Boolean));
     const sidoList = [...sidoSet];
 
     // 1단계: 시도별 1페이지씩 병렬 조회
@@ -181,6 +198,16 @@ function normalize(item, typeCode) {
 
 // ── upload.html processRawData 필터 로직 ─────────────────
 function applyBusinessLogic(items, regionList) {
+    // regionList의 각 항목에 대해 정식명+약칭 두 가지 변형 생성
+    // 예: '서울특별시 강남구' → ['서울특별시 강남구', '서울 강남구']
+    const regionVariants = regionList.map(r => {
+        const parts = r.split(' ');
+        const short = SIDO_SHORT[parts[0]];
+        return short
+            ? [r, `${short} ${parts.slice(1).join(' ')}`]
+            : [r];
+    });
+
     return items.filter(it => {
         // 1. 업태 타겟 카테고리만 (rename 전 원본 기준)
         if (!TARGET_CATEGORIES.includes(it._rawCategory)) return false;
@@ -188,9 +215,9 @@ function applyBusinessLogic(items, regionList) {
         if (EXCLUDE_KEYWORDS.some(kw => it.business_name.includes(kw))) return false;
         // 3. 한식 100평 미만 제외
         if (it._rawCategory === '한식' && it._pyeong < 100) return false;
-        // 4. 지역 필터 (서버 LIKE 힌트 보조 — 정확 매칭)
-        const addrStr = (it.road_address || '') + (it.address1 || '') + (it.address2 || '');
-        if (!regionList.some(r => addrStr.includes(r))) return false;
+        // 4. 지역 필터 — 정식명·약칭 양쪽으로 매칭 (광역시 약칭 불일치 대응)
+        const addrStr = (it.road_address || '') + ' ' + (it.address1 || '') + ' ' + (it.address2 || '');
+        if (!regionVariants.some(variants => variants.some(v => addrStr.includes(v)))) return false;
         return true;
     });
 }
