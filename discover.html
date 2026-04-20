@@ -402,6 +402,8 @@ const CENTROIDS = {
     '부평구':  [37.5034,126.7218], '서구':    [37.5454,126.6756],
     '연수구':  [37.4102,126.6784], '강화군':  [37.7469,126.4879],
     '옹진군':  [37.4512,126.6367],
+    // 인천 중구 (서울 중구와 이름 충돌 → sido별 오버라이드용 키)
+    '중구_인천':[37.4745,126.6214],
 };
 
 const SIDO_CENTER = {
@@ -601,7 +603,8 @@ function renderMap(regions) {
     if (cfg) map.setView(cfg.center, cfg.zoom, { animate: true });
 
     regions.forEach(r => {
-        const coords = CENTROIDS[r.region];
+        // sido별 동명 구 충돌 해소: 중구_인천 등 오버라이드 키 우선 조회
+        const coords = CENTROIDS[`${r.region}_${branchSido}`] || CENTROIDS[r.region];
         if (!coords) return;
 
         const radius = 7 + Math.round((r.new / maxNew) * 22);   // 7~29px
