@@ -67,12 +67,10 @@ function buildQS(params) {
 }
 
 // ── FS 타겟 여부 판별 ────────────────────────────────────
+// ※ 엔드포인트(rest_cafes / bakeries / general_restaurants)가 이미 업종 필터 역할을 하므로
+//    카테고리 체크는 생략하고 블랙리스트 키워드 제외만 적용
 function isTarget(item) {
-    const bizName  = (item.BPLCNM || item.BIZPLC_NM || '').toString().trim();
-    const category = (item.INDUTY_NM || item.INDUTY_CD_NM || '').toString().trim();
-    // 업태 필터 (카테고리가 있는 경우에만 적용 — rest_cafes/bakeries는 카테고리 없을 수 있음)
-    if (category && !TARGET_CATEGORIES.includes(category)) return false;
-    // 블랙리스트 키워드 제외
+    const bizName = (item.BPLCNM || item.BIZPLC_NM || item.BIZ_PLCE_NM || '').toString().trim();
     if (EXCLUDE_KEYWORDS.some(kw => bizName.includes(kw))) return false;
     return true;
 }
