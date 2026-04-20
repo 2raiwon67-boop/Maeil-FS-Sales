@@ -164,6 +164,34 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 - 차트 툴팁 제목/본문 폰트 13px 명시
 - 지도 팝업: 12px → 13px, 범례 도트 8px → 10px
 
+### 2026-04-20 (v164~v166)
+
+#### v164 — discover.html Apple 디자인 시스템 통일
+- `:root` CSS 토큰을 common.css 기준으로 통일 (--color-primary #0071e3 등)
+- KPI 카드: 상단 3px 컬러 보더 + hover lift 효과, border-top-color 계열별 구분
+- 툴바: white card 스타일, margin 12px, border-radius 적용
+- 새로고침 버튼, 칩, 화살표 전부 common.css hover 패턴 적용
+
+#### v165 — 드릴다운 + GeoJSON 폴리곤 지도 전환
+- **사이드바 드릴다운**: #sbListView / #sbDrillView 전환 구조, 탭(전체/신규/폐업/100평+)
+- **GeoJSON 코로플레스**: Leaflet + southkorea-maps GeoJSON으로 시군구 경계 폴리곤 색상 렌더링
+  - 순증 > 2 → 초록, 순감 < -2 → 빨강, 보합 → 회색, 미보유 시군구 → 연회색
+  - 호버: 테두리 파란색 + 툴팁(신규/폐업/순증), 클릭: 드릴다운 진입
+- **market_store_records 테이블**: Supabase에 MCP로 직접 생성 (sido, sigungu, month, name, category, area_m2, pyeong, address, status, license_date)
+- **market-stats.js `?detail=true` 모드**: 기존 집계와 별개로 개별 매장 records 반환 (market-detail.js 신규 파일 없이 통합 — Vercel 12파일 한도)
+- **market-stats.js storeRecords 수집**: `tally()` 함수에서 매장명·업종·면적·주소 추출, saveToSupabase()에서 100건 배치 upsert
+- **batch-briefings.js 파이프라인 확인**: 이미 매일 새벽 3시 market-stats?save=true 호출 → market_store_records 자동 누적 (upload.html 의존 없음)
+- **차트 접기/펼치기**: toggleChart() + map.invalidateSize() 재계산
+
+#### v166 — 지도 Leaflet → 카카오맵 전환
+- Leaflet.js 완전 제거, 카카오맵 JavaScript SDK 적용 (appkey: 178d3ee35f67ded1f5d2411aa3cee010)
+- GeoJSON 경계 데이터를 kakao.maps.Polygon으로 변환하여 시군구별 코로플레스 렌더링
+- 마우스 호버: kakao.maps.CustomOverlay 툴팁 (시군구 centroid 기준 위치)
+- 클릭: 드릴다운 진입 유지
+- kakao.maps.load(autoload=false) + mapReady 플래그로 비동기 init race condition 방지
+- SIDO_CENTER zoom → Kakao level로 전환 (경기도 level:9, 광역시 level:7 등)
+- map.invalidateSize() → map.relayout() 전환
+
 ### 2026-04-16 (v155 → v156)
 - **discover.html 전면 재설계**: 카카오 로컬 API 검색 → 팔란티어 스타일 상권 인텔리전스 대시보드로 교체 (v155 초안 → v156 완성)
   - 데이터 소스: **공공인허가 API 실시간** (Supabase licenses 테이블 아님 — 시장 전체 규모 파악 목적)
