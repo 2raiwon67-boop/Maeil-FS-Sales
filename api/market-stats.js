@@ -178,6 +178,7 @@ async function saveToSupabase(sidoShort, detail) {
 
     // 100건씩 배치 upsert
     let saved = 0;
+    let lastError = null;
     for (let i = 0; i < rows.length; i += 100) {
         const batch = rows.slice(i, i + 100);
         const res = await fetch(`${SUPABASE_URL}/rest/v1/market_snapshots`, {
@@ -186,13 +187,18 @@ async function saveToSupabase(sidoShort, detail) {
                 'apikey':        SERVICE_KEY,
                 'Authorization': `Bearer ${SERVICE_KEY}`,
                 'Content-Type':  'application/json',
-                'Prefer':        'resolution=merge-duplicates',
+                'Prefer':        'resolution=merge-duplicates,return=minimal',
             },
             body: JSON.stringify(batch),
         });
-        if (res.ok) saved += batch.length;
+        if (res.ok) {
+            saved += batch.length;
+        } else {
+            const errText = await res.text().catch(() => String(res.status));
+            lastError = `HTTP ${res.status}: ${errText.slice(0, 200)}`;
+        }
     }
-    return { saved };
+    return saved > 0 ? { saved } : { saved: 0, rows: rows.length, error: lastError };
 }
 
 // ── Vercel 핸들러 ─────────────────────────────────────────
