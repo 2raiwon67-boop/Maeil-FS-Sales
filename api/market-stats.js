@@ -156,15 +156,23 @@ function extract(item, mode, expectedSido) {
 }
 
 // ── Supabase upsert ─────────────────────────────────────
-async function saveToSupabase(sidoShort, detail) {
+async function saveToSupabase(sidoShort, detail, storeRecords = []) {
     const SUPABASE_URL = process.env.SUPABASE_URL;
     const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!SUPABASE_URL || !SERVICE_KEY) return { saved: 0, error: 'env 누락' };
 
-    const rows = [];
+    const commonHeaders = {
+        'apikey':        SERVICE_KEY,
+        'Authorization': `Bearer ${SERVICE_KEY}`,
+        'Content-Type':  'application/json',
+        'Prefer':        'resolution=merge-duplicates,return=minimal',
+    };
+
+    // 1) market_snapshots 집계 upsert
+    const snapRows = [];
     for (const [sigungu, months] of Object.entries(detail)) {
         for (const [month, counts] of Object.entries(months)) {
-            rows.push({
+            snapRows.push({
                 sido:         sidoShort,
                 sigungu,
                 month,
@@ -174,31 +182,37 @@ async function saveToSupabase(sidoShort, detail) {
             });
         }
     }
-    if (!rows.length) return { saved: 0 };
 
-    // 100건씩 배치 upsert
     let saved = 0;
     let lastError = null;
-    for (let i = 0; i < rows.length; i += 100) {
-        const batch = rows.slice(i, i + 100);
+
+    for (let i = 0; i < snapRows.length; i += 100) {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/market_snapshots?on_conflict=sido,sigungu,month`, {
-            method: 'POST',
-            headers: {
-                'apikey':        SERVICE_KEY,
-                'Authorization': `Bearer ${SERVICE_KEY}`,
-                'Content-Type':  'application/json',
-                'Prefer':        'resolution=merge-duplicates,return=minimal',
-            },
-            body: JSON.stringify(batch),
+            method: 'POST', headers: commonHeaders,
+            body: JSON.stringify(snapRows.slice(i, i + 100)),
         });
-        if (res.ok) {
-            saved += batch.length;
-        } else {
-            const errText = await res.text().catch(() => String(res.status));
-            lastError = `HTTP ${res.status}: ${errText.slice(0, 200)}`;
+        if (res.ok) saved += Math.min(100, snapRows.length - i);
+        else {
+            const t = await res.text().catch(() => String(res.status));
+            lastError = `snapshots HTTP ${res.status}: ${t.slice(0, 200)}`;
         }
     }
-    return saved > 0 ? { saved } : { saved: 0, rows: rows.length, error: lastError };
+
+    // 2) market_store_records 개별 매장 upsert
+    let storesSaved = 0;
+    for (let i = 0; i < storeRecords.length; i += 100) {
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/market_store_records?on_conflict=sido,sigungu,month,name,status`,
+            { method: 'POST', headers: commonHeaders, body: JSON.stringify(storeRecords.slice(i, i + 100)) }
+        );
+        if (res.ok) storesSaved += Math.min(100, storeRecords.length - i);
+        else {
+            const t = await res.text().catch(() => String(res.status));
+            lastError = `stores HTTP ${res.status}: ${t.slice(0, 200)}`;
+        }
+    }
+
+    return { saved, storesSaved, ...(lastError ? { error: lastError } : {}) };
 }
 
 // ── Vercel 핸들러 ─────────────────────────────────────────
@@ -211,10 +225,44 @@ export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    const API_KEY = process.env.PUBLIC_DATA_API_KEY;
-    if (!API_KEY) return res.status(500).json({ success: false, error: 'API key missing' });
+    const API_KEY      = process.env.PUBLIC_DATA_API_KEY;
+    const SUPABASE_URL = process.env.SUPABASE_URL;
+    const ANON_KEY     = process.env.SUPABASE_ANON_KEY;
 
-    const { sido, months = '12', save = '' } = req.query;
+    // ── detail 모드: Supabase에서 개별 매장 목록 반환 ──────────────────
+    const { sido, months = '12', save = '', detail = '', sigungu = '', month = '' } = req.query;
+
+    if (detail === 'true') {
+        if (!sido || !sigungu) {
+            return res.status(400).json({ success: false, error: 'sido, sigungu 파라미터 필요' });
+        }
+        if (!SUPABASE_URL || !ANON_KEY) {
+            return res.status(500).json({ success: false, error: 'Supabase env 누락' });
+        }
+        try {
+            let url = `${SUPABASE_URL}/rest/v1/market_store_records`
+                + `?sido=eq.${encodeURIComponent(toShort(sido))}`
+                + `&sigungu=eq.${encodeURIComponent(sigungu)}`
+                + `&select=name,category,area_m2,pyeong,address,status,license_date`
+                + `&order=license_date.desc`;
+            if (month) url += `&month=eq.${encodeURIComponent(month)}`;
+
+            const r = await fetch(url, {
+                headers: { 'apikey': ANON_KEY, 'Authorization': `Bearer ${ANON_KEY}` },
+            });
+            if (!r.ok) throw new Error(`Supabase HTTP ${r.status}`);
+            const stores = await r.json();
+            const summary = stores.reduce((a, s) => {
+                if (s.status === 'new') a.new++; else a.closed++;
+                return a;
+            }, { new:0, closed:0 });
+            return res.json({ success:true, sido:toShort(sido), sigungu, month:month||null, summary, stores });
+        } catch(e) {
+            return res.status(500).json({ success:false, error: e.message });
+        }
+    }
+
+    if (!API_KEY) return res.status(500).json({ success: false, error: 'API key missing' });
     if (!sido) return res.status(400).json({ success: false, error: 'sido 파라미터 필요' });
 
     const sidoShort  = toShort(sido);
@@ -238,9 +286,10 @@ export default async function handler(req, res) {
         ]);
 
         // 집계
-        const monthly  = {};
-        const regions  = {};
-        const detail   = {};  // detail[sigungu][month] = {new, closed} — Supabase 저장용
+        const monthly      = {};
+        const regions      = {};
+        const detail       = {};  // detail[sigungu][month] = {new, closed} — 집계 저장용
+        const storeRecords = [];  // 개별 매장 레코드 — 드릴다운용
 
         function tally(results, mode) {
             results.forEach(({ items }) => {
@@ -260,6 +309,32 @@ export default async function handler(req, res) {
                     if (!detail[sigungu]) detail[sigungu] = {};
                     if (!detail[sigungu][month]) detail[sigungu][month] = { new: 0, closed: 0 };
                     detail[sigungu][month][key]++;
+
+                    // 개별 매장 수집 (드릴다운용)
+                    const name = (item.BPLCNM || item.BIZPLC_NM || item.BIZ_PLCE_NM || '').trim();
+                    if (!name) return;
+                    const areaM2 = parseFloat(
+                        (item.LCTN_AREA || item.FCLT_TOTAL_SCL || '0').toString().replace(/,/g, '')
+                    ) || 0;
+                    const dateRaw = (mode === 'new'
+                        ? item.LCPMT_YMD
+                        : item.CLSBIZ_YMD || item.DCB_YMD
+                    )?.toString().replace(/\D/g, '') || '';
+                    storeRecords.push({
+                        sido:         sidoShort,
+                        sigungu,
+                        month,
+                        name,
+                        category:     (item.UPTAE_NM || item.BZSTAT_SE_NM || '').trim(),
+                        area_m2:      areaM2 > 0 ? areaM2 : null,
+                        pyeong:       areaM2 > 0 ? Math.round(areaM2 / 3.3 * 10) / 10 : null,
+                        address:      (item.ROAD_NM_ADDR || item.LOTNO_ADDR || '').trim(),
+                        status:       key,
+                        license_date: dateRaw.length >= 8
+                            ? `${dateRaw.slice(0,4)}-${dateRaw.slice(4,6)}-${dateRaw.slice(6,8)}`
+                            : null,
+                        updated_at:   new Date().toISOString(),
+                    });
                 });
             });
         }
@@ -297,7 +372,7 @@ export default async function handler(req, res) {
         // Supabase 저장 (옵션)
         let saveResult = null;
         if (doSave) {
-            saveResult = await saveToSupabase(sidoShort, detail);
+            saveResult = await saveToSupabase(sidoShort, detail, storeRecords);
         }
 
         return res.json({

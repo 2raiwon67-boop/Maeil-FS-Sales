@@ -447,3 +447,56 @@ BEGIN
     LIMIT match_count;
 END;
 $$;
+
+
+-- ─────────────────────────────────────────────────────────────
+-- 상권 분석 테이블 (discover.html)
+-- ─────────────────────────────────────────────────────────────
+
+-- market_snapshots: 시군구별 월간 집계
+CREATE TABLE IF NOT EXISTS market_snapshots (
+    id           BIGSERIAL PRIMARY KEY,
+    sido         TEXT NOT NULL,
+    sigungu      TEXT NOT NULL,
+    month        TEXT NOT NULL,
+    new_count    INT  NOT NULL DEFAULT 0,
+    closed_count INT  NOT NULL DEFAULT 0,
+    updated_at   TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(sido, sigungu, month)
+);
+ALTER TABLE market_snapshots ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename='market_snapshots' AND policyname='snapshots_read'
+    ) THEN
+        CREATE POLICY snapshots_read ON market_snapshots
+            FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+END $$;
+
+-- market_store_records: 시군구별 개별 매장 (드릴다운용)
+CREATE TABLE IF NOT EXISTS market_store_records (
+    id           BIGSERIAL PRIMARY KEY,
+    sido         TEXT NOT NULL,
+    sigungu      TEXT NOT NULL,
+    month        TEXT NOT NULL,
+    name         TEXT NOT NULL,
+    category     TEXT,
+    area_m2      NUMERIC,
+    pyeong       NUMERIC,
+    address      TEXT,
+    status       TEXT NOT NULL CHECK (status IN ('new','closed')),
+    license_date DATE,
+    updated_at   TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS market_store_records_uix
+    ON market_store_records(sido, sigungu, month, name, status);
+ALTER TABLE market_store_records ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_policies WHERE tablename='market_store_records' AND policyname='store_records_read'
+    ) THEN
+        CREATE POLICY store_records_read ON market_store_records
+            FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+END $$;

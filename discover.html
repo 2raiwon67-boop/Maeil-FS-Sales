@@ -291,12 +291,14 @@
 
         /* ── CHART ── */
         .chart-bar {
-            flex-shrink: 0; height: 200px;
+            flex-shrink: 0; height: 160px;
             border-top: 1px solid var(--color-border);
             background: var(--color-surface);
             display: flex; flex-direction: column;
-            padding: 12px 22px 10px;
+            padding: 10px 22px 8px;
+            transition: height 0.2s ease;
         }
+        .chart-bar.collapsed { height: 38px; overflow: hidden; }
         .chart-title {
             font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
             margin-bottom: 8px; flex-shrink: 0;
@@ -324,10 +326,132 @@
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 
+        /* ── DRILL-DOWN ── */
+        .drill-hd {
+            display: flex; align-items: center; gap: 10px;
+        }
+        .drill-back {
+            height: 26px; padding: 0 10px;
+            font-size: 12px; font-weight: 600;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            background: var(--color-surface); color: var(--color-primary);
+            cursor: pointer; flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+        .drill-back:hover { background: rgba(0,113,227,0.08); }
+        #drillTitle { font-size: 13px; font-weight: 700; color: var(--color-text); }
+
+        .drill-summary {
+            padding: 10px 16px;
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            display: flex; gap: 16px;
+            flex-shrink: 0;
+        }
+        .ds-stat { display: flex; flex-direction: column; gap: 2px; }
+        .ds-lbl { font-size: 10px; font-weight: 600; color: var(--color-text-tertiary); }
+        .ds-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+        .drill-tabs {
+            display: flex; gap: 4px; padding: 8px 12px;
+            border-bottom: 1px solid var(--color-border);
+            flex-shrink: 0; background: var(--color-surface);
+        }
+        .dtab {
+            height: 28px; padding: 0 12px;
+            font-size: 12px; font-weight: 500;
+            border-radius: 20px;
+            border: 1px solid var(--color-border);
+            background: var(--color-surface);
+            color: var(--color-text-secondary);
+            cursor: pointer; transition: all 0.15s ease;
+        }
+        .dtab:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .dtab.active {
+            background: var(--color-primary); border-color: var(--color-primary);
+            color: #fff; font-weight: 600;
+        }
+
+        .drill-row {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--color-border);
+            transition: background 0.12s ease;
+        }
+        .drill-row:hover { background: var(--color-bg); }
+        .drill-row-top {
+            display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+        }
+        .drill-name {
+            font-size: 13px; font-weight: 700; color: var(--color-text);
+            flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .big-badge {
+            font-size: 10px; font-weight: 700; color: var(--color-warning);
+            background: rgba(255,149,0,0.12); border-radius: 4px;
+            padding: 1px 5px; flex-shrink: 0;
+        }
+        .drill-status {
+            font-size: 11px; font-weight: 600;
+            padding: 2px 7px; border-radius: 10px; flex-shrink: 0;
+        }
+        .ds-new    { background: rgba(52,199,89,0.12);  color: var(--color-success); }
+        .ds-closed { background: rgba(255,59,48,0.12);  color: var(--color-danger); }
+        .drill-meta {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            font-size: 11px; color: var(--color-text-tertiary);
+        }
+        .drill-addr {
+            font-size: 11px; color: var(--color-text-tertiary);
+            margin-top: 3px; white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis;
+        }
+
+        /* ── 유동인구 PLACEHOLDER ── */
+        .drill-fp-section {
+            flex-shrink: 0;
+            border-top: 1px solid var(--color-border);
+            padding: 12px 16px;
+            background: var(--color-bg);
+        }
+        .drill-fp-title {
+            font-size: 11px; font-weight: 700; color: var(--color-text-secondary);
+            margin-bottom: 6px;
+        }
+        .drill-fp-placeholder {
+            font-size: 11px; color: var(--color-text-tertiary);
+            background: var(--color-surface);
+            border: 1px dashed var(--color-border);
+            border-radius: var(--radius-sm);
+            padding: 10px; text-align: center;
+        }
+
+        /* ── MAP TOOLTIP ── */
+        .leaflet-tooltip.map-tooltip {
+            background: rgba(29,29,31,.92);
+            color: #fff; border: none;
+            border-radius: 8px; padding: 6px 10px;
+            font-size: 12px; font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,.2);
+        }
+        .leaflet-tooltip.map-tooltip::before { display: none; }
+
+        /* ── CHART TOGGLE ── */
+        .chart-toggle-btn {
+            height: 22px; padding: 0 10px;
+            font-size: 11px; font-weight: 500;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: var(--color-surface); color: var(--color-text-tertiary);
+            cursor: pointer; margin-left: auto;
+            transition: all 0.15s ease;
+        }
+        .chart-toggle-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
         /* ── RESPONSIVE ── */
         @media (max-width: 960px) {
             .sidebar { display: none; }
-            .chart-bar { height: 170px; }
+            .chart-bar { height: 140px; }
         }
         @media (max-width: 640px) {
             .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; }
@@ -417,16 +541,43 @@
             </div>
         </div>
         <div class="sidebar">
-            <div class="sb-hd">시군구 현황 · 신규순</div>
-            <div class="sb-body" id="regionPanel">
-                <div class="state-msg"><div class="state-ico">⏳</div>데이터 불러오는 중...</div>
+            <!-- 기본 목록 뷰 -->
+            <div id="sbListView" style="display:flex;flex-direction:column;height:100%">
+                <div class="sb-hd">시군구 현황 · 신규순</div>
+                <div class="sb-body" id="regionPanel">
+                    <div class="state-msg"><div class="state-ico">⏳</div>데이터 불러오는 중...</div>
+                </div>
+            </div>
+            <!-- 드릴다운 뷰 (기본 숨김) -->
+            <div id="sbDrillView" style="display:none;flex-direction:column;height:100%">
+                <div class="sb-hd drill-hd">
+                    <button class="drill-back" onclick="closeDrilldown()">← 목록</button>
+                    <span id="drillTitle"></span>
+                </div>
+                <div class="drill-summary" id="drillSummary"></div>
+                <div class="drill-tabs">
+                    <button class="dtab active" onclick="switchDrillTab(this,'all')">전체</button>
+                    <button class="dtab" onclick="switchDrillTab(this,'new')">신규</button>
+                    <button class="dtab" onclick="switchDrillTab(this,'closed')">폐업</button>
+                    <button class="dtab" onclick="switchDrillTab(this,'big')">100평+</button>
+                </div>
+                <div class="sb-body" id="drillList">
+                    <div class="state-msg"><div class="state-ico">⏳</div>불러오는 중...</div>
+                </div>
+                <div class="drill-fp-section">
+                    <div class="drill-fp-title">📍 유동인구</div>
+                    <div class="drill-fp-placeholder">향후 유동인구 데이터 연동 예정</div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- CHART -->
-    <div class="chart-bar">
-        <div class="chart-title" id="chartTitle">월별 신규 오픈 / 폐업 추이 · 2025.01 ~</div>
+    <div class="chart-bar" id="chartBar">
+        <div class="chart-title" id="chartTitle">
+            월별 신규 오픈 / 폐업 추이 · 2025.01 ~
+            <button class="chart-toggle-btn" onclick="toggleChart()">접기</button>
+        </div>
         <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
     </div>
 
@@ -688,13 +839,15 @@ function updateMonthUI() {
 /* ═══════════════════════════════════════════════
    MAP INIT
 ═══════════════════════════════════════════════ */
-function initMap() {
+async function initMap() {
     map = L.map('intel-map', { center:[37.5,127.1], zoom:9, zoomControl:false });
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a>', maxZoom:19,
     }).addTo(map);
     L.control.zoom({ position:'bottomright' }).addTo(map);
-    markersLayer = L.layerGroup().addTo(map);
+    geoLayer     = L.layerGroup().addTo(map);   // GeoJSON 폴리곤 레이어
+    markersLayer = L.layerGroup().addTo(map);   // 기타 마커 레이어 (호환)
+    loadGeoData();  // 비동기 로드 (렌더 차단 없이)
 }
 
 /* ═══════════════════════════════════════════════
@@ -912,44 +1065,36 @@ function renderKPIs({ totalNew, totalClosed, net }) {
 
 /* ─── MAP ─── */
 function renderMap(regions) {
-    markersLayer.clearLayers();
     if (!regions?.length) return;
 
-    // 지도 중심: sido 모드면 viewSido, branch 모드면 가장 큰 sido
     const primarySido = (viewMode === 'sido' && viewSido)
         ? viewSido
         : Object.entries(sidoSigunguMap).sort((a, b) => b[1].length - a[1].length)[0]?.[0] || '경기도';
     const cfg = SIDO_CENTER[primarySido];
     if (cfg) map.setView(cfg.center, cfg.zoom, { animate: true });
 
-    const maxNew = Math.max(...regions.map(r => r.new), 1);
-
-    regions.forEach(r => {
-        const sido   = sigunguSidoMap[r.region] || primarySido;
-        const coords = CENTROIDS[`${sido}_${r.region}`];
-        if (!coords) return;
-
-        const radius = 7 + Math.round((r.new / maxNew) * 22);
-        const color  = r.net > 2 ? 'var(--color-success)' : r.net < -2 ? 'var(--color-danger)' : 'var(--color-text-tertiary)';
-        const colorVal = r.net > 2 ? '#34c759' : r.net < -2 ? '#ff3b30' : '#a1a1a6';
-
-        const circle = L.circleMarker(coords, {
-            radius, fillColor:colorVal, fillOpacity:.6,
-            color:colorVal, weight:2, opacity:.85,
+    // GeoJSON 데이터가 준비된 경우 폴리곤 렌더링
+    if (geoData) {
+        renderGeoMap(regions);
+    } else {
+        // GeoJSON 로딩 중 — 기존 버블 마커로 폴백
+        markersLayer.clearLayers();
+        const maxNew = Math.max(...regions.map(r => r.new), 1);
+        regions.forEach(r => {
+            const sido   = sigunguSidoMap[r.region] || primarySido;
+            const coords = CENTROIDS[`${sido}_${r.region}`];
+            if (!coords) return;
+            const radius   = 7 + Math.round((r.new / maxNew) * 22);
+            const colorVal = r.net > 2 ? '#34c759' : r.net < -2 ? '#ff3b30' : '#a1a1a6';
+            const circle   = L.circleMarker(coords, {
+                radius, fillColor:colorVal, fillOpacity:.6, color:colorVal, weight:2,
+            });
+            circle.on('click', () => openDrilldown(r.region));
+            markersLayer.addLayer(circle);
         });
-
-        const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
-        circle.bindPopup(`
-            <div style="min-width:130px;padding:2px 0">
-                <div style="font-weight:700;font-size:13px;margin-bottom:5px">${esc(r.region)}</div>
-                <div style="color:#34c759">신규 ${r.new}건</div>
-                <div style="color:#ff3b30">폐업 ${r.closed}건</div>
-                <hr style="margin:5px 0;border:none;border-top:1px solid #e0e0e5">
-                <div style="font-weight:600;color:${r.net >= 0 ? '#34c759' : '#ff3b30'}">순증 ${netStr}건</div>
-            </div>
-        `);
-        markersLayer.addLayer(circle);
-    });
+        // GeoJSON 로드 완료 후 재렌더
+        loadGeoData().then(() => { if (geoData) renderGeoMap(regions); });
+    }
 }
 
 /* ─── REGION PANEL ─── */
@@ -965,7 +1110,7 @@ function renderRegionPanel(regions) {
         const barC   = r.net > 0 ? '#34c759' : r.net < 0 ? '#ff3b30' : '#d1d5db';
         const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
         const netCls = r.net > 0 ? 'rn-pos' : r.net < 0 ? 'rn-neg' : 'rn-0';
-        return `<div class="rrow">
+        return `<div class="rrow" style="cursor:pointer" onclick="openDrilldown('${esc(r.region)}')">
             <div class="rrow-top">
                 <span class="rrow-name">
                     <span class="rrow-rank">${i+1}</span>${esc(r.region)}
@@ -1100,6 +1245,156 @@ function renderComparison() {
     document.getElementById('cmpYoy').innerHTML  = colHtml(yoy,  null);
     document.getElementById('cmpPrev').innerHTML = colHtml(prev, null);
     document.getElementById('cmpCur').innerHTML  = colHtml(cur,  prev);
+}
+
+/* ═══════════════════════════════════════════════
+   GEOJSON 지도
+═══════════════════════════════════════════════ */
+const GEOJSON_URL = 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea-municipalities-geo.json';
+let geoData   = null;
+let geoLayer  = null;
+
+async function loadGeoData() {
+    try {
+        const r = await fetch(GEOJSON_URL);
+        if (!r.ok) return;
+        geoData = await r.json();
+    } catch(_) {}
+}
+
+function renderGeoMap(regions) {
+    if (!geoLayer || !geoData) return;
+    geoLayer.clearLayers();
+
+    const regionMap = {};
+    regions.forEach(r => { regionMap[r.region] = r; });
+
+    L.geoJSON(geoData, {
+        style(f) {
+            const d = regionMap[f.properties.name];
+            if (!d) return { fillColor:'#e5e5ea', fillOpacity:.25, color:'#c7c7cc', weight:1 };
+            const fill = d.net > 2 ? '#34c759' : d.net < -2 ? '#ff3b30' : '#a1a1a6';
+            const opacity = Math.min(0.3 + Math.abs(d.net) / 30, 0.75);
+            return { fillColor:fill, fillOpacity:opacity, color:'#ffffff', weight:1.5 };
+        },
+        onEachFeature(f, layer) {
+            const d = regionMap[f.properties.name];
+            if (!d) return;
+            const netStr = d.net > 0 ? `+${d.net}` : String(d.net);
+            layer.bindTooltip(
+                `<b>${esc(f.properties.name)}</b><br>신규 ${d.new} · 폐업 ${d.closed} · 순증 ${netStr}`,
+                { sticky:true, className:'map-tooltip' }
+            );
+            layer.on('click', () => openDrilldown(f.properties.name));
+            layer.on('mouseover', () => layer.setStyle({ weight:2.5, color:'#0071e3' }));
+            layer.on('mouseout',  () => layer.setStyle({ weight:1.5, color:'#ffffff' }));
+        },
+    }).addTo(geoLayer);
+}
+
+/* ═══════════════════════════════════════════════
+   DRILL-DOWN
+═══════════════════════════════════════════════ */
+const API_BASE = 'https://maeil-fs-sales.vercel.app';
+let currentDrillData   = [];
+let currentDrillRegion = '';
+
+async function openDrilldown(sigungu) {
+    currentDrillRegion = sigungu;
+    document.getElementById('sbListView').style.display  = 'none';
+    document.getElementById('sbDrillView').style.display = 'flex';
+    setText('drillTitle', sigungu);
+    document.getElementById('drillSummary').innerHTML = '';
+    document.getElementById('drillList').innerHTML =
+        '<div class="state-msg"><div class="state-ico">⏳</div>불러오는 중...</div>';
+
+    // 탭 초기화
+    document.querySelectorAll('.dtab').forEach(b => b.classList.remove('active'));
+    document.querySelector('.dtab[onclick*="all"]')?.classList.add('active');
+
+    try {
+        const sido = sigunguSidoMap[sigungu] || viewSido || '경기도';
+        const monthParam = selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : '';
+        const r = await fetch(
+            `${API_BASE}/api/market-stats?detail=true&sido=${encodeURIComponent(sido)}&sigungu=${encodeURIComponent(sigungu)}${monthParam}`
+        );
+        const data = await r.json();
+        if (!data.success) throw new Error(data.error || '조회 실패');
+
+        currentDrillData = data.stores || [];
+
+        // 요약
+        document.getElementById('drillSummary').innerHTML = `
+            <div class="ds-stat">
+                <span class="ds-lbl">신규</span>
+                <span class="ds-val" style="color:var(--color-success)">${data.summary.new}</span>
+            </div>
+            <div class="ds-stat">
+                <span class="ds-lbl">폐업</span>
+                <span class="ds-val" style="color:var(--color-danger)">${data.summary.closed}</span>
+            </div>
+            <div class="ds-stat">
+                <span class="ds-lbl">100평+</span>
+                <span class="ds-val" style="color:var(--color-warning)">${currentDrillData.filter(s=>s.pyeong>=100).length}</span>
+            </div>`;
+
+        renderDrillList('all');
+    } catch(e) {
+        document.getElementById('drillList').innerHTML =
+            `<div class="state-msg"><div class="state-ico">⚠️</div><span>데이터 없음<br><small>상권 통계 저장 후 이용 가능합니다</small></span></div>`;
+    }
+}
+
+function closeDrilldown() {
+    document.getElementById('sbListView').style.display  = 'flex';
+    document.getElementById('sbDrillView').style.display = 'none';
+    currentDrillData   = [];
+    currentDrillRegion = '';
+}
+
+function switchDrillTab(btn, tab) {
+    document.querySelectorAll('.dtab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderDrillList(tab);
+}
+
+function renderDrillList(tab) {
+    let stores = currentDrillData;
+    if (tab === 'new')    stores = stores.filter(s => s.status === 'new');
+    if (tab === 'closed') stores = stores.filter(s => s.status === 'closed');
+    if (tab === 'big')    stores = stores.filter(s => (s.pyeong || 0) >= 100);
+
+    if (!stores.length) {
+        document.getElementById('drillList').innerHTML =
+            '<div class="state-msg"><div class="state-ico">📭</div>해당 데이터 없음</div>';
+        return;
+    }
+
+    document.getElementById('drillList').innerHTML = stores.map(s => {
+        const isBig = (s.pyeong || 0) >= 100;
+        return `<div class="drill-row">
+            <div class="drill-row-top">
+                <span class="drill-name">${esc(s.name)}</span>
+                ${isBig ? '<span class="big-badge">★ 대형</span>' : ''}
+                <span class="drill-status ${s.status === 'new' ? 'ds-new' : 'ds-closed'}">${s.status === 'new' ? '신규' : '폐업'}</span>
+            </div>
+            <div class="drill-meta">
+                ${s.category ? `<span>${esc(s.category)}</span>` : ''}
+                ${s.pyeong   ? `<span>${s.pyeong}평</span>` : ''}
+                ${s.license_date ? `<span>${s.license_date}</span>` : ''}
+            </div>
+            ${s.address ? `<div class="drill-addr">${esc(s.address)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+/* ─── 차트 접기/펼치기 ─── */
+function toggleChart() {
+    const bar = document.getElementById('chartBar');
+    const btn = bar?.querySelector('.chart-toggle-btn');
+    const collapsed = bar?.classList.toggle('collapsed');
+    if (btn) btn.textContent = collapsed ? '펼치기' : '접기';
+    setTimeout(() => map?.invalidateSize(), 220);
 }
 
 /* ─── UTILS ─── */
