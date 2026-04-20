@@ -4,7 +4,7 @@
     "api/batch-briefings.js":  { "maxDuration": 300 },
     "api/send-license-alert.js":{ "maxDuration": 60 },
     "api/market-stats.js":     { "maxDuration": 60 },
-    "api/market-backfill.js":  { "maxDuration": 300 }
+    "api/market-backfill.js":  { "maxDuration": 60 }
   },
   "headers": [
     {
