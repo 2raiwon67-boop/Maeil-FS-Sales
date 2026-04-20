@@ -1084,7 +1084,11 @@ function esc(s) {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // common.css: body { opacity: 0 } → loaded 클래스 추가로 페이드인
+    document.body.classList.add('loaded');
+
     initMap();
+
     let attempts = 0;
     const poll = setInterval(() => {
         attempts++;
