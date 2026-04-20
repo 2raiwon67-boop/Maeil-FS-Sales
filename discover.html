@@ -497,6 +497,7 @@ async function loadDashboard(force = false) {
         const { data: rows, error } = await client
             .from('market_snapshots')
             .select('sigungu, month, new_count, closed_count, updated_at')
+            .eq('sido', branchSido)
             .in('sigungu', branchSigunguList)
             .gte('month', '2025-01')
             .order('month', { ascending: true });
