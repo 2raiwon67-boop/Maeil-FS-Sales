@@ -103,14 +103,83 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 - 캐시 TTL: 인허가·거래처 12h / 방문일지 24h / 지오코딩 영구
 - 코드 점검: alert() 교체, report_cache await 수정
 
-### 2026-04-16 (v155)
-- **discover.html 전면 재설계**: 카카오 로컬 API 검색 → 팔란티어 스타일 상권 인텔리전스 대시보드로 교체
-  - Leaflet + CartoDB 다크 타일 지도, 영업중(초록)·폐업(빨강) 마커
-  - KPI 스트립: 전체 인허가·영업중·폐업·이번달 신규
-  - 우측 패널: 지역별 영업/폐업 현황 + 2024 통계청 추계인구·전년 대비 증감률
-  - 하단 Chart.js 월별 신규 인허가 추이 (12개월)
-  - 좌측 필터: 업종(카페/베이커리/음식점)·상태·매장명 검색·XLSX 내보내기
-  - 데이터 소스: Supabase `licenses` 테이블 (기존 카카오 API 완전 제거)
+### 2026-04-20 (버그픽스, 버전 무관)
+- **서울 등 광역시 공공인허가 조회 불가 버그 수정** (`api/public-license.js`)
+  - **원인**: 공공 API가 주소를 약칭으로 저장 (`서울특별시` → `서울`, `인천광역시` → `인천`)하는데 managers 테이블은 정식명으로 저장 → LIKE 쿼리·지역 필터 모두 불일치로 결과 0건
+  - 경기도는 API도 정식명(`경기도`) 그대로 → 과천시만 되던 이유
+  - **fix 1**: `SIDO_SHORT` 맵 추가 — `fetchAllForType`에서 시도명을 API 약칭으로 변환 후 LIKE 쿼리 전송
+  - **fix 2**: `applyBusinessLogic`에서 정식명·약칭 두 가지 변형(`regionVariants`)으로 양쪽 매칭
+  - **fix 3**: managers에 `서울시`, `서울특별시`, `서울` 등 어떻게 입력해도 모두 정규화되도록 SIDO_SHORT 확장
+
+### 2026-04-20 (v157~v163)
+
+#### v157 — 상권 분석 Supabase 연동 + 라이트 UI
+- discover.html: 팔란티어 다크 → 흰색/슬레이트 라이트 테마, CartoDB Positron 맵
+- Supabase `market_snapshots` 테이블 신규 (sido, sigungu, month, new_count, closed_count, UNIQUE 복합키)
+- 공공 API 실시간 호출 제거 → Supabase 읽기 (1초 이내 로딩)
+- managers.region2(시군구) 기준 필터 → 본인 지점 담당 시군구만 표시 (횡성군 오표시 해결)
+- api/market-stats.js: general_restaurants 3번째 엔드포인트 추가, EXCLUDE_KEYWORDS+TARGET_CATEGORIES 블랙리스트 통합, ?save=true upsert 지원
+- api/market-backfill.js: 2025-01부터 현재까지 일회성 백필 엔드포인트 신규
+
+#### v158 — market-stats.js 핵심 버그 2건 수정
+- **saveToSupabase 저장 실패 수정**: Supabase REST upsert는 `?on_conflict=sido,sigungu,month` 쿼리 파라미터가 없으면 HTTP 409 반환 → URL에 추가 (기존 Prefer 헤더만으로는 부족)
+- **sido LIKE 오염 수정**: 공공 API `cond[LOTNO_ADDR::LIKE]='인천'` 쿼리가 '강원도 횡성군 인천리' 같은 무관 주소에도 매칭됨 → `extract()` 함수에 시도 검증 추가 (`tokens[0]` 정규화 후 expectedSido 비교, 불일치 시 빈 값 반환)
+- 시군구 오염 데이터 Supabase에서 직접 삭제 (MCP SQL)
+
+#### v159 — 지역 선택 + 월별 비교 기능
+- CENTROIDS 전국 ~250 시군구로 확장 (`'시도_시군구'` 복합 키로 동명 구 완전 분리)
+- SIDO_NORM 정규화 맵 추가 (managers.region1 다양한 형식 대응)
+- 다중 시도 지원: `sidoSigunguMap {sido:[sigungu]}` + `sigunguSidoMap {sigungu:sido}` 구조로 경기북부(경기도+인천) 같은 복수 시도 지점 대응
+- 지역 칩: "내 지점" (기본) + market_snapshots 기준 sido 칩 동적 생성
+- 월 네비게이터: ‹ [월] › + "전체 보기" 초기화
+- 비교 strip: 월 선택 시 전년동월 | 전월 | 당월 3열 표시 (신규·폐업·순증 + 전월 대비 delta)
+- `cachedSnaps` 패턴: 데이터 1회 로드 후 클라이언트 필터링 (재요청 없음)
+- 차트 하이라이트: 당월(진함) / 전월·전년동월(중간) / 나머지(흐림) 막대 색상 배열
+
+#### v160 — discover.html 완전 재설계 (미니멀 전문 디자인)
+- CSS 전면 재작성: 컴팩트 헤더, KPI 좌측 컬러 바, 툴바 1줄 통합, 비교 strip 블루 배경
+- **버그 수정**: sido 모드 지도 중심 `viewSido` 기준으로 수정 (기존 경기도 고정 오류)
+- **버그 수정**: branch ↔ sido 전환 시 `sigunguSidoMap` managers 데이터로 리셋 (sido 오염 방지)
+- 오류 처리 강화: Supabase 연결 실패 / 데이터 오류 시 UI 메시지 표시
+- discover.html STATIC_ASSETS에 추가
+
+#### v161 — 페이지 투명 버그 수정 (긴급)
+- **원인**: `common.css body { opacity: 0 }` → `body.loaded { opacity: 1 }` 패턴인데, discover.html만 `document.body.classList.add('loaded')` 누락 → 페이지 전체 투명 (아무것도 안 보임)
+- DOMContentLoaded 시점에 `body.loaded` 추가로 해결
+
+#### v162 — 코드 오류 3건 수정
+- `setupLogoutButton()` 호출 추가 → 우상단 사용자명·로그아웃 버튼 표시
+- `map.invalidateSize()` 추가 → 비교 strip 토글 시 Leaflet 지도 타일 공백 방지
+- `netRate` 수정: 신규 0건·폐업 있을 때 -100% 표시 (기존 0% 오기재)
+- `loadDashboard(force)` 미사용 파라미터 제거
+
+#### v163 — UX·가시성 전면 개선
+- 폰트 크기: 9~11px → 11~14px 전체 상향
+- KPI 숫자: 22px → 28px, 여백 11px → 14px
+- 헤더: 46px → 52px, 새로고침 버튼 텍스트 "↺ 새로고침" 추가
+- 툴바: 36px → 46px, 지역 칩 22px → 30px, 월 화살표 20px → 28px
+- 비교 strip: 숫자 15px → 18px, 여백 9px → 12px
+- 사이드바: 252px → 272px, 행 폰트·여백 전반 상향
+- 차트: 185px → 200px, 범례·축 폰트 10px → 12px
+- 차트 툴팁 제목/본문 폰트 13px 명시
+- 지도 팝업: 12px → 13px, 범례 도트 8px → 10px
+
+### 2026-04-16 (v155 → v156)
+- **discover.html 전면 재설계**: 카카오 로컬 API 검색 → 팔란티어 스타일 상권 인텔리전스 대시보드로 교체 (v155 초안 → v156 완성)
+  - 데이터 소스: **공공인허가 API 실시간** (Supabase licenses 테이블 아님 — 시장 전체 규모 파악 목적)
+  - 폐업 데이터는 discover.html에서만 사용, DB 저장 안 함
+  - `api/market-stats.js` 신규 생성: GET /api/market-stats?sido=경기도&months=12
+    - `rest_cafes` + `bakeries` 두 엔드포인트 병렬 조회
+    - 신규: `LCPMT_YMD` + `SALS_STTS_CD::EQ=01` / 폐업: `CLSBIZ_YMD`
+    - 시군구×월 집계 → `{ summary, monthly:[{month,new,closed,net}], regions:[...] }` 반환
+  - Leaflet + CartoDB 다크 타일 지도, 경기도(31)·서울(25)·인천(9) CENTROIDS 하드코딩
+  - 버블맵: 크기=신규오픈 건수(6~30px), 색상=순증가(초록)/순감소(빨강)/중립(회색)
+  - KPI 스트립: 신규오픈(초록), 폐업(빨강), 순증가(파랑), 성장률%(노랑)
+  - 우측 패널: 시군구 순위 리스트 (신규↓ 정렬)
+  - 하단 Chart.js 막대+선 복합 차트: 신규/폐업/순증 12개월 트렌드
+  - 시도 칩 선택: managers 테이블 region1 기준 지점별 자동 감지 (경기도/서울/인천)
+  - localStorage 6h 캐시 (`discover_${sido}_${months}` 키)
+- **블랙리스트 확장** (`api/public-license.js`): 곱창, 닭, 이자카야, 라멘, 라면, 우동, 스시, 카츠, 돈까스, 야끼 추가 (기존: 초밥, 숯불)
 
 ### 2026-04-11 (v149~v154)
 - **discover.html 매장 검색 탭**: 카카오 로컬 API + 엑셀 다운로드, XSS 수정, 렌더 블로킹 수정
@@ -283,6 +352,14 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v148 | 방문 추천 패널 열릴 때 InfoWindow 자동 닫기 |
 | v149~154 | discover.html 카카오 검색 탭 기능 개선, 공공인허가 API 필드명·성능·경고 배너 |
 | v155 | discover.html 팔란티어 스타일 상권 인텔리전스 대시보드 전면 재설계 (Leaflet·Chart.js·인구데이터) |
+| v156 | discover.html 공공인허가 API 실시간 상권 인텔리전스 대시보드 완성 + api/market-stats.js 신규 |
+| v157 | discover.html Supabase market_snapshots 연동, 라이트 테마, market-backfill.js 신규 |
+| v158 | market-stats.js saveToSupabase ?on_conflict 수정 + sido LIKE 오염 수정 |
+| v159 | discover.html 전국 CENTROIDS 확장, 다중 시도 지원, 지역 칩·월 네비게이터·비교 strip |
+| v160 | discover.html 완전 재설계 (미니멀 전문 디자인), sido 지도 중심 수정, branch 모드 sigunguSidoMap 리셋 |
+| v161 | discover.html body.loaded 누락으로 페이지 투명 버그 긴급 수정 |
+| v162 | discover.html setupLogoutButton 추가, map.invalidateSize 추가, netRate -100% 수정 |
+| v163 | discover.html UX 전면 개선 (폰트·여백·컴포넌트 크기 전반 상향) |
 
 ---
 
