@@ -1620,6 +1620,8 @@
     <script>
         window.addEventListener('load', async () => {
             document.body.classList.add('loaded');
+            await loadImageManifest();
+            if (!PRODUCT_IMAGE_FILES.length) PRODUCT_IMAGE_FILES = PRODUCT_IMAGE_FILES_FALLBACK;
             await loadProductDBFromSheets();
         });
 
@@ -1821,10 +1823,6 @@
             '바이오 그릭요거트 400g.jpg',
             '화이트에스오에스치즈 1.04kg.jpg',
         ];
-        // manifest 로드 실패 시 폴백으로 전환
-        loadImageManifest().then(() => {
-            if (!PRODUCT_IMAGE_FILES.length) PRODUCT_IMAGE_FILES = PRODUCT_IMAGE_FILES_FALLBACK;
-        });
 
         // 자동 매칭이 안 되는 제품 수동 매핑 (키는 Google Sheets 품명과 정확히 일치)
         const PRODUCT_IMAGE_MANUAL_MAP = {
