@@ -86,6 +86,7 @@
             grid-template-columns: 340px 1fr;
             height: calc(100vh - 52px);
             transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
 
         .main-layout.sidebar-collapsed {
@@ -124,28 +125,34 @@
         .sidebar-toggle-btn {
             position: absolute;
             top: 50%;
-            right: -16px;
-            transform: translateY(-50%);
-            width: 32px;
-            height: 32px;
-            background: #1d1d1f;
-            border: none;
+            left: 340px;
+            transform: translate(-50%, -50%);
+            width: 28px;
+            height: 28px;
+            background: #ffffff;
+            border: 1.5px solid #c7c7cc;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 13px;
-            color: #ffffff;
+            font-weight: 700;
+            color: #3a3a3c;
             z-index: 50;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.28);
-            transition: background 0.15s, transform 0.15s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s, color 0.15s;
             flex-shrink: 0;
         }
 
+        .main-layout.sidebar-collapsed .sidebar-toggle-btn {
+            left: 52px;
+        }
+
         .sidebar-toggle-btn:hover {
-            background: #0071e3;
-            transform: translateY(-50%) scale(1.1);
+            background: #e8f0ff;
+            border-color: #0071e3;
+            color: #0071e3;
         }
 
         @media (max-width: 768px) {
@@ -1973,9 +1980,6 @@
     <div class="main-layout">
         <!-- 좌측 사이드바 -->
         <div class="sidebar" id="mainSidebar">
-            <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" title="사이드바 접기/펼치기">
-                <span id="sidebarToggleIcon">‹</span>
-            </button>
             <div class="sidebar-inner">
             <!-- 탭 전환 -->
             <div class="sidebar-tabs">
@@ -2048,6 +2052,11 @@
 
             </div><!-- /.sidebar-inner -->
         </div>
+
+        <!-- 사이드바 토글 버튼 (main-layout 기준 절대 위치 — overflow 클리핑 방지) -->
+        <button class="sidebar-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" title="사이드바 접기/펼치기">
+            <span id="sidebarToggleIcon">‹</span>
+        </button>
 
         <!-- 우측 지도 영역 -->
         <div class="map-area" style="position: relative;">
