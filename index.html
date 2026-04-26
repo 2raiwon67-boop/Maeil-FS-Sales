@@ -521,6 +521,105 @@
             font-size: 11px;
         }
 
+        /* =============== 지도 검색창 (데스크탑 전용) =============== */
+        .map-search-box {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 200;
+            width: 280px;
+        }
+        @media (max-width: 768px) { .map-search-box { display: none; } }
+
+        .map-search-input-wrap {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            padding: 0 10px;
+            gap: 8px;
+            height: 40px;
+        }
+        .map-search-input-wrap input {
+            border: none;
+            background: transparent;
+            font-size: 13px;
+            flex: 1;
+            outline: none;
+            color: #1d1d1f;
+            font-family: 'Pretendard', -apple-system, sans-serif;
+        }
+        .map-search-input-wrap input::placeholder { color: #86868b; }
+        .map-search-clear {
+            background: none;
+            border: none;
+            color: #86868b;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            line-height: 1;
+        }
+        .map-search-results {
+            background: rgba(255,255,255,0.97);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 10px;
+            margin-top: 6px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            overflow: hidden;
+            display: none;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+        .map-search-results.open { display: block; }
+        .map-search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f5f5f7;
+            transition: background 0.12s;
+        }
+        .map-search-result-item:last-child { border-bottom: none; }
+        .map-search-result-item:hover { background: #f5f5f7; }
+        .map-search-result-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #1d1d1f;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .map-search-result-tag {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .map-search-result-tag.license { background: #e8f4e8; color: #34c759; }
+        .map-search-result-tag.account { background: #fff8e0; color: #c8a000; }
+        .map-search-result-region {
+            font-size: 11px;
+            color: #86868b;
+            flex-shrink: 0;
+            max-width: 70px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .map-search-no-result {
+            padding: 14px;
+            font-size: 13px;
+            color: #86868b;
+            text-align: center;
+        }
+
         /* =============== 우측 지도 영역 =============== */
         .map-area {
             position: relative;
@@ -1953,6 +2052,20 @@
         <!-- 우측 지도 영역 -->
         <div class="map-area" style="position: relative;">
 
+            <!-- 지도 검색창 -->
+            <div id="mapSearchBox" class="map-search-box">
+                <div class="map-search-input-wrap">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" id="mapSearchInput" placeholder="매장명·주소 검색"
+                        autocomplete="off"
+                        oninput="handleMapSearch(this.value)"
+                        onfocus="handleMapSearch(this.value)">
+                    <button id="mapSearchClear" class="map-search-clear" onclick="clearMapSearch()" style="display:none">✕</button>
+                </div>
+                <div id="mapSearchResults" class="map-search-results"></div>
+            </div>
 
             <div id="map"></div>
             <button id="locateBtn" title="현재 위치로 이동" onclick="moveToMyLocation()">
@@ -2829,6 +2942,80 @@
         // ============================================================
         // 네이버 지도
         // ============================================================
+
+        /* ── 지도 검색 ── */
+        let _searchMatched = [];
+
+        function handleMapSearch(q) {
+            const resultsEl = document.getElementById('mapSearchResults');
+            const clearBtn  = document.getElementById('mapSearchClear');
+            q = q.trim();
+            clearBtn.style.display = q ? 'block' : 'none';
+            if (!q) { resultsEl.classList.remove('open'); resultsEl.innerHTML = ''; return; }
+
+            const lower = q.toLowerCase();
+            _searchMatched = [];
+
+            for (const m of allMarkers) {
+                if (_searchMatched.length >= 8) break;
+                if (!m._item) continue;
+                const name = (m._item['사업장명'] || '').toLowerCase();
+                const addr = (m._item['도로명전체주소'] || m._item['주소2'] || '').toLowerCase();
+                if (name.includes(lower) || addr.includes(lower)) {
+                    _searchMatched.push({ type: 'license', name: m._item['사업장명'], region: m._region || '', marker: m });
+                }
+            }
+            for (const m of accountMarkers) {
+                if (_searchMatched.length >= 8) break;
+                const name = (m._name || '').toLowerCase();
+                if (name.includes(lower)) {
+                    _searchMatched.push({ type: 'account', name: m._name, region: '', marker: m });
+                }
+            }
+
+            if (!_searchMatched.length) {
+                resultsEl.innerHTML = '<div class="map-search-no-result">검색 결과 없음</div>';
+                resultsEl.classList.add('open');
+                return;
+            }
+
+            resultsEl.innerHTML = _searchMatched.map((r, i) => `
+                <div class="map-search-result-item" onclick="selectSearchResult(${i})">
+                    <span class="map-search-result-name">${r.name.replace(/</g,'&lt;')}</span>
+                    ${r.region ? `<span class="map-search-result-region">${r.region.replace(/</g,'&lt;')}</span>` : ''}
+                    <span class="map-search-result-tag ${r.type === 'license' ? 'license' : 'account'}">
+                        ${r.type === 'license' ? '인허가' : '거래처'}
+                    </span>
+                </div>
+            `).join('');
+            resultsEl.classList.add('open');
+        }
+
+        function selectSearchResult(idx) {
+            const r = _searchMatched[idx];
+            if (!r) return;
+            const pos = r.marker.getPosition();
+            naverMap.setCenter(pos);
+            naverMap.setZoom(15, { animate: true });
+            naver.maps.Event.trigger(r.marker, 'click', { coord: pos });
+            clearMapSearch();
+        }
+
+        function clearMapSearch() {
+            document.getElementById('mapSearchInput').value = '';
+            document.getElementById('mapSearchClear').style.display = 'none';
+            const resultsEl = document.getElementById('mapSearchResults');
+            resultsEl.classList.remove('open');
+            resultsEl.innerHTML = '';
+        }
+
+        // 검색창 바깥 클릭 시 결과 닫기
+        document.addEventListener('click', function(e) {
+            const box = document.getElementById('mapSearchBox');
+            if (box && !box.contains(e.target)) {
+                document.getElementById('mapSearchResults').classList.remove('open');
+            }
+        });
 
         function toggleSidebar() {
             const sidebar = document.getElementById('mainSidebar');
