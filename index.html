@@ -355,12 +355,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .dropdown-header:hover {
-            background: #f5f5f7;
+            cursor: default;
         }
 
         .dropdown-header h4 {
@@ -370,25 +365,12 @@
         }
 
         .dropdown-arrow {
-            font-size: 12px;
-            color: #86868b;
-            transition: transform 0.2s;
-        }
-
-        .dropdown-card.open .dropdown-arrow {
-            transform: rotate(180deg);
+            display: none;
         }
 
         .dropdown-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .dropdown-card.open .dropdown-content {
-            max-height: 160px;
-            /* 4개 항목(약 40px * 4) 높이 제한 */
-            overflow-y: auto;
+            max-height: none;
+            overflow: visible;
         }
 
         .dropdown-list {
@@ -442,14 +424,6 @@
             flex-shrink: 0;
         }
 
-        #ddStatusCard.open .dropdown-content,
-        #ddMilkCard.open .dropdown-content {
-            max-height: 260px;
-        }
-
-        #ddAccountCard.open .dropdown-content {
-            max-height: 120px;
-        }
 
         /* ── 통합 필터 패널 ── */
         .filter-panel {
@@ -511,8 +485,6 @@
         }
 
         .filter-col-list {
-            max-height: 140px;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
             gap: 3px;
@@ -1917,7 +1889,7 @@
             <div class="sidebar-tab-content active" id="sidebarContentLicense">
                 <div class="section">
                     <div class="dropdown-card" id="ddStatusCard">
-                        <div class="dropdown-header" onclick="toggleDropdown('ddStatusCard')">
+                        <div class="dropdown-header" >
                             <h4>📍 인허가 현황</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
@@ -1928,7 +1900,7 @@
                 </div>
                 <div class="section">
                     <div class="dropdown-card" id="ddMilkCard">
-                        <div class="dropdown-header" onclick="toggleDropdown('ddMilkCard')">
+                        <div class="dropdown-header" >
                             <h4>🥛 사용우유(인허가)</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
@@ -1943,7 +1915,7 @@
             <div class="sidebar-tab-content active" id="sidebarContentAccount">
                 <div class="section">
                     <div class="dropdown-card" id="ddAccountCard">
-                        <div class="dropdown-header" onclick="toggleDropdown('ddAccountCard')">
+                        <div class="dropdown-header" >
                             <h4>📍 주요거래처 현황</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
