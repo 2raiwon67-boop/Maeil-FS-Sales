@@ -1199,6 +1199,33 @@
             }
         }
 
+        /* ===== 데스크탑 카탈로그 피커 모달 ===== */
+        #desktop-picker-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 8999;
+        }
+        #desktop-picker-backdrop.active { display: block; }
+
+        @media (min-width: 769px) {
+            .mobile-picker.desktop-open {
+                display: flex !important;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 680px;
+                height: 76vh;
+                max-height: 720px;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+                z-index: 9000;
+                overflow: hidden;
+            }
+        }
+
         /* ===== 가격 입력 바텀시트 ===== */
         #picker-price-sheet {
             display: none;
@@ -1457,6 +1484,8 @@
                         <button id="saveQuoteBtn" onclick="saveQuote()"
                             style="padding: 7px 16px; background: #34c759; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">💾
                             저장</button>
+                        <button id="saveQuoteCopyBtn" onclick="saveQuote(true)" title="현재 견적을 복사본으로 새로 저장"
+                            style="display:none;padding: 7px 12px; background: #f5f5f7; color: #1d1d1f; border: 1px solid #d2d2d7; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;">복사본</button>
                         <button onclick="generatePDF()"
                             style="padding: 7px 16px; background: #0071e3; color: white; border: none; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">🖨️
                             PDF 출력</button>
@@ -1511,7 +1540,11 @@
                     <!-- 편집 로우들이 여기에 들어감 -->
                 </div>
 
-                <button class="add-row-btn" onclick="addRow()" style="margin-top: 15px; width: 100%;">+ 품목 추가하기</button>
+                <div style="display:flex;gap:8px;margin-top:15px;">
+                    <button class="add-row-btn" onclick="addRow()" style="flex:1;">+ 품목 직접 추가</button>
+                    <button class="add-row-btn" id="catalog-picker-btn" onclick="openDesktopPicker()"
+                        style="flex:1;border-color:#0071e3;color:#0071e3;">📦 카탈로그에서 선택</button>
+                </div>
 
                 <div class="result-card active" style="margin-top: 20px; background: #f8f9fa;">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
@@ -1532,16 +1565,21 @@
         </datalist>
     </div>
 
-    <!-- 모바일 전용: 카드 피커 UI -->
+    <!-- 데스크탑 피커 모달 백드롭 -->
+    <div id="desktop-picker-backdrop" onclick="closeDesktopPicker()"></div>
+
+    <!-- 모바일 전용: 카드 피커 UI (데스크탑에서는 모달로 활용) -->
     <div id="mobile-picker" class="mobile-picker">
         <!-- 상단 바 -->
         <div class="picker-topbar">
-            <div class="picker-topbar-title">📋 제품 제안서 작성</div>
+            <div class="picker-topbar-title" id="picker-topbar-title">📋 제품 제안서 작성</div>
             <div style="display:flex;gap:6px;flex-shrink:0;">
-                <button class="picker-info-btn" onclick="showMobileAnalysis()">🔍 AI분석</button>
-                <button class="picker-info-btn" onclick="pickerSave()"
+                <button class="picker-info-btn" id="picker-btn-ai" onclick="showMobileAnalysis()">🔍 AI분석</button>
+                <button class="picker-info-btn" id="picker-btn-save" onclick="pickerSave()"
                     style="background:#f0fff4;color:#34c759;border-color:#b3efca;">💾 저장</button>
                 <button class="picker-info-btn" onclick="togglePickerInfo()">수신처</button>
+                <button class="picker-info-btn" id="picker-btn-desktop-close" onclick="closeDesktopPicker()"
+                    style="display:none;background:#f5f5f7;color:#1d1d1f;border-color:#d2d2d7;">✕ 닫기</button>
             </div>
         </div>
         <!-- 수신처 입력 패널 (토글) -->
@@ -2794,13 +2832,6 @@
             const businessUnit = user.user_metadata?.business_unit;
             if (!businessUnit) { showToast('사업부 정보가 없습니다. 관리자에게 문의하세요.', 'error'); return; }
 
-            // 불러온 견적 수정 시 저장 방식 선택
-            if (_loadedQuoteId && !forceNew) {
-                const choice = await _showSaveChoiceDialog();
-                if (choice === null) return; // 취소
-                if (choice === 'new') return saveQuote(true);
-            }
-
             const btn = document.getElementById('saveQuoteBtn');
             if (btn) { btn.disabled = true; btn.innerHTML = '⏳ 저장 중...'; }
 
@@ -2943,6 +2974,11 @@
             });
             syncInfo();
             closeQuotePickerModal();
+            // 복사본 버튼 표시 + 저장 버튼 레이블 업데이트
+            const copyBtn = document.getElementById('saveQuoteCopyBtn');
+            if (copyBtn) copyBtn.style.display = 'flex';
+            const saveBtn = document.getElementById('saveQuoteBtn');
+            if (saveBtn) saveBtn.innerHTML = `💾 저장 (${data.customer_name || '견적서'})`;
             showToast(`"${data.customer_name}" 견적서를 불러왔습니다.`);
         }
 
@@ -2961,12 +2997,33 @@
             loadSavedQuotes();
         }
 
-        // ===== 모바일 카드 피커 =====
+        // ===== 카드 피커 (모바일 전용 + 데스크탑 모달) =====
         let _pickerCurrentCat = 'all';
         let _pickerSelectedMap = {}; // rowId → name
 
         function initMobilePicker() {
             renderPickerCards(_pickerCurrentCat);
+        }
+
+        function openDesktopPicker() {
+            const picker = document.getElementById('mobile-picker');
+            picker.classList.add('desktop-open');
+            document.getElementById('desktop-picker-backdrop').classList.add('active');
+            document.getElementById('picker-btn-desktop-close').style.display = 'flex';
+            document.getElementById('picker-btn-ai').style.display = 'none';
+            document.getElementById('picker-btn-save').style.display = 'none';
+            document.getElementById('picker-topbar-title').textContent = '📦 상품 카탈로그';
+            renderPickerCards(_pickerCurrentCat);
+        }
+
+        function closeDesktopPicker() {
+            const picker = document.getElementById('mobile-picker');
+            picker.classList.remove('desktop-open');
+            document.getElementById('desktop-picker-backdrop').classList.remove('active');
+            document.getElementById('picker-btn-desktop-close').style.display = 'none';
+            document.getElementById('picker-btn-ai').style.display = '';
+            document.getElementById('picker-btn-save').style.display = '';
+            document.getElementById('picker-topbar-title').textContent = '📋 제품 제안서 작성';
         }
 
         const PICKER_CAT_KEYWORDS = {
@@ -3139,23 +3196,28 @@
         }
 
         function pickerGenerate() {
-            // 선택 항목 없으면 안내
             if (Object.keys(_pickerSelectedMap).length === 0) {
                 showToast('상품을 한 개 이상 선택해주세요.', 'warning');
                 return;
             }
-            // 피커에서 선택되지 않은 행 제거 (초기 빈 행 포함)
+
+            // 데스크탑 모달 모드: 모달만 닫고 선택 항목 유지
+            if (document.getElementById('mobile-picker').classList.contains('desktop-open')) {
+                closeDesktopPicker();
+                rebuildPreview();
+                return;
+            }
+
+            // 모바일: 피커에서 선택되지 않은 행 제거 후 미리보기
             Array.from(document.querySelectorAll('#editor-items-container > div')).forEach(row => {
                 const rowId = row.querySelector('.row-id')?.value;
                 if (!rowId || !_pickerSelectedMap[rowId]) row.remove();
             });
-            // 수신처 정보 동기화
             const custInput = document.getElementById('picker-customer-input');
             const mgrInput = document.getElementById('picker-manager-input');
             if (custInput) document.getElementById('edit-customerName').value = custInput.value;
             if (mgrInput) document.getElementById('edit-managerName').value = mgrInput.value;
             syncInfo();
-            // 프리뷰 재구성 후 오버레이 표시
             rebuildPreview();
             showMobilePreview();
         }
