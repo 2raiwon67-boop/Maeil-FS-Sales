@@ -115,14 +115,46 @@ const SIDO_SHORT = {
 };
 // 경기도·강원도 등 도 단위는 API에서도 정식명 그대로 사용 → 변환 불필요
 
-function toApiSido(sido) { return SIDO_SHORT[sido] || sido; }
+// ── 광역시·특별시 '구' → 시도 약칭 역매핑 ─────────────────
+// managers 테이블에 region1(시도)이 없이 region2(구)만 입력된 경우 대응
+// 여러 도시에 겹치는 구명(서구·동구·남구·북구·중구)은 의도적으로 제외
+const METRO_GU_SIDO = {
+    // 서울 (25구 중 타 도시와 이름 안 겹치는 21구)
+    '강남구':'서울','강동구':'서울','강북구':'서울','강서구':'서울',
+    '관악구':'서울','광진구':'서울','구로구':'서울','금천구':'서울',
+    '노원구':'서울','도봉구':'서울','동대문구':'서울','동작구':'서울',
+    '마포구':'서울','서대문구':'서울','서초구':'서울','성동구':'서울',
+    '성북구':'서울','송파구':'서울','양천구':'서울','영등포구':'서울',
+    '용산구':'서울','은평구':'서울','종로구':'서울','중랑구':'서울',
+    // 부산 고유 구
+    '금정구':'부산','동래구':'부산','부산진구':'부산','사상구':'부산',
+    '사하구':'부산','수영구':'부산','연제구':'부산','영도구':'부산','해운대구':'부산',
+    // 인천 고유 구
+    '계양구':'인천','남동구':'인천','미추홀구':'인천','부평구':'인천','연수구':'인천',
+    // 대구 고유 구
+    '달서구':'대구','달성군':'대구','수성구':'대구',
+    // 울산 고유 구
+    '울주군':'울산',
+    // 광주 고유 구
+    '광산구':'광주',
+};
+
+// region 문자열에서 API용 시도 약칭 추출
+// '서울특별시 강남구' → '서울', '강남구' → '서울', '경기도 의정부시' → '경기도'
+function getEffectiveSido(regionStr) {
+    const first = regionStr.split(' ')[0];
+    const mapped = SIDO_SHORT[first];
+    if (mapped) return mapped;                          // 정식·약식 시도명
+    return METRO_GU_SIDO[first] || first;              // 구이름이면 부모 시도, 나머지는 그대로
+}
 
 // ── 업종 × 시도 단위 전체 페이지 조회 ───────────────────
 // regions = ['경기도 의정부시', '경기도 양주시', '서울특별시 강남구', ...]
 // → 시도별로 묶어서 요청 수 최소화 (기존 지역별 69개 → 시도별 6~9개)
 async function fetchAllForType(typeCode, apiKey, startDate, endDate, regions) {
     // 시도(첫 번째 단어) 기준으로 중복 제거 + API 약칭 변환
-    const sidoSet = new Set(regions.map(r => toApiSido(r.split(' ')[0])).filter(Boolean));
+    // getEffectiveSido: region1 없이 '구'만 입력된 경우도 올바른 시도로 그룹핑
+    const sidoSet = new Set(regions.map(r => getEffectiveSido(r)).filter(Boolean));
     const sidoList = [...sidoSet];
 
     // 1단계: 시도별 1페이지씩 병렬 조회

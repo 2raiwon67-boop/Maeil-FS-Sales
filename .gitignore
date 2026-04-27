@@ -26,3 +26,4 @@ skills-lock.json
 
 # Claude Code 로컬 설정
 .claude/
+.vercel

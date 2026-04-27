@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { table } = req.query;
+    const { table, business_unit } = req.query;
     if (!ALLOWED_TABLES.includes(table)) {
         return res.status(400).json({ error: 'Invalid table' });
     }
@@ -30,7 +30,8 @@ export default async function handler(req, res) {
     }
 
     try {
-        const url = `${SUPABASE_URL}/rest/v1/${table}?select=*&limit=20000`;
+        const buFilter = business_unit ? `&business_unit=eq.${encodeURIComponent(business_unit)}` : '';
+        const url = `${SUPABASE_URL}/rest/v1/${table}?select=*${buFilter}&limit=20000`;
         const resp = await fetch(url, {
             headers: {
                 'apikey': SERVICE_KEY,

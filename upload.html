@@ -655,6 +655,17 @@
         <h1 class="page-title">데이터 관리</h1>
         <p class="page-sub">지점 데이터를 확인하고 관리합니다. 담당자·거래처는 직접 편집, 인허가·방문일지는 엑셀 업로드로 교체합니다.</p>
 
+        <!-- 관리자 지점 선택 배너 (관리자 계정에만 표시) -->
+        <div id="adminBranchBanner" style="display:none; background:#fff8e1; border:1px solid #ffc107; border-radius:10px; padding:10px 16px; margin-bottom:16px; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span style="font-size:13px; font-weight:600; color:#7a5900;">👑 관리자 모드</span>
+            <span style="font-size:13px; color:#555;">조회할 지점:</span>
+            <select id="adminBranchSelect" onchange="onAdminBranchChange(this.value)"
+                style="font-size:13px; padding:5px 10px; border:1px solid #e0c060; border-radius:7px; background:#fffdf0; min-width:160px;">
+                <option value="">— 지점을 선택해주세요 —</option>
+            </select>
+            <span id="adminBranchNote" style="font-size:12px; color:#86868b;"></span>
+        </div>
+
         <div class="main-grid">
 
             <!-- 왼쪽: 유형 선택 + DB 현황 + 공공인허가 조회 -->
@@ -974,17 +985,47 @@
         // ── DB 현황 상태 ──────────────────────────────────────
         let currentDbData = [];
         let currentBusinessUnit = null;
+        let adminTargetBU = null;         // 관리자가 선택한 지점 BU
         let previewPage = 0;
         const PREVIEW_PAGE_SIZE = 5;
+        const ADMIN_CODE = '532753';
+
+        // ── 관리자 지점 변경 핸들러 ─────────────────────────
+        function onAdminBranchChange(bu) {
+            adminTargetBU = bu || null;
+            currentBusinessUnit = null; // 캐시 초기화
+            document.getElementById('adminBranchNote').textContent =
+                adminTargetBU ? `(${adminTargetBU} 데이터 조회 중)` : '';
+            previewPage = 0;
+            if (adminTargetBU) {
+                loadCurrentData();
+                loadRawManagerMap();
+                loadRegionChips();
+            }
+        }
 
         // ── 페이지 초기화 ────────────────────────────────────
         window.addEventListener('load', () => {
             document.body.classList.add('loaded');
             setupLogoutButton();
-            // 레시피 버튼: 관리자만 표시
-            if (sessionStorage.getItem('fs_admin_access') === 'true') {
+            const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+            // 레시피 버튼·지점 선택 배너: 관리자만 표시
+            if (isAdmin) {
                 const recipeBtn = document.getElementById('recipeTypeBtn');
                 if (recipeBtn) recipeBtn.style.display = '';
+                // 관리자 배너 초기화
+                const banner = document.getElementById('adminBranchBanner');
+                if (banner) {
+                    banner.style.display = 'flex';
+                    const sel = document.getElementById('adminBranchSelect');
+                    // 업로드(write) 권한 없는 BU 제외 없이 전체 표시
+                    (typeof BUSINESS_UNITS !== 'undefined' ? BUSINESS_UNITS : []).forEach(bu => {
+                        const opt = document.createElement('option');
+                        opt.value = bu;
+                        opt.textContent = bu;
+                        sel.appendChild(opt);
+                    });
+                }
             }
             // onAuthStateChange를 통해 세션 복원 시점에 데이터 로드
             // (INITIAL_SESSION: 기존 세션 복원, SIGNED_IN: 신규 로그인)
@@ -1057,14 +1098,14 @@
 
         // ── business_unit 취득 ───────────────────────────────
         async function getBusinessUnit() {
+            // 관리자: 선택된 지점 BU 반환
+            if (sessionStorage.getItem('fs_admin_access') === 'true') return adminTargetBU;
             if (currentBusinessUnit) return currentBusinessUnit;
             if (!client) return null;
             try {
-                // getSession()은 localStorage에서 즉시 읽음 (네트워크 불필요)
                 const { data: { session } } = await client.auth.getSession();
                 const bu = session?.user?.user_metadata?.business_unit ?? null;
                 if (bu) { currentBusinessUnit = bu; return bu; }
-                // 세션이 없으면 getUser()로 재확인 (네트워크 요청)
                 const { data: userData } = await client.auth.getUser();
                 const bu2 = userData?.user?.user_metadata?.business_unit ?? null;
                 if (bu2) currentBusinessUnit = bu2;
@@ -1201,14 +1242,49 @@
             dbBody.innerHTML = '<div class="db-loading"><span class="spinner-dark"></span>데이터 로딩 중...</div>';
             dbCount.textContent = '—';
 
+            const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
             const businessUnit = cfg.noBusinessUnit ? null : await getBusinessUnit();
             if (!cfg.noBusinessUnit && !businessUnit) {
-                dbBody.innerHTML = '<div class="db-empty">소속 정보를 불러오지 못했습니다.<br><button onclick="loadCurrentData()" style="margin-top:8px;padding:6px 14px;background:#0071e3;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🔄 다시 시도</button></div>';
+                dbBody.innerHTML = isAdmin
+                    ? '<div class="db-empty" style="color:#7a5900;">👑 위에서 조회할 지점을 선택해주세요.</div>'
+                    : '<div class="db-empty">소속 정보를 불러오지 못했습니다.<br><button onclick="loadCurrentData()" style="margin-top:8px;padding:6px 14px;background:#0071e3;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🔄 다시 시도</button></div>';
                 dbCount.textContent = '—';
                 return;
             }
 
             try {
+                // 관리자는 admin-all-data API 사용 (RLS 우회)
+                if (isAdmin && businessUnit && cfg.table) {
+                    const resp = await fetch(
+                        `/api/admin-all-data?table=${cfg.table}&business_unit=${encodeURIComponent(businessUnit)}`,
+                        { headers: { 'x-admin-key': ADMIN_CODE } }
+                    );
+                    if (!resp.ok) throw new Error(`관리자 API 오류: ${resp.status}`);
+                    const json = await resp.json();
+                    let rows = json.data || [];
+
+                    // licenses/visit_logs 정렬 (서버 정렬 없으므로 클라이언트 정렬)
+                    if (cfg.table === 'licenses') rows.sort((a, b) => (b.permit_date || '') > (a.permit_date || '') ? 1 : -1);
+                    else if (cfg.table === 'visit_logs') rows.sort((a, b) => (b.visit_date || '') > (a.visit_date || '') ? 1 : -1);
+
+                    dbCount.textContent = `${rows.length}건`;
+                    if (!rows.length) {
+                        dbBody.innerHTML = '<div class="db-empty">아직 업로드된 데이터가 없습니다.</div>';
+                        currentDbData = [];
+                        return;
+                    }
+
+                    if (cfg.editable) {
+                        currentDbData = rows;
+                        renderEditableTable(rows, cfg, rows.length);
+                    } else {
+                        const pageRows = rows.slice(previewPage * PREVIEW_PAGE_SIZE, (previewPage + 1) * PREVIEW_PAGE_SIZE);
+                        currentDbData = pageRows;
+                        renderReadonlyTable(pageRows, cfg, rows.length);
+                    }
+                    return;
+                }
+
                 // 전체 건수 조회
                 let countQuery = client.from(cfg.table).select('*', { count: 'exact' }).limit(1);
                 if (businessUnit) countQuery = countQuery.eq('business_unit', businessUnit);
@@ -1666,15 +1742,27 @@
             if (!cfg.editable && cfg.table) {
                 showToast('전체 데이터 조회 중...');
                 try {
+                    const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
                     const businessUnit = cfg.noBusinessUnit ? null : await getBusinessUnit();
-                    const url = businessUnit
-                        ? `${SUPABASE_URL}/rest/v1/${cfg.table}?business_unit=eq.${encodeURIComponent(businessUnit)}&select=*&limit=10000`
-                        : `${SUPABASE_URL}/rest/v1/${cfg.table}?select=*&limit=10000`;
-                    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
-                    const { data: { session } } = await client.auth.getSession();
-                    const token = session?.access_token || anonKey;
-                    const res = await fetch(url, { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } });
-                    data = res.ok ? await res.json() : [];
+
+                    if (isAdmin && businessUnit) {
+                        // 관리자: admin-all-data API 사용 (RLS 우회)
+                        const resp = await fetch(
+                            `/api/admin-all-data?table=${cfg.table}&business_unit=${encodeURIComponent(businessUnit)}`,
+                            { headers: { 'x-admin-key': ADMIN_CODE } }
+                        );
+                        const json = resp.ok ? await resp.json() : {};
+                        data = json.data || [];
+                    } else {
+                        const url = businessUnit
+                            ? `${SUPABASE_URL}/rest/v1/${cfg.table}?business_unit=eq.${encodeURIComponent(businessUnit)}&select=*&limit=10000`
+                            : `${SUPABASE_URL}/rest/v1/${cfg.table}?select=*&limit=10000`;
+                        const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                        const { data: { session } } = await client.auth.getSession();
+                        const token = session?.access_token || anonKey;
+                        const res = await fetch(url, { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } });
+                        data = res.ok ? await res.json() : [];
+                    }
                 } catch (e) {
                     showToast('데이터 조회 실패');
                     return;
@@ -2125,11 +2213,13 @@
                     if (!r.region2 || r.region2 === '지점장') return;
                     const base = normalizeRegion1(r.region1) + '|' + r.region2;
                     if (r.region3) {
-                        // region3 있으면 구 단위 키 우선 등록
                         rawManagerMap[base + '|' + r.region3] = r.manager_name;
+                        // region1 누락 폴백: '|region2|region3' 키도 등록
+                        if (!r.region1) rawManagerMap['|' + r.region2 + '|' + r.region3] = r.manager_name;
                     } else {
-                        // region3 없으면 시 단위 키 등록 (폴백 포함)
                         rawManagerMap[base] = r.manager_name;
+                        // region1 누락 폴백: region2만으로도 매핑 가능하도록 등록 (먼저 등록된 것 우선)
+                        if (!rawManagerMap['~' + r.region2]) rawManagerMap['~' + r.region2] = r.manager_name;
                     }
                 });
             } catch (e) {
@@ -2245,10 +2335,12 @@
                 if (!data.success) throw new Error(data.error || '조회 실패');
 
                 // 담당자 매핑 (rawManagerMap: normalizeRegion1(addr1)|addr2[|addr3] → manager_name)
+                // region1 누락 시 폴백: addr2만('~구이름')으로도 탐색
                 srchResults = data.items.map(item => {
                     const key = normalizeRegion1(item.address1) + '|' + item.address2;
                     const manager = (item.address3 ? rawManagerMap[key + '|' + item.address3] : null)
                                  || rawManagerMap[key]
+                                 || rawManagerMap['~' + item.address2]
                                  || '';
                     return { ...item, manager };
                 });

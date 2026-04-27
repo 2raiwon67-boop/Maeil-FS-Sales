@@ -175,7 +175,32 @@
         #monthLabel {
             font-size: 13px; font-weight: 700; color: var(--color-text);
             min-width: 72px; text-align: center;
+            cursor: pointer; user-select: none;
+            padding: 4px 10px; border-radius: var(--radius-sm);
+            transition: background 0.15s ease;
         }
+        #monthLabel:hover { background: rgba(0,113,227,0.08); color: var(--color-primary); }
+
+        /* ── MONTH PICKER DROPDOWN ── */
+        .month-picker-dd {
+            position: fixed;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+            z-index: 2000;
+            overflow-y: auto;
+            max-height: 300px;
+            min-width: 130px;
+        }
+        .mpdd-item {
+            padding: 10px 18px;
+            font-size: 13px; cursor: pointer;
+            transition: background 0.1s ease;
+            white-space: nowrap;
+        }
+        .mpdd-item:hover { background: var(--color-bg); }
+        .mpdd-item.active { font-weight: 700; color: var(--color-primary); background: rgba(0,113,227,0.07); }
         .btn-mclear {
             height: 28px; padding: 0 12px;
             font-size: 12px; font-weight: 500;
@@ -500,7 +525,7 @@
         <span class="tb-lbl">월</span>
         <div class="mnav">
             <button class="marr" onclick="shiftMonth(-1)">‹</button>
-            <span id="monthLabel">전체</span>
+            <span id="monthLabel" onclick="openMonthPicker(event)" title="클릭하여 월 선택">전체</span>
             <button class="marr" onclick="shiftMonth(1)">›</button>
         </div>
         <button class="btn-mclear" id="btnMonthClear" onclick="clearMonth()">전체 보기</button>
@@ -839,7 +864,8 @@ function initMap() {
             level: 9,
         });
         mapReady = true;
-        loadGeoData();
+        // GeoJSON 미리 로드 후 배경 폴리곤 즉시 표시
+        loadGeoData().then(() => { if (geoData) renderGeoMap([]); });
         if (pendingMapRender) { pendingMapRender(); pendingMapRender = null; }
     });
 }
@@ -1059,7 +1085,6 @@ function renderKPIs({ totalNew, totalClosed, net }) {
 
 /* ─── MAP ─── */
 function renderMap(regions) {
-    if (!regions?.length) return;
     if (!mapReady) { pendingMapRender = () => renderMap(regions); return; }
 
     const primarySido = (viewMode === 'sido' && viewSido)
@@ -1074,7 +1099,14 @@ function renderMap(regions) {
     if (geoData) {
         renderGeoMap(regions);
     } else {
-        loadGeoData().then(() => { if (geoData) renderGeoMap(regions); });
+        loadGeoData().then(() => {
+            if (geoData) {
+                renderGeoMap(regions);
+            } else {
+                // GeoJSON 실패 시 버블 마커 폴백
+                if (regions?.length) renderBubbleMap(regions);
+            }
+        });
     }
 }
 
@@ -1233,14 +1265,23 @@ function renderComparison() {
 ═══════════════════════════════════════════════ */
 const GEOJSON_URL = 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea-municipalities-geo.json';
 let geoData = null;
+let geoLoadPromise = null;
 
 async function loadGeoData() {
     if (geoData) return;
-    try {
-        const r = await fetch(GEOJSON_URL);
-        if (!r.ok) return;
-        geoData = await r.json();
-    } catch(_) {}
+    if (geoLoadPromise) return geoLoadPromise;
+    geoLoadPromise = (async () => {
+        try {
+            const r = await fetch(GEOJSON_URL);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            geoData = await r.json();
+        } catch(e) {
+            console.warn('[discover] GeoJSON 로드 실패:', e.message);
+            geoData = null;
+            geoLoadPromise = null; // 재시도 허용
+        }
+    })();
+    return geoLoadPromise;
 }
 
 function ringCentroid(ring) {
@@ -1403,6 +1444,87 @@ function renderDrillList(tab) {
             ${s.address ? `<div class="drill-addr">${esc(s.address)}</div>` : ''}
         </div>`;
     }).join('');
+}
+
+/* ─── 버블 마커 폴백 (GeoJSON 실패 시) ─── */
+let bubbleOverlays = [];
+function renderBubbleMap(regions) {
+    bubbleOverlays.forEach(o => o.setMap(null));
+    bubbleOverlays = [];
+    if (!regions?.length || !map) return;
+
+    const maxNew = Math.max(...regions.map(r => r.new), 1);
+    regions.forEach(r => {
+        const sido = sigunguSidoMap[r.region] || viewSido || '경기도';
+        const key  = `${sido}_${r.region}`;
+        const coords = CENTROIDS[key];
+        if (!coords) return;
+
+        const fill   = r.net > 2 ? '#34c759' : r.net < -2 ? '#ff3b30' : '#a1a1a6';
+        const radius = Math.max(800, Math.min(4000, (r.new / maxNew) * 4000));
+
+        const circle = new kakao.maps.Circle({
+            map,
+            center: new kakao.maps.LatLng(coords[0], coords[1]),
+            radius,
+            strokeWeight: 1.5,
+            strokeColor: '#fff',
+            strokeOpacity: 0.9,
+            fillColor: fill,
+            fillOpacity: 0.6,
+        });
+        kakao.maps.event.addListener(circle, 'click', () => openDrilldown(r.region));
+        bubbleOverlays.push(circle);
+    });
+}
+
+/* ─── 월 피커 드롭다운 ─── */
+function openMonthPicker(e) {
+    e.stopPropagation();
+    const existing = document.getElementById('monthPickerDd');
+    if (existing) { existing.remove(); return; }
+
+    const lbl  = document.getElementById('monthLabel');
+    const rect = lbl.getBoundingClientRect();
+
+    const dd = document.createElement('div');
+    dd.id = 'monthPickerDd';
+    dd.className = 'month-picker-dd';
+    dd.style.top  = `${rect.bottom + 6}px`;
+    dd.style.left = `${rect.left}px`;
+
+    const allItem = document.createElement('div');
+    allItem.className = 'mpdd-item' + (!selectedMonth ? ' active' : '');
+    allItem.textContent = '전체';
+    allItem.onclick = () => { clearMonth(); dd.remove(); };
+    dd.appendChild(allItem);
+
+    const cur = currentYM();
+    let m = cur;
+    while (m >= '2025-01') {
+        const mo = m;
+        const item = document.createElement('div');
+        item.className = 'mpdd-item' + (mo === selectedMonth ? ' active' : '');
+        item.textContent = mo;
+        item.onclick = () => {
+            selectedMonth = mo;
+            updateMonthUI();
+            applyFilters();
+            dd.remove();
+        };
+        dd.appendChild(item);
+        m = addMonths(m, -1);
+    }
+
+    document.body.appendChild(dd);
+
+    const close = (ev) => {
+        if (!dd.contains(ev.target) && ev.target !== lbl) {
+            dd.remove();
+            document.removeEventListener('click', close, true);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', close, true), 50);
 }
 
 /* ─── 차트 접기/펼치기 ─── */
