@@ -2199,15 +2199,26 @@
             try {
                 const bu = await getBusinessUnit();
                 if (!bu) return;
-                const { data: { session } } = await client.auth.getSession();
-                const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
-                const token = session?.access_token || anonKey;
-                const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,region3,manager_name`,
-                    { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
-                );
-                if (!res.ok) return;
-                const rows = await res.json();
+                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+                let rows;
+                if (isAdmin) {
+                    const resp = await fetch(
+                        `/api/admin-all-data?table=managers&business_unit=${encodeURIComponent(bu)}`,
+                        { headers: { 'x-admin-key': ADMIN_CODE } }
+                    );
+                    if (!resp.ok) return;
+                    rows = (await resp.json()).data || [];
+                } else {
+                    const { data: { session } } = await client.auth.getSession();
+                    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                    const token = session?.access_token || anonKey;
+                    const res = await fetch(
+                        `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,region3,manager_name`,
+                        { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
+                    );
+                    if (!res.ok) return;
+                    rows = await res.json();
+                }
                 rawManagerMap = {};
                 rows.forEach(r => {
                     if (!r.region2 || r.region2 === '지점장') return;
@@ -2256,18 +2267,33 @@
             const chipContainer = document.getElementById('regionChips');
             try {
                 const bu = await getBusinessUnit();
-                if (!bu) throw new Error('소속 없음');
+                if (!bu) {
+                    chipContainer.innerHTML = sessionStorage.getItem('fs_admin_access') === 'true'
+                        ? '<span style="font-size:12px;color:#86868b;">위 지점 선택 후 지역 칩이 표시됩니다.</span>'
+                        : '<span style="font-size:12px;color:#c00;">지역 로드 실패 — 담당자 관리에서 시도/시군구를 입력해주세요.</span>';
+                    return;
+                }
 
-                const { data: { session } } = await client.auth.getSession();
-                const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
-                const token = session?.access_token || anonKey;
-
-                const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`,
-                    { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
-                );
-                if (!res.ok) throw new Error('조회 실패');
-                const rows = await res.json();
+                const isAdminChip = sessionStorage.getItem('fs_admin_access') === 'true';
+                let rows;
+                if (isAdminChip) {
+                    const resp = await fetch(
+                        `/api/admin-all-data?table=managers&business_unit=${encodeURIComponent(bu)}`,
+                        { headers: { 'x-admin-key': ADMIN_CODE } }
+                    );
+                    if (!resp.ok) throw new Error('관리자 API 오류');
+                    rows = ((await resp.json()).data || []).filter(r => !r.is_branch_manager);
+                } else {
+                    const { data: { session } } = await client.auth.getSession();
+                    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                    const token = session?.access_token || anonKey;
+                    const res = await fetch(
+                        `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`,
+                        { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
+                    );
+                    if (!res.ok) throw new Error('조회 실패');
+                    rows = await res.json();
+                }
 
                 // region1+region2+region3 조합 기준 중복 제거 (중구·동구 등 전국 동명 시군구 오필터 방지)
                 const seen = new Set();
