@@ -115,6 +115,21 @@ const SIDO_SHORT = {
 };
 // 경기도·강원도 등 도 단위는 API에서도 정식명 그대로 사용 → 변환 불필요
 
+// 약칭 → 주소 매칭에 사용할 모든 시도명 변형 (풀네임 + 약칭)
+// 공공데이터 API 응답은 LOTNO_ADDR='서울특별시 강남구 ...' 형태로 풀네임이라
+// 사용자가 '서울시 강남구'를 입력해도 '서울특별시 강남구'와 매칭돼야 함
+const SIDO_FULLNAME_VARIANTS = {
+    '서울': ['서울특별시', '서울시', '서울'],
+    '부산': ['부산광역시', '부산시', '부산'],
+    '대구': ['대구광역시', '대구시', '대구'],
+    '인천': ['인천광역시', '인천시', '인천'],
+    '광주': ['광주광역시', '광주시', '광주'],
+    '대전': ['대전광역시', '대전시', '대전'],
+    '울산': ['울산광역시', '울산시', '울산'],
+    '세종': ['세종특별자치시', '세종시', '세종'],
+    '제주': ['제주특별자치도', '제주도', '제주'],
+};
+
 // ── 광역시·특별시 '구' → 시도 약칭 역매핑 ─────────────────
 // managers 테이블에 region1(시도)이 없이 region2(구)만 입력된 경우 대응
 // 여러 도시에 겹치는 구명(서구·동구·남구·북구·중구)은 의도적으로 제외
@@ -243,14 +258,16 @@ function normalize(item, typeCode) {
 
 // ── upload.html processRawData 필터 로직 ─────────────────
 function applyBusinessLogic(items, regionList) {
-    // regionList의 각 항목에 대해 정식명+약칭 두 가지 변형 생성
-    // 예: '서울특별시 강남구' → ['서울특별시 강남구', '서울 강남구']
+    // regionList의 각 항목에 대해 광역시·특별시는 모든 풀네임/약칭 변형 생성
+    // 예: '서울시 강남구' → ['서울특별시 강남구', '서울시 강남구', '서울 강남구']
+    // (API 응답이 '서울특별시'로 풀네임이므로 사용자가 어떤 형태로 입력하든 매칭돼야 함)
     const regionVariants = regionList.map(r => {
         const parts = r.split(' ');
         const short = SIDO_SHORT[parts[0]];
-        return short
-            ? [r, `${short} ${parts.slice(1).join(' ')}`]
-            : [r];
+        if (!short) return [r];                 // 도 단위(경기도 등): 변형 없음
+        const rest = parts.slice(1).join(' ');
+        const variants = SIDO_FULLNAME_VARIANTS[short] || [short];
+        return variants.map(v => rest ? `${v} ${rest}` : v);
     });
 
     return items.filter(it => {
