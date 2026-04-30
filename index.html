@@ -83,7 +83,7 @@
         /* =============== 메인 레이아웃 =============== */
         .main-layout {
             display: grid;
-            grid-template-columns: 340px 1fr;
+            grid-template-columns: 260px 1fr;
             height: calc(100vh - 52px);
             transition: grid-template-columns 0.28s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -108,10 +108,10 @@
         }
 
         .sidebar-inner {
-            width: 340px;
+            width: 260px;
             height: 100%;
             overflow-y: auto;
-            padding: 20px;
+            padding: 14px;
             opacity: 1;
             transition: opacity 0.15s ease;
         }
@@ -125,7 +125,7 @@
         .sidebar-toggle-btn {
             position: absolute;
             top: 50%;
-            left: 340px;
+            left: 260px;
             transform: translate(-50%, -50%);
             width: 28px;
             height: 28px;
@@ -160,7 +160,7 @@
         }
 
         .sidebar-title {
-            font-size: 22px;
+            font-size: 16px;
             font-weight: 700;
             color: #1d1d1f;
             margin-bottom: 12px;
@@ -1952,6 +1952,170 @@
             color: white;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
+
+        /* ── 우측 거래처 패널 ── */
+        .store-panel {
+            position: fixed;
+            top: 52px;
+            right: -420px;
+            width: 400px;
+            height: calc(100vh - 52px);
+            background: #ffffff;
+            border-left: 1px solid #e2e8f0;
+            box-shadow: -6px 0 32px rgba(15,23,42,.1);
+            z-index: 1000;
+            transition: right .3s cubic-bezier(.4,0,.2,1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            font-family: 'Pretendard', -apple-system, sans-serif;
+        }
+        .store-panel.open { right: 0; }
+        .sp-backdrop {
+            position: fixed; inset: 0; background: rgba(15,23,42,.2);
+            z-index: 999; opacity: 0; pointer-events: none; transition: opacity .28s ease;
+        }
+        .sp-backdrop.on { opacity: 1; pointer-events: all; }
+
+        .sp-hd {
+            display: flex; align-items: center; gap: 10px;
+            padding: 14px 18px; border-bottom: 1px solid #f1f5f9;
+            flex-shrink: 0; background: #f8fafc;
+        }
+        .sp-back-btn {
+            height: 30px; padding: 0 12px; border-radius: 100px;
+            border: 1px solid #e2e8f0; background: #fff;
+            color: #2563eb; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all .14s ease; white-space: nowrap;
+        }
+        .sp-back-btn:hover { background: #eff6ff; }
+        .sp-hd-title { font-size: 16px; font-weight: 800; color: #0f172a; flex: 1; letter-spacing: -.02em; }
+        .sp-x-btn {
+            width: 30px; height: 30px; border-radius: 50%;
+            border: 1px solid #e2e8f0; background: #fff; color: #64748b;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-family: inherit; transition: all .14s ease;
+        }
+        .sp-x-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+        /* 목록 뷰 */
+        .sp-search-row {
+            padding: 10px 16px 0; flex-shrink: 0;
+        }
+        .sp-search-input {
+            width: 100%; height: 34px; padding: 0 12px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 13px; font-family: inherit; color: #0f172a;
+            outline: none; transition: border-color .14s ease;
+        }
+        .sp-search-input:focus { border-color: #2563eb; }
+
+        .sp-tab-row {
+            display: flex; gap: 4px; padding: 10px 16px 0;
+            flex-shrink: 0;
+        }
+        .sp-list-tab {
+            flex: 1; height: 32px; border-radius: 100px;
+            border: 1px solid #e2e8f0; background: transparent;
+            color: #64748b; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all .14s ease;
+        }
+        .sp-list-tab:hover { border-color: #2563eb; color: #2563eb; }
+        .sp-list-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .sp-list-count { font-weight: 400; opacity: .7; }
+
+        .sp-list-body { flex: 1; overflow-y: auto; padding: 8px 12px; min-height: 0; }
+        .sp-list-body::-webkit-scrollbar { width: 3px; }
+        .sp-list-body::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+        .sp-item {
+            padding: 11px 14px; border-radius: 10px; margin-bottom: 5px;
+            border: 1px solid #f1f5f9; background: #fff; cursor: pointer;
+            transition: all .13s ease;
+        }
+        .sp-item:hover { border-color: #bfdbfe; box-shadow: 0 2px 8px rgba(37,99,235,.08); transform: translateY(-1px); }
+        .sp-item-top { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
+        .sp-item-name { font-size: 14px; font-weight: 700; color: #0f172a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sp-item-badge {
+            font-size: 11px; font-weight: 700; padding: 2px 8px;
+            border-radius: 20px; flex-shrink: 0; white-space: nowrap;
+        }
+        .sp-item-sub { font-size: 11px; color: #94a3b8; }
+
+        /* 상세 뷰 */
+        .sp-detail { flex: 1; overflow-y: auto; min-height: 0; }
+        .sp-detail::-webkit-scrollbar { width: 3px; }
+        .sp-detail::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+        .sp-detail-hero {
+            padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #f1f5f9;
+        }
+        .sp-detail-hero-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+        .sp-detail-store-name { font-size: 18px; font-weight: 800; color: #0f172a; flex: 1; letter-spacing: -.02em; line-height: 1.3; }
+        .sp-hero-badges { display: flex; gap: 5px; flex-wrap: wrap; }
+        .sp-hero-badge {
+            font-size: 11px; font-weight: 700; padding: 3px 9px;
+            border-radius: 20px; white-space: nowrap;
+        }
+
+        .sp-kpi-row {
+            display: flex; gap: 12px; padding: 14px 20px;
+            border-bottom: 1px solid #f1f5f9; flex-shrink: 0;
+        }
+        .sp-kpi { display: flex; flex-direction: column; gap: 2px; }
+        .sp-kpi-l { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: .1em; text-transform: uppercase; }
+        .sp-kpi-v { font-size: 16px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1; }
+
+        .sp-section { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; }
+        .sp-section-title { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
+
+        .sp-status-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+        .sp-status-btn {
+            height: 30px; padding: 0 13px; border-radius: 100px;
+            border: 1.5px solid #e2e8f0; background: transparent;
+            color: #64748b; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all .14s ease;
+        }
+        .sp-status-btn:hover { border-color: currentColor; opacity: .8; }
+        .sp-status-btn.sel { color: #fff; border-color: transparent; }
+
+        .sp-milk-row { display: flex; gap: 5px; flex-wrap: wrap; }
+        .sp-milk-btn {
+            height: 28px; padding: 0 11px; border-radius: 100px;
+            border: 1px solid #e2e8f0; background: transparent;
+            color: #64748b; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all .14s ease;
+        }
+        .sp-milk-btn.sel { background: #5856d6; border-color: #5856d6; color: #fff; }
+
+        .sp-info-rows {}
+        .sp-info-row { display: flex; align-items: baseline; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f8fafc; }
+        .sp-info-row:last-child { border-bottom: none; }
+        .sp-info-l { font-size: 11px; font-weight: 600; color: #94a3b8; min-width: 54px; flex-shrink: 0; }
+        .sp-info-v { font-size: 13px; font-weight: 500; color: #0f172a; flex: 1; line-height: 1.4; }
+
+        .sp-memo-area {
+            width: 100%; height: 64px; padding: 8px 10px;
+            border: 1px solid #e2e8f0; border-radius: 8px;
+            font-size: 12px; font-family: inherit; color: #0f172a;
+            resize: none; outline: none; transition: border-color .14s ease;
+            box-sizing: border-box;
+        }
+        .sp-memo-area:focus { border-color: #2563eb; }
+        .sp-memo-btns { display: flex; gap: 5px; margin-top: 6px; }
+        .sp-memo-save { flex: 1; height: 32px; background: #2563eb; color: #fff; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: background .14s; }
+        .sp-memo-save:hover { background: #1d4ed8; }
+        .sp-memo-del { height: 32px; padding: 0 13px; background: #fee2e2; color: #dc2626; border: none; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; }
+
+        .sp-actions { display: flex; gap: 6px; padding: 14px 20px 18px; flex-shrink: 0; }
+        .sp-action-btn {
+            flex: 1; height: 38px; border-radius: 10px;
+            border: none; font-size: 13px; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: opacity .14s ease;
+        }
+        .sp-action-btn:hover { opacity: .85; }
+
+        .sp-empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 13px; }
     </style>
 </head>
 
@@ -2756,6 +2920,262 @@
             }
         }
 
+        /* ═══ 우측 거래처 패널 ═══ */
+        let _spCurrentTab  = 'license';
+        let _spSearch      = '';
+        let _spCurrentItem = null;
+        let _spCurrentType = null;
+
+        const SP_STATUS_COLORS = {
+            '인허가': '#8e8e93', '공사중': '#ff9500', '거래': '#34c759',
+            '미거래': '#8e8e93', 'DROP': '#ff3b30',
+        };
+        const SP_STATUS_LABELS = ['인허가','공사중','거래','미거래','DROP'];
+        const SP_MILK_LIST = ['','매일','서울','남양','연세','동원','빙그레','기타'];
+        const SP_MILK_LABELS = ['미입력','매일','서울','남양','연세','동원','빙그레','기타'];
+
+        function spOpen() {
+            document.getElementById('storePanel').classList.add('open');
+            document.getElementById('spBackdrop').classList.add('on');
+        }
+        function spClose() {
+            document.getElementById('storePanel').classList.remove('open');
+            document.getElementById('spBackdrop').classList.remove('on');
+        }
+
+        function spShowList() {
+            _spCurrentItem = null; _spCurrentType = null;
+            document.getElementById('spListView').style.display   = 'flex';
+            document.getElementById('spDetailView').style.display = 'none';
+            document.getElementById('spBackBtn').style.display    = 'none';
+            document.getElementById('spHdTitle').textContent = '거래처';
+            spRenderList();
+            spOpen();
+        }
+
+        function spShowDetail(item, type) {
+            _spCurrentItem = item; _spCurrentType = type;
+            document.getElementById('spListView').style.display   = 'none';
+            document.getElementById('spDetailView').style.display = 'flex';
+            document.getElementById('spBackBtn').style.display    = '';
+            const name = item['사업장명'] || item['거래처명'] || '-';
+            document.getElementById('spHdTitle').textContent = name;
+            spRenderDetail(item, type);
+            spOpen();
+        }
+
+        function spSwitchTab(tab, btn) {
+            _spCurrentTab = tab;
+            document.querySelectorAll('.sp-list-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            spRenderList();
+        }
+        function spFilterList() {
+            _spSearch = document.getElementById('spSearchInput').value.toLowerCase();
+            spRenderList();
+        }
+
+        function spRenderList() {
+            const body = document.getElementById('spListBody');
+            if (!body) return;
+
+            let items = [];
+            if (_spCurrentTab === 'license') {
+                items = (typeof filteredItems !== 'undefined' && filteredItems?.length)
+                    ? filteredItems : (typeof allData !== 'undefined' ? allData : []);
+            } else {
+                items = (typeof accountsData !== 'undefined' ? accountsData : []);
+            }
+
+            if (_spSearch) {
+                items = items.filter(it => {
+                    const n = (it['사업장명'] || it['거래처명'] || '').toLowerCase();
+                    return n.includes(_spSearch);
+                });
+            }
+
+            // 카운트 업데이트
+            const licItems = (typeof filteredItems !== 'undefined' && filteredItems?.length)
+                ? filteredItems : (typeof allData !== 'undefined' ? allData : []);
+            const accItems = typeof accountsData !== 'undefined' ? accountsData : [];
+            document.getElementById('spCntLicense').textContent = `(${licItems.length})`;
+            document.getElementById('spCntAccount').textContent = `(${accItems.length})`;
+
+            if (!items.length) {
+                body.innerHTML = '<div class="sp-empty">📭 목록이 없습니다</div>';
+                return;
+            }
+
+            const type = _spCurrentTab;
+            body.innerHTML = items.map((item) => {
+                const name   = (item['사업장명'] || item['거래처명'] || '-').replace(/"/g,'&quot;');
+                const status = item['거래여부(기입예정)'] || item['거래여부'] || '-';
+                const mgr    = item['담당자'] || item['담당 영업사원'] || '-';
+                const addr   = (item['도로명전체주소'] || item['주소'] || '').substring(0,18);
+                const badgeColor = SP_STATUS_COLORS[status] || '#8e8e93';
+                const milk   = item['사용우유'] || '';
+                const milkHtml = milk ? `<span class="sp-item-badge" style="background:#5856d6;color:#fff">${milk}</span>` : '';
+                return `<div class="sp-item">
+                    <div class="sp-item-top">
+                        <span class="sp-item-name">${name}</span>
+                        <span class="sp-item-badge" style="background:${badgeColor};color:#fff">${status}</span>
+                        ${milkHtml}
+                    </div>
+                    <div class="sp-item-sub">${mgr}${addr ? ' · ' + addr : ''}</div>
+                </div>`;
+            }).join('');
+
+            // onclick을 index 기반으로 연결
+            window._spListItems = items;
+            window._spListType  = type;
+            body.querySelectorAll('.sp-item').forEach((el, idx) => {
+                el.onclick = () => spShowDetail(window._spListItems[idx], window._spListType);
+            });
+        }
+
+        function spRenderDetail(item, type) {
+            const el = document.getElementById('spDetailContent');
+            if (!el) return;
+
+            const name       = item['사업장명'] || item['거래처명'] || '-';
+            const status     = item['거래여부(기입예정)'] || item['거래여부'] || '-';
+            const milk       = item['사용우유'] || '';
+            const pyeong     = item['평형'] || '-';
+            const addr       = item['도로명전체주소'] || item['주소'] || '-';
+            const mgr        = item['담당자'] || item['담당 영업사원'] || '-';
+            const permitDate = item['영업 허가일'] || item['계약일'] || '-';
+            const lat        = parseFloat(item['위도']) || 0;
+            const lng        = parseFloat(item['경도']) || 0;
+            const escapedName = name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+            const memoKey  = 'maeil_memo_' + name;
+            const savedMemo = localStorage.getItem(memoKey) || '';
+            const memoUid   = 'spMemo_' + Math.random().toString(36).substr(2,8);
+
+            const statusBtns = SP_STATUS_LABELS.map(s => {
+                const c = SP_STATUS_COLORS[s] || '#8e8e93';
+                const sel = s === status ? ' sel' : '';
+                return `<button class="sp-status-btn${sel}" style="${sel ? `background:${c};border-color:${c};color:#fff;` : `color:${c};border-color:${c};`}"
+                    data-name="${name.replace(/"/g,'&quot;')}" data-addr="${addr.replace(/"/g,'&quot;')}" data-status="${s}"
+                    onclick="spChangeStatus(this,'${s}')">${s}</button>`;
+            }).join('');
+
+            const milkBtns = SP_MILK_LIST.map((m, i) => {
+                const sel = m === milk ? ' sel' : '';
+                return `<button class="sp-milk-btn${sel}" data-name="${name.replace(/"/g,'&quot;')}" data-addr="${addr.replace(/"/g,'&quot;')}" data-milk="${m}"
+                    onclick="spChangeMilk(this,'${m}')">${SP_MILK_LABELS[i]}</button>`;
+            }).join('');
+
+            el.innerHTML = `
+                <div class="sp-detail-hero">
+                    <div class="sp-detail-hero-top">
+                        <span class="sp-detail-store-name">${name}</span>
+                    </div>
+                    <div class="sp-hero-badges">
+                        <span class="sp-hero-badge" id="spHeroBadge" style="background:${SP_STATUS_COLORS[status]||'#8e8e93'};color:#fff">${status}</span>
+                        ${milk ? `<span class="sp-hero-badge" style="background:#5856d6;color:#fff">${milk}</span>` : ''}
+                    </div>
+                </div>
+                <div class="sp-kpi-row">
+                    <div class="sp-kpi"><span class="sp-kpi-l">평형</span><span class="sp-kpi-v">${pyeong}평</span></div>
+                    <div class="sp-kpi"><span class="sp-kpi-l">허가일</span><span class="sp-kpi-v" style="font-size:13px">${permitDate}</span></div>
+                    <div class="sp-kpi"><span class="sp-kpi-l">담당</span><span class="sp-kpi-v" style="font-size:13px">${mgr}</span></div>
+                </div>
+                <div class="sp-section">
+                    <div class="sp-section-title">거래 상태</div>
+                    <div class="sp-status-grid">${statusBtns}</div>
+                </div>
+                <div class="sp-section">
+                    <div class="sp-section-title">사용 우유</div>
+                    <div class="sp-milk-row">${milkBtns}</div>
+                </div>
+                <div class="sp-section">
+                    <div class="sp-section-title">주소</div>
+                    <div class="sp-info-v" style="font-size:13px;color:#0f172a;line-height:1.5;">${addr}</div>
+                </div>
+                <div class="sp-section">
+                    <div class="sp-section-title">📝 메모</div>
+                    <textarea class="sp-memo-area" id="${memoUid}" data-memokey="${memoKey}" placeholder="메모를 입력하세요...">${savedMemo}</textarea>
+                    <div class="sp-memo-btns">
+                        <button class="sp-memo-save" onclick="spSaveMemo('${memoUid}')">저장</button>
+                        <button class="sp-memo-del" id="spdel_${memoUid}" style="display:${savedMemo?'block':'none'}" onclick="spDeleteMemo('${memoUid}')">삭제</button>
+                    </div>
+                </div>
+                <div class="sp-actions">
+                    ${lat&&lng ? `<button class="sp-action-btn" style="background:#03C75A;color:#fff;" onclick="openNaverMapApp(${lat},${lng},'${escapedName}')">📍 네이버</button>` : ''}
+                    ${lat&&lng ? `<button class="sp-action-btn" style="background:#0f172a;color:#fff;" onclick="openRouteFromCoord(${lat},${lng},'${escapedName}','${addr.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">지금 출발</button>` : ''}
+                    ${lat&&lng ? `<button class="sp-action-btn" style="background:#5856d6;color:#fff;" onclick="addToCart(${lat},${lng},'${escapedName}','${addr.replace(/'/g,"\\'").replace(/"/g,"&quot;")}','license','')">담아두기</button>` : ''}
+                </div>
+            `;
+        }
+
+        function spChangeStatus(btn, newStatus) {
+            const name = btn.dataset.name;
+            const addr = btn.dataset.addr;
+            // 버튼 UI 업데이트
+            btn.closest('.sp-status-grid').querySelectorAll('.sp-status-btn').forEach(b => {
+                b.classList.remove('sel');
+                const c = SP_STATUS_COLORS[b.dataset.status] || '#8e8e93';
+                b.style.background = ''; b.style.borderColor = c; b.style.color = c;
+            });
+            btn.classList.add('sel');
+            const c = SP_STATUS_COLORS[newStatus] || '#8e8e93';
+            btn.style.background = c; btn.style.borderColor = c; btn.style.color = '#fff';
+            // hero badge 업데이트
+            const heroBadge = document.getElementById('spHeroBadge');
+            if (heroBadge) { heroBadge.textContent = newStatus; heroBadge.style.background = c; }
+            // 실제 데이터 업데이트 (updateDealStatus는 btnElement 파라미터 필요 — 더미 컨테이너 사용)
+            if (typeof updateDealStatus === 'function') {
+                updateDealStatus(name, addr, newStatus, btn);
+            }
+        }
+
+        async function spChangeMilk(btn, newMilk) {
+            const name = btn.dataset.name;
+            const addr = btn.dataset.addr || '';
+            btn.closest('.sp-milk-row').querySelectorAll('.sp-milk-btn').forEach(b => {
+                b.classList.remove('sel');
+            });
+            btn.classList.add('sel');
+            try {
+                const businessUnit = await getBusinessUnitForIndex();
+                if (!businessUnit) throw new Error('소속 정보가 없습니다.');
+                const { error } = await client
+                    .from('licenses')
+                    .update({ milk_type: newMilk || null })
+                    .eq('business_name', name)
+                    .eq('business_unit', businessUnit);
+                if (error) throw new Error(error.message);
+                const item = allData.find(d => d['사업장명'] === name);
+                if (item) item['사용우유'] = newMilk;
+                localStorage.removeItem(`fs_licenses_${businessUnit}`);
+                localStorage.removeItem(`fs_licenses_${businessUnit}_ts`);
+                showToast('사용우유가 변경되었습니다.', 'success', 2000);
+            } catch (err) {
+                console.error('사용우유 업데이트 실패:', err);
+                showToast(`사용우유 변경에 실패했습니다: ${err.message}`, 'error', 5000);
+            }
+        }
+
+        function spSaveMemo(uid) {
+            const ta = document.getElementById(uid);
+            if (!ta) return;
+            if (ta.value.trim()) { localStorage.setItem(ta.dataset.memokey, ta.value); }
+            else { localStorage.removeItem(ta.dataset.memokey); }
+            const del = document.getElementById('spdel_' + uid);
+            if (del) del.style.display = ta.value.trim() ? 'block' : 'none';
+            const saveBtn = ta.parentElement.querySelector('.sp-memo-save');
+            if (saveBtn) { saveBtn.textContent = '✓ 저장됨'; saveBtn.style.background = '#16a34a'; setTimeout(()=>{ saveBtn.textContent='저장'; saveBtn.style.background=''; },1500); }
+        }
+
+        function spDeleteMemo(uid) {
+            const ta = document.getElementById(uid);
+            if (!ta || !confirm('메모를 삭제하시겠습니까?')) return;
+            localStorage.removeItem(ta.dataset.memokey);
+            ta.value = '';
+            const del = document.getElementById('spdel_' + uid);
+            if (del) del.style.display = 'none';
+        }
+
         // ============================================================
 
         // ============================================================
@@ -3530,14 +3950,8 @@
                     if (window.innerWidth <= 768) {
                         if (typeof openBottomSheet === 'function') { openBottomSheet(item); naverMap.panTo(e.coord); }
                     } else {
-                        if (currentInfoWindow) currentInfoWindow.close();
-                        const iw = new naver.maps.InfoWindow({
-                            content: createInfoWindowContent(item),
-                            backgroundColor: 'transparent', borderColor: 'transparent',
-                            anchorSkew: true, pixelOffset: new naver.maps.Point(0, -10)
-                        });
-                        iw.open(naverMap, marker);
-                        currentInfoWindow = iw;
+                        if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
+                        spShowDetail(item, 'license');
                     }
                 });
 
@@ -3994,88 +4408,15 @@
                                 naverMap.panTo(e.coord);
                             }
                         } else {
-                            if (currentInfoWindow) currentInfoWindow.close();
-
-                            // 방문일지에서 해당 거래처 최신 방문 기록 검색
-                            const recentVisit = window.visitLogCache
-                                ? window.visitLogCache.find(v => (v['방문처(거래처)'] || '').trim() === name)
-                                : null;
-
-                            const visitSection = recentVisit ? `
-                                <div class="info-row" style="border-top:1px solid #f0f0f0;margin-top:6px;padding-top:6px;">
-                                    <span class="info-label">최신방문:</span>
-                                    <span class="info-value" style="font-size:11px;">${recentVisit['일정기간'] || '-'}</span>
-                                </div>
-                                <div class="info-row">
-                                    <span class="info-label">이슈:</span>
-                                    <span class="info-value" style="font-size:11px;color:#555;">${(recentVisit['주요이슈'] || '-').substring(0, 40)}${(recentVisit['주요이슈'] || '').length > 40 ? '...' : ''}</span>
-                                </div>` : '';
-
-                            const escapedAccName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            const escapedAccAddr = (address || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                            const _accCartKey = `${parseFloat(coords.lat).toFixed(5)},${parseFloat(coords.lng).toFixed(5)}`;
-                            const _accInCart = routeCart.some(c => c._key === _accCartKey);
-
-                            // 거래 상태별 별 SVG (클릭 시점 상태 기준)
-                            const _sc = currentStatus === '거래' ? '#FFD700' : '#AAAAAA';
-                            const _sb = currentStatus === '거래' ? '#FFA500' : '#888888';
-                            const accStarSVG = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:5px;flex-shrink:0;"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="' + _sc + '" stroke="' + _sb + '" stroke-width="1.5"/></svg>';
-
-                            // 상태 변경 버튼 (거래 / 미거래)
-                            const accStatusBtns = ['거래', '미거래'].map(s =>
-                                '<button class="status-btn ' + (currentStatus === s ? 'active status-' + s : '') + '" ' +
-                                'onclick="updateAccountStatus(\'' + escapedAccName + '\', \'' + s + '\', this)" ' +
-                                'style="flex:1;">' + s + '</button>'
-                            ).join('');
-
-                            // 메모 (localStorage)
-                            const accMemoKey = 'maeil_acc_memo_' + name;
-                            const accSavedMemo = localStorage.getItem(accMemoKey) || '';
-                            const accMemoUid = 'accMemo_' + Math.random().toString(36).substr(2, 8);
-
-                            const iw = new naver.maps.InfoWindow({
-                                content: `
-                                    <div class="custom-info-window">
-                                        <div class="info-header">
-                                            <h3 style="display:flex;align-items:center;">${accStarSVG}${name}</h3>
-                                            <button class="close-info-btn" onclick="closeCurrentInfoWindow()">×</button>
-                                        </div>
-                                        <div class="info-body">
-                                            <div class="info-row">
-                                                <span class="info-label">주소:</span>
-                                                <span class="info-value" style="font-size:12px;line-height:1.4;">${address || '-'}</span>
-                                            </div>
-                                            <div class="info-row">
-                                                <span class="info-label">거래상태:</span>
-                                                <span class="info-value" style="font-weight:600;color:${dealStatus === '거래' ? '#007AFF' : '#8E8E93'}">${dealStatus || '-'}</span>
-                                            </div>
-                                            ${visitSection}
-                                            <div style="margin-top:12px;">
-                                                <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:6px;">상태 변경</span>
-                                                <div class="account-status-group" style="display:flex;gap:6px;">${accStatusBtns}</div>
-                                            </div>
-                                            <div style="margin-top:12px;">
-                                                <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
-                                                <textarea id="${accMemoUid}" data-memokey="${accMemoKey}" style="width:100%;height:58px;border:1px solid #e8e8ed;border-radius:6px;padding:6px 8px;font-size:12px;resize:none;font-family:inherit;color:#1d1d1f;box-sizing:border-box;" placeholder="메모를 입력하세요...">${accSavedMemo}</textarea>
-                                                <div style="display:flex;gap:5px;margin-top:4px;">
-                                                    <button id="save_${accMemoUid}" onclick="saveMemo('${accMemoUid}')" style="flex:1;padding:7px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
-                                                    <button id="del_${accMemoUid}" onclick="deleteMemo('${accMemoUid}')" style="display:${accSavedMemo ? 'block' : 'none'};padding:7px 12px;background:#ff3b30;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">삭제</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="info-footer">
-                                            <button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${coords.lat}, ${coords.lng}, '${escapedAccName}')">📍 네이버</button>
-                                            <button class="naver-map-btn" style="background:${_accInCart ? '#34C759' : '#5856d6'};" id="cartBtn_${accMemoUid}" onclick="addToCart(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}', 'account', 'cartBtn_${accMemoUid}')" title="여러 곳 모아서 한 번에 최적화">${_accInCart ? '✓ 담겼음' : '담아두기'}</button>
-                                            <button class="naver-map-btn" style="background:#1d1d1f;" onclick="openRouteFromCoord(${coords.lat}, ${coords.lng}, '${escapedAccName}', '${escapedAccAddr}')" title="이 가게를 1번 목적지로 바로 루트 생성">지금 출발</button>
-                                        </div>
-                                    </div>`,
-                                backgroundColor: 'transparent',
-                                borderColor: 'transparent',
-                                anchorSkew: true,
-                                pixelOffset: new naver.maps.Point(0, -10)
+                            if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
+                            // account 객체에 위도/경도 필드를 패널이 읽을 수 있도록 매핑
+                            const accPanelItem = Object.assign({}, account, {
+                                '위도': coords.lat,
+                                '경도': coords.lng,
+                                '거래여부': currentStatus,
+                                '담당자': account['담당자명'] || account['담당자'] || '-'
                             });
-                            iw.open(naverMap, marker);
-                            currentInfoWindow = iw;
+                            spShowDetail(accPanelItem, 'account');
                         }
                     });
 
@@ -6054,6 +6395,31 @@
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
         });
     </script>
+
+    <!-- ── 우측 거래처 패널 ── -->
+    <div class="store-panel" id="storePanel">
+        <div class="sp-hd">
+            <button class="sp-back-btn" id="spBackBtn" onclick="spShowList()" style="display:none">← 목록</button>
+            <span class="sp-hd-title" id="spHdTitle">거래처</span>
+            <button class="sp-x-btn" onclick="spClose()">✕</button>
+        </div>
+        <!-- 목록 뷰 -->
+        <div id="spListView" style="display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+            <div class="sp-search-row">
+                <input class="sp-search-input" id="spSearchInput" type="text" placeholder="매장명 검색..." oninput="spFilterList()">
+            </div>
+            <div class="sp-tab-row">
+                <button class="sp-list-tab active" id="spTabLicense" onclick="spSwitchTab('license',this)">인허가 <span class="sp-list-count" id="spCntLicense"></span></button>
+                <button class="sp-list-tab" id="spTabAccount" onclick="spSwitchTab('account',this)">주요거래처 <span class="sp-list-count" id="spCntAccount"></span></button>
+            </div>
+            <div class="sp-list-body" id="spListBody"></div>
+        </div>
+        <!-- 상세 뷰 -->
+        <div id="spDetailView" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0;">
+            <div class="sp-detail" id="spDetailContent"></div>
+        </div>
+    </div>
+    <div class="sp-backdrop" id="spBackdrop" onclick="spClose()"></div>
 </body>
 
 </html>
