@@ -13,7 +13,6 @@
 
         :root {
             --color-primary:        #0071e3;
-            --color-primary-hover:  #0077ed;
             --color-success:        #34c759;
             --color-danger:         #ff3b30;
             --color-warning:        #ff9500;
@@ -26,8 +25,10 @@
             --radius-sm:  8px;
             --radius-md:  12px;
             --radius-lg:  16px;
+            --radius-pill: 100px;
             --shadow-sm:  0 1px 4px rgba(0,0,0,0.08);
             --shadow-md:  0 4px 16px rgba(0,0,0,0.12);
+            --shadow-lg:  0 8px 32px rgba(0,0,0,0.18);
         }
 
         html, body { height: 100%; overflow: hidden; }
@@ -35,579 +36,698 @@
             font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
             font-size: 14px;
             color: var(--color-text);
-            background: var(--color-bg);
+            background: #1a1a1a;
             display: flex;
             flex-direction: column;
         }
 
         #nav-placeholder { flex-shrink: 0; }
 
-        .page {
+        /* ── MAP CONTAINER ── */
+        .map-container {
             flex: 1;
-            display: flex;
-            flex-direction: column;
+            position: relative;
             overflow: hidden;
             min-height: 0;
         }
+        #intel-map {
+            position: absolute;
+            inset: 0;
+        }
 
-        /* ── HEADER ── */
-        .ph {
+        /* ── GLASS CARD ── */
+        .glass {
+            background: rgba(255,255,255,0.96);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.8);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ── VIEW TOGGLE (top-left) ── */
+        .view-toggle {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            z-index: 200;
+            display: flex;
+            border-radius: var(--radius-pill);
+            padding: 3px;
+            gap: 2px;
+        }
+        .vtbtn {
+            height: 36px;
+            padding: 0 18px;
+            border-radius: var(--radius-pill);
+            border: none;
+            background: transparent;
+            color: var(--color-text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .vtbtn:hover { color: var(--color-primary); }
+        .vtbtn.active {
+            background: var(--color-primary);
+            color: #fff;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0,113,227,0.35);
+        }
+
+        /* ── KPI STRIP (top-center) ── */
+        .kpi-float {
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            border-radius: var(--radius-pill);
+            padding: 0 4px;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .kf-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1px;
+            padding: 8px 20px;
+        }
+        .kf-sep {
+            width: 1px;
+            height: 30px;
+            background: var(--color-border);
+            flex-shrink: 0;
+        }
+        .kf-lbl {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--color-text-tertiary);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .kf-val {
+            font-size: 22px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
+            line-height: 1;
+        }
+        .kf-g .kf-val { color: var(--color-success); }
+        .kf-r .kf-val { color: var(--color-danger); }
+        .kf-b .kf-val { color: var(--color-primary); }
+        .kf-a .kf-val { color: var(--color-warning); }
+
+        /* ── TOP RIGHT ── */
+        .top-right {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sync-badge {
+            border-radius: var(--radius-pill);
+            padding: 7px 14px;
+            font-size: 12px;
+            color: var(--color-text-tertiary);
+            white-space: nowrap;
+        }
+        .btn-refresh {
+            height: 36px;
+            padding: 0 16px;
+            border-radius: var(--radius-pill);
+            border: none;
+            color: var(--color-text-secondary);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+        .btn-refresh:hover { color: var(--color-primary); }
+        .btn-refresh:disabled { opacity: .4; cursor: not-allowed; }
+
+        /* ── FLOATING TOOLBAR (bottom) ── */
+        .toolbar-float {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            border-radius: var(--radius-lg);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: calc(100vw - 32px);
+        }
+        .tf-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tf-lbl {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-text-tertiary);
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: 26px;
+        }
+        .tf-sep {
+            width: 1px;
+            height: 22px;
+            background: var(--color-border);
+            flex-shrink: 0;
+        }
+        .chips {
+            display: flex;
+            gap: 5px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+        }
+        .chips::-webkit-scrollbar { display: none; }
+        .chip {
+            height: 32px;
+            padding: 0 14px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: var(--radius-pill);
+            border: 1.5px solid var(--color-border);
+            background: transparent;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+            font-family: inherit;
+        }
+        .chip:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.06); }
+        .chip.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* ── MONTH TIMELINE ── */
+        .month-timeline {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            flex: 1;
+            min-width: 0;
+        }
+        .month-timeline::-webkit-scrollbar { height: 3px; }
+        .month-timeline::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
+        .mt-pill {
+            height: 32px;
+            padding: 0 12px;
+            border-radius: var(--radius-pill);
+            border: 1.5px solid var(--color-border);
+            background: transparent;
+            color: var(--color-text-secondary);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .mt-pill:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.06); }
+        .mt-pill.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #fff;
+            font-weight: 700;
+        }
+        .mt-pill.mt-all { font-weight: 600; color: var(--color-text); }
+        .mt-pill.mt-all.active { background: var(--color-text); border-color: var(--color-text); color: #fff; }
+
+        /* ── MAP LEGEND ── */
+        .map-legend {
+            position: absolute;
+            bottom: 148px;
+            left: 14px;
+            z-index: 200;
+            border-radius: var(--radius-md);
+            padding: 7px 12px;
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+        .leg-i { display: flex; align-items: center; gap: 5px; }
+        .leg-d { width: 9px; height: 9px; border-radius: 50%; }
+
+        /* ── PANEL BACKDROP ── */
+        .panel-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 499;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .panel-backdrop.on { opacity: 1; pointer-events: all; }
+
+        /* ── SLIDE PANEL ── */
+        .slide-panel {
+            position: absolute;
+            top: 0;
+            right: -460px;
+            width: 440px;
+            height: 100%;
+            background: var(--color-surface);
+            border-left: 1px solid var(--color-border);
+            box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+            z-index: 500;
+            transition: right 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .slide-panel.open { right: 0; }
+
+        .sp-hd {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 0 24px;
-            height: 52px;
-            background: var(--color-surface);
+            padding: 18px 20px;
             border-bottom: 1px solid var(--color-border);
-            box-shadow: var(--shadow-sm);
             flex-shrink: 0;
+            background: var(--color-bg);
         }
-        .ph-title {
-            font-size: 15px; font-weight: 700;
-            color: var(--color-text); letter-spacing: -.01em;
-            white-space: nowrap;
-        }
-        .ph-vline { width: 1px; height: 18px; background: var(--color-border); flex-shrink: 0; }
-        .ph-sub {
-            font-size: 12px; color: var(--color-text-tertiary);
-            flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-        }
-        .ph-sync { font-size: 12px; color: var(--color-text-tertiary); white-space: nowrap; }
-        .btn-refresh {
-            height: 32px; padding: 0 14px;
+        .sp-close {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
             border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
             background: var(--color-surface);
             color: var(--color-text-secondary);
             cursor: pointer;
-            display: flex; align-items: center; gap: 5px;
-            font-size: 13px; font-weight: 500;
-            transition: all 0.15s ease;
-            white-space: nowrap;
-        }
-        .btn-refresh:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.08); }
-        .btn-refresh:disabled { opacity: .4; cursor: not-allowed; }
-
-        /* ── KPI STRIP ── */
-        .kpi-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-            padding: 12px;
-            flex-shrink: 0;
-            background: var(--color-bg);
-        }
-        .kpi-cell {
-            padding: 16px;
-            position: relative;
-            transition: transform 0.15s ease, box-shadow 0.15s ease;
-            background: var(--color-surface);
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            border-top: 3px solid;
-        }
-        .kpi-cell:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-        .kc-g { border-top-color: var(--color-success); }
-        .kc-r { border-top-color: var(--color-danger); }
-        .kc-b { border-top-color: var(--color-primary); }
-        .kc-a { border-top-color: var(--color-warning); }
-        .kpi-lbl {
-            font-size: 11px; font-weight: 600; color: var(--color-text-secondary);
-            margin-bottom: 6px;
-        }
-        .kpi-val {
-            font-size: 28px; font-weight: 800; line-height: 1;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -.02em;
-        }
-        .kc-g .kpi-val { color: var(--color-success); }
-        .kc-r .kpi-val { color: var(--color-danger); }
-        .kc-b .kpi-val { color: var(--color-primary); }
-        .kc-a .kpi-val { color: var(--color-warning); }
-        .kpi-sub { font-size: 11px; color: var(--color-text-tertiary); margin-top: 4px; }
-
-        /* ── TOOLBAR ── */
-        .toolbar {
             display: flex;
             align-items: center;
-            gap: 16px;
-            padding: 12px;
-            background: var(--color-surface);
-            border-bottom: 1px solid var(--color-border);
+            justify-content: center;
+            font-size: 15px;
             flex-shrink: 0;
-            overflow-x: auto;
-            margin: 0 12px;
-            border-radius: var(--radius-md);
-            margin-bottom: 12px;
-        }
-        .tb-lbl {
-            font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
-            white-space: nowrap; flex-shrink: 0;
-        }
-        .tb-sep { width: 1px; height: 20px; background: var(--color-border); flex-shrink: 0; }
-        .chips { display: flex; gap: 8px; }
-        .chip {
-            height: 32px; padding: 0 16px;
-            font-size: 13px; font-weight: 500;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--color-border);
-            background: var(--color-surface);
-            color: var(--color-text-secondary);
-            cursor: pointer; white-space: nowrap;
             transition: all 0.15s ease;
+            font-family: inherit;
         }
-        .chip:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.08); }
-        .chip.active {
-            background: var(--color-primary); border-color: var(--color-primary);
-            color: #fff; font-weight: 600;
-        }
-
-        .mnav { display: flex; align-items: center; gap: 4px; }
-        .marr {
-            width: 32px; height: 32px;
-            border: 1px solid var(--color-border); border-radius: var(--radius-sm);
-            background: var(--color-surface); color: var(--color-text-secondary);
-            cursor: pointer; font-size: 16px;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s ease; font-weight: 600;
-        }
-        .marr:hover { border-color: var(--color-primary); color: var(--color-primary); background: rgba(0,113,227,0.08); }
-        #monthLabel {
-            font-size: 13px; font-weight: 700; color: var(--color-text);
-            min-width: 72px; text-align: center;
-            cursor: pointer; user-select: none;
-            padding: 4px 10px; border-radius: var(--radius-sm);
-            transition: background 0.15s ease;
-        }
-        #monthLabel:hover { background: rgba(0,113,227,0.08); color: var(--color-primary); }
-
-        /* ── MONTH PICKER DROPDOWN ── */
-        .month-picker-dd {
-            position: fixed;
-            background: var(--color-surface);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
-            box-shadow: 0 8px 28px rgba(0,0,0,0.16);
-            z-index: 2000;
-            overflow-y: auto;
-            max-height: 300px;
-            min-width: 130px;
-        }
-        .mpdd-item {
-            padding: 10px 18px;
-            font-size: 13px; cursor: pointer;
-            transition: background 0.1s ease;
-            white-space: nowrap;
-        }
-        .mpdd-item:hover { background: var(--color-bg); }
-        .mpdd-item.active { font-weight: 700; color: var(--color-primary); background: rgba(0,113,227,0.07); }
-        .btn-mclear {
-            height: 28px; padding: 0 12px;
-            font-size: 12px; font-weight: 500;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--color-border);
-            background: var(--color-surface); color: var(--color-text-secondary);
-            cursor: pointer; display: none;
-            transition: all 0.15s ease;
-        }
-        .btn-mclear:hover { border-color: var(--color-danger); color: var(--color-danger); background: rgba(255,59,48,0.08); }
-
-        /* ── COMPARISON STRIP ── */
-        .cmp-strip {
-            display: none; flex-shrink: 0;
-            border-bottom: 2px solid rgba(0,113,227,0.2);
-            background: rgba(0,113,227,0.06);
-            padding: 0 12px;
-        }
-        .cmp-strip.on { display: flex; }
-        .cmp-col {
-            flex: 1; padding: 12px 16px;
-            border-right: 1px solid rgba(0,113,227,0.1);
-        }
-        .cmp-col:last-child { border-right: none; }
-        .cmp-ctitle {
-            font-size: 11px; font-weight: 700; color: var(--color-text-secondary);
-            margin-bottom: 8px;
-        }
-        .cmp-col.col-cur .cmp-ctitle { color: var(--color-primary); }
-        .cmp-ms { display: flex; gap: 22px; }
-        .cmp-m { display: flex; flex-direction: column; gap: 2px; }
-        .cmp-ml { font-size: 11px; color: var(--color-text-tertiary); }
-        .cmp-mv { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
-        .cv-g { color: var(--color-success); }
-        .cv-r { color: var(--color-danger); }
-        .cv-b { color: var(--color-primary); }
-        .cmp-delta { margin-top: 5px; font-size: 12px; color: var(--color-text-secondary); }
-        .du { color: var(--color-success); font-weight: 600; }
-        .dd { color: var(--color-danger); font-weight: 600; }
-
-        /* ── BODY ── */
-        .page-body {
-            flex: 1; display: flex; overflow: hidden; min-height: 0;
+        .sp-close:hover { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+        .sp-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--color-text);
+            flex: 1;
+            letter-spacing: -0.02em;
         }
 
-        /* ── MAP ── */
-        .map-wrap { flex: 1; position: relative; min-width: 0; }
-        #intel-map { width: 100%; height: 100%; }
-
-        .map-legend {
-            position: absolute; bottom: 14px; left: 14px; z-index: 500;
-            background: rgba(255,255,255,.96);
-            backdrop-filter: blur(8px);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
-            padding: 8px 14px;
-            display: flex; gap: 14px;
-            font-size: 12px; color: var(--color-text-secondary);
-            box-shadow: var(--shadow-md);
-        }
-        .leg-i { display: flex; align-items: center; gap: 6px; }
-        .leg-d { width: 10px; height: 10px; border-radius: 50%; }
-
-        /* ── SIDEBAR ── */
-        .sidebar {
-            width: 272px; flex-shrink: 0;
-            border-left: 1px solid var(--color-border);
-            display: flex; flex-direction: column;
-            background: var(--color-surface); overflow: hidden;
-        }
-        .sb-hd {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--color-border);
-            font-size: 12px; font-weight: 700; color: var(--color-text-secondary);
-            flex-shrink: 0; background: var(--color-bg);
-            letter-spacing: -.01em;
-        }
-        .sb-body { flex: 1; overflow-y: auto; }
-
-        .rrow {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--color-border);
-            transition: background 0.12s ease;
-            cursor: default;
-        }
-        .rrow:hover { background: var(--color-bg); }
-        .rrow-top {
-            display: flex; justify-content: space-between;
-            align-items: center; margin-bottom: 6px;
-        }
-        .rrow-name {
-            font-size: 13px; font-weight: 700; color: var(--color-text);
-            display: flex; align-items: center; gap: 6px;
-        }
-        .rrow-rank {
-            font-size: 10px; font-weight: 600;
-            color: var(--color-text-tertiary); min-width: 16px;
-        }
-        .rrow-net { font-size: 13px; font-weight: 700; }
-        .rn-pos { color: var(--color-success); }
-        .rn-neg { color: var(--color-danger); }
-        .rn-0   { color: var(--color-text-tertiary); }
-        .rbar {
-            height: 4px; background: var(--color-border);
-            border-radius: 2px; margin-bottom: 7px; overflow: hidden;
-        }
-        .rbar-fill { height: 100%; border-radius: 2px; transition: width 0.3s ease; }
-        .rnums { display: flex; gap: 14px; }
-        .rnum { display: flex; flex-direction: column; gap: 1px; }
-        .rnum-l { font-size: 10px; color: var(--color-text-tertiary); font-weight: 500; }
-        .rnum-v { font-size: 13px; font-weight: 700; }
-
-        /* ── CHART ── */
-        .chart-bar {
-            flex-shrink: 0; height: 160px;
-            border-top: 1px solid var(--color-border);
-            background: var(--color-surface);
-            display: flex; flex-direction: column;
-            padding: 10px 22px 8px;
-            transition: height 0.2s ease;
-        }
-        .chart-bar.collapsed { height: 38px; overflow: hidden; }
-        .chart-title {
-            font-size: 12px; font-weight: 600; color: var(--color-text-secondary);
-            margin-bottom: 8px; flex-shrink: 0;
-        }
-        .chart-wrap { flex: 1; position: relative; min-height: 0; }
-
-        /* ── STATE ── */
-        .state-msg {
-            height: 100%; display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            gap: 10px; color: var(--color-text-tertiary); font-size: 13px;
-            text-align: center; padding: 24px; line-height: 1.6;
-        }
-        .state-ico { font-size: 32px; }
-
-
-        /* ── SCROLL ── */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
-
-        /* ── DRILL-DOWN ── */
-        .drill-hd {
-            display: flex; align-items: center; gap: 10px;
-        }
-        .drill-back {
-            height: 26px; padding: 0 10px;
-            font-size: 12px; font-weight: 600;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--color-border);
-            background: var(--color-surface); color: var(--color-primary);
-            cursor: pointer; flex-shrink: 0;
-            transition: all 0.15s ease;
-        }
-        .drill-back:hover { background: rgba(0,113,227,0.08); }
-        #drillTitle { font-size: 13px; font-weight: 700; color: var(--color-text); }
-
+        /* Drill summary */
         .drill-summary {
-            padding: 10px 16px;
+            padding: 14px 20px;
             background: var(--color-bg);
             border-bottom: 1px solid var(--color-border);
-            display: flex; gap: 16px;
+            display: flex;
+            gap: 28px;
             flex-shrink: 0;
         }
-        .ds-stat { display: flex; flex-direction: column; gap: 2px; }
-        .ds-lbl { font-size: 10px; font-weight: 600; color: var(--color-text-tertiary); }
-        .ds-val { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .ds-stat { display: flex; flex-direction: column; gap: 3px; }
+        .ds-lbl { font-size: 11px; font-weight: 700; color: var(--color-text-tertiary); letter-spacing: 0.02em; }
+        .ds-val { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
 
+        /* Drill tabs */
         .drill-tabs {
-            display: flex; gap: 4px; padding: 8px 12px;
-            border-bottom: 1px solid var(--color-border);
-            flex-shrink: 0; background: var(--color-surface);
-        }
-        .dtab {
-            height: 28px; padding: 0 12px;
-            font-size: 12px; font-weight: 500;
-            border-radius: 20px;
-            border: 1px solid var(--color-border);
-            background: var(--color-surface);
-            color: var(--color-text-secondary);
-            cursor: pointer; transition: all 0.15s ease;
-        }
-        .dtab:hover { border-color: var(--color-primary); color: var(--color-primary); }
-        .dtab.active {
-            background: var(--color-primary); border-color: var(--color-primary);
-            color: #fff; font-weight: 600;
-        }
-
-        .drill-row {
+            display: flex;
+            gap: 6px;
             padding: 10px 16px;
             border-bottom: 1px solid var(--color-border);
-            transition: background 0.12s ease;
+            flex-shrink: 0;
+            background: var(--color-surface);
+            overflow-x: auto;
+        }
+        .drill-tabs::-webkit-scrollbar { display: none; }
+        .dtab {
+            height: 32px;
+            padding: 0 16px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: var(--radius-pill);
+            border: 1.5px solid var(--color-border);
+            background: transparent;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: all 0.15s ease;
+            white-space: nowrap;
+            flex-shrink: 0;
+            font-family: inherit;
+        }
+        .dtab:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .dtab.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; font-weight: 600; }
+
+        /* Drill list */
+        .drill-list { flex: 1; overflow-y: auto; min-height: 0; }
+
+        .drill-row {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--color-border);
+            transition: background 0.1s ease;
         }
         .drill-row:hover { background: var(--color-bg); }
-        .drill-row-top {
-            display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
-        }
+        .drill-row-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
         .drill-name {
-            font-size: 13px; font-weight: 700; color: var(--color-text);
-            flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--color-text);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .big-badge {
-            font-size: 10px; font-weight: 700; color: var(--color-warning);
-            background: rgba(255,149,0,0.12); border-radius: 4px;
-            padding: 1px 5px; flex-shrink: 0;
+            font-size: 11px; font-weight: 700;
+            color: var(--color-warning);
+            background: rgba(255,149,0,0.13);
+            border-radius: 6px;
+            padding: 2px 7px;
+            flex-shrink: 0;
         }
         .drill-status {
-            font-size: 11px; font-weight: 600;
-            padding: 2px 7px; border-radius: 10px; flex-shrink: 0;
+            font-size: 12px; font-weight: 700;
+            padding: 3px 10px; border-radius: 20px; flex-shrink: 0;
         }
         .ds-new    { background: rgba(52,199,89,0.12);  color: var(--color-success); }
         .ds-closed { background: rgba(255,59,48,0.12);  color: var(--color-danger); }
         .drill-meta {
-            display: flex; gap: 8px; flex-wrap: wrap;
-            font-size: 11px; color: var(--color-text-tertiary);
+            display: flex; gap: 10px; flex-wrap: wrap;
+            font-size: 13px; color: var(--color-text-secondary);
+            margin-bottom: 5px;
         }
         .drill-addr {
-            font-size: 11px; color: var(--color-text-tertiary);
-            margin-top: 3px; white-space: nowrap;
-            overflow: hidden; text-overflow: ellipsis;
+            font-size: 12px; color: var(--color-text-tertiary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        /* ── 유동인구 PLACEHOLDER ── */
-        .drill-fp-section {
+        /* Panel chart section */
+        .sp-chart-section {
             flex-shrink: 0;
-            border-top: 1px solid var(--color-border);
-            padding: 12px 16px;
+            border-top: 2px solid var(--color-border);
+        }
+        .sp-chart-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            transition: background 0.1s ease;
+            user-select: none;
+        }
+        .sp-chart-toggle:hover { background: var(--color-bg); }
+        .sp-chart-body {
+            padding: 0 16px 12px;
+            height: 160px;
+            display: none;
+        }
+        .sp-chart-body.open { display: block; }
+
+        /* State messages */
+        .state-msg {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            gap: 12px; padding: 48px 24px;
+            color: var(--color-text-tertiary);
+            font-size: 14px; text-align: center; line-height: 1.6;
+        }
+        .state-ico { font-size: 36px; }
+
+        /* ── RANKING VIEW ── */
+        .ranking-view {
+            position: absolute;
+            inset: 0;
             background: var(--color-bg);
+            z-index: 300;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .drill-fp-title {
-            font-size: 11px; font-weight: 700; color: var(--color-text-secondary);
-            margin-bottom: 6px;
-        }
-        .drill-fp-placeholder {
-            font-size: 11px; color: var(--color-text-tertiary);
+        .ranking-view.on { display: flex; }
+
+        .rv-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--color-border);
             background: var(--color-surface);
-            border: 1px dashed var(--color-border);
-            border-radius: var(--radius-sm);
-            padding: 10px; text-align: center;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
         }
+        .rv-title { font-size: 15px; font-weight: 700; color: var(--color-text); }
+        .rv-sorts { display: flex; gap: 6px; }
+        .rv-sort-btn {
+            height: 30px; padding: 0 14px;
+            border-radius: var(--radius-pill);
+            border: 1.5px solid var(--color-border);
+            background: transparent;
+            color: var(--color-text-secondary);
+            font-size: 12px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s ease;
+            font-family: inherit;
+        }
+        .rv-sort-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        .rv-sort-btn.active { background: var(--color-text); border-color: var(--color-text); color: #fff; font-weight: 700; }
+
+        .rv-body {
+            flex: 1; overflow-y: auto;
+            padding: 16px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+            align-content: start;
+        }
+
+        .rv-card {
+            background: var(--color-surface);
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--color-border);
+            padding: 18px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: var(--shadow-sm);
+        }
+        .rv-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--color-primary); }
+        .rv-card-top {
+            display: flex; align-items: center;
+            justify-content: space-between; margin-bottom: 12px;
+        }
+        .rv-card-name { display: flex; align-items: center; gap: 8px; }
+        .rv-rank { font-size: 12px; font-weight: 700; color: var(--color-text-tertiary); }
+        .rv-name { font-size: 17px; font-weight: 800; color: var(--color-text); letter-spacing: -0.02em; }
+        .rv-net { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .rv-net-pos { color: var(--color-success); }
+        .rv-net-neg { color: var(--color-danger); }
+        .rv-net-0   { color: var(--color-text-tertiary); }
+        .rv-bar { height: 5px; background: var(--color-border); border-radius: 3px; margin-bottom: 12px; overflow: hidden; }
+        .rv-bar-fill { height: 100%; border-radius: 3px; transition: width 0.45s ease; }
+        .rv-nums { display: flex; gap: 20px; }
+        .rv-num { display: flex; flex-direction: column; gap: 3px; }
+        .rv-num-l { font-size: 11px; color: var(--color-text-tertiary); font-weight: 700; letter-spacing: 0.02em; }
+        .rv-num-v { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+
+        /* Ranking chart strip */
+        .rv-chart-strip {
+            flex-shrink: 0;
+            height: 160px;
+            border-top: 1px solid var(--color-border);
+            background: var(--color-surface);
+            padding: 12px 24px 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .rv-chart-lbl {
+            font-size: 11px; font-weight: 700; color: var(--color-text-tertiary);
+            margin-bottom: 6px; flex-shrink: 0;
+        }
+        .rv-chart-wrap { flex: 1; position: relative; min-height: 0; }
 
         /* ── MAP TOOLTIP ── */
         .map-tooltip {
-            background: rgba(29,29,31,.92);
+            background: rgba(29,29,31,.95);
             color: #fff; border: none;
-            border-radius: 8px; padding: 6px 10px;
-            font-size: 12px; font-weight: 500;
-            box-shadow: 0 4px 12px rgba(0,0,0,.2);
+            border-radius: 10px; padding: 8px 14px;
+            font-size: 13px; font-weight: 500;
+            box-shadow: 0 4px 16px rgba(0,0,0,.25);
             white-space: nowrap; pointer-events: none;
         }
 
-        /* ── CHART TOGGLE ── */
-        .chart-toggle-btn {
-            height: 22px; padding: 0 10px;
-            font-size: 11px; font-weight: 500;
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-sm);
-            background: var(--color-surface); color: var(--color-text-tertiary);
-            cursor: pointer; margin-left: auto;
-            transition: all 0.15s ease;
-        }
-        .chart-toggle-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+        /* ── SCROLLBAR ── */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 2px; }
 
         /* ── RESPONSIVE ── */
-        @media (max-width: 960px) {
-            .sidebar { display: none; }
-            .chart-bar { height: 140px; }
+        @media (max-width: 900px) {
+            .slide-panel { width: 380px; right: -400px; }
         }
-        @media (max-width: 640px) {
-            .kpi-row { grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 8px; }
-            .kpi-val { font-size: 22px; }
-            .ph { padding: 0 16px; }
-            .toolbar { margin: 0 8px; padding: 10px; gap: 12px; }
+        @media (max-width: 768px) {
+            .kpi-float { top: 60px; }
+            .kf-item { padding: 6px 12px; }
+            .kf-val { font-size: 18px; }
+            .toolbar-float { bottom: 68px; padding: 10px 12px; gap: 6px; }
+            .slide-panel { width: 100%; right: -100%; }
+            .rv-body { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .kpi-float { display: none; }
+            .view-toggle { top: 10px; left: 10px; }
+            .top-right { top: 10px; right: 10px; }
         }
     </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
-<div class="page">
+<div class="map-container">
 
-    <!-- HEADER -->
-    <header class="ph">
-        <span class="ph-title">📊 상권 분석</span>
-        <div class="ph-vline"></div>
-        <span class="ph-sub" id="headerSub">카페 · 베이커리 · 음식점 신규·폐업 트렌드</span>
-        <span class="ph-sync" id="lastSync">로딩 중...</span>
-        <button class="btn-refresh" id="btnRefresh" onclick="loadDashboard()" title="새로고침">↺ 새로고침</button>
-    </header>
+    <!-- MAP -->
+    <div id="intel-map"></div>
 
-    <!-- KPI -->
-    <div class="kpi-row">
-        <div class="kpi-cell kc-g">
-            <div class="kpi-lbl">신규 오픈</div>
-            <div class="kpi-val" id="kpiNew">—</div>
-            <div class="kpi-sub" id="kpiNewSub">인허가 기준 누적</div>
+    <!-- VIEW TOGGLE -->
+    <div class="view-toggle glass">
+        <button class="vtbtn active" id="btnMapView" onclick="setView('map')">🗺 지도</button>
+        <button class="vtbtn" id="btnRankView" onclick="setView('rank')">📊 랭킹</button>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="kpi-float glass">
+        <div class="kf-item kf-g">
+            <span class="kf-lbl">신규</span>
+            <span class="kf-val" id="kpiNew">—</span>
         </div>
-        <div class="kpi-cell kc-r">
-            <div class="kpi-lbl">폐업</div>
-            <div class="kpi-val" id="kpiClosed">—</div>
-            <div class="kpi-sub">폐업일 기준 누적</div>
+        <div class="kf-sep"></div>
+        <div class="kf-item kf-r">
+            <span class="kf-lbl">폐업</span>
+            <span class="kf-val" id="kpiClosed">—</span>
         </div>
-        <div class="kpi-cell kc-b">
-            <div class="kpi-lbl">순증가</div>
-            <div class="kpi-val" id="kpiNet">—</div>
-            <div class="kpi-sub" id="kpiNetSub">신규 − 폐업</div>
+        <div class="kf-sep"></div>
+        <div class="kf-item kf-b">
+            <span class="kf-lbl">순증</span>
+            <span class="kf-val" id="kpiNet">—</span>
         </div>
-        <div class="kpi-cell kc-a">
-            <div class="kpi-lbl">성장률</div>
-            <div class="kpi-val" id="kpiRate">—</div>
-            <div class="kpi-sub">순증 / 신규</div>
+        <div class="kf-sep"></div>
+        <div class="kf-item kf-a">
+            <span class="kf-lbl">성장률</span>
+            <span class="kf-val" id="kpiRate">—</span>
         </div>
     </div>
 
-    <!-- TOOLBAR -->
-    <div class="toolbar">
-        <span class="tb-lbl">지역</span>
-        <div class="chips" id="regionChips">
-            <button class="chip active" id="chip-branch" onclick="setRegionMode('branch')">내 지점</button>
-        </div>
-        <div class="tb-sep"></div>
-        <span class="tb-lbl">월</span>
-        <div class="mnav">
-            <button class="marr" onclick="shiftMonth(-1)">‹</button>
-            <span id="monthLabel" onclick="openMonthPicker(event)" title="클릭하여 월 선택">전체</span>
-            <button class="marr" onclick="shiftMonth(1)">›</button>
-        </div>
-        <button class="btn-mclear" id="btnMonthClear" onclick="clearMonth()">전체 보기</button>
+    <!-- SYNC + REFRESH -->
+    <div class="top-right">
+        <span class="sync-badge glass" id="lastSync">로딩 중...</span>
+        <button class="btn-refresh glass" id="btnRefresh" onclick="loadDashboard()">↺ 새로고침</button>
     </div>
 
-    <!-- COMPARISON STRIP -->
-    <div class="cmp-strip" id="cmpStrip">
-        <div class="cmp-col">
-            <div class="cmp-ctitle" id="cmpTitleYoy">전년동월</div>
-            <div id="cmpYoy"></div>
-        </div>
-        <div class="cmp-col">
-            <div class="cmp-ctitle" id="cmpTitlePrev">전월</div>
-            <div id="cmpPrev"></div>
-        </div>
-        <div class="cmp-col col-cur">
-            <div class="cmp-ctitle" id="cmpTitleCur">당월</div>
-            <div id="cmpCur"></div>
-        </div>
-    </div>
-
-    <!-- BODY -->
-    <div class="page-body">
-        <div class="map-wrap">
-            <div id="intel-map"></div>
-            <div class="map-legend">
-                <div class="leg-i"><div class="leg-d" style="background:var(--green)"></div>순증</div>
-                <div class="leg-i"><div class="leg-d" style="background:var(--red)"></div>순감</div>
-                <div class="leg-i"><div class="leg-d" style="background:var(--text4)"></div>보합</div>
+    <!-- FLOATING TOOLBAR -->
+    <div class="toolbar-float glass">
+        <div class="tf-row">
+            <span class="tf-lbl">지역</span>
+            <div class="chips" id="regionChips">
+                <button class="chip active" id="chip-branch" onclick="setRegionMode('branch')">내 지점</button>
+            </div>
+            <div class="tf-sep"></div>
+            <span class="tf-lbl">업종</span>
+            <div class="chips" id="catChips">
+                <button class="chip active" onclick="setCategory('all', this)">전체</button>
+                <button class="chip" onclick="setCategory('cafe', this)">☕ 카페</button>
+                <button class="chip" onclick="setCategory('bakery', this)">🥐 베이커리</button>
+                <button class="chip" onclick="setCategory('restaurant', this)">🍽 음식점</button>
             </div>
         </div>
-        <div class="sidebar">
-            <!-- 기본 목록 뷰 -->
-            <div id="sbListView" style="display:flex;flex-direction:column;height:100%">
-                <div class="sb-hd">시군구 현황 · 신규순</div>
-                <div class="sb-body" id="regionPanel">
-                    <div class="state-msg"><div class="state-ico">⏳</div>데이터 불러오는 중...</div>
-                </div>
+        <div class="tf-row">
+            <span class="tf-lbl">월</span>
+            <div class="month-timeline" id="monthTimeline"></div>
+        </div>
+    </div>
+
+    <!-- MAP LEGEND -->
+    <div class="map-legend glass">
+        <div class="leg-i"><div class="leg-d" style="background:#34c759"></div>순증</div>
+        <div class="leg-i"><div class="leg-d" style="background:#ff3b30"></div>순감</div>
+        <div class="leg-i"><div class="leg-d" style="background:#a1a1a6"></div>보합</div>
+    </div>
+
+    <!-- BACKDROP -->
+    <div class="panel-backdrop" id="panelBackdrop" onclick="closePanel()"></div>
+
+    <!-- SLIDE PANEL -->
+    <div class="slide-panel" id="slidePanel">
+        <div class="sp-hd">
+            <button class="sp-close" onclick="closePanel()">✕</button>
+            <span class="sp-title" id="drillTitle">—</span>
+        </div>
+        <div class="drill-summary" id="drillSummary"></div>
+        <div class="drill-tabs">
+            <button class="dtab active" onclick="switchDrillTab(this,'all')">전체</button>
+            <button class="dtab" onclick="switchDrillTab(this,'new')">신규</button>
+            <button class="dtab" onclick="switchDrillTab(this,'closed')">폐업</button>
+            <button class="dtab" onclick="switchDrillTab(this,'big')">100평+</button>
+        </div>
+        <div class="drill-list" id="drillList">
+            <div class="state-msg"><div class="state-ico">⏳</div>지역을 선택하세요</div>
+        </div>
+        <div class="sp-chart-section">
+            <div class="sp-chart-toggle" onclick="toggleSpChart()">
+                <span>📈 월별 추이</span>
+                <span id="spChartArrow">▲ 펼치기</span>
             </div>
-            <!-- 드릴다운 뷰 (기본 숨김) -->
-            <div id="sbDrillView" style="display:none;flex-direction:column;height:100%">
-                <div class="sb-hd drill-hd">
-                    <button class="drill-back" onclick="closeDrilldown()">← 목록</button>
-                    <span id="drillTitle"></span>
-                </div>
-                <div class="drill-summary" id="drillSummary"></div>
-                <div class="drill-tabs">
-                    <button class="dtab active" onclick="switchDrillTab(this,'all')">전체</button>
-                    <button class="dtab" onclick="switchDrillTab(this,'new')">신규</button>
-                    <button class="dtab" onclick="switchDrillTab(this,'closed')">폐업</button>
-                    <button class="dtab" onclick="switchDrillTab(this,'big')">100평+</button>
-                </div>
-                <div class="sb-body" id="drillList">
-                    <div class="state-msg"><div class="state-ico">⏳</div>불러오는 중...</div>
-                </div>
-                <div class="drill-fp-section">
-                    <div class="drill-fp-title">📍 유동인구</div>
-                    <div class="drill-fp-placeholder">향후 유동인구 데이터 연동 예정</div>
-                </div>
+            <div class="sp-chart-body" id="spChartBody">
+                <canvas id="trendChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- CHART -->
-    <div class="chart-bar" id="chartBar">
-        <div class="chart-title" id="chartTitle">
-            월별 신규 오픈 / 폐업 추이 · 2025.01 ~
-            <button class="chart-toggle-btn" onclick="toggleChart()">접기</button>
+    <!-- RANKING VIEW -->
+    <div class="ranking-view" id="rankingView">
+        <div class="rv-header">
+            <span class="rv-title">시군구 랭킹</span>
+            <div class="rv-sorts">
+                <button class="rv-sort-btn active" onclick="setRankSort('new', this)">신규순</button>
+                <button class="rv-sort-btn" onclick="setRankSort('closed', this)">폐업순</button>
+                <button class="rv-sort-btn" onclick="setRankSort('net', this)">순증순</button>
+                <button class="rv-sort-btn" onclick="setRankSort('rate', this)">성장률순</button>
+            </div>
         </div>
-        <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+        <div class="rv-body" id="rankBody">
+            <div class="state-msg"><div class="state-ico">⏳</div>데이터 불러오는 중...</div>
+        </div>
+        <div class="rv-chart-strip">
+            <div class="rv-chart-lbl">전체 월별 신규 / 폐업 추이</div>
+            <div class="rv-chart-wrap"><canvas id="overallChart"></canvas></div>
+        </div>
     </div>
 
-</div><!-- /page -->
+</div><!-- /map-container -->
 
-<!-- ─── SCRIPTS ─── -->
 <script src="//dapi.kakao.com/v2/maps/sdk.js?appkey=178d3ee35f67ded1f5d2411aa3cee010&autoload=false"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <script>
-/* ═══════════════════════════════════════════════
-   시도명 정규화
-═══════════════════════════════════════════════ */
+/* ─── 시도명 정규화 ─── */
 const SIDO_NORM = {
     '서울특별시':'서울','서울시':'서울','서울':'서울',
     '부산광역시':'부산','부산시':'부산','부산':'부산',
@@ -629,11 +749,7 @@ const SIDO_NORM = {
 };
 function normSido(s) { return SIDO_NORM[s?.trim()] || s?.trim() || ''; }
 
-/* ═══════════════════════════════════════════════
-   시군구 중심 좌표 (시도_시군구 복합 키)
-═══════════════════════════════════════════════ */
 const CENTROIDS = {
-    // 서울 (25구)
     '서울_강남구':[37.5172,127.0473],'서울_강동구':[37.5301,127.1238],
     '서울_강북구':[37.6397,127.0258],'서울_강서구':[37.5509,126.8496],
     '서울_관악구':[37.4784,126.9516],'서울_광진구':[37.5385,127.0823],
@@ -647,7 +763,6 @@ const CENTROIDS = {
     '서울_용산구':[37.5324,126.9904],'서울_은평구':[37.6027,126.9291],
     '서울_종로구':[37.5735,126.9790],'서울_중구':[37.5640,126.9975],
     '서울_중랑구':[37.6063,127.0927],
-    // 부산 (16구 1군)
     '부산_강서구':[35.2121,128.9806],'부산_금정구':[35.2435,129.0927],
     '부산_기장군':[35.2446,129.2224],'부산_남구':[35.1367,129.0862],
     '부산_동구':[35.1392,129.0454],'부산_동래구':[35.2047,129.0828],
@@ -656,32 +771,25 @@ const CENTROIDS = {
     '부산_서구':[35.0979,129.0245],'부산_수영구':[35.1452,129.1133],
     '부산_연제구':[35.1762,129.0809],'부산_영도구':[35.0905,129.0689],
     '부산_중구':[35.1067,129.0322],'부산_해운대구':[35.1632,129.1635],
-    // 대구 (7구 1군)
     '대구_남구':[35.8464,128.5973],'대구_달서구':[35.8299,128.5328],
     '대구_달성군':[35.7747,128.4313],'대구_동구':[35.8869,128.6351],
     '대구_북구':[35.8853,128.5824],'대구_서구':[35.8716,128.5594],
     '대구_수성구':[35.8581,128.6306],'대구_중구':[35.8694,128.6058],
-    // 인천 (8구 2군)
     '인천_강화군':[37.7469,126.4879],'인천_계양구':[37.5374,126.7376],
     '인천_남동구':[37.4473,126.8979],'인천_동구':[37.4739,126.6432],
     '인천_미추홀구':[37.4629,126.6505],'인천_부평구':[37.5034,126.7218],
     '인천_서구':[37.5454,126.6756],'인천_연수구':[37.4102,126.6784],
     '인천_옹진군':[37.4512,126.3624],'인천_중구':[37.4745,126.6214],
-    // 광주 (5구)
     '광주_광산구':[35.1396,126.7936],'광주_남구':[35.1333,126.9030],
     '광주_동구':[35.1459,126.9231],'광주_북구':[35.1745,126.9119],
     '광주_서구':[35.1518,126.8895],
-    // 대전 (5구)
     '대전_대덕구':[36.3466,127.4148],'대전_동구':[36.3121,127.4547],
     '대전_서구':[36.3553,127.3832],'대전_유성구':[36.3624,127.3563],
     '대전_중구':[36.3247,127.4211],
-    // 울산 (4구 1군)
     '울산_남구':[35.5384,129.3114],'울산_동구':[35.5049,129.4166],
     '울산_북구':[35.5821,129.3612],'울산_울주군':[35.5228,129.2381],
     '울산_중구':[35.5695,129.3323],
-    // 세종
     '세종_세종시':[36.4800,127.2890],
-    // 경기도 (31시군)
     '경기도_가평군':[37.8314,127.5097],'경기도_고양시':[37.6584,126.8320],
     '경기도_과천시':[37.4290,126.9876],'경기도_광명시':[37.4784,126.8642],
     '경기도_광주시':[37.4296,127.2553],'경기도_구리시':[37.5940,127.1296],
@@ -698,7 +806,6 @@ const CENTROIDS = {
     '경기도_파주시':[37.7600,126.7797],'경기도_평택시':[37.0000,127.1126],
     '경기도_포천시':[37.8946,127.2003],'경기도_하남시':[37.5392,127.2148],
     '경기도_화성시':[37.1994,126.8312],
-    // 강원도 (18시군)
     '강원도_강릉시':[37.7519,128.8760],'강원도_고성군':[38.3800,128.4676],
     '강원도_동해시':[37.5244,129.1143],'강원도_삼척시':[37.4499,129.1658],
     '강원도_속초시':[38.2070,128.5918],'강원도_양구군':[38.1058,127.9899],
@@ -708,14 +815,12 @@ const CENTROIDS = {
     '강원도_춘천시':[37.8813,127.7298],'강원도_태백시':[37.1655,128.9856],
     '강원도_평창군':[37.3706,128.3904],'강원도_홍천군':[37.6934,127.8888],
     '강원도_화천군':[38.1065,127.7071],'강원도_횡성군':[37.4918,127.9853],
-    // 충청북도 (11시군)
     '충청북도_괴산군':[36.8153,127.7872],'충청북도_단양군':[36.9845,128.3654],
     '충청북도_보은군':[36.4894,127.7291],'충청북도_영동군':[36.1748,127.7781],
     '충청북도_옥천군':[36.3063,127.5714],'충청북도_음성군':[36.9396,127.6909],
     '충청북도_제천시':[37.1323,128.1905],'충청북도_증평군':[36.7851,127.5815],
     '충청북도_진천군':[36.8549,127.4353],'충청북도_청주시':[36.6424,127.4890],
     '충청북도_충주시':[36.9910,127.9259],
-    // 충청남도 (15시군)
     '충청남도_계룡시':[36.2744,127.2488],'충청남도_공주시':[36.4467,127.1192],
     '충청남도_금산군':[36.1088,127.4881],'충청남도_논산시':[36.1872,127.0994],
     '충청남도_당진시':[36.8896,126.6458],'충청남도_보령시':[36.3333,126.6127],
@@ -724,7 +829,6 @@ const CENTROIDS = {
     '충청남도_예산군':[36.6801,126.8448],'충청남도_천안시':[36.8151,127.1139],
     '충청남도_청양군':[36.4594,126.8028],'충청남도_태안군':[36.7455,126.2982],
     '충청남도_홍성군':[36.6013,126.6603],
-    // 전라북도 (14시군)
     '전라북도_고창군':[35.4357,126.7016],'전라북도_군산시':[35.9680,126.7369],
     '전라북도_김제시':[35.8038,126.8809],'전라북도_남원시':[35.4164,127.3897],
     '전라북도_무주군':[36.0067,127.6614],'전라북도_부안군':[35.7317,126.7331],
@@ -732,7 +836,6 @@ const CENTROIDS = {
     '전라북도_익산시':[35.9483,126.9576],'전라북도_임실군':[35.6178,127.2891],
     '전라북도_장수군':[35.6474,127.5207],'전라북도_전주시':[35.8242,127.1480],
     '전라북도_정읍시':[35.5699,126.8567],'전라북도_진안군':[35.7914,127.4243],
-    // 전라남도 (22시군)
     '전라남도_강진군':[34.6427,126.7672],'전라남도_고흥군':[34.6115,127.2748],
     '전라남도_곡성군':[35.2821,127.2916],'전라남도_광양시':[34.9437,127.6955],
     '전라남도_구례군':[35.2025,127.4633],'전라남도_나주시':[35.0160,126.7108],
@@ -744,7 +847,6 @@ const CENTROIDS = {
     '전라남도_장성군':[35.3026,126.7847],'전라남도_장흥군':[34.6810,126.9076],
     '전라남도_진도군':[34.4870,126.2638],'전라남도_함평군':[35.0658,126.5177],
     '전라남도_해남군':[34.5731,126.5988],'전라남도_화순군':[35.0645,126.9869],
-    // 경상북도 (23시군)
     '경상북도_경산시':[35.8249,128.7413],'경상북도_경주시':[35.8562,129.2247],
     '경상북도_고령군':[35.7273,128.2639],'경상북도_구미시':[36.1197,128.3442],
     '경상북도_군위군':[36.2393,128.5725],'경상북도_김천시':[36.1398,128.1135],
@@ -757,7 +859,6 @@ const CENTROIDS = {
     '경상북도_의성군':[36.3527,128.6970],'경상북도_청도군':[35.6473,128.7337],
     '경상북도_청송군':[36.4359,129.0574],'경상북도_칠곡군':[35.9951,128.4016],
     '경상북도_포항시':[36.0320,129.3650],
-    // 경상남도 (18시군)
     '경상남도_거제시':[34.8804,128.6213],'경상남도_거창군':[35.6869,127.9091],
     '경상남도_고성군':[34.9731,128.3228],'경상남도_김해시':[35.2285,128.8894],
     '경상남도_남해군':[34.8376,127.8922],'경상남도_밀양시':[35.5036,128.7462],
@@ -767,7 +868,6 @@ const CENTROIDS = {
     '경상남도_창원시':[35.2279,128.6811],'경상남도_통영시':[34.8544,128.4333],
     '경상남도_하동군':[35.0671,127.7519],'경상남도_함안군':[35.2724,128.4070],
     '경상남도_함양군':[35.5206,127.7249],'경상남도_합천군':[35.5669,128.1652],
-    // 제주 (2시)
     '제주_서귀포시':[33.2541,126.5600],'제주_제주시':[33.4996,126.5312],
 };
 
@@ -791,19 +891,38 @@ const SIDO_CENTER = {
     '제주':    { center:[33.4890,126.4983], level:8 },
 };
 
-/* ═══════════════════════════════════════════════
-   APP STATE
-═══════════════════════════════════════════════ */
-let map, kakaoPolygons = [], kakaoTooltip = null, trendChart;
+/* ─── STATE ─── */
+let map, kakaoPolygons = [], kakaoTooltip = null;
+let trendChart = null, overallChart = null;
 let mapReady = false, pendingMapRender = null;
-let sidoSigunguMap = {};   // { '경기도': ['의정부시',...] }
-let sigunguSidoMap = {};   // sigungu → sido 역매핑
+let sidoSigunguMap = {};
+let sigunguSidoMap = {};
 let cachedSnaps    = [];
-let viewMode       = 'branch';   // 'branch' | 'sido'
+let cachedRegionsArr = [];
+let viewMode       = 'branch';
 let viewSido       = null;
-let selectedMonth  = null;       // 'YYYY-MM' | null
+let selectedMonth  = null;
+let selectedCategory = 'all';
+let currentView    = 'map';
+let rankSort       = 'new';
+let spChartOpen    = false;
+let currentDrillRegion = '';
+let currentDrillData   = [];
+let currentDrillTab    = 'all';
 
-/* ─── 월 헬퍼 ─── */
+const CAT_KW = {
+    cafe:       ['카페','커피','coffee','cafe','다방','테이크아웃','음료'],
+    bakery:     ['베이커리','제과','빵','케이크','도넛','파이','쿠키'],
+    restaurant: ['음식점','식당','레스토랑','분식','치킨','피자','햄버거',
+                 '중식','일식','한식','양식','탕','찌개','국밥','냉면'],
+};
+function matchCategory(store) {
+    if (selectedCategory === 'all') return true;
+    const haystack = ((store.category || '') + ' ' + (store.name || '')).toLowerCase();
+    return CAT_KW[selectedCategory]?.some(kw => haystack.includes(kw)) ?? false;
+}
+
+/* ─── MONTH HELPERS ─── */
 function addMonths(ym, delta) {
     let [y, m] = ym.split('-').map(Number);
     m += delta;
@@ -815,8 +934,83 @@ function currentYM() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
 }
+function getMonthList() {
+    const list = [];
+    const now = new Date();
+    let cur = new Date(2025, 0, 1);
+    while (cur <= now) {
+        list.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
+        cur.setMonth(cur.getMonth() + 1);
+    }
+    return list;
+}
 
-/* ─── 지역 모드 전환 ─── */
+/* ─── MONTH TIMELINE BUILD ─── */
+function buildMonthTimeline() {
+    const tl = document.getElementById('monthTimeline');
+    if (!tl) return;
+    tl.innerHTML = '';
+
+    const allPill = document.createElement('button');
+    allPill.className = 'mt-pill mt-all' + (!selectedMonth ? ' active' : '');
+    allPill.textContent = '전체';
+    allPill.onclick = () => { selectedMonth = null; updateMonthUI(); applyFilters(); };
+    tl.appendChild(allPill);
+
+    getMonthList().forEach(mo => {
+        const pill = document.createElement('button');
+        pill.className = 'mt-pill' + (mo === selectedMonth ? ' active' : '');
+        pill.dataset.month = mo;
+        pill.textContent = mo.slice(2).replace('-', '.');
+        pill.onclick = () => { selectedMonth = mo; updateMonthUI(); applyFilters(); };
+        tl.appendChild(pill);
+    });
+
+    setTimeout(() => {
+        const active = tl.querySelector('.mt-pill.active:not(.mt-all)');
+        if (active) active.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+        else tl.scrollLeft = tl.scrollWidth;
+    }, 120);
+}
+
+function updateMonthUI() {
+    document.querySelectorAll('.mt-pill').forEach(p => {
+        const isAll = p.classList.contains('mt-all');
+        p.classList.toggle('active', isAll ? !selectedMonth : p.dataset.month === selectedMonth);
+    });
+    const active = document.querySelector('#monthTimeline .mt-pill.active:not(.mt-all)');
+    if (active) active.scrollIntoView({ inline: 'nearest', behavior: 'smooth', block: 'nearest' });
+    setTimeout(() => map?.relayout(), 60);
+}
+
+/* ─── VIEW MODE ─── */
+function setView(mode) {
+    currentView = mode;
+    document.getElementById('btnMapView').classList.toggle('active', mode === 'map');
+    document.getElementById('btnRankView').classList.toggle('active', mode === 'rank');
+    document.getElementById('rankingView').classList.toggle('on', mode === 'rank');
+    if (mode === 'rank' && cachedRegionsArr.length) {
+        renderRankingView(cachedRegionsArr);
+        renderOverallChart();
+    }
+    if (mode === 'map') setTimeout(() => map?.relayout(), 50);
+}
+
+function setCategory(cat, btn) {
+    selectedCategory = cat;
+    document.querySelectorAll('#catChips .chip').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    if (currentDrillRegion) renderDrillList(currentDrillTab);
+}
+
+function setRankSort(sort, btn) {
+    rankSort = sort;
+    document.querySelectorAll('.rv-sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderRankingView(cachedRegionsArr);
+}
+
+/* ─── REGION MODE ─── */
 async function setRegionMode(mode, sido) {
     viewMode = mode;
     viewSido = sido || null;
@@ -826,36 +1020,35 @@ async function setRegionMode(mode, sido) {
     await loadDashboard();
 }
 
-/* ─── 월 네비게이션 ─── */
-function shiftMonth(delta) {
-    const cur  = currentYM();
-    const base = selectedMonth || cur;
-    const next = addMonths(base, delta);
-    if (next < '2025-01' || next > cur) return;
-    selectedMonth = next;
-    updateMonthUI();
-    applyFilters();
+/* ─── PANEL ─── */
+function openPanel() {
+    document.getElementById('slidePanel').classList.add('open');
+    document.getElementById('panelBackdrop').classList.add('on');
 }
-function clearMonth() {
-    selectedMonth = null;
-    updateMonthUI();
-    applyFilters();
-}
-function updateMonthUI() {
-    const lbl = document.getElementById('monthLabel');
-    const btn = document.getElementById('btnMonthClear');
-    const strip = document.getElementById('cmpStrip');
-    if (lbl) lbl.textContent = selectedMonth || '전체';
-    if (btn) btn.style.display = selectedMonth ? '' : 'none';
-    if (strip) strip.classList.toggle('on', !!selectedMonth);
-    const newSub = document.getElementById('kpiNewSub');
-    if (newSub) newSub.textContent = selectedMonth ? `${selectedMonth} 기준` : '인허가 기준 누적';
-    setTimeout(() => map?.relayout(), 60);
+function closePanel() {
+    document.getElementById('slidePanel').classList.remove('open');
+    document.getElementById('panelBackdrop').classList.remove('on');
+    currentDrillData   = [];
+    currentDrillRegion = '';
+    currentDrillTab    = 'all';
+    spChartOpen = false;
+    const body = document.getElementById('spChartBody');
+    if (body) body.classList.remove('open');
+    const arrow = document.getElementById('spChartArrow');
+    if (arrow) arrow.textContent = '▲ 펼치기';
+    if (trendChart) { trendChart.destroy(); trendChart = null; }
 }
 
-/* ═══════════════════════════════════════════════
-   MAP INIT
-═══════════════════════════════════════════════ */
+function toggleSpChart() {
+    spChartOpen = !spChartOpen;
+    document.getElementById('spChartBody').classList.toggle('open', spChartOpen);
+    document.getElementById('spChartArrow').textContent = spChartOpen ? '▼ 접기' : '▲ 펼치기';
+    if (spChartOpen && currentDrillRegion) {
+        setTimeout(() => renderRegionChart(currentDrillRegion), 50);
+    }
+}
+
+/* ─── MAP INIT ─── */
 function initMap() {
     kakao.maps.load(() => {
         const container = document.getElementById('intel-map');
@@ -864,22 +1057,18 @@ function initMap() {
             level: 9,
         });
         mapReady = true;
-        // GeoJSON 미리 로드 후 배경 폴리곤 즉시 표시
         loadGeoData().then(() => { if (geoData) renderGeoMap([]); });
         if (pendingMapRender) { pendingMapRender(); pendingMapRender = null; }
     });
 }
 
-/* ═══════════════════════════════════════════════
-   AUTH → managers → 초기화
-═══════════════════════════════════════════════ */
+/* ─── AUTH → INIT ─── */
 async function initDashboard() {
     try {
         const { data:{ session } } = await client.auth.getSession();
         if (!session) { window.location.href = 'login.html'; return; }
 
         const bu = session.user.user_metadata?.business_unit || '';
-
         const { data: mgrs, error } = await client
             .from('managers')
             .select('region1, region2')
@@ -890,7 +1079,6 @@ async function initDashboard() {
         const rows = mgrs || [];
         sidoSigunguMap = {};
         sigunguSidoMap = {};
-
         rows.forEach(m => {
             const sido = normSido(m.region1);
             const sgu  = m.region2?.trim();
@@ -902,39 +1090,24 @@ async function initDashboard() {
 
         const allSiguList = Object.values(sidoSigunguMap).flat();
         if (!allSiguList.length) {
-            document.getElementById('regionPanel').innerHTML =
-                '<div class="state-msg"><div class="state-ico">⚠️</div><span>담당 지역이 설정되지 않았습니다.<br>관리자에게 문의하세요.</span></div>';
+            setText('lastSync', '담당 지역 없음');
             return;
         }
 
-        const sidoLabels  = Object.keys(sidoSigunguMap).join(' · ');
-        const regionLabel = allSiguList.length <= 3
-            ? allSiguList.join(' · ')
-            : `${allSiguList.slice(0,3).join(' · ')} 외 ${allSiguList.length - 3}개`;
-        const el = document.getElementById('headerSub');
-        if (el) el.textContent = `${sidoLabels} · ${regionLabel} · 2025.01 ~ 현재`;
-
-        // 사용자명 + 로그아웃 버튼 표시
         setupLogoutButton?.();
-
         buildSidoChips();
+        buildMonthTimeline();
         await loadDashboard();
 
     } catch(e) {
         console.error('[discover] init error', e);
-        document.getElementById('lastSync').textContent = '초기화 실패';
-        document.getElementById('regionPanel').innerHTML =
-            `<div class="state-msg"><div class="state-ico">⚠️</div><span>${esc(e.message)}</span></div>`;
+        setText('lastSync', '초기화 실패');
     }
 }
 
-/* ─── sido 칩 동적 생성 ─── */
 async function buildSidoChips() {
     try {
-        const { data } = await client
-            .from('market_snapshots')
-            .select('sido')
-            .gte('month', '2025-01');
+        const { data } = await client.from('market_snapshots').select('sido').gte('month', '2025-01');
         const sidos = [...new Set((data || []).map(r => r.sido))].sort();
         const chips = document.getElementById('regionChips');
         sidos.forEach(sido => {
@@ -949,9 +1122,7 @@ async function buildSidoChips() {
     } catch(_) {}
 }
 
-/* ═══════════════════════════════════════════════
-   DATA LOAD
-═══════════════════════════════════════════════ */
+/* ─── DATA LOAD ─── */
 async function loadDashboard() {
     const btnRef = document.getElementById('btnRefresh');
     const syncEl = document.getElementById('lastSync');
@@ -969,10 +1140,8 @@ async function loadDashboard() {
                 .order('month', { ascending: true });
             if (error) throw error;
             cachedSnaps = data || [];
-            // sido 모드에서 역매핑 갱신
             cachedSnaps.forEach(r => { sigunguSidoMap[r.sigungu] = r.sido; });
         } else {
-            // branch 모드: sigunguSidoMap을 managers 데이터로 재설정
             sigunguSidoMap = {};
             Object.entries(sidoSigunguMap).forEach(([sido, list]) => {
                 list.forEach(sgu => { sigunguSidoMap[sgu] = sido; });
@@ -1003,20 +1172,14 @@ async function loadDashboard() {
     } catch(e) {
         console.error('[discover] load error', e);
         if (syncEl) syncEl.textContent = '오류';
-        document.getElementById('regionPanel').innerHTML =
-            `<div class="state-msg"><div class="state-ico">⚠️</div><span>데이터 조회 실패<br>${esc(e.message)}</span></div>`;
     } finally {
         if (btnRef) btnRef.disabled = false;
     }
 }
 
-/* ═══════════════════════════════════════════════
-   FILTER & RENDER
-═══════════════════════════════════════════════ */
+/* ─── FILTER & RENDER ─── */
 function applyFilters() {
     if (!cachedSnaps.length) {
-        document.getElementById('regionPanel').innerHTML =
-            '<div class="state-msg"><div class="state-ico">📭</div><span>데이터 준비 중입니다.<br>내일 새벽 3시 이후 확인하세요.</span></div>';
         renderKPIs({ totalNew:0, totalClosed:0, net:0 });
         return;
     }
@@ -1025,15 +1188,6 @@ function applyFilters() {
         ? cachedSnaps.filter(r => r.month === selectedMonth)
         : cachedSnaps;
 
-    // 전체 월별 집계 (차트용)
-    const monthlyAll = {};
-    cachedSnaps.forEach(r => {
-        if (!monthlyAll[r.month]) monthlyAll[r.month] = { new:0, closed:0 };
-        monthlyAll[r.month].new    += r.new_count    || 0;
-        monthlyAll[r.month].closed += r.closed_count || 0;
-    });
-
-    // 표시 대상 집계
     const regions = {};
     displaySnaps.forEach(r => {
         if (!regions[r.sigungu]) regions[r.sigungu] = { new:0, closed:0 };
@@ -1041,36 +1195,22 @@ function applyFilters() {
         regions[r.sigungu].closed += r.closed_count || 0;
     });
 
-    const regionsArr = Object.entries(regions)
+    cachedRegionsArr = Object.entries(regions)
         .map(([region, { new:n, closed:c }]) => ({
             region, new:n, closed:c, net:n-c,
             netRate: n > 0 ? Math.round(((n-c)/n)*100) : (c > 0 ? -100 : 0),
         }))
         .sort((a, b) => b.new - a.new);
 
-    const totalNew    = regionsArr.reduce((s, r) => s + r.new,    0);
-    const totalClosed = regionsArr.reduce((s, r) => s + r.closed, 0);
-
-    // 월 목록 (2025-01 ~ 현재)
-    const now = new Date();
-    const monthList = [];
-    const cur = new Date(2025, 0, 1);
-    while (cur <= now) {
-        monthList.push(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
-        cur.setMonth(cur.getMonth() + 1);
-    }
-    const monthlyArr = monthList.map(m => ({
-        month: m,
-        new:    monthlyAll[m]?.new    || 0,
-        closed: monthlyAll[m]?.closed || 0,
-        net:   (monthlyAll[m]?.new || 0) - (monthlyAll[m]?.closed || 0),
-    }));
+    const totalNew    = cachedRegionsArr.reduce((s, r) => s + r.new,    0);
+    const totalClosed = cachedRegionsArr.reduce((s, r) => s + r.closed, 0);
 
     renderKPIs({ totalNew, totalClosed, net: totalNew - totalClosed });
-    renderMap(regionsArr);
-    renderRegionPanel(regionsArr);
-    renderTrendChart(monthlyArr, selectedMonth);
-    if (selectedMonth) renderComparison();
+    renderMap(cachedRegionsArr);
+    if (currentView === 'rank') {
+        renderRankingView(cachedRegionsArr);
+        renderOverallChart();
+    }
 }
 
 /* ─── KPI ─── */
@@ -1080,7 +1220,6 @@ function renderKPIs({ totalNew, totalClosed, net }) {
     setText('kpiNet',    (net > 0 ? '+' : '') + net.toLocaleString());
     const rate = totalNew > 0 ? Math.round((net / totalNew) * 100) : 0;
     setText('kpiRate', (rate > 0 ? '+' : '') + rate + '%');
-    setText('kpiNetSub', net >= 0 ? '시장 성장 중' : '시장 축소 중');
 }
 
 /* ─── MAP ─── */
@@ -1100,172 +1239,149 @@ function renderMap(regions) {
         renderGeoMap(regions);
     } else {
         loadGeoData().then(() => {
-            if (geoData) {
-                renderGeoMap(regions);
-            } else {
-                // GeoJSON 실패 시 버블 마커 폴백
-                if (regions?.length) renderBubbleMap(regions);
-            }
+            if (geoData) renderGeoMap(regions);
+            else if (regions?.length) renderBubbleMap(regions);
         });
     }
 }
 
-/* ─── REGION PANEL ─── */
-function renderRegionPanel(regions) {
-    const panel = document.getElementById('regionPanel');
-    if (!regions?.length) {
-        panel.innerHTML = '<div class="state-msg"><div class="state-ico">📭</div>데이터 없음</div>';
-        return;
-    }
-    const maxNew = Math.max(...regions.map(r => r.new), 1);
-    panel.innerHTML = regions.map((r, i) => {
+/* ─── RANKING VIEW ─── */
+function renderRankingView(regions) {
+    if (!regions?.length) return;
+    const sorted = [...regions].sort((a, b) => {
+        if (rankSort === 'new')    return b.new - a.new;
+        if (rankSort === 'closed') return b.closed - a.closed;
+        if (rankSort === 'net')    return b.net - a.net;
+        if (rankSort === 'rate')   return b.netRate - a.netRate;
+        return 0;
+    });
+    const maxNew = Math.max(...sorted.map(r => r.new), 1);
+    document.getElementById('rankBody').innerHTML = sorted.map((r, i) => {
         const pct    = Math.round((r.new / maxNew) * 100);
         const barC   = r.net > 0 ? '#34c759' : r.net < 0 ? '#ff3b30' : '#d1d5db';
         const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
-        const netCls = r.net > 0 ? 'rn-pos' : r.net < 0 ? 'rn-neg' : 'rn-0';
-        return `<div class="rrow" style="cursor:pointer" onclick="openDrilldown('${esc(r.region)}')">
-            <div class="rrow-top">
-                <span class="rrow-name">
-                    <span class="rrow-rank">${i+1}</span>${esc(r.region)}
-                </span>
-                <span class="rrow-net ${netCls}">${netStr}</span>
+        const netCls = r.net > 0 ? 'rv-net-pos' : r.net < 0 ? 'rv-net-neg' : 'rv-net-0';
+        return `<div class="rv-card" onclick="openDrilldown('${esc(r.region)}')">
+            <div class="rv-card-top">
+                <div class="rv-card-name">
+                    <span class="rv-rank">#${i+1}</span>
+                    <span class="rv-name">${esc(r.region)}</span>
+                </div>
+                <span class="rv-net ${netCls}">${netStr}</span>
             </div>
-            <div class="rbar"><div class="rbar-fill" style="width:${pct}%;background:${barC}"></div></div>
-            <div class="rnums">
-                <div class="rnum">
-                    <span class="rnum-l" style="color:#34c759">신규</span>
-                    <span class="rnum-v" style="color:#34c759">${r.new}</span>
+            <div class="rv-bar"><div class="rv-bar-fill" style="width:${pct}%;background:${barC}"></div></div>
+            <div class="rv-nums">
+                <div class="rv-num">
+                    <span class="rv-num-l" style="color:#34c759">신규</span>
+                    <span class="rv-num-v" style="color:#34c759">${r.new}</span>
                 </div>
-                <div class="rnum">
-                    <span class="rnum-l" style="color:#ff3b30">폐업</span>
-                    <span class="rnum-v" style="color:#ff3b30">${r.closed}</span>
+                <div class="rv-num">
+                    <span class="rv-num-l" style="color:#ff3b30">폐업</span>
+                    <span class="rv-num-v" style="color:#ff3b30">${r.closed}</span>
                 </div>
-                <div class="rnum">
-                    <span class="rnum-l">성장률</span>
-                    <span class="rnum-v" style="color:#6b7280">${r.netRate}%</span>
+                <div class="rv-num">
+                    <span class="rv-num-l">성장률</span>
+                    <span class="rv-num-v" style="color:#6b7280">${r.netRate}%</span>
                 </div>
             </div>
         </div>`;
     }).join('');
 }
 
-/* ─── CHART ─── */
-function renderTrendChart(monthly, highlightMonth) {
-    const filtered = (monthly || []).filter(m => m.new + m.closed > 0);
+/* ─── OVERALL CHART (ranking view) ─── */
+function renderOverallChart() {
+    const monthlyAll = {};
+    cachedSnaps.forEach(r => {
+        if (!monthlyAll[r.month]) monthlyAll[r.month] = { new:0, closed:0 };
+        monthlyAll[r.month].new    += r.new_count    || 0;
+        monthlyAll[r.month].closed += r.closed_count || 0;
+    });
+    const filtered = getMonthList()
+        .map(m => ({ month: m, new: monthlyAll[m]?.new||0, closed: monthlyAll[m]?.closed||0 }))
+        .filter(m => m.new + m.closed > 0);
     if (!filtered.length) return;
+    renderChartOnCanvas('overallChart', filtered, null, overallChart, c => { overallChart = c; });
+}
 
-    const labels     = filtered.map(m => m.month.slice(2));
-    const newData    = filtered.map(m => m.new);
-    const closedData = filtered.map(m => m.closed);
-    const netData    = filtered.map(m => m.net);
+/* ─── REGION CHART (slide panel) ─── */
+function renderRegionChart(sigungu) {
+    const monthMap = {};
+    cachedSnaps.filter(r => r.sigungu === sigungu).forEach(r => {
+        monthMap[r.month] = { new: r.new_count||0, closed: r.closed_count||0 };
+    });
+    const filtered = getMonthList()
+        .map(m => ({ month: m, new: monthMap[m]?.new||0, closed: monthMap[m]?.closed||0 }))
+        .filter(m => m.new + m.closed > 0);
+    if (!filtered.length) return;
+    renderChartOnCanvas('trendChart', filtered, selectedMonth, trendChart, c => { trendChart = c; });
+}
 
-    const hlMonths = highlightMonth ? [
-        highlightMonth,
-        addMonths(highlightMonth, -1),
-        addMonths(highlightMonth, -12),
-    ] : [];
+/* ─── SHARED CHART RENDERER ─── */
+function renderChartOnCanvas(canvasId, monthly, highlightMonth, existingChart, setter) {
+    if (existingChart) existingChart.destroy();
+    const ctx = document.getElementById(canvasId)?.getContext('2d');
+    if (!ctx) return;
 
-    function mkColor(i, baseHi, baseMid, baseLow) {
+    const labels     = monthly.map(m => m.month.slice(2));
+    const newData    = monthly.map(m => m.new);
+    const closedData = monthly.map(m => m.closed);
+    const netData    = monthly.map(m => m.new - m.closed);
+
+    const hlMonths = highlightMonth
+        ? [highlightMonth, addMonths(highlightMonth,-1), addMonths(highlightMonth,-12)]
+        : [];
+
+    const mkBg = (i, hiA, loA, hiC, loC) => {
+        if (!hlMonths.length) return hiC;
         const m = '20' + labels[i];
-        if (!hlMonths.length) return baseHi;
-        if (m === highlightMonth) return baseMid;
-        if (hlMonths.includes(m)) return baseMid.replace(/[\d.]+\)$/, '0.4)');
-        return baseLow;
-    }
+        if (m === highlightMonth) return hiC;
+        if (hlMonths.includes(m)) return loC.replace(/[\d.]+\)$/, '0.45)');
+        return loA;
+    };
 
-    const bgNew    = newData.map((_,i) => mkColor(i,'rgba(52,199,89,.25)','rgba(52,199,89,.8)','rgba(52,199,89,.07)'));
-    const bgClosed = closedData.map((_,i) => mkColor(i,'rgba(255,59,48,.2)','rgba(255,59,48,.7)','rgba(255,59,48,.06)'));
-
-    if (trendChart) trendChart.destroy();
-    const ctx = document.getElementById('trendChart').getContext('2d');
-    trendChart = new Chart(ctx, {
+    const chart = new Chart(ctx, {
         data: {
             labels,
             datasets: [
                 {
-                    type:'bar', label:'신규 오픈', data:newData,
-                    backgroundColor:bgNew, borderColor:'rgba(52,199,89,.6)',
-                    borderWidth:1, borderRadius:2, yAxisID:'y',
+                    type:'bar', label:'신규', data:newData,
+                    backgroundColor: newData.map((_,i)=>mkBg(i,'rgba(52,199,89,.08)','rgba(52,199,89,.07)','rgba(52,199,89,.8)','rgba(52,199,89,.8)')),
+                    borderColor:'rgba(52,199,89,.6)', borderWidth:1, borderRadius:3, yAxisID:'y',
                 },
                 {
                     type:'bar', label:'폐업', data:closedData,
-                    backgroundColor:bgClosed, borderColor:'rgba(255,59,48,.5)',
-                    borderWidth:1, borderRadius:2, yAxisID:'y',
+                    backgroundColor: closedData.map((_,i)=>mkBg(i,'rgba(255,59,48,.07)','rgba(255,59,48,.06)','rgba(255,59,48,.75)','rgba(255,59,48,.75)')),
+                    borderColor:'rgba(255,59,48,.5)', borderWidth:1, borderRadius:3, yAxisID:'y',
                 },
                 {
                     type:'line', label:'순증', data:netData,
-                    borderColor:'rgba(0,113,227,.8)',
-                    backgroundColor:'rgba(0,113,227,.07)',
-                    borderWidth:2, pointRadius:2.5,
-                    pointBackgroundColor:'rgba(0,113,227,.9)',
-                    fill:true, tension:0.35, yAxisID:'y',
+                    borderColor:'rgba(0,113,227,.8)', backgroundColor:'rgba(0,113,227,.06)',
+                    borderWidth:2, pointRadius:2.5, fill:true, tension:0.35, yAxisID:'y',
                 },
             ],
         },
         options: {
             responsive:true, maintainAspectRatio:false,
             plugins: {
-                legend: {
-                    labels: { color:'#6e6e73', font:{ size:12 }, boxWidth:11, padding:16 },
-                },
+                legend: { labels:{ color:'#6e6e73', font:{size:11}, boxWidth:10, padding:12 } },
                 tooltip: {
                     backgroundColor:'#fff', borderColor:'#e0e0e5', borderWidth:1,
-                    titleColor:'#1d1d1f', bodyColor:'#6e6e73', padding:11,
-                    titleFont:{ size:13, weight:'600' },
-                    bodyFont:{ size:13 },
+                    titleColor:'#1d1d1f', bodyColor:'#6e6e73', padding:10,
                     callbacks: { label: c => ` ${c.dataset.label}: ${c.raw}건` },
                 },
             },
             scales: {
-                x: { ticks:{ color:'#a1a1a6', font:{ size:11 } }, grid:{ color:'rgba(0,0,0,.04)' } },
-                y: { ticks:{ color:'#a1a1a6', font:{ size:11 }, stepSize:5 }, grid:{ color:'rgba(0,0,0,.04)' }, beginAtZero:true },
+                x: { ticks:{ color:'#a1a1a6', font:{size:10} }, grid:{ color:'rgba(0,0,0,.04)' } },
+                y: { ticks:{ color:'#a1a1a6', font:{size:10}, stepSize:5 }, grid:{ color:'rgba(0,0,0,.04)' }, beginAtZero:true },
             },
         },
     });
+    setter(chart);
 }
 
-/* ─── COMPARISON ─── */
-function renderComparison() {
-    if (!selectedMonth) return;
-    const prevM = addMonths(selectedMonth, -1);
-    const prevY = addMonths(selectedMonth, -12);
-
-    function sum(ym) {
-        const rows = cachedSnaps.filter(r => r.month === ym);
-        const n = rows.reduce((s, r) => s + (r.new_count    || 0), 0);
-        const c = rows.reduce((s, r) => s + (r.closed_count || 0), 0);
-        return { new:n, closed:c, net:n-c };
-    }
-    const cur  = sum(selectedMonth);
-    const prev = sum(prevM);
-    const yoy  = sum(prevY);
-
-    function colHtml(data, base) {
-        const d = base ? cur.new - base.new : null;
-        const deltaHtml = (d !== null && base && base.new > 0)
-            ? `<div class="cmp-delta">신규 대비 <span class="${d > 0 ? 'du' : d < 0 ? 'dd' : ''}">${d > 0 ? '+' : ''}${d}건</span></div>`
-            : '';
-        return `<div class="cmp-ms">
-            <div class="cmp-m"><span class="cmp-ml">신규</span><span class="cmp-mv cv-g">${data.new.toLocaleString()}</span></div>
-            <div class="cmp-m"><span class="cmp-ml">폐업</span><span class="cmp-mv cv-r">${data.closed.toLocaleString()}</span></div>
-            <div class="cmp-m"><span class="cmp-ml">순증</span><span class="cmp-mv cv-b">${data.net > 0 ? '+' : ''}${data.net.toLocaleString()}</span></div>
-        </div>${deltaHtml}`;
-    }
-
-    setText('cmpTitleYoy', `전년동월 (${prevY})`);
-    setText('cmpTitlePrev', `전월 (${prevM})`);
-    setText('cmpTitleCur', `당월 (${selectedMonth})`);
-    document.getElementById('cmpYoy').innerHTML  = colHtml(yoy,  null);
-    document.getElementById('cmpPrev').innerHTML = colHtml(prev, null);
-    document.getElementById('cmpCur').innerHTML  = colHtml(cur,  prev);
-}
-
-/* ═══════════════════════════════════════════════
-   GEOJSON + 카카오맵 폴리곤
-═══════════════════════════════════════════════ */
-const GEOJSON_URL = 'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea-municipalities-geo.json';
-let geoData = null;
-let geoLoadPromise = null;
+/* ─── GEOJSON ─── */
+const GEOJSON_URL = 'geojson/municipalities.json';
+let geoData = null, geoLoadPromise = null;
 
 async function loadGeoData() {
     if (geoData) return;
@@ -1276,9 +1392,8 @@ async function loadGeoData() {
             if (!r.ok) throw new Error(`HTTP ${r.status}`);
             geoData = await r.json();
         } catch(e) {
-            console.warn('[discover] GeoJSON 로드 실패:', e.message);
-            geoData = null;
-            geoLoadPromise = null; // 재시도 허용
+            console.warn('[discover] GeoJSON 실패:', e.message);
+            geoData = null; geoLoadPromise = null;
         }
     })();
     return geoLoadPromise;
@@ -1292,26 +1407,39 @@ function ringCentroid(ring) {
 
 function renderGeoMap(regions) {
     if (!map || !geoData) return;
-
-    // 기존 폴리곤 제거
     kakaoPolygons.forEach(p => p.setMap(null));
     kakaoPolygons = [];
     if (kakaoTooltip) { kakaoTooltip.setMap(null); kakaoTooltip = null; }
 
     const regionMap = {};
     regions.forEach(r => { regionMap[r.region] = r; });
-
-    // 툴팁 CustomOverlay 생성
     kakaoTooltip = new kakao.maps.CustomOverlay({ zIndex: 100, yAnchor: 1.3 });
 
     geoData.features.forEach(f => {
         const name = f.properties.name;
         const d    = regionMap[name];
 
-        const fill        = d ? (d.net > 2 ? '#34c759' : d.net < -2 ? '#ff3b30' : '#a1a1a6') : '#e5e5ea';
-        const fillOpacity = d ? Math.min(0.25 + Math.abs(d.net) / 30, 0.75) : 0.18;
+        // 색상 및 불투명도 — 순증 크기에 따른 그라데이션
+        let fill, fillOpacity, strokeColor, strokeWeight;
+        if (!d) {
+            fill = '#c8cdd6'; fillOpacity = 0.35;
+            strokeColor = '#9ba3af'; strokeWeight = 0.6;
+        } else if (d.net > 0) {
+            const t = Math.min(d.net / 25, 1);
+            fillOpacity  = 0.45 + t * 0.4;   // 0.45 → 0.85
+            fill         = '#34c759';
+            strokeColor  = '#1a7a32'; strokeWeight = 1.8;
+        } else if (d.net < 0) {
+            const t = Math.min(Math.abs(d.net) / 25, 1);
+            fillOpacity  = 0.45 + t * 0.4;
+            fill         = '#ff3b30';
+            strokeColor  = '#a01c16'; strokeWeight = 1.8;
+        } else {
+            fill = '#8e9aaa'; fillOpacity = 0.40;
+            strokeColor = '#5a6475'; strokeWeight = 1.2;
+        }
 
-        const geom      = f.geometry;
+        const geom       = f.geometry;
         const polyGroups = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
 
         polyGroups.forEach(coords => {
@@ -1319,69 +1447,83 @@ function renderGeoMap(regions) {
             const poly = new kakao.maps.Polygon({
                 map,
                 path,
-                strokeWeight:  d ? 1.5 : 0.8,
-                strokeColor:   d ? '#ffffff' : '#d1d1d6',
-                strokeOpacity: 0.9,
+                strokeWeight,
+                strokeColor,
+                strokeOpacity: d ? 0.85 : 0.55,
                 fillColor:     fill,
                 fillOpacity,
             });
-
             if (!d) { kakaoPolygons.push(poly); return; }
 
-            const netStr = d.net > 0 ? `+${d.net}` : String(d.net);
+            const netStr     = d.net > 0 ? `+${d.net}` : String(d.net);
             const tipContent = `<div class="map-tooltip"><b>${esc(name)}</b><br>신규 ${d.new} · 폐업 ${d.closed} · 순증 ${netStr}</div>`;
             const centroid   = ringCentroid(coords[0]);
-            const centroidLL = new kakao.maps.LatLng(centroid[1], centroid[0]);
+            const centLL     = new kakao.maps.LatLng(centroid[1], centroid[0]);
 
             kakao.maps.event.addListener(poly, 'mouseover', () => {
-                poly.setOptions({ strokeColor: '#0071e3', strokeWeight: 2.5 });
+                poly.setOptions({ strokeColor:'#0071e3', strokeWeight:3, strokeOpacity:1 });
                 kakaoTooltip.setContent(tipContent);
-                kakaoTooltip.setPosition(centroidLL);
+                kakaoTooltip.setPosition(centLL);
                 kakaoTooltip.setMap(map);
             });
             kakao.maps.event.addListener(poly, 'mouseout', () => {
-                poly.setOptions({ strokeColor: '#ffffff', strokeWeight: 1.5 });
+                poly.setOptions({ strokeColor, strokeWeight, strokeOpacity: 0.85 });
                 kakaoTooltip.setMap(null);
             });
             kakao.maps.event.addListener(poly, 'click', () => openDrilldown(name));
-
             kakaoPolygons.push(poly);
         });
     });
 }
 
-/* ═══════════════════════════════════════════════
-   DRILL-DOWN
-═══════════════════════════════════════════════ */
+let bubbleOverlays = [];
+function renderBubbleMap(regions) {
+    bubbleOverlays.forEach(o => o.setMap(null));
+    bubbleOverlays = [];
+    if (!regions?.length || !map) return;
+    const maxNew = Math.max(...regions.map(r => r.new), 1);
+    regions.forEach(r => {
+        const sido   = sigunguSidoMap[r.region] || viewSido || '경기도';
+        const coords = CENTROIDS[`${sido}_${r.region}`];
+        if (!coords) return;
+        const fill   = r.net > 2 ? '#34c759' : r.net < -2 ? '#ff3b30' : '#a1a1a6';
+        const radius = Math.max(800, Math.min(4000, (r.new / maxNew) * 4000));
+        const circle = new kakao.maps.Circle({
+            map, center: new kakao.maps.LatLng(coords[0], coords[1]),
+            radius, strokeWeight:1.5, strokeColor:'#fff', strokeOpacity:0.9,
+            fillColor:fill, fillOpacity:0.6,
+        });
+        kakao.maps.event.addListener(circle, 'click', () => openDrilldown(r.region));
+        bubbleOverlays.push(circle);
+    });
+}
+
+/* ─── DRILLDOWN ─── */
 const API_BASE = 'https://maeil-fs-sales.vercel.app';
-let currentDrillData   = [];
-let currentDrillRegion = '';
 
 async function openDrilldown(sigungu) {
     currentDrillRegion = sigungu;
-    document.getElementById('sbListView').style.display  = 'none';
-    document.getElementById('sbDrillView').style.display = 'flex';
     setText('drillTitle', sigungu);
     document.getElementById('drillSummary').innerHTML = '';
     document.getElementById('drillList').innerHTML =
         '<div class="state-msg"><div class="state-ico">⏳</div>불러오는 중...</div>';
-
-    // 탭 초기화
+    currentDrillTab = 'all';
     document.querySelectorAll('.dtab').forEach(b => b.classList.remove('active'));
-    document.querySelector('.dtab[onclick*="all"]')?.classList.add('active');
+    document.querySelector('.dtab:first-child')?.classList.add('active');
+
+    openPanel();
+
+    if (spChartOpen && trendChart) { trendChart.destroy(); trendChart = null; }
 
     try {
         const sido = sigunguSidoMap[sigungu] || viewSido || '경기도';
         const monthParam = selectedMonth ? `&month=${encodeURIComponent(selectedMonth)}` : '';
-        const r = await fetch(
-            `${API_BASE}/api/market-stats?detail=true&sido=${encodeURIComponent(sido)}&sigungu=${encodeURIComponent(sigungu)}${monthParam}`
-        );
-        const data = await r.json();
+        const res  = await fetch(`${API_BASE}/api/market-stats?detail=true&sido=${encodeURIComponent(sido)}&sigungu=${encodeURIComponent(sigungu)}${monthParam}`);
+        const data = await res.json();
         if (!data.success) throw new Error(data.error || '조회 실패');
 
         currentDrillData = data.stores || [];
 
-        // 요약
         document.getElementById('drillSummary').innerHTML = `
             <div class="ds-stat">
                 <span class="ds-lbl">신규</span>
@@ -1397,20 +1539,16 @@ async function openDrilldown(sigungu) {
             </div>`;
 
         renderDrillList('all');
+        if (spChartOpen) setTimeout(() => renderRegionChart(sigungu), 50);
+
     } catch(e) {
         document.getElementById('drillList').innerHTML =
             `<div class="state-msg"><div class="state-ico">⚠️</div><span>데이터 없음<br><small>상권 통계 저장 후 이용 가능합니다</small></span></div>`;
     }
 }
 
-function closeDrilldown() {
-    document.getElementById('sbListView').style.display  = 'flex';
-    document.getElementById('sbDrillView').style.display = 'none';
-    currentDrillData   = [];
-    currentDrillRegion = '';
-}
-
 function switchDrillTab(btn, tab) {
+    currentDrillTab = tab;
     document.querySelectorAll('.dtab').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     renderDrillList(tab);
@@ -1420,120 +1558,30 @@ function renderDrillList(tab) {
     let stores = currentDrillData;
     if (tab === 'new')    stores = stores.filter(s => s.status === 'new');
     if (tab === 'closed') stores = stores.filter(s => s.status === 'closed');
-    if (tab === 'big')    stores = stores.filter(s => (s.pyeong || 0) >= 100);
+    if (tab === 'big')    stores = stores.filter(s => (s.pyeong||0) >= 100);
+    if (selectedCategory !== 'all') stores = stores.filter(s => matchCategory(s));
 
     if (!stores.length) {
         document.getElementById('drillList').innerHTML =
             '<div class="state-msg"><div class="state-ico">📭</div>해당 데이터 없음</div>';
         return;
     }
-
     document.getElementById('drillList').innerHTML = stores.map(s => {
-        const isBig = (s.pyeong || 0) >= 100;
+        const isBig = (s.pyeong||0) >= 100;
         return `<div class="drill-row">
             <div class="drill-row-top">
                 <span class="drill-name">${esc(s.name)}</span>
                 ${isBig ? '<span class="big-badge">★ 대형</span>' : ''}
-                <span class="drill-status ${s.status === 'new' ? 'ds-new' : 'ds-closed'}">${s.status === 'new' ? '신규' : '폐업'}</span>
+                <span class="drill-status ${s.status==='new'?'ds-new':'ds-closed'}">${s.status==='new'?'신규':'폐업'}</span>
             </div>
             <div class="drill-meta">
-                ${s.category ? `<span>${esc(s.category)}</span>` : ''}
-                ${s.pyeong   ? `<span>${s.pyeong}평</span>` : ''}
+                ${s.category   ? `<span>${esc(s.category)}</span>` : ''}
+                ${s.pyeong     ? `<span>${s.pyeong}평</span>` : ''}
                 ${s.license_date ? `<span>${s.license_date}</span>` : ''}
             </div>
             ${s.address ? `<div class="drill-addr">${esc(s.address)}</div>` : ''}
         </div>`;
     }).join('');
-}
-
-/* ─── 버블 마커 폴백 (GeoJSON 실패 시) ─── */
-let bubbleOverlays = [];
-function renderBubbleMap(regions) {
-    bubbleOverlays.forEach(o => o.setMap(null));
-    bubbleOverlays = [];
-    if (!regions?.length || !map) return;
-
-    const maxNew = Math.max(...regions.map(r => r.new), 1);
-    regions.forEach(r => {
-        const sido = sigunguSidoMap[r.region] || viewSido || '경기도';
-        const key  = `${sido}_${r.region}`;
-        const coords = CENTROIDS[key];
-        if (!coords) return;
-
-        const fill   = r.net > 2 ? '#34c759' : r.net < -2 ? '#ff3b30' : '#a1a1a6';
-        const radius = Math.max(800, Math.min(4000, (r.new / maxNew) * 4000));
-
-        const circle = new kakao.maps.Circle({
-            map,
-            center: new kakao.maps.LatLng(coords[0], coords[1]),
-            radius,
-            strokeWeight: 1.5,
-            strokeColor: '#fff',
-            strokeOpacity: 0.9,
-            fillColor: fill,
-            fillOpacity: 0.6,
-        });
-        kakao.maps.event.addListener(circle, 'click', () => openDrilldown(r.region));
-        bubbleOverlays.push(circle);
-    });
-}
-
-/* ─── 월 피커 드롭다운 ─── */
-function openMonthPicker(e) {
-    e.stopPropagation();
-    const existing = document.getElementById('monthPickerDd');
-    if (existing) { existing.remove(); return; }
-
-    const lbl  = document.getElementById('monthLabel');
-    const rect = lbl.getBoundingClientRect();
-
-    const dd = document.createElement('div');
-    dd.id = 'monthPickerDd';
-    dd.className = 'month-picker-dd';
-    dd.style.top  = `${rect.bottom + 6}px`;
-    dd.style.left = `${rect.left}px`;
-
-    const allItem = document.createElement('div');
-    allItem.className = 'mpdd-item' + (!selectedMonth ? ' active' : '');
-    allItem.textContent = '전체';
-    allItem.onclick = () => { clearMonth(); dd.remove(); };
-    dd.appendChild(allItem);
-
-    const cur = currentYM();
-    let m = cur;
-    while (m >= '2025-01') {
-        const mo = m;
-        const item = document.createElement('div');
-        item.className = 'mpdd-item' + (mo === selectedMonth ? ' active' : '');
-        item.textContent = mo;
-        item.onclick = () => {
-            selectedMonth = mo;
-            updateMonthUI();
-            applyFilters();
-            dd.remove();
-        };
-        dd.appendChild(item);
-        m = addMonths(m, -1);
-    }
-
-    document.body.appendChild(dd);
-
-    const close = (ev) => {
-        if (!dd.contains(ev.target) && ev.target !== lbl) {
-            dd.remove();
-            document.removeEventListener('click', close, true);
-        }
-    };
-    setTimeout(() => document.addEventListener('click', close, true), 50);
-}
-
-/* ─── 차트 접기/펼치기 ─── */
-function toggleChart() {
-    const bar = document.getElementById('chartBar');
-    const btn = bar?.querySelector('.chart-toggle-btn');
-    const collapsed = bar?.classList.toggle('collapsed');
-    if (btn) btn.textContent = collapsed ? '펼치기' : '접기';
-    setTimeout(() => map?.relayout(), 220);
 }
 
 /* ─── UTILS ─── */
@@ -1553,9 +1601,7 @@ function esc(s) {
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // common.css: body { opacity: 0 } → loaded 클래스 추가로 페이드인
     document.body.classList.add('loaded');
-
     initMap();
 
     let attempts = 0;
@@ -1567,10 +1613,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (attempts > 40) {
             clearInterval(poll);
-            console.error('[discover] Supabase client not ready after 6s');
-            document.getElementById('lastSync').textContent = '연결 실패';
-            document.getElementById('regionPanel').innerHTML =
-                '<div class="state-msg"><div class="state-ico">⚠️</div><span>Supabase 연결 실패<br>페이지를 새로고침 해주세요.</span></div>';
+            setText('lastSync', '연결 실패');
         }
     }, 150);
 });
