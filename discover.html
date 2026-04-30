@@ -53,6 +53,8 @@
         #intel-map {
             position: absolute;
             inset: 0;
+            width: 100%;
+            height: 100%;
         }
 
         /* ── GLASS CARD ── */
@@ -69,7 +71,7 @@
             position: absolute;
             top: 14px;
             left: 14px;
-            z-index: 200;
+            z-index: 600;
             display: flex;
             border-radius: var(--radius-pill);
             padding: 3px;
@@ -993,7 +995,10 @@ function setView(mode) {
         renderRankingView(cachedRegionsArr);
         renderOverallChart();
     }
-    if (mode === 'map') setTimeout(() => map?.relayout(), 50);
+    if (mode === 'map') {
+        setTimeout(() => map?.relayout(), 100);
+        setTimeout(() => map?.relayout(), 350);
+    }
 }
 
 function setCategory(cat, btn) {
