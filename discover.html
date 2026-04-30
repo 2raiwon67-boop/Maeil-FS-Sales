@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상권 분석 — FS MISO</title>
+    <title>시장 분석 — FS MISO</title>
     <link rel="icon" href="icons/favicon.png" type="image/png">
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <link rel="stylesheet" href="common.css">
@@ -1265,7 +1265,12 @@ function renderGeoMap(regions) {
 
     geoData.features.forEach(f => {
         const name = f.properties.name;
-        const d    = regionMap[name];
+        // 직접 매칭 → 없으면 prefix 매칭 (예: '고양시일산서구' → '고양시')
+        let d = regionMap[name];
+        if (!d) {
+            const parent = Object.keys(regionMap).find(k => k.endsWith('시') && name.startsWith(k));
+            if (parent) d = regionMap[parent];
+        }
 
         // 색상 및 불투명도 — 순증 크기에 따른 그라데이션
         let fill, fillOpacity, strokeColor, strokeWeight;

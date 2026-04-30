@@ -24,7 +24,7 @@
         { href: 'index.html',    label: '거래처' },
         { href: '방문일지.html', label: '방문일지' },
         { href: 'proposal.html', label: '견적서' },
-        { href: 'discover.html', label: '매장 검색', mobileHide: true },
+        { href: 'discover.html', label: '시장 분석', mobileHide: true },
         { href: 'report.html',   label: '월별 보고서', mobileHide: true },
         { href: 'upload.html',   label: '데이터 관리', mobileHide: true },
     ];
