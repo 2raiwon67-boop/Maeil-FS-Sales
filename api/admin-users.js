@@ -11,8 +11,8 @@ const ALLOWED_ORIGINS = [
 
 export default async function handler(req, res) {
     const origin = req.headers.origin;
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin || ALLOWED_ORIGINS[0]);
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Code');

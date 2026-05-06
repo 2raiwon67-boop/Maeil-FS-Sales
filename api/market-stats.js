@@ -218,8 +218,8 @@ async function saveToSupabase(sidoShort, detail, storeRecords = []) {
 // ── Vercel 핸들러 ─────────────────────────────────────────
 export default async function handler(req, res) {
     const origin = req.headers.origin;
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-        res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
