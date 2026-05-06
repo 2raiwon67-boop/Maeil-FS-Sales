@@ -648,6 +648,7 @@
 
 <body>
     <div id="nav-placeholder"></div>
+    <script src="config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/nav-component.js"></script>
 
@@ -1757,7 +1758,7 @@
                         const url = businessUnit
                             ? `${SUPABASE_URL}/rest/v1/${cfg.table}?business_unit=eq.${encodeURIComponent(businessUnit)}&select=*&limit=10000`
                             : `${SUPABASE_URL}/rest/v1/${cfg.table}?select=*&limit=10000`;
-                        const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                        const anonKey = SUPABASE_KEY;
                         const { data: { session } } = await client.auth.getSession();
                         const token = session?.access_token || anonKey;
                         const res = await fetch(url, { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } });
@@ -2210,7 +2211,7 @@
                     rows = (await resp.json()).data || [];
                 } else {
                     const { data: { session } } = await client.auth.getSession();
-                    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                    const anonKey = SUPABASE_KEY;
                     const token = session?.access_token || anonKey;
                     const res = await fetch(
                         `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,region3,manager_name`,
@@ -2285,7 +2286,7 @@
                     rows = ((await resp.json()).data || []).filter(r => !r.is_branch_manager);
                 } else {
                     const { data: { session } } = await client.auth.getSession();
-                    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+                    const anonKey = SUPABASE_KEY;
                     const token = session?.access_token || anonKey;
                     const res = await fetch(
                         `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`,

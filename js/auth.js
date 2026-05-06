@@ -10,10 +10,10 @@ const BUSINESS_UNITS = [
 ];
 
 // ============================================================
-// Supabase Auth Configuration
+// Supabase Auth Configuration (config.js에서 주입)
 // ============================================================
-const SUPABASE_URL = 'https://hcqbmilmldeeuydtrayx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhjcWJtaWxtbGRlZXV5ZHRyYXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MTQ0ODIsImV4cCI6MjA4NjM5MDQ4Mn0.vKYyZQmWOewxYm3KkMM9AsE5GZ3OgZ47N6rs89TF3Mg';
+const SUPABASE_URL = window.FS_CONFIG?.SUPABASE_URL || '';
+const SUPABASE_KEY = window.FS_CONFIG?.SUPABASE_ANON_KEY || '';
 
 // Supabase 클라이언트 초기화 (전역 supabase 객체 확인)
 let client;

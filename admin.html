@@ -320,6 +320,7 @@
 
     <div class="toast" id="toast"></div>
 
+    <script src="config.js"></script>
     <script src="js/auth.js"></script>
     <script>
         let allUsers = [];
@@ -412,7 +413,7 @@
             const safeName = (u.full_name || u.email).replace(/'/g, "\\'");
             const actions = isPending ? `
                 <div class="actions">
-                    <button class="btn-approve" onclick="approveUser('${u.id}', this)" data-meta='${JSON.stringify({ full_name: u.full_name, phone: u.phone })}'>승인</button>
+                    <button class="btn-approve" onclick="approveUser('${u.id}', this)" data-meta='${JSON.stringify({ full_name: u.full_name })}'>승인</button>
                     <button class="btn-reject" onclick="rejectUser('${u.id}', '${safeName}', this)">거절</button>
                 </div>` : `
                 <div class="actions">
@@ -429,7 +430,7 @@
                     <div class="avatar">${initial}</div>
                     <div class="user-info">
                         <div class="user-name">${u.full_name || '(이름 없음)'} ${badge}</div>
-                        <div class="user-meta">${u.email} · ${u.phone ? u.phone + ' · ' : ''}${u.business_unit ? u.business_unit + ' · ' : ''}가입 ${createdAt}</div>
+                        <div class="user-meta">${u.email} · ${u.business_unit ? u.business_unit + ' · ' : ''}가입 ${createdAt}</div>
                     </div>
                     ${actions}
                 </div>`;
@@ -462,7 +463,7 @@
             confirmBtn.textContent = '처리 중...';
 
             const user = allUsers.find(u => u.id === userId);
-            const meta = { full_name: user?.full_name || '', phone: user?.phone || '' };
+            const meta = { full_name: user?.full_name || '' };
 
             try {
                 const res = await fetch('/api/admin-users', {

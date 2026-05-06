@@ -56,7 +56,6 @@ export default async function handler(req, res) {
                 id: u.id,
                 email: u.email,
                 full_name: u.user_metadata?.full_name || '',
-                phone: u.user_metadata?.phone || '',
                 business_unit: u.user_metadata?.business_unit || '',
                 approved: u.user_metadata?.approved,  // false=대기, true=승인, undefined=기존
                 created_at: u.created_at,
@@ -85,9 +84,10 @@ export default async function handler(req, res) {
         }
 
         if (action === 'approve') {
-            // 기존 메타데이터는 유지하고 approved + business_unit 설정
+            // 기존 메타데이터는 유지하고 approved + business_unit 설정 (phone 필드는 제거)
+            const { phone: _removed, ...cleanMeta } = existingMetadata || {};
             const updatedMeta = {
-                ...(existingMetadata || {}),
+                ...cleanMeta,
                 approved: true,
                 ...(businessUnit ? { business_unit: businessUnit } : {})
             };

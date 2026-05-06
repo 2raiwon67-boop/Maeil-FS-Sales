@@ -3289,20 +3289,21 @@
             document.body.style.overflow = '';
         }
     </script>
+    <script src="config.js"></script>
     <script src="js/auth.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
 
-            // 로그인된 사용자 정보로 담당자/연락처 자동 채우기
+            // 로그인된 사용자 이름으로 담당자 자동 채우기
             if (typeof getUser === 'function') {
                 const user = await getUser();
                 if (user && user.user_metadata) {
                     const name = user.user_metadata.full_name || '';
-                    const phone = user.user_metadata.phone || '';
-                    if (name) document.getElementById('edit-managerName').value = name;
-                    if (phone) document.getElementById('edit-managerPhone').value = phone;
-                    if (name || phone) syncInfo();
+                    if (name) {
+                        document.getElementById('edit-managerName').value = name;
+                        syncInfo();
+                    }
                 }
             }
 
