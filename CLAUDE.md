@@ -1,34 +1,40 @@
 # FS MISO — 경기북부 인허가 대시보드
 
 매일유업 경기북부 FS팀의 인허가 현황 시각화 + 영업 지원 대시보드.
-배포: GitHub Pages (프론트) + Vercel (API)
+배포: GitHub Pages (프론트, GitHub Actions) + Vercel (API)
 
 ---
 
 ## 프로젝트 구조
 
 ```
-index.html       메인 대시보드 (지도 + 필터 + 마커, ~5000줄)
+index.html       메인 대시보드 (지도 + 필터 + 마커)
 방문일지.html     방문 기록 관리 + AI 브리핑
 proposal.html    견적서 / 매장 맞춤 분석
 upload.html      데이터 관리 (업로드 + DB현황 + 공공인허가 조회)
-report.html      월별 보고서
 admin.html       관리자 페이지 (사용자 관리 + 소속 변경)
 login.html / pending.html  인증 흐름 (이메일 인증 미사용 — Supabase Confirm email OFF, 관리자 승인 방식)
+discover.html    시장 분석 (상권 인텔리전스)
 common.css       디자인 토큰 + 공통 컴포넌트 (Toast, Spinner, Skeleton)
+config.js        Supabase 접속 정보 — .gitignore 적용, GitHub Actions가 배포 시 자동 생성
+config.example.js  로컬 개발용 config.js 템플릿
 js/
   auth.js            Supabase 인증 + BUSINESS_UNITS 목록
   nav-component.js   상단 nav + 모바일 하단 탭바
 api/                 Vercel Serverless Functions
-  gemini.js              Gemini 프록시 (report.html용)
   generate-briefing.js   AI 브리핑 온디맨드 — gemini-2.5-flash-lite
   batch-briefings.js     야간 배치 브리핑 + Mother Brain 임베딩 — gemini-2.5-flash-lite
   naver-reviews.js       네이버 검색 + Gemini 분석 — gemini-2.5-flash
   update-visit-log.js    방문일지 인라인 수정 (Service Role Key)
   send-license-alert.js  인허가 주간 알림 (Vercel Cron 월 09:15 KST)
   public-license.js      공공데이터 API 프록시
-  admin-all-data.js      관리자 전체 지점 데이터 조회
-  admin-users.js         관리자 사용자 관리
+  admin-all-data.js      관리자 전체 지점 데이터 조회 (licenses, accounts, visit_logs만 허용)
+  admin-users.js         관리자 사용자 관리 (이메일 마스킹 처리)
+  recipe-recommend.js    레시피 RAG 추천
+  naver-price.js         네이버 가격 조회 (보류)
+.github/workflows/
+  pages.yml        GitHub Actions Pages 배포 (config.js를 Secrets에서 자동 생성)
+  update-image-manifest.yml  이미지 매니페스트 자동 갱신
 db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 ```
 
@@ -36,26 +42,37 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 
 ## Supabase 테이블
 
-| 테이블 | 설명 | 중복 기준 |
-|--------|------|-----------|
-| `licenses` | 인허가 데이터 | `business_name` |
-| `accounts` | 주요거래처 | `account_id` |
-| `visit_logs` | 방문일지 | `(business_unit, visit_date, manager, business_name)` 복합키 |
-| `managers` | 담당자 설정 | region1(시도), region2(시군구), manager_name, email, is_branch_manager |
-| `recipes` | 레시피 RAG DB (337건, pgvector 768차원) | |
+| 테이블 | 설명 | 비고 |
+|--------|------|------|
+| `licenses` | 인허가 데이터 | 중복 기준: `business_name` |
+| `accounts` | 주요거래처 | 중복 기준: `account_id` |
+| `visit_logs` | 방문일지 | 중복 기준: `(business_unit, visit_date, manager, business_name)` 복합키 |
+| `managers` | 담당자 설정 | region1(시도), region2(시군구), manager_name, email, is_branch_manager. email은 클라이언트에 반환 안 함 |
+| `recipes` | 레시피 RAG DB (337건, pgvector 768차원) | RLS: 전체 읽기, 쓰기는 authenticated만 |
 | `naver_cache` | 네이버 API 240h 캐시 | `store_name` UNIQUE |
 | `ai_briefings` | 거래처 AI 브리핑 캐시 | `(account_name, business_unit)` UNIQUE |
-| `store_analysis_cache` | 네이버 매장 분석 캐시 | `store_name` UNIQUE |
+| `store_analysis_cache` | 네이버 매장 분석 캐시 | `store_name` UNIQUE. RLS: 전체 읽기/쓰기 (서버 anon key 사용 구조) |
 | `quotes` | 저장된 견적 | |
+| `visit_plans` | 방문 일정 (달력 UI) | |
+| `market_snapshots` | 상권 분석 월별 집계 | discover.html용 |
+| `market_store_records` | 상권 개별 매장 기록 | |
 
-RLS: 모든 테이블은 `business_unit` 기반 격리. `managers.region` 컬럼은 삭제됨 (region1/region2 사용).
+RLS: 모든 테이블 활성화. `managers.region` 컬럼은 삭제됨 (region1/region2 사용).
+`report_cache` 테이블은 삭제됨 (report.html 제거에 따라).
 
 ---
 
 ## 핵심 규칙
 
 ### SW 버전 관리
-기능 추가·수정 시 `sw.js` 상단의 버전 상수를 올려야 한다. 현재: **v173**
+기능 추가·수정 시 `sw.js` 상단의 버전 상수를 올려야 한다. 현재: **v176**
+
+### config.js 로딩 규칙
+- 모든 HTML에서 `<script src="config.js"></script>`를 `<script src="js/auth.js"></script>` 바로 앞에 배치
+- `config.js`는 `.gitignore` 적용 — 절대 커밋 금지
+- GitHub Actions `pages.yml`이 배포 시 GitHub Secrets에서 자동 생성
+- 로컬 개발: `config.example.js`를 복사해 `config.js` 작성
+- GitHub Secrets 필수: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
 
 ### Gemini 모델 사용 기준
 - 일반 분석 (브리핑, 배치): `gemini-2.5-flash-lite`
@@ -81,9 +98,17 @@ type: `'success'` | `'error'` | `'warning'`
 - API: Service Role Key 쓰는 경우 반드시 `business_unit` 검증 추가
 - NULL 처리: `businessUnit || ''` 아닌 `businessUnit ?? null` 사용
 
+### 보안 규칙
+- **API 키**: 코드에 하드코딩 금지 — config.js(프론트) 또는 Vercel 환경변수(API)
+- **관리자 인증**: 클라이언트에서 코드 검증 금지, 반드시 서버(`/api/admin-users`) 검증
+- **이메일**: managers 테이블 email 컬럼은 클라이언트에 반환 금지. admin-users.js는 마스킹 처리
+- **CORS**: `!origin` 조건 사용 금지 — 허용 목록에 없는 origin은 차단
+- **개인정보**: 회원가입 시 이름·이메일·소속만 수집 (휴대폰번호 수집 금지)
+- **RLS**: 신규 테이블 생성 시 반드시 RLS 활성화 + 정책 추가
+
 ### Vercel Cron (Hobby plan — 2개 한도)
 현재 사용 중:
-1. `send-license-alert` — `15 0 * * 1` (월 09:15 KST)
+1. `send-license-alert` — `15 0 * * 1-5` (월~금 09:15 KST)
 2. `batch-briefings` — `0 18 * * *` (매일 03:00 KST)
 
 슬롯이 꽉 찼으므로 새 Cron 추가 전 기존 것 제거 필요.
