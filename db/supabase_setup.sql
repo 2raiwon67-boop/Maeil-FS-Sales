@@ -301,38 +301,6 @@ CREATE POLICY "delete_own" ON quotes
 
 
 -- ─────────────────────────────────────────────────────────────
--- 10. report_cache (월별보고서 AI 분석 캐시 — 4개월 TTL)
--- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS report_cache (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    business_unit TEXT NOT NULL,
-    report_month  TEXT NOT NULL,  -- 'YYYY-MM'
-    manager_name  TEXT NOT NULL DEFAULT '',  -- '' = 전체
-    ai_content    TEXT NOT NULL,
-    generated_at  TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (business_unit, report_month, manager_name)
-);
-
-ALTER TABLE report_cache ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "report_cache_select_same_unit" ON report_cache;
-CREATE POLICY "report_cache_select_same_unit" ON report_cache
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
-
-DROP POLICY IF EXISTS "report_cache_insert_same_unit" ON report_cache;
-CREATE POLICY "report_cache_insert_same_unit" ON report_cache
-    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
-
-DROP POLICY IF EXISTS "report_cache_update_same_unit" ON report_cache;
-CREATE POLICY "report_cache_update_same_unit" ON report_cache
-    FOR UPDATE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
-
-DROP POLICY IF EXISTS "report_cache_delete_same_unit" ON report_cache;
-CREATE POLICY "report_cache_delete_same_unit" ON report_cache
-    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
-
-
--- ─────────────────────────────────────────────────────────────
 -- visit_plans (방문 일정 — 경유지 저장, 달력 UI)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS visit_plans (
