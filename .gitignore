@@ -20,6 +20,9 @@ assets/recipe/
 # 임시 에러 로그
 scripts/upload-errors.json
 
+# 레시피 데이터 (Supabase에 업로드 완료, 재생성 가능)
+scripts/recipe-data.json
+
 # Skills 도구 로컬 설정
 .agent/
 .agents/

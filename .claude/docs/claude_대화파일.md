@@ -677,3 +677,70 @@ ADMIN_CODE                  관리자 API 인증 (= 532753)
 - Chart.js 색상 → 동일 팔레트
 - Leaflet 팝업 radius 10px → 12px
 - 비교 strip primary blue 기반 배경으로 통일
+
+---
+
+## 2026-05-07 — 전면 보안 강화 (v175~v176)
+
+### 배경
+보안 감사 결과 다수의 취약점 발견. 개인정보 처리 적정성 검토 및 전면 보완.
+
+### 삭제된 파일
+- `report.html` 삭제 (월별 보고서 기능 제거)
+- `api/gemini.js` 삭제 (report.html 전용 Gemini 프록시)
+- Supabase `report_cache` 테이블 삭제 (8건 포함)
+
+### API 키 코드 제거 → GitHub Actions 주입 방식
+- `js/auth.js`: 하드코딩된 Supabase URL/anon key → `window.FS_CONFIG` 참조로 교체
+- `upload.html`: 3곳의 하드코딩 anon key → `SUPABASE_KEY` 변수 참조로 교체
+- 모든 HTML 9개 파일에 `<script src="config.js"></script>` 추가 (auth.js 직전)
+- `.gitignore`에 `config.js` 추가
+- `config.example.js` 생성 (로컬 개발용 템플릿)
+- `.github/workflows/pages.yml` 생성: GitHub Actions가 Secrets에서 `config.js` 자동 생성 후 Pages 배포
+- `scripts/generate-config.cjs` 생성: Vercel 빌드 시 환경변수에서 `config.js` 자동 생성
+- `vercel.json`에 `buildCommand`, `outputDirectory` 추가
+- GitHub Secrets 등록: `SUPABASE_URL`, `SUPABASE_ANON_KEY`
+- GitHub Pages 소스: "Deploy from branch" → "GitHub Actions" 전환
+
+### 개인정보 수집 축소
+- 회원가입 휴대폰번호 입력 필드 제거 (`login.html`)
+- 개인정보 수집 항목에서 "연락처" 제거
+- `admin.html` 사용자 목록에서 전화번호 표시 제거
+- `api/admin-users.js` 응답에서 phone 필드 제거
+- 기존 사용자 승인 시 phone 메타데이터 자동 삭제 (cleanMeta 패턴)
+
+### 관리자 인증 서버 검증으로 교체
+- `login.html`: 하드코딩 `if (code === '532753')` 제거 → `/api/admin-users` 서버 검증으로 대체
+- 검증 성공 시 `sessionStorage`에 `fs_admin_access`, `admin_code` 저장
+- `auth.js`: 로그아웃 시 `admin_code`도 함께 삭제
+- ADMIN_CODE Vercel 환경변수 새 값으로 교체 (기존 코드가 소스에 노출됐으므로)
+
+### 이메일 마스킹
+- `api/admin-users.js` GET 응답: `maskEmail()` 함수 적용 (`2r***@gmail.com` 형식)
+- 승인 시 `userEmail` 프론트 전달 제거 → 서버가 userId로 실제 이메일 직접 조회
+- `admin.html`: 승인 요청 body에서 `userEmail` 제거
+- `upload.html`: managers email 값 조회 제거 → 필터 쿼리 2개로 설정 여부만 파악
+- `index.html`: managers 쿼리에서 email 컬럼 제거, 내 담당자명 식별은 별도 필터 쿼리
+- `admin-all-data.js`: ALLOWED_TABLES에서 managers 제거
+- Supabase `mask_email(text)` PostgreSQL 함수 추가
+
+### Supabase RLS 활성화
+- `recipes`: RLS 활성화 — 전체 읽기 허용, 쓰기는 authenticated만
+- `store_analysis_cache`: RLS 활성화 — 전체 읽기/쓰기 허용 (서버 anon key 사용 구조)
+
+### CORS 강화
+- API 6개 파일에서 `!origin || ALLOWED_ORIGINS.includes(origin)` → `ALLOWED_ORIGINS.includes(origin)` 단독 사용
+- origin 없는 요청(curl, Postman 등) 자동 차단
+
+### 보안 응답 헤더 추가 (vercel.json)
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+
+### 문서 업데이트
+- `CLAUDE.md` 전면 개정 (삭제 파일 반영, 보안 규칙 섹션 신설, 테이블 목록 최신화)
+- memory 파일 업데이트 (project_fs_miso.md, feedback_dev.md)
+
+### 트러블슈팅
+- config.js 미로드 시 "소속 정보 확인 불가" 오류: auth.js에 자동 새로고침 로직 추가
+- Vercel URL(`maeilfs-sales.vercel.app`)에서 config.js 없어 오류: `scripts/generate-config.cjs` + vercel.json buildCommand로 해결
