@@ -126,7 +126,7 @@ export default async function handler(req, res) {
 <table width="520" cellpadding="0" cellspacing="0" border="0" style="background:#fff;border:1px solid #dee2e6;border-radius:12px;overflow:hidden;">
 <tr><td bgcolor="#2c3e50" style="background:#2c3e50;padding:28px 32px;">
   <p style="margin:0;font-size:20px;font-weight:bold;color:#fff;">✅ 가입 승인 완료</p>
-  <p style="margin:6px 0 0;font-size:13px;color:#bdc3c7;">FS MISO 경기북부 인허가 대시보드</p>
+  <p style="margin:6px 0 0;font-size:13px;color:#bdc3c7;">FS MISO 인허가 대시보드</p>
 </td></tr>
 <tr><td style="padding:32px;">
   <p style="font-size:15px;color:#2c3e50;margin:0 0 16px;">${userName}님, 안녕하세요.</p>

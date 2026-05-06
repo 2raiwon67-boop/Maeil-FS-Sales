@@ -1,6 +1,6 @@
-# FS MISO — 경기북부 인허가 대시보드
+# FS MISO — 인허가 대시보드
 
-매일유업 경기북부 FS팀의 인허가 현황 시각화 + 영업 지원 대시보드.
+매일유업 FS팀의 인허가 현황 시각화 + 영업 지원 대시보드.
 
 배포: [GitHub Pages](https://2raiwon67-boop.github.io/Maeil-FS-Sales/) | API: Vercel
 
