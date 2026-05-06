@@ -26,6 +26,9 @@ scripts/upload-errors.json
 # 레시피 데이터 (Supabase에 업로드 완료, 재생성 가능)
 scripts/recipe-data.json
 
+# supabase_setup.sql에 통합된 개별 SQL 파일
+db/market_snapshots.sql
+
 # Skills 도구 로컬 설정
 .agent/
 .agents/
