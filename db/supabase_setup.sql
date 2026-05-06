@@ -206,6 +206,17 @@ CREATE INDEX IF NOT EXISTS recipes_embedding_idx
 
 CREATE INDEX IF NOT EXISTS recipes_category_idx ON recipes (category);
 
+ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "recipes_select_public" ON recipes;
+CREATE POLICY "recipes_select_public" ON recipes
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "recipes_write_authenticated" ON recipes;
+CREATE POLICY "recipes_write_authenticated" ON recipes
+    FOR ALL USING (auth.role() = 'authenticated')
+    WITH CHECK (auth.role() = 'authenticated');
+
 
 -- ─────────────────────────────────────────────────────────────
 -- 6. ai_briefings (거래처 AI 브리핑 캐시)
@@ -250,7 +261,6 @@ CREATE POLICY "anon_all" ON naver_cache FOR ALL TO anon USING (true) WITH CHECK 
 
 -- ─────────────────────────────────────────────────────────────
 -- 8. store_analysis_cache (네이버 매장 AI 분석 캐시 — 7일)
--- RLS 미적용: 서버사이드 anon key 호출, 비민감 캐시
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS store_analysis_cache (
     id           BIGSERIAL PRIMARY KEY,
@@ -259,6 +269,20 @@ CREATE TABLE IF NOT EXISTS store_analysis_cache (
     review_count INT DEFAULT 0,
     cached_at    TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE store_analysis_cache ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "store_analysis_cache_select_public" ON store_analysis_cache;
+CREATE POLICY "store_analysis_cache_select_public" ON store_analysis_cache
+    FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "store_analysis_cache_insert_any" ON store_analysis_cache;
+CREATE POLICY "store_analysis_cache_insert_any" ON store_analysis_cache
+    FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "store_analysis_cache_update_any" ON store_analysis_cache;
+CREATE POLICY "store_analysis_cache_update_any" ON store_analysis_cache
+    FOR UPDATE USING (true);
 
 
 -- ─────────────────────────────────────────────────────────────
