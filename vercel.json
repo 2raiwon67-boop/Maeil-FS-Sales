@@ -1,4 +1,6 @@
 {
+  "buildCommand": "node scripts/generate-config.js",
+  "outputDirectory": ".",
   "functions": {
     "api/public-license.js":   { "maxDuration": 60 },
     "api/batch-briefings.js":  { "maxDuration": 300 },
