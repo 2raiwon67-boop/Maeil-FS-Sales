@@ -17,6 +17,9 @@ node_modules/
 # 레시피 PDF 원본 (대용량, Supabase Storage로 관리)
 assets/recipe/
 
+# 업무 참고 문서 (로컬 보관)
+공공인허가데이터 방법/
+
 # 임시 에러 로그
 scripts/upload-errors.json
 
