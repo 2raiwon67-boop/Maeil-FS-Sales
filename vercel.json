@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node scripts/generate-config.js",
+  "buildCommand": "node scripts/generate-config.cjs",
   "outputDirectory": ".",
   "functions": {
     "api/public-license.js":   { "maxDuration": 60 },
