@@ -1130,18 +1130,20 @@
                 const bu = userData?.user?.user_metadata?.business_unit;
                 if (!bu) { panel.innerHTML = '<span style="color:#ff3b30;">소속 정보를 확인할 수 없습니다.</span>'; return; }
 
-                const [licRes, visitRes, mgrRes] = await Promise.all([
+                const [licRes, visitRes, mgrRes, mgrEmailRes] = await Promise.all([
                     client.from('licenses').select('manager,priority,permit_date,lat,lng,trade_status').eq('business_unit', bu),
                     client.from('visit_logs').select('manager,visit_date').eq('business_unit', bu),
-                    client.from('managers').select('manager_name,email').eq('business_unit', bu)
+                    client.from('managers').select('manager_name').eq('business_unit', bu),
+                    client.from('managers').select('manager_name').eq('business_unit', bu).not('email', 'is', null).neq('email', '')
                 ]);
 
                 const licenses  = licRes.data  || [];
                 const visits    = visitRes.data || [];
                 const managers  = mgrRes.data   || [];
 
+                const hasEmailNames = new Set((mgrEmailRes.data || []).map(m => m.manager_name.trim()));
                 const validNames  = new Set(managers.map(m => m.manager_name.trim()));
-                const noEmailSet  = new Set(managers.filter(m => !m.email?.trim()).map(m => m.manager_name.trim()));
+                const noEmailSet  = new Set([...validNames].filter(n => !hasEmailNames.has(n)));
                 const VALID_STATUS = new Set(['인허가','공사중','거래','DROP','미거래','미지정']);
 
                 // ① licenses 담당자 불일치

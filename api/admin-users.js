@@ -43,6 +43,12 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json'
     };
 
+    const maskEmail = (email) => {
+        if (!email) return '';
+        const [local, domain] = email.split('@');
+        return local.slice(0, 2) + '***@' + domain;
+    };
+
     // ── GET: 전체 사용자 목록 ──────────────────────────────────
     if (req.method === 'GET') {
         try {
@@ -54,7 +60,7 @@ export default async function handler(req, res) {
 
             const users = (data.users || []).map(u => ({
                 id: u.id,
-                email: u.email,
+                email: maskEmail(u.email),
                 full_name: u.user_metadata?.full_name || '',
                 business_unit: u.user_metadata?.business_unit || '',
                 approved: u.user_metadata?.approved,  // false=대기, true=승인, undefined=기존
@@ -99,11 +105,15 @@ export default async function handler(req, res) {
             const data = await response.json();
             if (!response.ok) return res.status(response.status).json(data);
 
-            // 승인 이메일 발송
+            // 승인 이메일 발송 (실제 이메일은 서버에서 userId로 직접 조회)
             const BREVO_KEY   = process.env.BREVO_API_KEY;
             const FROM_EMAIL  = process.env.BREVO_FROM_EMAIL || '2raiwon67@gmail.com';
-            const { userEmail, existingMetadata: meta } = req.body || {};
-            const userName = meta?.full_name || userEmail || '담당자';
+            const { existingMetadata: meta } = req.body || {};
+            const userName = meta?.full_name || '담당자';
+
+            const userRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, { headers: supabaseHeaders });
+            const userReal = userRes.ok ? await userRes.json() : null;
+            const userEmail = userReal?.email || '';
 
             if (BREVO_KEY && userEmail) {
                 const loginUrl = 'https://2raiwon67-boop.github.io/Maeil-FS-Sales/login.html';
