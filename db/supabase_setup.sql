@@ -209,8 +209,9 @@ CREATE INDEX IF NOT EXISTS recipes_category_idx ON recipes (category);
 ALTER TABLE recipes ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "recipes_select_public" ON recipes;
-CREATE POLICY "recipes_select_public" ON recipes
-    FOR SELECT USING (true);
+DROP POLICY IF EXISTS "recipes_select_authenticated" ON recipes;
+CREATE POLICY "recipes_select_authenticated" ON recipes
+    FOR SELECT USING (auth.role() = 'authenticated');
 
 DROP POLICY IF EXISTS "recipes_write_authenticated" ON recipes;
 CREATE POLICY "recipes_write_authenticated" ON recipes

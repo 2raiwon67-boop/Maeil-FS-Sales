@@ -116,7 +116,7 @@ export default async function handler(req, res) {
             const userEmail = userReal?.email || '';
 
             if (BREVO_KEY && userEmail) {
-                const loginUrl = 'https://2raiwon67-boop.github.io/Maeil-FS-Sales/login.html';
+                const loginUrl = 'https://maeilfs-sales.vercel.app/login.html';
                 const html = `<!DOCTYPE html>
 <html lang="ko">
 <head><meta charset="UTF-8"></head>

@@ -37,6 +37,7 @@ export default async function handler(req, res) {
         // ── 공통: Supabase 환경변수 ──
         const SUPABASE_URL = process.env.SUPABASE_URL;
         const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+        const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
         // ── 0. Supabase 네이버 API 캐시 조회 (24h) ──
         let localData = { items: [] };
@@ -240,9 +241,9 @@ export default async function handler(req, res) {
         // ── 2.5. Recipe RAG — 레시피 DB 유사도 검색 ──
         let recipeSection = '';
         let recipeMatchCount = 0;
-        if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-            console.log('Recipe RAG 스킵: SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경변수 미설정');
-        } else if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+        if (!SUPABASE_URL || !SERVICE_KEY) {
+            console.log('Recipe RAG 스킵: SUPABASE_URL 또는 SERVICE_KEY 환경변수 미설정');
+        } else if (SUPABASE_URL && SERVICE_KEY) {
             try {
                 // 임베딩 쿼리: 매장명 + 블로그 제목 상위 5개 (메뉴·음료 키워드 포함)
                 const embedText = [storeName, ...filteredBlogItems.slice(0, 5).map(b => stripHtml(b.title))].join(' ');
@@ -269,8 +270,8 @@ export default async function handler(req, res) {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'apikey': SUPABASE_ANON_KEY,
-                                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                                'apikey': SERVICE_KEY,
+                                'Authorization': `Bearer ${SERVICE_KEY}`
                             },
                             body: JSON.stringify({
                                 query_embedding: `[${vector.join(',')}]`,

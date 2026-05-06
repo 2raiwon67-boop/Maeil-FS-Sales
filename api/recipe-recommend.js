@@ -10,9 +10,9 @@ export default async function handler(req, res) {
 
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     const SUPABASE_URL = process.env.SUPABASE_URL;
-    const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
+    const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!GEMINI_API_KEY || !SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    if (!GEMINI_API_KEY || !SUPABASE_URL || !SERVICE_KEY) {
         return res.status(500).json({ error: '환경변수 미설정' });
     }
 
@@ -57,8 +57,8 @@ export default async function handler(req, res) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                'apikey': SERVICE_KEY,
+                'Authorization': `Bearer ${SERVICE_KEY}`
             },
             body: JSON.stringify({
                 query_embedding: `[${vector.join(',')}]`,
