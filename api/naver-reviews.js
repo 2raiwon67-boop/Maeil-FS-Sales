@@ -1,5 +1,4 @@
 const ALLOWED_ORIGINS = [
-    'https://2raiwon67-boop.github.io',
     'http://localhost:3000',
     'http://localhost:5500',
     'http://127.0.0.1:5500',

@@ -1,7 +1,6 @@
 // api/update-visit-log.js
 // 방문일지 인라인 수정 API (Service Role Key — RLS 우회, business_unit 검증)
 const ALLOWED_ORIGINS = [
-    'https://2raiwon67-boop.github.io',
     'http://localhost:3000',
     'http://localhost:5500',
     'http://127.0.0.1:5500',
