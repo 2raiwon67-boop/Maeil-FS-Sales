@@ -3513,13 +3513,10 @@
                 const businessUnit = await getBusinessUnitForIndex();
                 if (!businessUnit) throw new Error('소속 정보 없음');
 
-                // 현재 로그인 사용자 email 조회
-                const { data: userData } = await client.auth.getUser();
-                const myEmail = userData?.user?.email ?? null;
-
+                // 담당자 맵 구성 (이메일 컬럼 제외)
                 const { data, error } = await client
                     .from('managers')
-                    .select('region1, region2, region3, manager_name, email')
+                    .select('region1, region2, region3, manager_name')
                     .eq('business_unit', businessUnit);
                 if (error) throw error;
 
@@ -3527,7 +3524,6 @@
                 (data || []).forEach(row => {
                     if (!row.manager_name) return;
                     if (row.region3) {
-                        // 구 단위 키: "화성시|동탄구"
                         managerMap[row.region2 + '|' + row.region3] = row.manager_name;
                     } else {
                         const region = row.region2 || row.region1;
@@ -3535,9 +3531,16 @@
                     }
                 });
 
-                // 본인 담당자명 식별 (지점장/전체 제외)
+                // 본인 담당자명 식별: 이메일은 필터로만 사용, 클라이언트에 반환 안 됨
+                const { data: userData } = await client.auth.getUser();
+                const myEmail = userData?.user?.email ?? null;
                 if (myEmail) {
-                    const myRow = (data || []).find(r => r.email === myEmail);
+                    const { data: myRow } = await client
+                        .from('managers')
+                        .select('manager_name, region2')
+                        .eq('business_unit', businessUnit)
+                        .eq('email', myEmail)
+                        .maybeSingle();
                     if (myRow && myRow.region2 !== '지점장' && myRow.region2 !== '전체') {
                         myManagerName = myRow.manager_name;
                         // 모바일: localStorage 저장값 우선, 기본값은 내 타겟만
