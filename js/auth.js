@@ -94,6 +94,7 @@ async function signOut() {
     if (sessionStorage.getItem('fs_admin_access') === 'true') {
         if (confirm('관리자 로그아웃 하시겠습니까?')) {
             sessionStorage.removeItem('fs_admin_access');
+            sessionStorage.removeItem('admin_code');
             window.location.href = 'login.html';
         }
         return;

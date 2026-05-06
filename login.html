@@ -232,15 +232,26 @@
             // ── 관리자 모드 ──
             if (mode === 'admin') {
                 const code = document.getElementById('adminCode').value.trim();
-                if (code === '532753') {
-                    try {
+                if (!code) { showError('인증 코드를 입력해주세요.'); return; }
+                loginBtn.disabled = true;
+                loginBtn.textContent = '확인 중...';
+                try {
+                    const res = await fetch('/api/admin-users', {
+                        method: 'GET',
+                        headers: { 'X-Admin-Code': code }
+                    });
+                    if (res.ok) {
                         sessionStorage.setItem('fs_admin_access', 'true');
+                        sessionStorage.setItem('admin_code', code);
                         window.location.href = 'index.html';
-                    } catch {
-                        showError('브라우저 설정 오류로 로그인이 차단되었습니다. 쿠키/사이트 데이터 설정을 확인해주세요.');
+                    } else {
+                        showError('인증 코드가 올바르지 않습니다.');
                     }
-                } else {
-                    showError('인증 코드가 올바르지 않습니다.');
+                } catch {
+                    showError('서버 연결 오류입니다. 잠시 후 다시 시도해주세요.');
+                } finally {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = '확인';
                 }
                 return;
             }
