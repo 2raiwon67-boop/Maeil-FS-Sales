@@ -67,15 +67,10 @@
             link: { text: '견적서 열기', href: 'proposal.html' },
         },
         {
-            icon: '📊',
-            title: '월별 보고서',
-            desc: '기간과 담당자를 선택하면 AI가 자동으로 성과 보고서를 생성합니다.',
-            steps: [
-                '보고 기간 및 담당자 선택',
-                '보고서 생성 버튼 클릭 → AI 자동 분석',
-                'PDF 저장으로 공유',
-            ],
-            link: { text: '월별 보고서 열기', href: 'report.html' },
+            icon: '💰',
+            title: '시작하기',
+            desc: '이제 FS MISO를 자유롭게 사용해보세요!',
+            steps: [],
             finish: true,
         },
     ];
