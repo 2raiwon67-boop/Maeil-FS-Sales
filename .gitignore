@@ -31,6 +31,7 @@ scripts/recipe-data.json
 .agents/
 skills-lock.json
 
-# Claude Code 로컬 설정
+# Claude Code 로컬 설정 (내부 아키텍처 문서 포함 — 공개 금지)
 .claude/
+CLAUDE.md
 .vercel
