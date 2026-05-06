@@ -12,6 +12,14 @@ const BUSINESS_UNITS = [
 // ============================================================
 // Supabase Auth Configuration (config.js에서 주입)
 // ============================================================
+if (!window.FS_CONFIG?.SUPABASE_URL) {
+    // config.js가 로드되지 않은 경우 — 캐시 문제일 가능성이 높음
+    console.error('[auth.js] config.js 미로드. 페이지를 새로고침합니다.');
+    if (!sessionStorage.getItem('_config_reload_tried')) {
+        sessionStorage.setItem('_config_reload_tried', '1');
+        location.reload(true);
+    }
+}
 const SUPABASE_URL = window.FS_CONFIG?.SUPABASE_URL || '';
 const SUPABASE_KEY = window.FS_CONFIG?.SUPABASE_ANON_KEY || '';
 
