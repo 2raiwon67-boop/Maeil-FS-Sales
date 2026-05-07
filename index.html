@@ -5228,12 +5228,7 @@
                 const { data, error } = await client.from('visit_plans').select('items').eq('business_unit', bu).eq('manager', myManagerName).eq('visit_date', today).single();
                 if (error || !data?.items?.length) return;
                 sessionStorage.setItem('visit_plan_shown_' + today, '1');
-                let briefingMap = {};
-                try {
-                    const { data: briefings } = await client.from('ai_briefings').select('account_name, briefing').in('account_name', data.items.map(i=>i.name)).eq('business_unit', bu);
-                    (briefings||[]).forEach(b => { briefingMap[b.account_name] = b.briefing; });
-                } catch (e) {}
-                showVisitPlanPopup(data.items, briefingMap);
+                showVisitPlanPopup(data.items, {});
             } catch (e) {}
         }
 
@@ -5273,16 +5268,7 @@
             const recs = computeRecommendations();
             if (!recs.length) return;
 
-            // ai_briefings 첫 줄 조회
-            const names = recs.map(r => r.name);
-            let briefingMap = {};
-            try {
-                const { data: briefings } = await client.from('ai_briefings')
-                    .select('account_name, briefing').in('account_name', names).eq('business_unit', bu);
-                (briefings || []).forEach(b => { briefingMap[b.account_name] = b.briefing; });
-            } catch (e) { /* 브리핑 없어도 표시 */ }
-
-            _todayRecs = recs.map(r => ({ ...r, briefing: briefingMap[r.name] || null }));
+            _todayRecs = recs.map(r => ({ ...r, briefing: null }));
 
             // 플로팅 뱃지 표시 (추천 후보가 있을 때만)
             const badge = document.getElementById('recFloatBadge');

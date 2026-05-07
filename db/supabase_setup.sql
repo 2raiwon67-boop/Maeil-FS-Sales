@@ -181,30 +181,6 @@ CREATE POLICY "recipes_write_authenticated" ON recipes
 
 
 -- ─────────────────────────────────────────────────────────────
--- 6. ai_briefings (거래처 AI 브리핑 캐시)
--- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS ai_briefings (
-    id              BIGSERIAL PRIMARY KEY,
-    account_name    TEXT NOT NULL,
-    business_unit   TEXT,
-    briefing        TEXT NOT NULL,
-    last_visit_date TEXT,
-    visit_count     INT,
-    generated_at    TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (account_name, business_unit)
-);
-
-ALTER TABLE ai_briefings ENABLE ROW LEVEL SECURITY;
-
--- 조회: 내 지점 브리핑만 SELECT 가능
-DROP POLICY IF EXISTS "ai_briefings_select_same_unit" ON ai_briefings;
-CREATE POLICY "ai_briefings_select_same_unit" ON ai_briefings
-    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
-
--- 쓰기: generate-briefing.js / batch-briefings.js → SERVICE_ROLE_KEY로 RLS 우회
-
-
--- ─────────────────────────────────────────────────────────────
 -- 7. naver_cache (네이버 지역/블로그 검색 캐시 — 240h)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS naver_cache (
