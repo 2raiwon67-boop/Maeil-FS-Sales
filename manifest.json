@@ -28,11 +28,6 @@
             "name": "인허가 지도",
             "url": "./index.html",
             "description": "인허가 현황 지도"
-        },
-        {
-            "name": "방문일지",
-            "url": "./방문일지.html",
-            "description": "방문 일지 작성"
         }
     ],
     "categories": [

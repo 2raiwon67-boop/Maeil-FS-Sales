@@ -654,7 +654,7 @@
 
     <div class="container">
         <h1 class="page-title">데이터 관리</h1>
-        <p class="page-sub">지점 데이터를 확인하고 관리합니다. 담당자·거래처는 직접 편집, 인허가·방문일지는 엑셀 업로드로 교체합니다.</p>
+        <p class="page-sub">지점 데이터를 확인하고 관리합니다. 담당자·거래처는 직접 편집, 인허가는 엑셀 업로드로 교체합니다.</p>
 
         <!-- 관리자 지점 선택 배너 (관리자 계정에만 표시) -->
         <div id="adminBranchBanner" style="display:none; background:#fff8e1; border:1px solid #ffc107; border-radius:10px; padding:10px 16px; margin-bottom:16px; align-items:center; gap:12px; flex-wrap:wrap;">
@@ -683,9 +683,6 @@
                             <button class="type-btn" onclick="selectType('accounts')">
                                 <span class="type-icon">🏪</span>주요거래처
                             </button>
-                            <button class="type-btn" onclick="selectType('visit_logs')">
-                                <span class="type-icon">🗒️</span>방문일지
-                            </button>
                             <button class="type-btn" id="recipeTypeBtn" onclick="selectType('recipes')"
                                 style="display:none;">
                                 <span class="type-icon">📖</span>레시피 데이터
@@ -713,39 +710,13 @@
                                 <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">지역1</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">경기도</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">도/광역시 명칭</td></tr>
                                 <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">지역2</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">화성시</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">시/군/구 명칭</td></tr>
                                 <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">지역3</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">동탄구 <span style="color:#86868b;">(선택)</span></td><td style="padding:3px 8px; border:1px solid #e0e0e0;">같은 시 안에서 구 단위로 담당자가 다를 때만 입력. 비워두면 지역2 기준으로 매칭</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자 실명 (방문일지 작성자명과 동일하게)</td></tr>
+                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자 실명</td></tr>
                                 <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">이메일</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">hong@example.com</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">인허가 알림 수신 이메일</td></tr>
                             </tbody>
                         </table>
                         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;">
                             <p style="margin:0; padding:6px 10px; background:#fff3cd; border-radius:6px; flex:1; min-width:200px;">💡 지점장은 지역2에 <strong>지점장</strong>이라고 입력하세요.</p>
                             <p style="margin:0; padding:6px 10px; background:#f0f4ff; border-radius:6px; flex:2; min-width:200px; color:#555;">템플릿 다운로드 → 작성 → 업로드 → 확인. 기존 수정은 현재 DB 현황에서 셀 클릭으로 변경 가능합니다.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 방문일지 가이드 (방문일지 탭 전용) -->
-                <div class="card" id="visitLogGuideCard" style="display:none; border-left:3px solid #ff9500;">
-                    <div class="card-header" style="color:#ff9500;">📋 방문일지 업로드 안내</div>
-                    <div class="card-body" style="font-size:12px; line-height:1.6; color:#3a3a3c; padding:12px 16px;">
-                        <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
-                            <thead>
-                                <tr style="background:#f5f5f7;">
-                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0; width:100px;">컬럼</th>
-                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0; width:130px;">입력 예시</th>
-                                    <th style="padding:4px 8px; text-align:left; border:1px solid #e0e0e0;">설명</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">작성일</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">2026-03-10</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">YYYY-MM-DD 형식 (필수)</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">작성자</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">홍길동</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">담당자 이름 (담당자관리와 동일하게)</td></tr>
-                                <tr><td style="padding:3px 8px; border:1px solid #e0e0e0;">방문처(거래처)</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">행복카페</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">거래처 상호명 (필수)</td></tr>
-                                <tr style="background:#f9f9f9;"><td style="padding:3px 8px; border:1px solid #e0e0e0;">내용</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">원장님 면담...</td><td style="padding:3px 8px; border:1px solid #e0e0e0;">방문 내용 (AI 브리핑 품질에 영향)</td></tr>
-                            </tbody>
-                        </table>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            <p style="margin:0; padding:6px 10px; background:#fff3cd; border-radius:6px; flex:1; min-width:200px;">⚠️ <strong>작성일 + 작성자 + 방문처</strong> 조합이 동일하면 자동 건너뜀 — 누적분 그대로 업로드 가능</p>
-                            <p style="margin:0; padding:6px 10px; background:#fff0ef; border-radius:6px; flex:1; min-width:200px; color:#555;">날짜 텍스트 형식 오류 시 셀 서식을 YYYY-MM-DD로 변경. 작성자명은 담당자관리와 정확히 일치해야 합니다.</p>
                         </div>
                     </div>
                 </div>
@@ -918,33 +889,6 @@
                 requiredCol: 'business_name', dateFields: [], numericFields: [],
                 mode: 'add_new_only', deduplicateField: 'account_id'
             },
-            visit_logs: {
-                label: '방문일지', table: 'visit_logs',
-                editable: false,
-                previewColumns: [
-                    { key: 'seq_no', label: 'NO' },
-                    { key: 'visit_date', label: '방문일' },
-                    { key: 'manager', label: '작성자' },
-                    { key: 'dealer_name', label: '대리점' },
-                    { key: 'business_name', label: '거래처' },
-                    { key: 'content', label: '내용' }
-                ],
-                templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드', '작성일', '작성자', '방문처(대리점 코드)', '방문처(대리점)', '방문처(거래처 코드)', '방문처(거래처)', '내용'],
-                sampleRow: ['1', '경기북부', '포천', '포천지점', 'K11P001', '2026-03-10', '홍길동', 'D001', '포천대리점', 'C00001', '행복카페', '원장님 면담, 현재 서울우유 사용 중 / 자사 제품 가격 경쟁력 어필 예정'],
-                columnMap: {
-                    'NO': 'seq_no',
-                    '사업장코드': 'store_code',
-                    '작성일': 'visit_date',
-                    '작성자': 'manager',
-                    '방문처(대리점 코드)': 'dealer_code',
-                    '방문처(대리점)': 'dealer_name',
-                    '방문처(거래처 코드)': 'account_code',
-                    '방문처(거래처)': 'business_name',
-                    '내용': 'content'
-                },
-                requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
-                mode: 'add_new_only', deduplicateFields: ['visit_date', 'manager', 'business_name']
-            },
             recipes: {
                 label: '레시피 데이터', table: 'recipes',
                 editable: false, scrollAll: true, noBusinessUnit: true,
@@ -1077,10 +1021,6 @@
             const managersGuideCard = document.getElementById('managersGuideCard');
             if (managersGuideCard) managersGuideCard.style.display = type === 'managers' ? '' : 'none';
 
-            // 방문일지 가이드: 방문일지 탭일 때만 표시
-            const visitLogGuideCard = document.getElementById('visitLogGuideCard');
-            if (visitLogGuideCard) visitLogGuideCard.style.display = type === 'visit_logs' ? '' : 'none';
-
             loadCurrentData();
         }
 
@@ -1130,15 +1070,13 @@
                 const bu = userData?.user?.user_metadata?.business_unit;
                 if (!bu) { panel.innerHTML = '<span style="color:#ff3b30;">소속 정보를 확인할 수 없습니다.</span>'; return; }
 
-                const [licRes, visitRes, mgrRes, mgrEmailRes] = await Promise.all([
+                const [licRes, mgrRes, mgrEmailRes] = await Promise.all([
                     client.from('licenses').select('manager,priority,permit_date,lat,lng,trade_status').eq('business_unit', bu),
-                    client.from('visit_logs').select('manager,visit_date').eq('business_unit', bu),
                     client.from('managers').select('manager_name').eq('business_unit', bu),
                     client.from('managers').select('manager_name').eq('business_unit', bu).not('email', 'is', null).neq('email', '')
                 ]);
 
                 const licenses  = licRes.data  || [];
-                const visits    = visitRes.data || [];
                 const managers  = mgrRes.data   || [];
 
                 const hasEmailNames = new Set((mgrEmailRes.data || []).map(m => m.manager_name.trim()));
@@ -1176,22 +1114,10 @@
                     if (s && !VALID_STATUS.has(s)) licBadStatus.set(s, (licBadStatus.get(s) || 0) + 1);
                 });
 
-                // ⑧ visit_logs 담당자 불일치
-                const visitMgrMissing = new Map();
-                visits.forEach(r => {
-                    const n = (r.manager || '').trim();
-                    if (!n || n === '미지정') return;
-                    if (!validNames.has(n)) visitMgrMissing.set(n, (visitMgrMissing.get(n) || 0) + 1);
-                });
-
-                // ⑨ visit_logs visit_date 비어있는 건
-                const visitNoDate = visits.filter(r => !r.visit_date).length;
-
                 // ── 결과 렌더링 ──
                 const allOk = licMgrMissing.size === 0 && noEmailList.length === 0 &&
                     licNoMgr === 0 && licNoPriority === 0 && licNoDate === 0 &&
-                    licNoCoord === 0 && licBadStatus.size === 0 &&
-                    visitMgrMissing.size === 0 && visitNoDate === 0;
+                    licNoCoord === 0 && licBadStatus.size === 0;
 
                 if (allOk) {
                     panel.innerHTML = `<span style="color:#34c759;font-weight:600;">✅ 데이터 정합성 이상 없음</span>
@@ -1216,11 +1142,9 @@
                         <span style="font-weight:700;font-size:14px;">🔍 데이터 점검 결과</span>
                         <button onclick="document.getElementById('dataCheckPanel').style.display='none'" style="border:none;background:none;cursor:pointer;color:#86868b;font-size:13px;">✕ 닫기</button>
                     </div>
-                    <div style="font-size:12px;color:#86868b;margin-bottom:10px;">지점: ${bu} · 인허가 ${licenses.length}건 · 방문일지 ${visits.length}건</div>
+                    <div style="font-size:12px;color:#86868b;margin-bottom:10px;">지점: ${bu} · 인허가 ${licenses.length}건</div>
                     ${warn('인허가 — 미등록 담당자 (이메일 알림 미발송)',
                         [...licMgrMissing.entries()].map(([n,c]) => `${n} (${c}건)`))}
-                    ${warn('방문일지 — 미등록 담당자',
-                        [...visitMgrMissing.entries()].map(([n,c]) => `${n} (${c}건)`))}
                     ${warn('담당자 관리 — 이메일 미등록',
                         noEmailList.map(n => `${n}`))}
                     ${warn('인허가 — 비정상 거래상태 값',
@@ -1228,8 +1152,7 @@
                     ${info('인허가 — 미지정/빈 담당자', licNoMgr)}
                     ${info('인허가 — 순위 미입력', licNoPriority)}
                     ${info('인허가 — 허가일 미입력', licNoDate)}
-                    ${info('인허가 — 좌표(lat/lng) 없음', licNoCoord)}
-                    ${info('방문일지 — 작성일 미입력', visitNoDate)}`;
+                    ${info('인허가 — 좌표(lat/lng) 없음', licNoCoord)}`;
             } catch (e) {
                 panel.innerHTML = `<span style="color:#ff3b30;">점검 실패: ${e.message}</span>`;
             }
@@ -1266,9 +1189,8 @@
                     const json = await resp.json();
                     let rows = json.data || [];
 
-                    // licenses/visit_logs 정렬 (서버 정렬 없으므로 클라이언트 정렬)
+                    // licenses 정렬 (서버 정렬 없으므로 클라이언트 정렬)
                     if (cfg.table === 'licenses') rows.sort((a, b) => (b.permit_date || '') > (a.permit_date || '') ? 1 : -1);
-                    else if (cfg.table === 'visit_logs') rows.sort((a, b) => (b.visit_date || '') > (a.visit_date || '') ? 1 : -1);
 
                     dbCount.textContent = `${rows.length}건`;
                     if (!rows.length) {
@@ -1306,9 +1228,7 @@
                 let query = client.from(cfg.table).select('*');
                 if (businessUnit) query = query.eq('business_unit', businessUnit);
 
-                if (cfg.table === 'visit_logs') {
-                    query = query.order('visit_date', { ascending: false, nullsFirst: false });
-                } else if (cfg.table === 'licenses') {
+                if (cfg.table === 'licenses') {
                     query = query.order('permit_date', { ascending: false, nullsFirst: false });
                 } else if (cfg.table === 'recipes') {
                     query = query.order('name', { ascending: true });
@@ -1362,13 +1282,6 @@
                 summaryHtml = `
                     <span class="badge">총 ${total}건</span>
                     <span class="badge">마지막 업로드: ${lastUpload}</span>`;
-            } else if (cfg.table === 'visit_logs') {
-                const latestSeq = data[0]?.seq_no ?? '-';
-                const latestDate = data[0]?.visit_date ?? '-';
-                summaryHtml = `
-                    <span class="badge">총 ${total}건</span>
-                    <span class="badge">최신 seq_no: ${latestSeq}</span>
-                    <span class="badge">최근 방문일: ${latestDate}</span>`;
             } else if (cfg.table === 'recipes') {
                 summaryHtml = `
                     <span class="badge">총 ${total}건</span>
@@ -1639,11 +1552,6 @@
                 } else if (cfg.table === 'licenses') {
                     localStorage.removeItem(`fs_licenses_${bu}`);
                     localStorage.removeItem(`fs_licenses_${bu}_ts`);
-                } else if (cfg.table === 'visit_logs') {
-                    localStorage.removeItem(`fs_visitlogs_v_${bu}`);
-                    localStorage.removeItem(`fs_visitlogs_v_${bu}_ts`);
-                    localStorage.removeItem(`fs_visitlogs_${bu}`);
-                    localStorage.removeItem(`fs_visitlogs_${bu}_ts`);
                 }
 
                 showToast(`✅ ${count}건 삭제되었습니다.`);
@@ -1741,7 +1649,7 @@
 
             let data = currentDbData;
 
-            // 비편집형(licenses, visit_logs)은 전체 데이터 재조회
+            // 비편집형(licenses 등)은 전체 데이터 재조회
             if (!cfg.editable && cfg.table) {
                 showToast('전체 데이터 조회 중...');
                 try {
@@ -1991,8 +1899,8 @@
 
                 const isAppend = cfg.mode === 'append';
 
-                // ── 담당자 유효성 검사 (licenses, visit_logs) ──
-                if (cfg.table === 'licenses' || cfg.table === 'visit_logs') {
+                // ── 담당자 유효성 검사 (licenses) ──
+                if (cfg.table === 'licenses') {
                     btn.innerHTML = '<span class="spinner-inline"></span>담당자 확인 중...';
                     const { data: mgrRows } = await client
                         .from('managers').select('manager_name').eq('business_unit', businessUnit);
@@ -2024,7 +1932,7 @@
                     btn.innerHTML = '<span class="spinner-inline"></span>중복 확인 중...';
 
                     if (cfg.deduplicateFields) {
-                        // 복합키 방식 (visit_logs: visit_date+manager+business_name)
+                        // 복합키 방식
                         const fields = cfg.deduplicateFields;
                         const { data: existingRows, error: existErr } = await client
                             .from(cfg.table).select(fields.join(',')).eq('business_unit', businessUnit).limit(50000);
@@ -2086,14 +1994,8 @@
                 for (let i = 0; i < parsedData.length; i += BATCH) {
                     const batch = parsedData.slice(i, i + BATCH).map((row) => {
                         const base = { ...row, business_unit: businessUnit };
-                        if (cfg.table === 'visit_logs') {
-                            base.created_by = user.id;
-                            base.created_at = now;
-                        } else {
-                            base.uploaded_by = user.id;
-                            base.uploaded_at = now;
-
-                        }
+                        base.uploaded_by = user.id;
+                        base.uploaded_at = now;
                         return base;
                     });
 
@@ -2104,7 +2006,7 @@
                         if (error) throw new Error(`업로드 실패 (${i + 1}~${i + batch.length}번째): ` + error.message);
                         inserted += batch.length;
                     } else {
-                        // add_new_only(인허가/방문일지) 또는 replace: 단순 INSERT
+                        // add_new_only(인허가) 또는 replace: 단순 INSERT
                         const { error } = await client.from(cfg.table).insert(batch);
                         if (error && error.code === '23505') {
                             // 409 충돌: 행별 개별 삽입으로 폴백 (dedup이 놓친 충돌 행만 건너뜀)
@@ -2140,12 +2042,6 @@
 
                 // 업로드 테이블별 localStorage 캐시 무효화
                 const bu = businessUnit ?? '';
-                if (cfg.table === 'visit_logs') {
-                    localStorage.removeItem(`fs_visitlogs_v_${bu}`);   // 방문일지.html 캐시
-                    localStorage.removeItem(`fs_visitlogs_v_${bu}_ts`);
-                    localStorage.removeItem(`fs_visitlogs_${bu}`);      // index.html 지도용 캐시
-                    localStorage.removeItem(`fs_visitlogs_${bu}_ts`);
-                }
                 if (cfg.table === 'licenses') {
                     localStorage.removeItem(`fs_licenses_${bu}`);
                     localStorage.removeItem(`fs_licenses_${bu}_ts`);

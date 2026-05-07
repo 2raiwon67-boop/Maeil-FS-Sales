@@ -12,7 +12,6 @@ index.html       메인 대시보드 (지도 + 필터 + 마커, ~6000줄)
 방문일지.html     방문 기록 관리 + AI 브리핑
 proposal.html    견적서 / 매장 맞춤 분석
 upload.html      데이터 관리 (업로드 + DB현황 + 공공인허가 조회)
-report.html      월별 보고서
 admin.html       관리자 페이지 (사용자 관리 + 소속 변경)
 login.html / pending.html  인증 흐름 (confirm.html 삭제 — 이메일 인증 미사용)
 common.css       디자인 토큰 + 공통 컴포넌트 (Toast, Spinner, Skeleton)
@@ -20,7 +19,6 @@ js/
   auth.js            Supabase 인증 + BUSINESS_UNITS 목록
   nav-component.js   상단 nav + 모바일 하단 탭바
 api/
-  gemini.js              Gemini 프록시 — gemini-2.5-flash-lite
   generate-briefing.js   AI 브리핑 온디맨드 — gemini-2.5-flash-lite
   batch-briefings.js     야간 배치 브리핑 + Mother Brain 임베딩 — gemini-2.5-flash-lite
   naver-reviews.js       네이버 검색 + Gemini 분석 — gemini-2.5-flash
@@ -48,7 +46,6 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 | `ai_briefings` | 거래처 AI 브리핑 캐시 | `(account_name, business_unit)` UNIQUE |
 | `store_analysis_cache` | 네이버 매장 분석 캐시 | `store_name` UNIQUE |
 | `quotes` | 저장된 견적 | |
-| `report_cache` | 월별 보고서 AI 분석 캐시 | `(business_unit, report_month, manager_name)` UNIQUE |
 | `visit_plans` | 방문 일정 (캘린더) | `(business_unit, manager, visit_date)` UNIQUE |
 
 ---
@@ -88,7 +85,6 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 ### 2026-03-16 (v86~v102)
 - 방문일지 업로드 unique constraint 3단계 해결 (normalizeToYMD 날짜 정규화)
 - 방문일지 업로드 409 폴백: 충돌 시 행별 개별 INSERT 재시도
-- report.html: 월 선택 pill→드롭다운, 담당자 필터, AI 분석 Supabase 캐시 4개월
 - 담당자 드롭다운 지점장 제외 (region2='지점장' OR is_branch_manager)
 - proposal.html: search_recipes RPC pdf_url 누락 수정, 레시피 카드 클릭 불가 해결
 - 사이드바 탭 3개 (전체/인허가/주요거래처) + 1회 생성 마커 패턴
@@ -101,7 +97,7 @@ db/supabase_setup.sql    Supabase 테이블/RLS/RPC 정의 (멱등성 보장)
 - PC 프로필 드롭다운 + 설정 모달 + 색각 보정 모드 (초록→청록, 빨강→마젠타)
 - 사이드 필터 기본 접힘, 색각 보정 필터 색상 연동
 - 캐시 TTL: 인허가·거래처 12h / 방문일지 24h / 지오코딩 영구
-- 코드 점검: alert() 교체, report_cache await 수정
+- 코드 점검: alert() 교체
 
 ### 2026-04-20 (버그픽스, 버전 무관)
 - **서울 등 광역시 공공인허가 조회 불가 버그 수정** (`api/public-license.js`)
@@ -354,7 +350,6 @@ getBusinessUnitForIndex()       // business_unit 캐시
 | v109 | PC 프로필 드롭다운 + 설정 모달 + 색각 보정 |
 | v110 | 사이드 필터 개선 + 색각 보정 연동 |
 | v111 | 방문일지 업로드 409 폴백 (행별 개별 INSERT) |
-| v112~114 | report.html 월/담당자 필터 + AI 캐시 |
 | v115 | proposal 레시피 카드 클릭 불가 수정 |
 | v116 | 코드 점검: alert()→showToast, await 수정 |
 | v117 | 내 일정 캘린더 UI (달력 뷰, 플로팅 뱃지, 과거 일정 자동 삭제) |
@@ -407,9 +402,8 @@ getBusinessUnitForIndex()       // business_unit 캐시
 
 | 순위 | 항목 | 핵심 | 상태 |
 |------|------|------|------|
-| 1 | **영업 코파일럿 챗봇** | FAB + 채팅 패널, Mother Brain·브리핑·방문일지·리뷰 조합 답변. 방문일지.html → index.html 확장 | 미구현 |
-| 2 | **1분 브리핑 카드** | 기존 ai_briefings → 구조화 카드 UI (핵심상태/지난약속/제안포인트/주의). 장바구니 스와이프. 비용 0 | 미구현 |
-| 3 | **마커 클릭 즉시 브리핑** | 마커 탭 → 바텀시트에 ai_briefings 캐시 즉시 표시. 캐시 미스면 버튼만. 비용 0 | 미구현 |
+| 1 | **1분 브리핑 카드** | 기존 ai_briefings → 구조화 카드 UI (핵심상태/지난약속/제안포인트/주의). 장바구니 스와이프. 비용 0 | 미구현 |
+| 2 | **마커 클릭 즉시 브리핑** | 마커 탭 → 바텀시트에 ai_briefings 캐시 즉시 표시. 캐시 미스면 버튼만. 비용 0 | 미구현 |
 
 > AX 원칙: "이미 하는 행동에 AI가 끼어드는 것" — 새 워크플로우 강요 금지
 
@@ -417,80 +411,10 @@ getBusinessUnitForIndex()       // business_unit 캐시
 
 | 항목 | 상태 |
 |------|------|
-| 영업 메모 저장 (`store_memos`) | SQL 미실행, 코드 미완료 |
 | 수도권FS지역사업부장 멀티지점 뷰 | 감시 도구 우려로 보류 |
-| N8N + Gemini + Groq Agentic 자동화 | 기획 완료, 미구현 |
 | GitHub Actions + 공공인허가 자동 배치 | data.go.kr API 접근 이슈 |
 | 내 일정 달력 UI 고도화 (달력에서 날짜 먼저 선택) | ✅ v117에서 구현 완료 |
 | managers region1/region2 기존 24개 행 수동 입력 | ✅ 완료 (2026-03-18) |
-| **지역 카테고리 트렌드 패널** | 기획 완료, 미구현 — 아래 상세 참고 |
-
-### 지역 카테고리 트렌드 패널 (미구현)
-
-**목적**: 케이스영업 지원 — "우리 지역에서 어떤 카테고리/업종이 활발한지" 파악 → recipes RAG와 연결해 거래처마다 전파
-
-**흐름**:
-```
-사업부별 카테고리 5개 설정 (예: 크루아상, 소금빵, 라떼, 브런치카페, 베이커리)
-    ↓
-N8N 주 1회: 네이버 블로그 검색 "의정부 크루아상 카페" 등
-    ↓
-Gemini: 언급 많은 매장명 + 카테고리 추출
-    ↓
-regional_trending_stores 테이블 저장
-    ↓
-index.html 지도 옆 패널에 표시
-    ↓
-recipes RAG 자동 매칭 → 케이스영업 토킹포인트 생성
-```
-
-**필요 DB 테이블**:
-```sql
--- 사업부별 카테고리 설정 (담당자·지점장 모두 설정 가능)
-business_unit_categories (
-  business_unit TEXT PRIMARY KEY,
-  categories JSONB  -- ['크루아상', '소금빵', ...]  max 5개
-)
-
--- 지역별 카테고리 트렌드 수집 결과
-regional_trending_stores (
-  id BIGSERIAL,
-  business_unit TEXT,
-  category TEXT,
-  store_name TEXT,
-  mention_count INT,
-  region TEXT,        -- managers.region2 기반 (담당자 지역 자동 매핑)
-  collected_at DATE
-)
-```
-
-**UI**: index.html 지도 옆 패널 내 별도 섹션
-
-**한계점**:
-- 인기 매장 = 오래된 유명 매장 (트렌딩 ≠ 신규 급부상)
-- 소도시(연천·동두천)는 블로그 데이터 자체가 부족
-- 매장명 AI 추출 정확도 한계 (흔한 상호명 혼동 가능)
-- 카테고리 키워드는 직접 업데이트 필요 (자동 아님)
-- N8N 자체 서버 안정 운영 전제
-
-**선행 조건**: N8N 자체 서버 운영 안정화 후 구현
-
-### store_memos 테이블 SQL (미실행)
-```sql
-CREATE TABLE store_memos (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  business_unit text NOT NULL,
-  store_name text NOT NULL,
-  memo text DEFAULT '',
-  updated_at timestamptz DEFAULT now(),
-  UNIQUE(business_unit, store_name)
-);
-ALTER TABLE store_memos ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "자기 사업부만 접근" ON store_memos
-  FOR ALL USING (
-    business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
-  );
-```
 
 ---
 
@@ -684,11 +608,6 @@ ADMIN_CODE                  관리자 API 인증 (= 532753)
 
 ### 배경
 보안 감사 결과 다수의 취약점 발견. 개인정보 처리 적정성 검토 및 전면 보완.
-
-### 삭제된 파일
-- `report.html` 삭제 (월별 보고서 기능 제거)
-- `api/gemini.js` 삭제 (report.html 전용 Gemini 프록시)
-- Supabase `report_cache` 테이블 삭제 (8건 포함)
 
 ### API 키 코드 제거 → GitHub Actions 주입 방식
 - `js/auth.js`: 하드코딩된 Supabase URL/anon key → `window.FS_CONFIG` 참조로 교체

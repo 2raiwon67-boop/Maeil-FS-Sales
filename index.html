@@ -18,7 +18,6 @@
     <meta name="apple-mobile-web-app-title" content="MISO">
 
     <!-- 다른 탭 페이지 미리 로드 (탭 전환 속도 개선) -->
-    <link rel="prefetch" href="방문일지.html">
     <link rel="prefetch" href="proposal.html">
 
     <!-- 네이버 지도 API (단일 통합 로딩으로 document.write 경고 원천 차단) -->
@@ -2252,18 +2251,9 @@
             <div class="dashboard-container" id="dashboardView">
                 <div class="summary-cards-container">
                     <div class="summary-value-card">
-                        <div class="sv-label">누적 방문 건수</div>
-                        <div class="sv-value" id="dashTotVisits">0</div>
-                    </div>
-                    <div class="summary-value-card">
                         <div class="sv-label">거래율 <span style="cursor:help; border-bottom:1px dotted #86868b;"
                                 title="인허가 데이터 중 거래 / (거래 + 미거래) 비율입니다.">ℹ️</span></div>
                         <div class="sv-value" id="dashSuccessRate">0%</div>
-                    </div>
-                    <div class="summary-value-card">
-                        <div class="sv-label">최다방문거래처 <span style="cursor:help; border-bottom:1px dotted #86868b;"
-                                title="가장 여러 번 방문일지가 작성된 거래처명입니다.">ℹ️</span></div>
-                        <div class="sv-value" id="dashTopRegion">-</div>
                     </div>
                 </div>
 
@@ -2298,14 +2288,6 @@
                         </div>
                         <div style="position: relative; height: 260px; width: 100%;">
                             <canvas id="dashMilkChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="dashboard-card full-width" style="height: 340px;">
-                        <div class="dashboard-title">📈 월별 누적 방문 추이 <span
-                                style="font-size:11px; color:#86868b; font-weight:normal;">(해당 월에 맵핑된 방문일지 총 건수)</span>
-                        </div>
-                        <div style="position: relative; height: 260px; width: 100%;">
-                            <canvas id="dashTrendChart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -2519,18 +2501,6 @@
             'store_code': '사업장코드명',
             'seq_no': 'NO'
         };
-        const VISITLOG_DB_TO_KR = {
-            'seq_no': 'NO',
-            'visit_date': '일정기간',
-            'manager': '작성자',
-            'dealer_code': '방문처(대리점 코드)',
-            'dealer_name': '방문처(대리점)',
-            'account_code': '방문처(거래처 코드)',
-            'business_name': '방문처(거래처)',
-            'content': '내용',
-            'store_code': '사업장코드'
-        };
-
         // 메인 뷰 전환 함수 (지도 / 통계 / 사용우유)
         function switchMainView(view) {
             const mapArea = document.getElementById('map');
@@ -2582,17 +2552,7 @@
                 }
             });
 
-            // 방문일지 캐시 (방문 통계용) - 사업장명이 일치하는 방문일지만 필터링
-            const rawVisits = window.visitLogCache || [];
-            const visits = rawVisits.filter(v => {
-                const visitName = (v['방문처(거래처)'] || '').trim();
-                return validAccountNames.has(visitName);
-            });
-
             // 2. 상단 요약 카드 계산
-            const totalVisits = visits.length;
-            document.getElementById('dashTotVisits').innerText = totalVisits;
-
             // 거래율 계산 (거래 / (거래 + 미거래))
             const dealCount = combinedData.filter(d => d.status === '거래').length;
             const nonDealCount = combinedData.filter(d => d.status === '미거래').length;
@@ -2646,74 +2606,10 @@
             _activeStatusFilter = null;
             _activeRegionFilter = null;
 
-            // 최빈 방문 거래처 계산
-            const visitFreq = {};
-            visits.forEach(v => {
-                const name = (v['방문처(거래처)'] || '').trim();
-                if (name) {
-                    visitFreq[name] = (visitFreq[name] || 0) + 1;
-                }
-            });
-            const sortedAccounts = Object.entries(visitFreq).sort((a, b) => b[1] - a[1]);
-            if (sortedAccounts.length > 0) {
-                document.getElementById('dashTopRegion').innerText = sortedAccounts[0][0];
-            } else {
-                document.getElementById('dashTopRegion').innerText = '-';
-            }
-
             // 4. Chart.js 렌더링
             renderRegionChart(null);
             renderStatusChart(null);
             renderMiniMilkChart();
-
-            // [차트 4] 월별 추이 (Line)
-            const monthCount = {};
-            visits.forEach(v => {
-                const dateStr = v['일정기간'] || v['작성일'] || '';
-                if (dateStr && typeof dateStr === 'string' && dateStr.length >= 7) {
-                    const match = dateStr.match(/(\d{4}-\d{2})/);
-                    if (match) {
-                        const month = match[1];
-                        monthCount[month] = (monthCount[month] || 0) + 1;
-                    }
-                }
-            });
-            const sortedMonths = Object.keys(monthCount).sort();
-
-            const trendLabels = sortedMonths.length > 0 ? sortedMonths : ['데이터 없음'];
-            const trendData = sortedMonths.length > 0 ? sortedMonths.map(m => monthCount[m]) : [0];
-            if (dashTrendChartInstance) {
-                dashTrendChartInstance.data.labels = trendLabels;
-                dashTrendChartInstance.data.datasets[0].data = trendData;
-                dashTrendChartInstance.update();
-            } else {
-                const ctxTrend = document.getElementById('dashTrendChart').getContext('2d');
-                dashTrendChartInstance = new Chart(ctxTrend, {
-                    type: 'line',
-                    data: {
-                        labels: trendLabels,
-                        datasets: [{
-                            label: '월별 방문 횟수',
-                            data: trendData,
-                            borderColor: '#0071e3',
-                            backgroundColor: 'rgba(0, 113, 227, 0.1)',
-                            borderWidth: 3,
-                            pointBackgroundColor: '#ffffff',
-                            pointBorderColor: '#0071e3',
-                            pointBorderWidth: 2,
-                            pointRadius: 4,
-                            fill: true,
-                            tension: 0.3
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' } }, x: { grid: { display: false } } }
-                    }
-                });
-            }
         }
 
         // ── 도넛 데이터레이블 커스텀 플러그인 ──
@@ -3208,11 +3104,10 @@
             await getBusinessUnitForIndex();
             await loadManagerConfig();
 
-            // 3개 동시 실행 + 완료 대기 (Race Condition 방지)
+            // 2개 동시 실행 + 완료 대기 (Race Condition 방지)
             await Promise.all([
                 loadDataFromSheets(),
-                loadAccountsData(),
-                loadVisitLogCache()
+                loadAccountsData()
             ]);
 
             // 오늘 저장된 방문 일정이 있으면 팝업 표시
@@ -4220,62 +4115,6 @@
             } catch (e) {
                 console.warn('주요거래처 데이터 로드 실패:', e.message);
                 showToast('주요거래처 데이터를 불러오지 못했습니다.', 'error', 4000);
-            }
-        }
-
-        // 방문일지 캐시 로드 (InfoWindow에서 최신 방문 기록 표시용)
-        async function loadVisitLogCache() {
-            try {
-                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
-                let data;
-                if (isAdmin) {
-                    data = await fetchAdminTable('visit_logs');
-                    data = (data || []).sort((a, b) => (b.visit_date || '').localeCompare(a.visit_date || ''));
-                } else {
-                    const businessUnit = await getBusinessUnitForIndex();
-                    if (!businessUnit) return;
-
-                    // localStorage 캐시 확인 (24시간 TTL)
-                    const cacheKey = `fs_visitlogs_${businessUnit}`;
-                    const cached = localStorage.getItem(cacheKey);
-                    const cachedTime = Number(localStorage.getItem(cacheKey + '_ts') || 0);
-                    if (cached && Date.now() - cachedTime < 24 * 60 * 60 * 1000) {
-                        window.visitLogCache = JSON.parse(cached);
-                        return;
-                    }
-
-                    const { data: d, error } = await client
-                        .from('visit_logs')
-                        .select('*')
-                        .eq('business_unit', businessUnit)
-                        .order('visit_date', { ascending: false });
-                    if (error) throw error;
-                    data = d;
-                }
-
-                // Supabase 영문 필드 → 기존 한국어 키 변환 (이미 visit_date desc 정렬)
-                window.visitLogCache = (data || []).map(row => {
-                    const obj = {};
-                    Object.entries(VISITLOG_DB_TO_KR).forEach(([eng, kor]) => {
-                        obj[kor] = row[eng] ?? '';
-                    });
-                    obj['작성일'] = row.visit_date ?? ''; // 날짜 필드 fallback
-                    return obj;
-                });
-
-                // 캐시 저장 (어드민 제외)
-                if (!isAdmin) {
-                    const businessUnit = await getBusinessUnitForIndex();
-                    if (businessUnit) {
-                        try {
-                            localStorage.setItem(`fs_visitlogs_${businessUnit}`, JSON.stringify(window.visitLogCache));
-                            localStorage.setItem(`fs_visitlogs_${businessUnit}_ts`, Date.now().toString());
-                        } catch (e) { /* localStorage 용량 초과 시 무시 */ }
-                    }
-                }
-            } catch (e) {
-                console.warn('방문일지 캐시 로드 실패:', e.message);
-                showToast('방문 기록을 불러오지 못했습니다.', 'error', 4000);
             }
         }
 
@@ -5663,10 +5502,7 @@
         }
 
         function computeRecommendations() {
-            const today = new Date();
-            const visits = window.visitLogCache || [];
-
-            // 내 담당 주요거래처 (거래 + 미거래 모두)
+            // 내 담당 주요거래처 중 미거래 거래처를 추천 대상으로 반환
             const myAccounts = accountsData.filter(a =>
                 (a['담당자명'] || '').trim() === myManagerName && a['거래처명']
             );
@@ -5682,25 +5518,15 @@
                 const lng = marker._lng;
                 if (!lat || !lng) return null;
 
-                // 가장 최근 방문일
-                const lastVisitEntry = visits
-                    .filter(v => (v['방문처(거래처)'] || '').trim() === name)
-                    .sort((a, b) => (b['일정기간'] || '').localeCompare(a['일정기간'] || ''))[0];
-
-                const lastVisitDate = lastVisitEntry?.['일정기간'] || null;
-                const daysSince = lastVisitDate
-                    ? Math.floor((today - new Date(lastVisitDate)) / 86400000)
-                    : 9999;
-
+                // 미거래 거래처를 우선 추천
                 let priority = 0;
                 let reason = '';
-                if (daysSince === 9999) { priority = 3; reason = '방문 이력 없음'; }
-                else if (daysSince >= 60) { priority = 2; reason = `${daysSince}일 미방문`; }
-                else if (daysSince >= 30) { priority = 1; reason = `${daysSince}일 미방문`; }
+                if (dealStatus === '미거래') { priority = 2; reason = '미거래 거래처'; }
+                else if (!dealStatus) { priority = 1; reason = '거래상태 미확인'; }
 
-                return { name, dealStatus, reason, priority, daysSince, lat, lng };
+                return { name, dealStatus, reason, priority, daysSince: 9999, lat, lng };
             }).filter(r => r && r.priority > 0)
-              .sort((a, b) => b.priority - a.priority || b.daysSince - a.daysSince);
+              .sort((a, b) => b.priority - a.priority);
 
             return scored;
         }
@@ -6065,19 +5891,13 @@
             const selectedPrimaries = primaryStops.slice(0, MAX_TOTAL);
             const remainingSlots = MAX_TOTAL - selectedPrimaries.length;
 
-            // 미거래처: 잔여 슬롯 내 방문일지 기반 우선순위 (미방문 > 오래된 방문 순)
+            // 미거래처: 잔여 슬롯 내에서 거리 가까운 순으로 선택
             let selectedAccounts = [];
             if (remainingSlots > 0 && accountStops.length > 0) {
-                const sortedAccounts = accountStops.map(stop => {
-                    const lastVisit = window.visitLogCache
-                        ? window.visitLogCache.find(v => (v['방문처(거래처)'] || '').trim() === stop.name)
-                        : null;
-                    return { ...stop, _lastVisitDate: lastVisit ? (lastVisit['일정기간'] || '') : '' };
-                }).sort((a, b) => {
-                    if (!a._lastVisitDate && b._lastVisitDate) return -1;
-                    if (a._lastVisitDate && !b._lastVisitDate) return 1;
-                    return a._lastVisitDate.localeCompare(b._lastVisitDate);
-                });
+                const sortedAccounts = accountStops.slice().sort((a, b) =>
+                    haversineKm(searchCenter.lat, searchCenter.lng, a.lat, a.lng) -
+                    haversineKm(searchCenter.lat, searchCenter.lng, b.lat, b.lng)
+                );
                 selectedAccounts = sortedAccounts.slice(0, remainingSlots);
             }
 

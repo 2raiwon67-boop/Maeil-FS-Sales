@@ -10,7 +10,6 @@
     <link rel="apple-touch-icon" href="icons/icon-192x192.png">
     <!-- 다른 탭 페이지 미리 로드 (탭 전환 속도 개선) -->
     <link rel="prefetch" href="index.html">
-    <link rel="prefetch" href="방문일지.html">
 
     <link rel="stylesheet" href="common.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -2343,45 +2342,6 @@
         const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
         const BG_UPDATE_SKIP_MS = 10 * 24 * 60 * 60 * 1000; // 백그라운드 업데이트 스킵 기준 (10일)
 
-        // ── 방문일지 조회 (Supabase) ────────────────────────────
-        async function loadVisitLogsForStore(keyword) {
-            try {
-                if (!client) return [];
-                const { data: userData } = await client.auth.getUser();
-                const businessUnit = userData?.user?.user_metadata?.business_unit ?? null;
-
-                let query = client.from('visit_logs')
-                    .select('manager, visit_date, business_name, content, dealer_name')
-                    .order('visit_date', { ascending: false });
-                if (businessUnit) query = query.eq('business_unit', businessUnit);
-
-                const { data, error } = await query;
-                if (error) return [];
-
-                const kw = keyword.toLowerCase().replace(/\s/g, '');
-                return (data || [])
-                    .filter(r => r.manager)
-                    .map(r => ({
-                        '작성자': r.manager ?? '',
-                        '방문처(거래처)': r.business_name ?? '',
-                        '작성일': r.visit_date ?? '',
-                        '일정기간': r.visit_date ?? '',
-                        '내용': r.content ?? '',
-                        '방문처(대리점)': r.dealer_name ?? ''
-                    }))
-                    .filter(log => {
-                        const rawName = (log['방문처(거래처)'] || '').trim();
-                        if (!rawName) return false;
-                        const cleanName = rawName.replace(/^\[[^\]]+\]\s*/, '');
-                        const name = cleanName.toLowerCase().replace(/\s/g, '');
-                        return name.includes(kw) || kw.includes(name);
-                    });
-            } catch (e) {
-                console.warn('방문일지 로드 실패:', e.message);
-                return [];
-            }
-        }
-
         // ── 모바일 분석 패널 접기/펼치기 ─────────────────────────
         function togglePanelMobile() {
             const panel = document.querySelector('.analysis-panel');
@@ -2597,21 +2557,12 @@
                 }
             }
 
-            // 방문일지 데이터 로드 (Google Sheets 직접 fetch)
+            // 새로운 분석 수행
             card.style.display = 'block';
             card.classList.add('active');
-            text.innerHTML = '📋 방문일지 확인 중...';
+            text.innerHTML = '🔍 네이버 리뷰 분석 중... (약 5~10초 소요)';
             list.innerHTML = '';
             tags.innerHTML = '';
-
-            const storeHistory = await loadVisitLogsForStore(keyword);
-            if (storeHistory.length > 0) {
-            }
-
-            // 새로운 분석 수행
-            text.innerHTML = storeHistory.length > 0
-                ? `🔍 네이버 리뷰 + 방문일지(${storeHistory.length}건) 분석 중... (약 5~10초 소요)`
-                : '🔍 네이버 리뷰 분석 중... (약 5~10초 소요)';
 
             try {
                 const response = await fetch('/api/naver-reviews', {
@@ -2620,8 +2571,7 @@
                     body: JSON.stringify({
                         storeName: keyword,
                         productDB: productDB,
-                        previousReviewLinks: [],
-                        storeHistory: storeHistory  // 🆕 방문일지 추가
+                        previousReviewLinks: []
                     })
                 });
 
@@ -2665,17 +2615,13 @@
         // 증분 업데이트 (백그라운드)
         async function updateAnalysis(keyword, cachedData) {
             try {
-                // 방문일지 데이터 로드 (Google Sheets 직접 fetch)
-                const storeHistory = await loadVisitLogsForStore(keyword);
-
                 const response = await fetch('/api/naver-reviews', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         storeName: keyword,
                         productDB: productDB,
-                        previousReviewLinks: cachedData.result.reviewLinks || [],
-                        storeHistory: storeHistory  // 🆕 방문일지 추가
+                        previousReviewLinks: cachedData.result.reviewLinks || []
                     })
                 });
 
