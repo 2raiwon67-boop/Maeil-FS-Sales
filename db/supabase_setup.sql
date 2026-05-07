@@ -314,6 +314,39 @@ $$;
 
 
 -- ─────────────────────────────────────────────────────────────
+-- 10. visit_plans (방문 일정 계획 — 실제 방문 기록 아님)
+-- 담당자가 미래 방문 경유지를 저장하는 테이블
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS visit_plans (
+    id            BIGSERIAL PRIMARY KEY,
+    business_unit TEXT NOT NULL,
+    manager       TEXT NOT NULL,
+    visit_date    DATE NOT NULL,
+    items         JSONB NOT NULL DEFAULT '[]',
+    created_at    TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (business_unit, manager, visit_date)
+);
+
+ALTER TABLE visit_plans ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "visit_plans_select_same_unit" ON visit_plans;
+CREATE POLICY "visit_plans_select_same_unit" ON visit_plans
+    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "visit_plans_insert_same_unit" ON visit_plans;
+CREATE POLICY "visit_plans_insert_same_unit" ON visit_plans
+    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "visit_plans_update_same_unit" ON visit_plans;
+CREATE POLICY "visit_plans_update_same_unit" ON visit_plans
+    FOR UPDATE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+DROP POLICY IF EXISTS "visit_plans_delete_same_unit" ON visit_plans;
+CREATE POLICY "visit_plans_delete_same_unit" ON visit_plans
+    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+
+
+-- ─────────────────────────────────────────────────────────────
 -- 상권 분석 테이블 (discover.html)
 -- ─────────────────────────────────────────────────────────────
 

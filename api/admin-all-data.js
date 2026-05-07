@@ -2,7 +2,7 @@
 // 관리자 전용: 전체 지점 데이터 조회 (RLS 우회, SERVICE_ROLE_KEY 사용)
 // x-admin-key 헤더로 인증
 
-const ALLOWED_TABLES = ['licenses', 'accounts', 'visit_logs'];
+const ALLOWED_TABLES = ['licenses', 'accounts'];
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

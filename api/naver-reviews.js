@@ -16,13 +16,12 @@ export default async function handler(req, res) {
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-    const { storeName, productDB, previousReviewLinks, storeHistory } = req.body || {};
+    const { storeName, productDB, previousReviewLinks } = req.body || {};
     if (!storeName?.trim()) {
         return res.status(400).json({ success: false, error: '매장명을 입력해주세요.' });
     }
 
     const isIncrementalUpdate = previousReviewLinks && previousReviewLinks.length > 0;
-    const hasVisitHistory = storeHistory && storeHistory.length > 0;
 
     const NAVER_CLIENT_ID = process.env.NAVER_CLIENT_ID;
     const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
@@ -311,30 +310,6 @@ export default async function handler(req, res) {
 
         const updateNote = isIncrementalUpdate ? '\n⚠️ 이번 분석은 **증분 업데이트**입니다. 아래는 최근 추가된 리뷰만 포함되어 있습니다.\n' : '';
 
-        // 방문일지 데이터 정리 (실제 필드명 기반)
-        let visitHistorySection = '';
-        if (hasVisitHistory) {
-            const historyItems = storeHistory.map(log => ({
-                방문일: log['작성일'] || log['일정기간'] || '',
-                담당자: log['작성자'] || '',
-                거래상태: log['거래상태'] || '',
-                방문내용: (log['내용'] || '').substring(0, 150),
-                주요이슈: log['주요이슈'] || ''
-            }));
-
-            visitHistorySection = `\n## ✨ 우리 팀 방문 기록 (${storeHistory.length}건 전체)
-${historyItems.map(h =>
-    `[${h.방문일}|${h.담당자}|${h.거래상태}] ${h.방문내용}${h.주요이슈 ? ` (이슈:${h.주요이슈})` : ''}`
-).join('\n')}
-
-⚠️ **중요**: 이 매장은 우리 팀이 이미 방문한 적이 있습니다!
-과거 방문 결과를 바탕으로 **전략을 조정**하세요:
-- 거래 성공 → 어떤 제품이 효과적이었는지 파악
-- 미거래 → 방문 내용에서 거절 사유를 파악하고 다른 접근법 제안
-- 방문 내용에서 매장 특성이나 오너 성향 파악
-`;
-        }
-
         const systemInstruction = `매일유업 FS 영업 어시스턴트. 네이버 검색 결과로 매장을 분석하고 JSON만 응답하라.
 분석 대상: 카페·베이커리·브런치·디저트·음식점 우선. 블로그 메뉴 키워드로 실제 업종 판단. 반드시 1개 매장만 분석.
 응답 형식(JSON만, 코드블록 금지): {"tags":["3-5개"],"description":"영업공략 HTML 3-4문장(<strong>·<span style=\\"color:#0071e3;font-weight:700;\\"> 사용)","recommendedIndices":[정확히 3개],"signatureMenus":[{"menu":"","ingredients":"40자이내","maeilSolution":"40자이내"}]}
@@ -346,13 +321,13 @@ signatureMenus 최대 2개. 검색 결과 부족 시 업종 기반 추론.`;
 ${JSON.stringify(localSummary, null, 2)}
 
 [블로그 리뷰]
-${JSON.stringify(blogSummary, null, 2)}${visitHistorySection}${recipeSection}
+${JSON.stringify(blogSummary, null, 2)}${recipeSection}
 [제품 목록]
 ${productList}
 
 분석:
 1. 태그 3-5개
-2. 영업공략 3-4문장: 시그니처 메뉴 원료→매일유업 대응 방안, ${hasVisitHistory ? '과거 방문 실패/거절 사유 극복 접근법' : '업종별 거절 사유와 극복 전략'}
+2. 영업공략 3-4문장: 시그니처 메뉴 원료→매일유업 대응 방안, 업종별 거절 사유와 극복 전략
 3. 효과적 제품 정확히 3개(인덱스): 레시피DB 유사사례 최우선, 카페·음식점은 음료용 위주(베이킹 원료 제외, 베이커리 확인시만 포함), 제품 용도 참고
 4. 시그니처 메뉴 1-2개: 추정 원료 + 매일유업 대응 방안`;
 

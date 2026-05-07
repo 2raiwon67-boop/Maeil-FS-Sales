@@ -73,7 +73,6 @@
     // ── 모바일 하단 탭 바 ──
     var MOB_TABS = [
         { href: 'index.html',    label: '거래처',  icon: '🏠' },
-        { href: '방문일지.html', label: '방문일지', icon: '📋' },
         { href: 'proposal.html', label: '견적서',  icon: '📄' },
     ];
 
