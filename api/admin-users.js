@@ -91,15 +91,20 @@ export default async function handler(req, res) {
         if (action === 'approve') {
             // 기존 메타데이터는 유지하고 approved + business_unit 설정 (phone 필드는 제거)
             const { phone: _removed, ...cleanMeta } = existingMetadata || {};
+            const finalBusinessUnit = businessUnit || cleanMeta.business_unit;
             const updatedMeta = {
                 ...cleanMeta,
                 approved: true,
-                ...(businessUnit ? { business_unit: businessUnit } : {})
+                ...(finalBusinessUnit ? { business_unit: finalBusinessUnit } : {})
             };
+            // app_metadata에도 business_unit 저장 (RLS가 app_metadata 기반으로 동작)
             const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: supabaseHeaders,
-                body: JSON.stringify({ user_metadata: updatedMeta })
+                body: JSON.stringify({
+                    user_metadata: updatedMeta,
+                    app_metadata: { business_unit: finalBusinessUnit }
+                })
             });
             const data = await response.json();
             if (!response.ok) return res.status(response.status).json(data);
@@ -167,10 +172,14 @@ export default async function handler(req, res) {
             const getUser = await getRes.json();
             if (!getRes.ok) return res.status(getRes.status).json(getUser);
             const updatedMeta = { ...getUser.user_metadata, business_unit: businessUnit };
+            // app_metadata에도 business_unit 동기화 (RLS가 app_metadata 기반으로 동작)
             const putRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
                 method: 'PUT',
                 headers: supabaseHeaders,
-                body: JSON.stringify({ user_metadata: updatedMeta })
+                body: JSON.stringify({
+                    user_metadata: updatedMeta,
+                    app_metadata: { business_unit: businessUnit }
+                })
             });
             const putData = await putRes.json();
             if (!putRes.ok) return res.status(putRes.status).json(putData);

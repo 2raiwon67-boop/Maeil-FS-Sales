@@ -3416,13 +3416,18 @@
                 const { data: userData } = await client.auth.getUser();
                 const myEmail = userData?.user?.email ?? null;
                 if (myEmail) {
-                    const { data: myRow } = await client
+                    // maybeSingle() 대신 배열로 받아 첫 번째 요소 사용
+                    // (같은 이메일로 여러 region 등록 시 maybeSingle이 null 반환하는 버그 방지)
+                    const { data: myRows } = await client
                         .from('managers')
                         .select('manager_name, region2')
                         .eq('business_unit', businessUnit)
                         .eq('email', myEmail)
-                        .maybeSingle();
-                    if (myRow && myRow.region2 !== '지점장' && myRow.region2 !== '전체') {
+                        .neq('region2', '지점장')
+                        .neq('region2', '전체')
+                        .limit(1);
+                    const myRow = myRows?.[0] ?? null;
+                    if (myRow) {
                         myManagerName = myRow.manager_name;
                         // 모바일: localStorage 저장값 우선, 기본값은 내 타겟만
                         if (isMobile()) {

@@ -6,6 +6,23 @@
 
 
 -- ─────────────────────────────────────────────────────────────
+-- 0. 보안 헬퍼 함수
+-- app_metadata에서 business_unit을 읽는 SECURITY DEFINER 함수
+-- app_metadata는 service role만 수정 가능 → RLS에 안전
+-- (user_metadata는 사용자가 직접 수정 가능하여 RLS 부적합)
+-- ─────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.get_my_business_unit()
+RETURNS TEXT
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT raw_app_meta_data->>'business_unit'
+  FROM auth.users
+  WHERE id = auth.uid()
+$$;
+
+
+-- ─────────────────────────────────────────────────────────────
 -- 1. licenses (인허가 데이터)
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS licenses (
@@ -35,19 +52,19 @@ ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "licenses_select_same_unit" ON licenses;
 CREATE POLICY "licenses_select_same_unit" ON licenses
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "licenses_insert_own_unit" ON licenses;
 CREATE POLICY "licenses_insert_own_unit" ON licenses
-    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR INSERT WITH CHECK (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "licenses_update_same_unit" ON licenses;
 CREATE POLICY "licenses_update_same_unit" ON licenses
-    FOR UPDATE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR UPDATE USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "licenses_delete_own" ON licenses;
 CREATE POLICY "licenses_delete_own" ON licenses
-    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR DELETE USING (business_unit = (public.get_my_business_unit()));
 
 
 -- ─────────────────────────────────────────────────────────────
@@ -72,19 +89,19 @@ ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "accounts_select_same_unit" ON accounts;
 CREATE POLICY "accounts_select_same_unit" ON accounts
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "accounts_insert_own_unit" ON accounts;
 CREATE POLICY "accounts_insert_own_unit" ON accounts
-    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR INSERT WITH CHECK (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "accounts_update_same_unit" ON accounts;
 CREATE POLICY "accounts_update_same_unit" ON accounts
-    FOR UPDATE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR UPDATE USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "accounts_delete_own" ON accounts;
 CREATE POLICY "accounts_delete_own" ON accounts
-    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR DELETE USING (business_unit = (public.get_my_business_unit()));
 
 
 -- ─────────────────────────────────────────────────────────────
@@ -109,15 +126,15 @@ ALTER TABLE managers ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "managers_select_same_unit" ON managers;
 CREATE POLICY "managers_select_same_unit" ON managers
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "managers_insert_own_unit" ON managers;
 CREATE POLICY "managers_insert_own_unit" ON managers
-    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR INSERT WITH CHECK (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "managers_delete_own" ON managers;
 CREATE POLICY "managers_delete_own" ON managers
-    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR DELETE USING (business_unit = (public.get_my_business_unit()));
 
 
 -- ─────────────────────────────────────────────────────────────
@@ -182,7 +199,7 @@ ALTER TABLE ai_briefings ENABLE ROW LEVEL SECURITY;
 -- 조회: 내 지점 브리핑만 SELECT 가능
 DROP POLICY IF EXISTS "ai_briefings_select_same_unit" ON ai_briefings;
 CREATE POLICY "ai_briefings_select_same_unit" ON ai_briefings
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
 
 -- 쓰기: generate-briefing.js / batch-briefings.js → SERVICE_ROLE_KEY로 RLS 우회
 
@@ -255,17 +272,17 @@ ALTER TABLE quotes ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "select_same_unit" ON quotes;
 CREATE POLICY "select_same_unit" ON quotes
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "insert_own_unit" ON quotes;
 CREATE POLICY "insert_own_unit" ON quotes
-    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR INSERT WITH CHECK (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "delete_own" ON quotes;
 CREATE POLICY "delete_own" ON quotes
     FOR DELETE USING (
-        created_by = (auth.jwt() -> 'user_metadata' ->> 'full_name')
-        AND business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit')
+        created_by = (SELECT raw_user_meta_data->>'full_name' FROM auth.users WHERE id = auth.uid())
+        AND business_unit = public.get_my_business_unit()
     );
 
 
@@ -295,6 +312,7 @@ RETURNS TABLE(
     similarity    FLOAT
 )
 LANGUAGE plpgsql
+SET search_path = ''
 AS $$
 BEGIN
     RETURN QUERY
@@ -331,19 +349,19 @@ ALTER TABLE visit_plans ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "visit_plans_select_same_unit" ON visit_plans;
 CREATE POLICY "visit_plans_select_same_unit" ON visit_plans
-    FOR SELECT USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR SELECT USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "visit_plans_insert_same_unit" ON visit_plans;
 CREATE POLICY "visit_plans_insert_same_unit" ON visit_plans
-    FOR INSERT WITH CHECK (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR INSERT WITH CHECK (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "visit_plans_update_same_unit" ON visit_plans;
 CREATE POLICY "visit_plans_update_same_unit" ON visit_plans
-    FOR UPDATE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR UPDATE USING (business_unit = (public.get_my_business_unit()));
 
 DROP POLICY IF EXISTS "visit_plans_delete_same_unit" ON visit_plans;
 CREATE POLICY "visit_plans_delete_same_unit" ON visit_plans
-    FOR DELETE USING (business_unit = (auth.jwt() -> 'user_metadata' ->> 'business_unit'));
+    FOR DELETE USING (business_unit = (public.get_my_business_unit()));
 
 
 -- ─────────────────────────────────────────────────────────────
