@@ -1958,11 +1958,7 @@
             font-family: 'Pretendard', -apple-system, sans-serif;
         }
         .store-panel.open { right: 0; }
-        .sp-backdrop {
-            position: fixed; inset: 0; background: rgba(15,23,42,.2);
-            z-index: 999; opacity: 0; pointer-events: none; transition: opacity .28s ease;
-        }
-        .sp-backdrop.on { opacity: 1; pointer-events: all; }
+        .sp-backdrop { display: none; }
 
         .sp-hd {
             display: flex; align-items: center; gap: 10px;
@@ -2051,7 +2047,7 @@
         }
         .sp-kpi { display: flex; flex-direction: column; gap: 2px; }
         .sp-kpi-l { font-size: 9px; font-weight: 700; color: #94a3b8; letter-spacing: .1em; text-transform: uppercase; }
-        .sp-kpi-v { font-size: 16px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1; }
+        .sp-kpi-v { font-size: 14px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; line-height: 1.2; }
 
         .sp-section { padding: 14px 20px; border-bottom: 1px solid #f1f5f9; }
         .sp-section-title { font-size: 10px; font-weight: 700; color: #94a3b8; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 10px; }
@@ -2068,12 +2064,12 @@
 
         .sp-milk-row { display: flex; gap: 5px; flex-wrap: wrap; }
         .sp-milk-btn {
-            height: 28px; padding: 0 11px; border-radius: 100px;
-            border: 1px solid #e2e8f0; background: transparent;
+            height: 30px; padding: 0 12px; border-radius: 100px;
+            border: 1.5px solid #e2e8f0; background: transparent;
             color: #64748b; font-size: 12px; font-weight: 600;
             cursor: pointer; font-family: inherit; transition: all .14s ease;
         }
-        .sp-milk-btn.sel { background: #5856d6; border-color: #5856d6; color: #fff; }
+        .sp-milk-btn.sel { background: #2563eb; border-color: #2563eb; color: #fff; }
 
         .sp-info-rows {}
         .sp-info-row { display: flex; align-items: baseline; gap: 8px; padding: 7px 0; border-bottom: 1px solid #f8fafc; }
@@ -2096,11 +2092,14 @@
 
         .sp-actions { display: flex; gap: 6px; padding: 14px 20px 18px; flex-shrink: 0; }
         .sp-action-btn {
-            flex: 1; height: 38px; border-radius: 10px;
-            border: none; font-size: 13px; font-weight: 700;
+            flex: 1; height: 40px; border-radius: 10px;
+            border: none; font-size: 13px; font-weight: 700; color: #fff;
             cursor: pointer; font-family: inherit; transition: opacity .14s ease;
         }
         .sp-action-btn:hover { opacity: .85; }
+        .sp-action-btn--naver { background: #03C75A; }
+        .sp-action-btn--route { background: #334155; }
+        .sp-action-btn--cart  { background: #2563eb; }
 
         .sp-empty { padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 13px; }
     </style>
@@ -2112,7 +2111,7 @@
     <script>
         window._NAV_OPTIONS = {
             showAdmin: true,
-            extraActions: '<div class="view-toggle nav-hide-mobile"><button class="view-btn active" id="btn-map-view" onclick="switchMainView(\'map\')">🗺️ 지도</button><button class="view-btn" id="btn-dashboard-view" onclick="switchMainView(\'dashboard\')">📈 통계</button></div>'
+            extraActions: '<div class="view-toggle nav-hide-mobile"><button class="view-btn active" id="btn-map-view" onclick="switchMainView(\'map\')">지도</button><button class="view-btn" id="btn-dashboard-view" onclick="switchMainView(\'dashboard\')">통계</button></div>'
         };
     </script>
     <script src="js/nav-component.js"></script>
@@ -2144,7 +2143,7 @@
                 <div class="section">
                     <div class="dropdown-card" id="ddStatusCard">
                         <div class="dropdown-header" >
-                            <h4>📍 인허가 현황</h4>
+                            <h4>인허가 현황</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
                         <div class="dropdown-content">
@@ -2155,7 +2154,7 @@
                 <div class="section">
                     <div class="dropdown-card" id="ddMilkCard">
                         <div class="dropdown-header" >
-                            <h4>🥛 사용우유(인허가)</h4>
+                            <h4>사용우유(인허가)</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
                         <div class="dropdown-content">
@@ -2170,7 +2169,7 @@
                 <div class="section">
                     <div class="dropdown-card" id="ddAccountCard">
                         <div class="dropdown-header" >
-                            <h4>📍 주요거래처 현황</h4>
+                            <h4>주요거래처 현황</h4>
                             <span class="dropdown-arrow">▼</span>
                         </div>
                         <div class="dropdown-content">
@@ -2188,11 +2187,11 @@
                     </div>
                     <div class="filter-panel-body">
                         <div class="filter-col">
-                            <div class="filter-col-header">👥 담당자</div>
+                            <div class="filter-col-header">담당자</div>
                             <div class="filter-col-list" id="managerList"></div>
                         </div>
                         <div class="filter-col">
-                            <div class="filter-col-header">🗺️ 지역</div>
+                            <div class="filter-col-header">지역</div>
                             <div class="filter-col-list" id="regionList"></div>
                         </div>
                     </div>
@@ -2247,7 +2246,7 @@
 
                 <div class="dashboard-grid">
                     <div class="dashboard-card" style="height: 360px;">
-                        <div class="dashboard-title">📍 지역별 분포 <span
+                        <div class="dashboard-title">지역별 분포 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '주소2' 기준)</span>
                         </div>
                         <div id="regionFilterLabel"
@@ -2259,7 +2258,7 @@
                         </div>
                     </div>
                     <div class="dashboard-card" style="height: 360px;">
-                        <div class="dashboard-title">📊 현재 거래 상태 <span
+                        <div class="dashboard-title">현재 거래 상태 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '거래여부' 기준)</span>
                         </div>
                         <div id="statusFilterLabel"
@@ -2271,7 +2270,7 @@
                         </div>
                     </div>
                     <div class="dashboard-card" style="height: 340px;">
-                        <div class="dashboard-title">🥛 사용 우유 현황 <span
+                        <div class="dashboard-title">사용 우유 현황 <span
                                 style="font-size:11px; color:#86868b; font-weight:normal;">(인허가 데이터 '사용우유' 기준)</span>
                         </div>
                         <div style="position: relative; height: 260px; width: 100%;">
@@ -2301,28 +2300,28 @@
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-item" data-layer="미거래" onclick="toggleMobileLayer('미거래')">
-                    <span class="layer-label" id="layerLabel미거래">🔴 미거래</span>
+                    <span class="layer-label" id="layerLabel미거래">미거래</span>
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-divider"></div>
                 <div class="layer-item active" data-layer="star-미거래" onclick="toggleMobileLayer('star-미거래')">
-                    <span class="layer-label">⭐ 주요미거래</span>
+                    <span class="layer-label">주요미거래</span>
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-item" data-layer="star-거래" onclick="toggleMobileLayer('star-거래')">
-                    <span class="layer-label">⭐ 주요거래처</span>
+                    <span class="layer-label">주요거래처</span>
                     <span class="layer-toggle"></span>
                 </div>
                 <div class="layer-divider"></div>
                 <div class="layer-item" id="myTargetToggle" onclick="toggleMyTarget()" style="display:none;">
-                    <span class="layer-label" id="myTargetLabel">👥 전체보기</span>
+                    <span class="layer-label" id="myTargetLabel">전체보기</span>
                     <span class="layer-toggle"></span>
                 </div>
             </div>
 
             <!-- 모바일 루트 FAB 버튼 -->
             <button class="route-mobile-fab" id="routeMobileFab" onclick="openRoutePanel()"
-                title="영업동선">🗺️</button>
+                title="영업동선">동선</button>
 
             <!-- 모바일 배경 딤처리 -->
             <div class="route-panel-backdrop" id="routePanelBackdrop" onclick="closeRoutePanel()"></div>
@@ -2335,7 +2334,7 @@
             <!-- 오늘 추천 패널 -->
             <div class="rec-panel" id="recPanel">
                 <div class="rec-panel-header">
-                    <h3>📍 오늘 가볼 곳 추천</h3>
+                    <h3>오늘 가볼 곳 추천</h3>
                     <button onclick="closeRecPanel()" style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
                 </div>
                 <div class="rec-panel-body" id="recPanelBody">
@@ -2344,22 +2343,21 @@
 
             <!-- 플로팅 카트 뱃지 -->
             <div id="cartFloatBadge" onclick="openRoutePanel()" style="display:none;position:absolute;bottom:80px;right:16px;z-index:200;background:#5856d6;color:white;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(88,86,214,0.45);align-items:center;gap:6px;user-select:none;">
-                🛒 <span id="cartFloatCount">0</span>개 담김
+                <span id="cartFloatCount">0</span>개 담김
             </div>
 
             <!-- 루트 최적화 패널 -->
             <div class="route-panel" id="routePanel">
                 <div class="route-panel-header">
-                    <h3>🗺️ 영업동선</h3>
+                    <h3>영업동선</h3>
                     <button onclick="closeRoutePanel()"
                         style="background:none;border:none;color:rgba(255,255,255,0.8);font-size:22px;cursor:pointer;line-height:1;padding:0;">×</button>
                 </div>
                 <div class="route-panel-body">
                     <div class="route-section-label">출발지 설정</div>
                     <div class="route-start-row">
-                        <button onclick="useCurrentLocation()" class="route-btn route-btn-primary">📍 현재 위치</button>
-                        <button onclick="openStartInput()" class="route-btn" style="background:#424245;color:white;">✏️
-                            직접 입력</button>
+                        <button onclick="useCurrentLocation()" class="route-btn route-btn-primary">현재 위치</button>
+                        <button onclick="openStartInput()" class="route-btn" style="background:#424245;color:white;">직접 입력</button>
                     </div>
                     <div id="routeStartInput" style="display:none;margin-top:6px;">
                         <input type="text" id="startAddressInput" placeholder="출발지 주소 입력"
@@ -2371,7 +2369,7 @@
                     <div id="routeStartInfo" style="font-size:11px;color:#86868b;margin-top:6px;min-height:16px;"></div>
 
                     <div class="route-section-label" style="display:flex;justify-content:space-between;align-items:center;">
-                        <span>🛒 경유지 목록 <span id="cartBadge" style="display:none;" class="cart-badge">0</span></span>
+                        <span>경유지 목록 <span id="cartBadge" style="display:none;" class="cart-badge">0</span></span>
                         <button id="cartClearBtn" onclick="clearCart()" style="display:none;background:none;border:none;color:#ff3b30;font-size:11px;font-weight:600;cursor:pointer;padding:0;">전체 삭제</button>
                     </div>
                     <div id="cartList">
@@ -2886,7 +2884,7 @@
             document.getElementById('spCntAccount').textContent = `(${accItems.length})`;
 
             if (!items.length) {
-                body.innerHTML = '<div class="sp-empty">📭 목록이 없습니다</div>';
+                body.innerHTML = '<div class="sp-empty">목록이 없습니다</div>';
                 return;
             }
 
@@ -2961,8 +2959,8 @@
                 </div>
                 <div class="sp-kpi-row">
                     <div class="sp-kpi"><span class="sp-kpi-l">평형</span><span class="sp-kpi-v">${pyeong}평</span></div>
-                    <div class="sp-kpi"><span class="sp-kpi-l">허가일</span><span class="sp-kpi-v" style="font-size:13px">${permitDate}</span></div>
-                    <div class="sp-kpi"><span class="sp-kpi-l">담당</span><span class="sp-kpi-v" style="font-size:13px">${mgr}</span></div>
+                    <div class="sp-kpi"><span class="sp-kpi-l">허가일</span><span class="sp-kpi-v">${permitDate}</span></div>
+                    <div class="sp-kpi"><span class="sp-kpi-l">담당</span><span class="sp-kpi-v">${mgr}</span></div>
                 </div>
                 <div class="sp-section">
                     <div class="sp-section-title">거래 상태</div>
@@ -2977,7 +2975,7 @@
                     <div class="sp-info-v" style="font-size:13px;color:#0f172a;line-height:1.5;">${addr}</div>
                 </div>
                 <div class="sp-section">
-                    <div class="sp-section-title">📝 메모</div>
+                    <div class="sp-section-title">메모</div>
                     <textarea class="sp-memo-area" id="${memoUid}" data-memokey="${memoKey}" placeholder="메모를 입력하세요...">${savedMemo}</textarea>
                     <div class="sp-memo-btns">
                         <button class="sp-memo-save" onclick="spSaveMemo('${memoUid}')">저장</button>
@@ -2985,9 +2983,9 @@
                     </div>
                 </div>
                 <div class="sp-actions">
-                    ${lat&&lng ? `<button class="sp-action-btn" style="background:#03C75A;color:#fff;" onclick="openNaverMapApp(${lat},${lng},'${escapedName}')">📍 네이버</button>` : ''}
-                    ${lat&&lng ? `<button class="sp-action-btn" style="background:#0f172a;color:#fff;" onclick="openRouteFromCoord(${lat},${lng},'${escapedName}','${addr.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">지금 출발</button>` : ''}
-                    ${lat&&lng ? `<button class="sp-action-btn" style="background:#5856d6;color:#fff;" onclick="addToCart(${lat},${lng},'${escapedName}','${addr.replace(/'/g,"\\'").replace(/"/g,"&quot;")}','license','')">담아두기</button>` : ''}
+                    ${lat&&lng ? `<button class="sp-action-btn sp-action-btn--naver" onclick="openNaverMapApp(${lat},${lng},'${escapedName}')">네이버</button>` : ''}
+                    ${lat&&lng ? `<button class="sp-action-btn sp-action-btn--route" onclick="openRouteFromCoord(${lat},${lng},'${escapedName}','${addr.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">지금 출발</button>` : ''}
+                    ${lat&&lng ? `<button class="sp-action-btn sp-action-btn--cart" onclick="addToCart(${lat},${lng},'${escapedName}','${addr.replace(/'/g,"\\'").replace(/"/g,"&quot;")}','license','')">담아두기</button>` : ''}
                 </div>
             `;
         }
@@ -3454,7 +3452,7 @@
         }
 
         // ── 관리자 전체 데이터 조회 헬퍼 ────────────────────
-        const ADMIN_CODE = '532753';
+        const ADMIN_CODE = sessionStorage.getItem('admin_code') || '';
         async function fetchAdminTable(table) {
             const resp = await fetch(`/api/admin-all-data?table=${table}`, {
                 headers: { 'x-admin-key': ADMIN_CODE }
@@ -3776,16 +3774,16 @@
             }
             const glowClass = isOldPermit ? 'marker-glow' : '';
             return {
-                content: `<div class="${glowClass}" style="width:16px;height:16px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
-                anchor: new naver.maps.Point(8, 8)
+                content: `<div class="${glowClass}" style="width:15px;height:15px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+                anchor: new naver.maps.Point(7, 7)
             };
         }
 
         /** 장바구니 담김 상태 보라색 아이콘 */
         function _buildCartMarkerIcon() {
             return {
-                content: `<div style="width:20px;height:20px;background:#5856d6;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(88,86,214,0.6);"></div>`,
-                anchor: new naver.maps.Point(10, 10)
+                content: `<div style="width:19px;height:19px;background:#5856d6;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(88,86,214,0.6);"></div>`,
+                anchor: new naver.maps.Point(9, 9)
             };
         }
 
@@ -4414,7 +4412,7 @@
 
             const naverMapUrl = `https://map.naver.com/v5/search/${encodeURIComponent(name)}`;
             const escapedName = name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const mapBtn = `<button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">📍 네이버</button>`;
+            const mapBtn = `<button class="naver-map-btn" style="background:#03C75A;" onclick="openNaverMapApp(${lat}, ${lng}, '${escapedName}')">네이버</button>`;
             const _cartKey = `${parseFloat(lat).toFixed(5)},${parseFloat(lng).toFixed(5)}`;
             const _inCart = routeCart.some(c => c._key === _cartKey);
 
@@ -4475,7 +4473,7 @@
                             <span class="info-value">${permitDate}</span>
                         </div>
                         <div style="margin-top:12px;">
-                            <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">📝 메모</span>
+                            <span style="font-size:11px;color:#86868b;font-weight:600;display:block;margin-bottom:5px;">메모</span>
                             <textarea id="${memoUid}" data-memokey="${memoKey}" style="width:100%;height:58px;border:1px solid #e8e8ed;border-radius:6px;padding:6px 8px;font-size:12px;resize:none;font-family:inherit;color:#1d1d1f;box-sizing:border-box;" placeholder="메모를 입력하세요...">${savedMemo}</textarea>
                             <div style="display:flex;gap:5px;margin-top:4px;">
                                 <button id="save_${memoUid}" onclick="saveMemo('${memoUid}')" style="flex:1;padding:7px;background:#0071e3;color:white;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">저장</button>
@@ -4821,7 +4819,7 @@
 
     <!-- 모바일 뷰 토글 버튼 -->
     <button id="viewToggleBtn" class="view-toggle-btn" onclick="toggleMobileView()">
-        <span>📄 목록 보기</span>
+        <span>목록 보기</span>
     </button>
 
     <script>
@@ -4835,12 +4833,12 @@
                 // 목록 보기로 전환
                 sidebar.style.display = 'block';
                 sidebar.style.zIndex = '100'; // 지도 위에 표시
-                btnSpan.innerText = '🗺️ 지도 보기';
+                btnSpan.innerText = '지도 보기';
                 isMapView = false;
             } else {
                 // 지도 보기로 전환
                 sidebar.style.display = 'none';
-                btnSpan.innerText = '📄 목록 보기';
+                btnSpan.innerText = '목록 보기';
                 isMapView = true;
             }
         }
@@ -5149,7 +5147,7 @@
             const label = d.toLocaleDateString('ko-KR', { month:'long', day:'numeric', weekday:'short' });
             const isToday = dateStr === new Date().toISOString().split('T')[0];
             const todayBadge = isToday ? ' <span style="background:#ff9500;color:white;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;vertical-align:middle;">오늘</span>' : '';
-            if (!plan) return `<div style="border-top:1px solid #e5e5ea;padding-top:16px;margin-top:4px;"><div style="font-size:14px;font-weight:700;color:#1d1d1f;margin-bottom:6px;">${label}${todayBadge}</div><div style="font-size:13px;color:#86868b;margin-bottom:14px;">저장된 일정이 없습니다.</div><button onclick="_startPlanMode('${dateStr}')" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">📍 이 날 일정 만들기</button></div>`;
+            if (!plan) return `<div style="border-top:1px solid #e5e5ea;padding-top:16px;margin-top:4px;"><div style="font-size:14px;font-weight:700;color:#1d1d1f;margin-bottom:6px;">${label}${todayBadge}</div><div style="font-size:13px;color:#86868b;margin-bottom:14px;">저장된 일정이 없습니다.</div><button onclick="_startPlanMode('${dateStr}')" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">이 날 일정 만들기</button></div>`;
             const itemsHtml = (plan.items || []).map(it => `<div style="font-size:13px;color:#3a3a3c;padding:3px 0;">• ${_cartEsc(it.name)}</div>`).join('');
             return `<div style="border-top:1px solid #e5e5ea;padding-top:16px;margin-top:4px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><div style="font-size:14px;font-weight:700;color:#1d1d1f;">${label}${todayBadge}</div><button onclick="_deletePlan('${dateStr}')" style="background:none;border:1px solid #ff3b30;color:#ff3b30;padding:4px 10px;border-radius:7px;font-size:12px;cursor:pointer;">삭제</button></div><div style="background:#f5f5f7;border-radius:10px;padding:10px 12px;margin-bottom:12px;">${itemsHtml}</div><button onclick="_loadPlanDatePlan('${dateStr}')" style="width:100%;padding:11px;background:#5856d6;color:white;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;">경유지 불러오기 + 동선 최적화</button></div>`;
         }
@@ -5425,20 +5423,20 @@
             const dealAccounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '거래');
             const nodealAccounts = accountMarkers.filter(m => (m._dealStatus || '').trim() === '미거래');
             const radiusNote = forcedFirstStop
-                ? `🎯 [${forcedFirstStop.name}] 인근 반경 3km 자동 포함`
-                : '📍 출발지 기준 반경 3km 이내 자동 포함';
+                ? `[${forcedFirstStop.name}] 인근 반경 3km 자동 포함`
+                : '출발지 기준 반경 3km 이내 자동 포함';
             document.getElementById('routeTargetSummary').innerHTML = `
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span>🔴 인허가 1순위</span><strong>${licensed.length}건</strong>
+                    <span>인허가 1순위</span><strong>${licensed.length}건</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span>🟠 공사중</span><strong>${construction.length}건</strong>
+                    <span>공사중</span><strong>${construction.length}건</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                    <span>⭐ 주요 기거래처</span><strong>${dealAccounts.length}건 중 자동선택</strong>
+                    <span>주요 기거래처</span><strong>${dealAccounts.length}건 중 자동선택</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;">
-                    <span>☆ 주요 미거래처</span><strong>${nodealAccounts.length}건 중 자동선택</strong>
+                    <span>주요 미거래처</span><strong>${nodealAccounts.length}건 중 자동선택</strong>
                 </div>
                 <div style="margin-top:8px;font-size:10px;color:#86868b;border-top:1px solid #e8e8ed;padding-top:6px;">
                     ${radiusNote}
@@ -5448,12 +5446,12 @@
         function useCurrentLocation() {
             if (!navigator.geolocation) { showToast('위치 서비스를 지원하지 않는 브라우저입니다.', 'error', 4000); return; }
             const infoEl = document.getElementById('routeStartInfo');
-            infoEl.textContent = '📍 위치 확인 중...';
+            infoEl.textContent = '위치 확인 중...';
 
             function applyLocation(pos) {
                 routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 forcedFirstStop = null; // 직접 현재위치 설정 시 강제 1번 목적지 초기화
-                infoEl.textContent = '✅ 현재 위치 설정됨';
+                infoEl.textContent = '현재 위치 설정됨';
                 showCurrentLocationMarker(pos.coords.latitude, pos.coords.longitude);
                 if (naverMap) {
                     naverMap.setCenter(new naver.maps.LatLng(pos.coords.latitude, pos.coords.longitude));
@@ -5463,10 +5461,10 @@
 
             function onLocationError(err) {
                 if (err.code === 1) {
-                    infoEl.textContent = '❌ 위치 권한 거부됨 (직접 입력 이용)';
+                    infoEl.textContent = '위치 권한 거부됨 (직접 입력 이용)';
                     showToast('위치 접근 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해 주세요.', 'error', 6000);
                 } else {
-                    infoEl.textContent = '❌ 위치 확인 실패 (직접 입력 이용)';
+                    infoEl.textContent = '위치 확인 실패 (직접 입력 이용)';
                     showToast('현재 위치를 확인할 수 없습니다. 직접 입력을 이용해 주세요.', 'error', 4000);
                 }
             }
@@ -5479,7 +5477,7 @@
                         onLocationError(err);
                     } else {
                         // GPS 타임아웃 → 네트워크 기반으로 폴백 (캐시 5초까지 허용)
-                        infoEl.textContent = '📍 네트워크 위치로 재시도 중...';
+                        infoEl.textContent = '네트워크 위치로 재시도 중...';
                         navigator.geolocation.getCurrentPosition(
                             applyLocation,
                             onLocationError,
@@ -5515,34 +5513,34 @@
 
             // 이미 GPS 위치가 잡혀 있으면 그대로 사용
             if (routeStartCoord) {
-                infoEl.textContent = `✅ 현위치 출발 → [${forcedFirstStop.name}] 1번 목적지`;
+                infoEl.textContent = `현위치 출발 → [${forcedFirstStop.name}] 1번 목적지`;
                 return;
             }
 
             // GPS 현재 위치 자동 취득 시도
             if (!navigator.geolocation) {
-                infoEl.textContent = '⚠️ 위치 서비스 미지원 – 직접 입력 필요';
+                infoEl.textContent = '위치 서비스 미지원 – 직접 입력 필요';
                 return;
             }
-            infoEl.textContent = '📍 현재 위치 확인 중...';
+            infoEl.textContent = '현재 위치 확인 중...';
 
             function applyGPS(pos) {
                 routeStartCoord = { lat: pos.coords.latitude, lng: pos.coords.longitude };
                 showCurrentLocationMarker(pos.coords.latitude, pos.coords.longitude);
-                infoEl.textContent = `✅ 현위치 출발 → [${forcedFirstStop.name}] 1번 목적지`;
+                infoEl.textContent = `현위치 출발 → [${forcedFirstStop.name}] 1번 목적지`;
             }
             function onGPSError(err) {
                 if (err.code === 1) {
-                    infoEl.textContent = '❌ 위치 권한 거부 – 직접 입력 또는 위치 허용 후 재시도';
+                    infoEl.textContent = '위치 권한 거부 – 직접 입력 또는 위치 허용 후 재시도';
                 } else {
-                    infoEl.textContent = '❌ 위치 확인 실패 – 직접 입력 이용';
+                    infoEl.textContent = '위치 확인 실패 – 직접 입력 이용';
                 }
             }
             navigator.geolocation.getCurrentPosition(
                 applyGPS,
                 err => {
                     if (err.code !== 1) {
-                        infoEl.textContent = '📍 네트워크 위치로 재시도 중...';
+                        infoEl.textContent = '네트워크 위치로 재시도 중...';
                         navigator.geolocation.getCurrentPosition(applyGPS, onGPSError,
                             { enableHighAccuracy: false, timeout: 10000, maximumAge: 5000 });
                     } else { onGPSError(err); }
@@ -5558,9 +5556,9 @@
             const coords = await geocodeAddress(addr);
             if (coords) {
                 routeStartCoord = coords;
-                document.getElementById('routeStartInfo').textContent = `✅ 출발지: ${addr}`;
+                document.getElementById('routeStartInfo').textContent = `출발지: ${addr}`;
             } else {
-                document.getElementById('routeStartInfo').textContent = '❌ 주소를 찾을 수 없습니다.';
+                document.getElementById('routeStartInfo').textContent = '주소를 찾을 수 없습니다.';
             }
         }
 
@@ -5886,7 +5884,7 @@
                 }
                 const hasInvalidCoord = !isValidCoord(stop.lat, stop.lng);
                 const warnBadge = hasInvalidCoord
-                    ? `<span title="주소 좌표 오류 - 데이터베이스 주소 확인 필요" style="color:#ff3b30;font-size:13px;flex-shrink:0;">⚠️</span>`
+                    ? `<span title="주소 좌표 오류 - 데이터베이스 주소 확인 필요" style="color:#ff3b30;font-size:11px;font-weight:700;flex-shrink:0;">!</span>`
                     : '';
                 return `<div class="route-stop-item">
                     <div class="route-stop-num" style="background:${numBg}">${idx + 1}</div>

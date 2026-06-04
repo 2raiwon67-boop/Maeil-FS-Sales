@@ -933,7 +933,7 @@
         let adminTargetBU = null;         // 관리자가 선택한 지점 BU
         let previewPage = 0;
         const PREVIEW_PAGE_SIZE = 5;
-        const ADMIN_CODE = '532753';
+        const ADMIN_CODE = sessionStorage.getItem('admin_code') || '';
 
         // ── 관리자 지점 변경 핸들러 ─────────────────────────
         function onAdminBranchChange(bu) {
