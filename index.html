@@ -2017,6 +2017,8 @@
             transition: all .13s ease;
         }
         .sp-item:hover { border-color: #bfdbfe; box-shadow: 0 2px 8px rgba(37,99,235,.08); transform: translateY(-1px); }
+        .sp-item.selected { border-color: #2563eb; background: #eff6ff; box-shadow: 0 2px 8px rgba(37,99,235,.12); }
+        .sp-item.selected .sp-item-name { color: #1d4ed8; }
         .sp-item-top { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; }
         .sp-item-name { font-size: 14px; font-weight: 700; color: #0f172a; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .sp-item-badge {
@@ -2837,6 +2839,7 @@
 
         function spShowDetail(item, type) {
             _spCurrentItem = item; _spCurrentType = type;
+            window._spSelectedName = item['사업장명'] || item['거래처명'] || '';
             document.getElementById('spListView').style.display   = 'none';
             document.getElementById('spDetailView').style.display = 'flex';
             document.getElementById('spBackBtn').style.display    = '';
@@ -2911,6 +2914,8 @@
             window._spListItems = items;
             window._spListType  = type;
             body.querySelectorAll('.sp-item').forEach((el, idx) => {
+                const itemName = items[idx]['사업장명'] || items[idx]['거래처명'] || '';
+                if (itemName && itemName === window._spSelectedName) el.classList.add('selected');
                 el.onclick = () => spShowDetail(window._spListItems[idx], window._spListType);
             });
         }
@@ -4133,11 +4138,11 @@
         }
 
         function _buildAccountMarkerIcon(dealStatus) {
-            const starColor = dealStatus === '거래' ? '#FFD700' : '#AAAAAA';
-            const starBorder = dealStatus === '거래' ? '#FFA500' : '#888888';
-            const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" style="pointer-events:all;display:block;">
+            const starColor  = dealStatus === '거래' ? '#FBBF24' : '#94a3b8';
+            const starBorder = dealStatus === '거래' ? '#F59E0B' : '#64748b';
+            const starSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" style="pointer-events:all;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5));">
                 <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"
-                    fill="${starColor}" stroke="${starBorder}" stroke-width="1.5" style="pointer-events:all;"/>
+                    fill="${starColor}" stroke="white" stroke-width="1.5" stroke-linejoin="round" style="pointer-events:all;"/>
             </svg>`;
             return {
                 content: `<div style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;">${starSVG}</div>`,
