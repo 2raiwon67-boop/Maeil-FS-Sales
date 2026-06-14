@@ -29,10 +29,6 @@
     {
       "path": "/api/send-license-alert",
       "schedule": "15 0 * * 1-5"
-    },
-    {
-      "path": "/api/batch-briefings",
-      "schedule": "0 18 * * *"
     }
   ]
 }
