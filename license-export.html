@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>인허가 추출 - FS MISO</title>
+    <link rel="icon" href="icons/favicon.png" type="image/png">
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">
+
+    <!-- SheetJS (xlsx 다운로드) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <link rel="stylesheet" href="common.css">
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Pretendard', -apple-system, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            margin: 0;
+            /* 모바일 하단 탭바와 겹치지 않도록 여백 */
+            padding-bottom: calc(80px + env(safe-area-inset-bottom));
+        }
+
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 20px 16px 0;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin: 4px 0 6px;
+        }
+
+        .page-sub {
+            font-size: 13px;
+            color: var(--color-text-secondary);
+            line-height: 1.55;
+            margin: 0 0 20px;
+        }
+
+        /* ── 카드 ── */
+        .card {
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 14px 16px;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text);
+            border-bottom: 1px solid #f0f0f3;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .card-body { padding: 16px; }
+
+        /* ── 라벨/구분선 ── */
+        .field-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            margin-bottom: 8px;
+        }
+        .field-label:not(:first-child) { margin-top: 18px; }
+
+        /* ── 날짜 입력 ── */
+        .date-row {
+            display: flex;
+            gap: 10px;
+        }
+        .date-field { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        .date-field span {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+            font-weight: 600;
+        }
+        .date-field input[type="date"] {
+            padding: 11px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-family: inherit;
+            color: var(--color-text);
+            background: #fff;
+            outline: none;
+            width: 100%;
+            transition: border-color var(--transition-fast);
+        }
+        .date-field input[type="date"]:focus { border-color: var(--color-primary); }
+
+        /* ── 칩 ── */
+        .chip-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .chip {
+            padding: 8px 14px;
+            border: 1px solid var(--color-border);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            background: #fff;
+            color: #3d3d3f;
+            cursor: pointer;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: all var(--transition-fast);
+        }
+        .chip.active {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+            color: #fff;
+        }
+        .chip:active { transform: scale(0.94); }
+
+        /* ── 조회 버튼 ── */
+        .btn-primary {
+            width: 100%;
+            margin-top: 20px;
+            padding: 14px;
+            background: var(--color-primary);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background var(--transition-fast);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+        .btn-primary:active:not(:disabled) { transform: scale(0.99); }
+        .btn-primary:disabled { background: #c7c7cc; cursor: default; }
+
+        /* ── 결과 영역 ── */
+        #resultArea { margin-top: 4px; }
+
+        .result-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-bottom: 12px;
+        }
+        .result-count {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+        .result-count b { color: var(--color-primary); }
+
+        .btn-select-all {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 18px;
+            background: #fff;
+            color: var(--color-text);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn-select-all.on { background: #e8f2fd; border-color: var(--color-primary); color: var(--color-primary); }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: var(--color-success);
+            color: #fff;
+            border: none;
+            border-radius: 18px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background var(--transition-fast);
+        }
+        .btn-download:active:not(:disabled) { transform: scale(0.97); }
+        .btn-download:disabled { background: #c7c7cc; cursor: default; }
+
+        /* ── 결과 카드 (모바일 우선) ── */
+        .result-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .result-card {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            background: var(--color-surface);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            padding: 14px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: border-color var(--transition-fast), background var(--transition-fast);
+        }
+        .result-card.selected {
+            border-color: var(--color-primary);
+            background: #f3f9ff;
+        }
+
+        .result-check {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            margin-top: 2px;
+            border: 2px solid var(--color-border);
+            border-radius: 7px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 13px;
+            line-height: 1;
+            transition: all var(--transition-fast);
+        }
+        .result-card.selected .result-check {
+            background: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+
+        .result-main { flex: 1; min-width: 0; }
+        .result-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--color-text);
+            line-height: 1.35;
+            margin-bottom: 6px;
+            word-break: break-all;
+        }
+        .result-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+        .tag {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: #f0f0f3;
+            color: #555;
+        }
+        .tag.date { background: #eef4ff; color: #2767c9; }
+        .tag.area { background: #fff4e6; color: #b7710a; }
+        .tag.mgr  { background: #eafaf0; color: #1a7f4a; }
+        .tag.mgr.none { background: #fdeeee; color: #c0392b; }
+
+        .result-addr {
+            font-size: 12.5px;
+            color: var(--color-text-secondary);
+            line-height: 1.45;
+            word-break: break-all;
+        }
+
+        /* ── 상태 표시 ── */
+        .state-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 48px 20px;
+            text-align: center;
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+        .state-box .emoji { font-size: 34px; opacity: 0.55; }
+
+        .banner {
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        .banner-error { background: #fdeeee; color: #c0392b; border: 1px solid #f5c6c6; }
+        .banner-warn  { background: #fff8e6; color: #8a6d1a; border: 1px solid #f0e0a8; }
+
+        /* ── PC 화면에서는 약간 넓게 ── */
+        @media (min-width: 769px) {
+            .container { padding-top: 28px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="nav-placeholder"></div>
+    <script src="config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/nav-component.js"></script>
+
+    <div class="container">
+        <h1 class="page-title">인허가 추출</h1>
+        <p class="page-sub">공공데이터(data.go.kr) 기준 신규 인허가 업소를 조회하고 엑셀(.xlsx)로 내려받습니다. 모바일에서도 그대로 추출할 수 있습니다.</p>
+
+        <!-- 조회 조건 -->
+        <div class="card">
+            <div class="card-header">조회 조건</div>
+            <div class="card-body">
+                <div class="field-label">조회 기간</div>
+                <div class="date-row">
+                    <label class="date-field">
+                        <span>시작일</span>
+                        <input type="date" id="srchStartDate">
+                    </label>
+                    <label class="date-field">
+                        <span>종료일</span>
+                        <input type="date" id="srchEndDate">
+                    </label>
+                </div>
+
+                <div class="field-label">업종</div>
+                <div class="chip-group" id="typeChips">
+                    <span class="chip active" data-code="general_restaurants">일반음식점</span>
+                    <span class="chip active" data-code="rest_cafes">휴게음식점</span>
+                    <span class="chip active" data-code="bakeries">제과점영업</span>
+                </div>
+
+                <div class="field-label">지역</div>
+                <div class="chip-group" id="regionChips">
+                    <span style="font-size:12px;color:#888;">지역 로딩 중...</span>
+                </div>
+
+                <button class="btn-primary" id="btnSearch" onclick="searchPublicLicense()">인허가 조회</button>
+            </div>
+        </div>
+
+        <!-- 결과 -->
+        <div id="resultArea">
+            <div class="state-box">
+                <span class="emoji">📋</span>
+                <span>기간·업종·지역을 선택하고 조회하세요.</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── 전역 ──────────────────────────────────────────────
+        let currentBusinessUnit = null;
+        const ADMIN_CODE = sessionStorage.getItem('admin_code') || '';
+
+        function escapeAttr(val) {
+            return String(val ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        // business_unit 취득 (upload.html과 동일 동작)
+        let adminTargetBU = null;
+        async function getBusinessUnit() {
+            if (sessionStorage.getItem('fs_admin_access') === 'true') return adminTargetBU;
+            if (currentBusinessUnit) return currentBusinessUnit;
+            if (!client) return null;
+            try {
+                const { data: { session } } = await client.auth.getSession();
+                const bu = session?.user?.user_metadata?.business_unit ?? null;
+                if (bu) { currentBusinessUnit = bu; return bu; }
+                const { data: userData } = await client.auth.getUser();
+                const bu2 = userData?.user?.user_metadata?.business_unit ?? null;
+                if (bu2) currentBusinessUnit = bu2;
+                return bu2;
+            } catch (e) { return null; }
+        }
+
+        // ── 담당자 매핑 ────────────────────────────────────────
+        let rawManagerMap = {};
+
+        const REGION1_MAP = {
+            '서울특별시': '서울', '서울시': '서울', '서울': '서울',
+            '인천광역시': '인천', '인천시': '인천', '인천': '인천',
+            '경기도': '경기', '경기': '경기',
+            '부산광역시': '부산', '부산시': '부산', '부산': '부산',
+            '대구광역시': '대구', '대구시': '대구', '대구': '대구',
+            '광주광역시': '광주', '광주시': '광주', '광주': '광주',
+            '대전광역시': '대전', '대전시': '대전', '대전': '대전',
+            '울산광역시': '울산', '울산시': '울산', '울산': '울산',
+            '세종특별자치시': '세종', '세종시': '세종', '세종': '세종',
+            '강원도': '강원', '강원특별자치도': '강원', '강원': '강원',
+            '충청북도': '충북', '충북': '충북',
+            '충청남도': '충남', '충남': '충남',
+            '전라북도': '전북', '전북특별자치도': '전북', '전북': '전북',
+            '전라남도': '전남', '전남': '전남',
+            '경상북도': '경북', '경북': '경북',
+            '경상남도': '경남', '경남': '경남',
+            '제주특별자치도': '제주', '제주도': '제주', '제주': '제주',
+        };
+        function normalizeRegion1(r) {
+            return REGION1_MAP[r?.trim()] ?? r?.trim() ?? '';
+        }
+
+        async function loadRawManagerMap() {
+            try {
+                const bu = await getBusinessUnit();
+                if (!bu) return;
+                const isAdmin = sessionStorage.getItem('fs_admin_access') === 'true';
+                let rows;
+                if (isAdmin) {
+                    const resp = await fetch(
+                        `/api/admin-all-data?table=managers&business_unit=${encodeURIComponent(bu)}`,
+                        { headers: { 'x-admin-key': ADMIN_CODE } }
+                    );
+                    if (!resp.ok) return;
+                    rows = (await resp.json()).data || [];
+                } else {
+                    const { data: { session } } = await client.auth.getSession();
+                    const anonKey = SUPABASE_KEY;
+                    const token = session?.access_token || anonKey;
+                    const res = await fetch(
+                        `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&select=region1,region2,region3,manager_name`,
+                        { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
+                    );
+                    if (!res.ok) return;
+                    rows = await res.json();
+                }
+                rawManagerMap = {};
+                rows.forEach(r => {
+                    if (!r.region2 || r.region2 === '지점장') return;
+                    const base = normalizeRegion1(r.region1) + '|' + r.region2;
+                    if (r.region3) {
+                        rawManagerMap[base + '|' + r.region3] = r.manager_name;
+                        if (!r.region1) rawManagerMap['|' + r.region2 + '|' + r.region3] = r.manager_name;
+                    } else {
+                        rawManagerMap[base] = r.manager_name;
+                        if (!rawManagerMap['~' + r.region2]) rawManagerMap['~' + r.region2] = r.manager_name;
+                    }
+                });
+            } catch (e) {
+                console.warn('담당자 맵 로드 실패:', e);
+            }
+        }
+
+        // ── 지역 칩 동적 로드 ──────────────────────────────────
+        async function loadRegionChips() {
+            const chipContainer = document.getElementById('regionChips');
+            try {
+                const bu = await getBusinessUnit();
+                if (!bu) {
+                    chipContainer.innerHTML = sessionStorage.getItem('fs_admin_access') === 'true'
+                        ? '<span style="font-size:12px;color:#86868b;">관리자 계정은 PC의 데이터 관리에서 지점 선택 후 이용해주세요.</span>'
+                        : '<span style="font-size:12px;color:#c00;">지역 로드 실패 — 담당자 관리에서 시도/시군구를 입력해주세요.</span>';
+                    return;
+                }
+
+                const isAdminChip = sessionStorage.getItem('fs_admin_access') === 'true';
+                let rows;
+                if (isAdminChip) {
+                    const resp = await fetch(
+                        `/api/admin-all-data?table=managers&business_unit=${encodeURIComponent(bu)}`,
+                        { headers: { 'x-admin-key': ADMIN_CODE } }
+                    );
+                    if (!resp.ok) throw new Error('관리자 API 오류');
+                    rows = ((await resp.json()).data || []).filter(r => !r.is_branch_manager);
+                } else {
+                    const { data: { session } } = await client.auth.getSession();
+                    const anonKey = SUPABASE_KEY;
+                    const token = session?.access_token || anonKey;
+                    const res = await fetch(
+                        `${SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`,
+                        { headers: { 'apikey': anonKey, 'Authorization': `Bearer ${token}` } }
+                    );
+                    if (!res.ok) throw new Error('조회 실패');
+                    rows = await res.json();
+                }
+
+                const seen = new Set();
+                const chips = [];
+                for (const r of rows) {
+                    if (!r.region2 || r.region2 === '지점장' || r.region2 === '전체') continue;
+                    const dedupKey = `${r.region1||''}|${r.region2}|${r.region3||''}`;
+                    if (seen.has(dedupKey)) continue;
+                    seen.add(dedupKey);
+                    const filterRegion = `${r.region1 || ''} ${r.region2}`.trim();
+                    const label = r.region3 ? `${r.region2} ${r.region3}` : r.region2;
+                    chips.push({ ...r, filterRegion, label });
+                }
+
+                if (chips.length === 0) throw new Error('지역 없음');
+
+                chipContainer.innerHTML = chips.map(r =>
+                    `<span class="chip active" data-region="${escapeAttr(r.filterRegion)}" data-label="${escapeAttr(r.label)}">${escapeAttr(r.label)}</span>`
+                ).join('');
+            } catch (e) {
+                chipContainer.innerHTML = '<span style="font-size:12px;color:#c00;">지역 로드 실패 — 담당자 관리에서 시도/시군구를 입력해주세요.</span>';
+            }
+        }
+
+        // ── 칩 토글 ────────────────────────────────────────────
+        document.addEventListener('click', e => {
+            if (e.target.classList.contains('chip')) {
+                e.target.classList.toggle('active');
+            }
+        });
+
+        // ── 날짜 기본값: 이번 주 월~일 ─────────────────────────
+        (function initSearchDates() {
+            const today = new Date();
+            const day = today.getDay();
+            const mon = new Date(today);
+            mon.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+            const sun = new Date(mon);
+            sun.setDate(mon.getDate() + 6);
+            const fmt = d => {
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${dd}`;
+            };
+            document.getElementById('srchStartDate').value = fmt(mon);
+            document.getElementById('srchEndDate').value = fmt(sun);
+        })();
+
+        // ── 공공인허가 조회 ────────────────────────────────────
+        let srchResults = [];
+        let srchSelected = new Set();
+
+        async function searchPublicLicense() {
+            const startDate = document.getElementById('srchStartDate').value.replace(/-/g, '');
+            const endDate = document.getElementById('srchEndDate').value.replace(/-/g, '');
+            if (!startDate || !endDate) { showToast('조회 기간을 선택해주세요.', 'warning'); return; }
+
+            const types = [...document.querySelectorAll('#typeChips .chip.active')].map(c => c.dataset.code).join(',');
+            const regions = [...document.querySelectorAll('#regionChips .chip.active')].map(c => c.dataset.region).filter(Boolean).join(',');
+            if (!types) { showToast('업종을 하나 이상 선택해주세요.', 'warning'); return; }
+            if (!regions) { showToast('지역을 하나 이상 선택해주세요.', 'warning'); return; }
+
+            const btn = document.getElementById('btnSearch');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="miso-spinner white sm"></span> 조회 중...';
+            document.getElementById('resultArea').innerHTML =
+                '<div class="state-box"><span class="miso-spinner lg"></span><span>공공데이터 조회 중...</span></div>';
+
+            try {
+                const params = new URLSearchParams({ types, regions, startDate, endDate });
+                const res = await fetch(`/api/public-license?${params}`);
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || '조회 실패');
+
+                srchResults = data.items.map(item => {
+                    const key = normalizeRegion1(item.address1) + '|' + item.address2;
+                    const manager = (item.address3 ? rawManagerMap[key + '|' + item.address3] : null)
+                                 || rawManagerMap[key]
+                                 || rawManagerMap['~' + item.address2]
+                                 || '';
+                    return { ...item, manager };
+                });
+                srchSelected = new Set(srchResults.map((_, i) => i)); // 기본 전체 선택
+                renderSearchResults();
+
+                let bannerHtml = '';
+                if (data.truncated?.length) {
+                    const truncMsg = data.truncated.map(t => `${t.sido}(${t.total.toLocaleString()}건)`).join(', ');
+                    bannerHtml += `<div class="banner banner-warn">⚠️ <strong>데이터 누락 가능성:</strong> ${escapeAttr(truncMsg)} — 2,000건 상한 초과. 조회 기간을 나눠서 재조회하세요.</div>`;
+                }
+                if (bannerHtml) {
+                    document.getElementById('resultArea').insertAdjacentHTML('afterbegin', bannerHtml);
+                }
+                if (data.failedRegions?.length) {
+                    showToast(`일부 지역 조회 실패 (재시도 권장): ${data.failedRegions.join(', ')}`, 'warning', 5000);
+                }
+            } catch (e) {
+                document.getElementById('resultArea').innerHTML =
+                    `<div class="banner banner-error">❌ ${escapeAttr(e.message)}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '인허가 조회';
+            }
+        }
+
+        function renderSearchResults() {
+            const area = document.getElementById('resultArea');
+            if (!srchResults.length) {
+                area.innerHTML = '<div class="state-box"><span class="emoji">🔍</span><span>해당 기간·지역의 신규 인허가 데이터가 없습니다.</span></div>';
+                return;
+            }
+
+            const allSelected = srchSelected.size === srchResults.length;
+            const cards = srchResults.map((item, i) => {
+                const sel = srchSelected.has(i) ? ' selected' : '';
+                const mgrTag = item.manager
+                    ? `<span class="tag mgr">${escapeAttr(item.manager)}</span>`
+                    : `<span class="tag mgr none">담당 미지정</span>`;
+                const areaTag = item.area ? `<span class="tag area">${escapeAttr(item.area)}평</span>` : '';
+                return `<div class="result-card${sel}" onclick="toggleSrchItem(${i})">
+                    <div class="result-check">✓</div>
+                    <div class="result-main">
+                        <div class="result-name">${escapeAttr(item.business_name) || '(상호 미상)'}</div>
+                        <div class="result-tags">
+                            <span class="tag date">${escapeAttr(item.permit_date) || '허가일 미상'}</span>
+                            <span class="tag">${escapeAttr(item.business_type) || '-'}</span>
+                            ${areaTag}
+                            ${mgrTag}
+                        </div>
+                        <div class="result-addr">${escapeAttr(item.road_address) || '주소 미상'}</div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            area.innerHTML = `
+                <div class="result-toolbar">
+                    <span class="result-count">총 <b>${srchResults.length}</b>건 · ${srchSelected.size}건 선택</span>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button class="btn-select-all${allSelected ? ' on' : ''}" onclick="toggleAllSrch(${!allSelected})">${allSelected ? '전체 해제' : '전체 선택'}</button>
+                        <button class="btn-download" onclick="downloadSrchResults()" ${srchSelected.size === 0 ? 'disabled' : ''}>
+                            ⬇ 엑셀 (${srchSelected.size})
+                        </button>
+                    </div>
+                </div>
+                <div class="result-list">${cards}</div>`;
+        }
+
+        function toggleSrchItem(i) {
+            srchSelected.has(i) ? srchSelected.delete(i) : srchSelected.add(i);
+            renderSearchResults();
+        }
+
+        function toggleAllSrch(checked) {
+            srchSelected = checked ? new Set(srchResults.map((_, i) => i)) : new Set();
+            renderSearchResults();
+        }
+
+        function downloadSrchResults() {
+            if (!srchSelected.size) return;
+            const selected = [...srchSelected].sort((a, b) => a - b).map(i => srchResults[i]);
+            const headers = ['NO', '영업 허가일', '사업장명', '거래여부(기입예정)', '업태구분명', '평형', '도로명전체주소', '주소1', '주소2', '주소3', '순위', '담당자', '앱시트등록일', '위도', '경도', '사용우유'];
+            const rows = selected.map((item, idx) => [
+                idx + 1,
+                item.permit_date || '',
+                item.business_name || '',
+                '인허가',
+                item.business_type || '',
+                item.area || '',
+                item.road_address || '',
+                item.address1 || '',
+                item.address2 || '',
+                item.address3 || '',
+                '1',
+                item.manager || '',
+                '',
+                item.lat || '',
+                item.lng || '',
+                ''
+            ]);
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 2, 14) }));
+            XLSX.utils.book_append_sheet(wb, ws, '인허가데이터');
+
+            const start = document.getElementById('srchStartDate').value;
+            const end = document.getElementById('srchEndDate').value;
+            XLSX.writeFile(wb, `인허가_공공데이터_${start}_${end}.xlsx`);
+            showToast(`${selected.length}건 다운로드 완료`, 'success');
+        }
+
+        // ── 초기화: 세션 복원 후 담당자/지역 로드 ──────────────
+        window.addEventListener('load', () => {
+            document.body.classList.add('loaded');
+            if (typeof setupLogoutButton === 'function') setupLogoutButton();
+            if (client) {
+                const { data: { subscription } } = client.auth.onAuthStateChange((event) => {
+                    if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+                        currentBusinessUnit = null;
+                        loadRawManagerMap();
+                        loadRegionChips();
+                        subscription.unsubscribe();
+                    }
+                });
+            } else {
+                loadRawManagerMap();
+                loadRegionChips();
+            }
+        });
+    </script>
+</body>
+
+</html>

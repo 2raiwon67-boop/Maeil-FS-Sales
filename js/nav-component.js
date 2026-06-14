@@ -21,10 +21,11 @@
     }
 
     const NAV_ITEMS = [
-        { href: 'index.html',    label: '거래처' },
-        { href: 'proposal.html', label: '견적서' },
-        { href: 'discover.html', label: '시장 분석', mobileHide: true },
-        { href: 'upload.html',   label: '데이터 관리', mobileHide: true },
+        { href: 'index.html',          label: '거래처' },
+        { href: 'proposal.html',       label: '견적서' },
+        { href: 'license-export.html', label: '인허가 추출' },
+        { href: 'discover.html',       label: '시장 분석', mobileHide: true },
+        { href: 'upload.html',         label: '데이터 관리', mobileHide: true },
     ];
 
     function getCurrentPage() {
@@ -72,8 +73,9 @@
 
     // ── 모바일 하단 탭 바 ──
     var MOB_TABS = [
-        { href: 'index.html',    label: '거래처',  icon: '🏠' },
-        { href: 'proposal.html', label: '견적서',  icon: '📄' },
+        { href: 'index.html',          label: '거래처',    icon: '🏠' },
+        { href: 'proposal.html',       label: '견적서',    icon: '📄' },
+        { href: 'license-export.html', label: '인허가',    icon: '📋' },
     ];
 
     function buildMobTabBar() {
