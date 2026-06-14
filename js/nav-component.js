@@ -21,11 +21,12 @@
     }
 
     const NAV_ITEMS = [
-        { href: 'index.html',          label: '거래처' },
-        { href: 'proposal.html',       label: '견적서' },
-        { href: 'license-export.html', label: '인허가 추출' },
-        { href: 'discover.html',       label: '시장 분석', mobileHide: true },
-        { href: 'upload.html',         label: '데이터 관리', mobileHide: true },
+        { href: 'index.html',    label: '거래처' },
+        { href: 'proposal.html', label: '견적서' },
+        { href: 'discover.html', label: '시장 분석', mobileHide: true },
+        { href: 'upload.html',   label: '데이터 관리', mobileHide: true },
+        // 'license-export.html'(인허가 추출)은 모바일 전용 — 하단 탭바(MOB_TABS)에만 노출.
+        // PC에서는 데이터 관리(upload.html)의 공공인허가 조회로 대체.
     ];
 
     function getCurrentPage() {
