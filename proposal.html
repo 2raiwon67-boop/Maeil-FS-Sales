@@ -2290,9 +2290,17 @@
                 previewRow.querySelector('.p-desc').innerText = desc;
                 previewRow.querySelector('.p-sales').innerText = Math.floor(salesPrice).toLocaleString() + '원';
 
-                const expiryEl = previewRow.querySelector('.p-expiry-display');
-                if (expiryEl) {
-                    expiryEl.textContent = expiryDate ? `소비기한: ${esc(expiryDate)}` : '';
+                let expiryEl = previewRow.querySelector('.p-expiry-display');
+                if (expiryDate) {
+                    // 소비기한 표시 요소가 없으면 규격(.p-spec) 바로 뒤에 생성
+                    if (!expiryEl) {
+                        expiryEl = document.createElement('div');
+                        expiryEl.className = 'catalog-card-expiry p-expiry-display';
+                        previewRow.querySelector('.p-spec').insertAdjacentElement('afterend', expiryEl);
+                    }
+                    expiryEl.textContent = `소비기한: ${esc(expiryDate)}`;
+                } else if (expiryEl) {
+                    expiryEl.remove();
                 }
 
                 // 사진 자동 로드 — 흰 배경 카드 구조에 맞게
