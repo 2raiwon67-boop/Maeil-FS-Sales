@@ -259,7 +259,27 @@ export default async function handler(req, res) {
     const ANON_KEY     = process.env.SUPABASE_ANON_KEY;
 
     // ── detail 모드: Supabase에서 개별 매장 목록 반환 ──────────────────
-    const { sido, months = '12', save = '', detail = '', sigungu = '', month = '' } = req.query;
+    const { sido, months = '12', save = '', detail = '', sigungu = '', month = '', debug = '' } = req.query;
+
+    // ── [임시] debug=fields: 원시 응답 필드명 확인용 (좌표 필드 진단 후 제거) ──
+    if (debug === 'fields') {
+        if (!API_KEY) return res.status(500).json({ success: false, error: 'API key missing' });
+        const sidoShort = toShort(sido || '경기도');
+        const now = new Date();
+        const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+        const startStr = fmt(new Date(now.getFullYear(), now.getMonth() - 2, 1));
+        const endStr   = fmt(now);
+        const out = {};
+        for (const t of Object.keys(ENDPOINTS)) {
+            const { items } = await fetchPage(t, API_KEY, sidoShort, 1, 'new', startStr, endStr);
+            const first = items[0] || {};
+            const keys = Object.keys(first);
+            const coordish = {};
+            keys.forEach(k => { if (/LAT|LOT|LA$|LO$|^X$|^Y$|CRD|WGS|EPSG|COORD|좌표|경도|위도/i.test(k)) coordish[k] = first[k]; });
+            out[t] = { count: items.length, allKeys: keys, coordish, name: first.BPLC_NM };
+        }
+        return res.json({ success: true, debug: out });
+    }
 
     if (detail === 'true') {
         if (!sido || !sigungu) {
