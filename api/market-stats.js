@@ -154,6 +154,20 @@ function extract(item, mode, expectedSido) {
     return { sigungu, month };
 }
 
+// ── 매장 좌표 추출 (WGS84) ────────────────────────────────
+// 1741000 신규 스키마: LAT_EPSG4326 / LOT_EPSG4326 (스펙 오타 LOT_EPST4326 병행)
+// 구 스키마 fallback: WGS84_LAT / WGS84_LOT
+// 한반도 범위(위도 33~39, 경도 124~132) 밖이면 무효로 간주
+function extractCoords(item) {
+    const latRaw = item.LAT_EPSG4326 ?? item.WGS84_LAT;
+    const lngRaw = item.LOT_EPSG4326 ?? item.LOT_EPST4326 ?? item.WGS84_LOT;
+    const lat = parseFloat(latRaw);
+    const lng = parseFloat(lngRaw);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: null, lng: null };
+    if (lat < 33 || lat > 39 || lng < 124 || lng > 132)  return { lat: null, lng: null };
+    return { lat, lng };
+}
+
 // ── Supabase upsert ─────────────────────────────────────
 async function saveToSupabase(sidoShort, detail, storeRecords = []) {
     const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -242,7 +256,7 @@ export default async function handler(req, res) {
             let url = `${SUPABASE_URL}/rest/v1/market_store_records`
                 + `?sido=eq.${encodeURIComponent(toShort(sido))}`
                 + `&sigungu=eq.${encodeURIComponent(sigungu)}`
-                + `&select=name,category,area_m2,pyeong,address,status,license_date`
+                + `&select=name,category,area_m2,pyeong,address,status,license_date,lat,lng`
                 + `&order=license_date.desc`;
             if (month) url += `&month=eq.${encodeURIComponent(month)}`;
 
@@ -319,6 +333,7 @@ export default async function handler(req, res) {
                         ? item.LCPMT_YMD
                         : item.CLSBIZ_YMD || item.DCB_YMD
                     )?.toString().replace(/\D/g, '') || '';
+                    const { lat, lng } = extractCoords(item);
                     storeRecords.push({
                         sido:         sidoShort,
                         sigungu,
@@ -332,6 +347,8 @@ export default async function handler(req, res) {
                         license_date: dateRaw.length >= 8
                             ? `${dateRaw.slice(0,4)}-${dateRaw.slice(4,6)}-${dateRaw.slice(6,8)}`
                             : null,
+                        lat,
+                        lng,
                         updated_at:   new Date().toISOString(),
                     });
                 });

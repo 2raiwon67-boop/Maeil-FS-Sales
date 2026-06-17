@@ -378,8 +378,13 @@ CREATE TABLE IF NOT EXISTS market_store_records (
     address      TEXT,
     status       TEXT NOT NULL CHECK (status IN ('new','closed')),
     license_date DATE,
+    lat          NUMERIC,   -- WGS84 위도 (LAT_EPSG4326) — 점/히트맵용, null 가능
+    lng          NUMERIC,   -- WGS84 경도 (LOT_EPSG4326) — 점/히트맵용, null 가능
     updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
+-- 기존 테이블 마이그레이션 (멱등) — discover.html 지도 점/히트맵용 좌표
+ALTER TABLE market_store_records ADD COLUMN IF NOT EXISTS lat NUMERIC;
+ALTER TABLE market_store_records ADD COLUMN IF NOT EXISTS lng NUMERIC;
 CREATE UNIQUE INDEX IF NOT EXISTS market_store_records_uix
     ON market_store_records(sido, sigungu, month, name, status);
 ALTER TABLE market_store_records ENABLE ROW LEVEL SECURITY;
