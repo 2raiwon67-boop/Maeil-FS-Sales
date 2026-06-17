@@ -1890,6 +1890,32 @@
             btn.innerHTML = '<span class="spinner-inline"></span>업로드 중...';
 
             try {
+                // ── 사업부(관리자) 중앙 업로드: 선택 지점으로 서버 API 경유 (Service Role) ──
+                if (sessionStorage.getItem('fs_admin_access') === 'true') {
+                    if (!adminTargetBU) throw new Error('상단에서 업로드할 지점을 먼저 선택해주세요.');
+                    if (cfg.table !== 'licenses') throw new Error('인허가만 중앙 업로드를 지원합니다. 거래처·담당자는 지점에서 관리합니다.');
+                    btn.innerHTML = '<span class="spinner-inline"></span>서버 업로드 중...';
+                    const resp = await fetch('/api/admin-upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_CODE },
+                        body: JSON.stringify({ table: cfg.table, business_unit: adminTargetBU, mode: cfg.mode, rows: parsedData })
+                    });
+                    const result = await resp.json();
+                    if (!resp.ok) throw new Error(result.error || '업로드 실패');
+                    const msg = `✅ <strong>${cfg.label}</strong> ${result.inserted}건 신규 추가 완료${result.skipped ? ` (중복 ${result.skipped}건 건너뜀)` : ''}!`;
+                    document.getElementById('uploadBanner').className = 'banner banner-success';
+                    document.getElementById('uploadBanner').innerHTML = msg;
+                    btn.disabled = false;
+                    btn.textContent = '업로드 완료 ✅';
+                    parsedData = null;
+                    showToast(msg.replace(/<[^>]+>/g, ''));
+                    localStorage.removeItem(`fs_licenses_${adminTargetBU}`);
+                    localStorage.removeItem(`fs_licenses_${adminTargetBU}_ts`);
+                    previewPage = 0;
+                    await loadCurrentData();
+                    return;
+                }
+
                 const { data: userData, error: authErr } = await client.auth.getUser();
                 if (authErr || !userData?.user) throw new Error('로그인 정보를 가져올 수 없습니다.');
 

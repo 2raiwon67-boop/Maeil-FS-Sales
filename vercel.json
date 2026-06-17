@@ -3,6 +3,7 @@
   "outputDirectory": ".",
   "functions": {
     "api/public-license.js":   { "maxDuration": 60 },
+    "api/admin-upload.js":     { "maxDuration": 60 },
     "api/batch-briefings.js":  { "maxDuration": 300 },
     "api/send-license-alert.js":{ "maxDuration": 60 },
     "api/market-stats.js":     { "maxDuration": 60 },
