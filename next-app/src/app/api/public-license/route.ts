@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 60;
+
 const API_KEY = process.env.PUBLIC_DATA_API_KEY!;
 const BASE_URL = 'https://www.localdata.go.kr/platform/rest/TO0/openDataApi';
 

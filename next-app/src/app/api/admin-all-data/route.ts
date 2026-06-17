@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 const ALLOWED_TABLES = ['licenses', 'accounts', 'visit_logs'];
 
 export async function GET(req: NextRequest) {
-  const adminCode = req.headers.get('x-admin-code');
+  const adminCode = req.headers.get('x-admin-key');
   if (!process.env.ADMIN_CODE || adminCode !== process.env.ADMIN_CODE) {
     return NextResponse.json({ error: '관리자 인증 실패' }, { status: 403 });
   }

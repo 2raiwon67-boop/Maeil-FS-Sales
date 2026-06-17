@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 300;
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
