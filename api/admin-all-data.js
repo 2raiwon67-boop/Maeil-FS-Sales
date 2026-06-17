@@ -2,7 +2,12 @@
 // 관리자 전용: 전체 지점 데이터 조회 (RLS 우회, SERVICE_ROLE_KEY 사용)
 // x-admin-key 헤더로 인증
 
-const ALLOWED_TABLES = ['licenses', 'accounts'];
+const ALLOWED_TABLES = ['licenses', 'accounts', 'managers'];
+
+// 테이블별 반환 컬럼 제한 (managers는 email 노출 금지 — 지역/담당자명만)
+const TABLE_SELECT = {
+    managers: 'id,business_unit,manager_name,region1,region2,region3,is_branch_manager'
+};
 
 export default async function handler(req, res) {
     if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -31,7 +36,8 @@ export default async function handler(req, res) {
 
     try {
         const buFilter = business_unit ? `&business_unit=eq.${encodeURIComponent(business_unit)}` : '';
-        const url = `${SUPABASE_URL}/rest/v1/${table}?select=*${buFilter}&limit=20000`;
+        const selectCols = TABLE_SELECT[table] || '*';
+        const url = `${SUPABASE_URL}/rest/v1/${table}?select=${selectCols}${buFilter}&limit=20000`;
         const resp = await fetch(url, {
             headers: {
                 'apikey': SERVICE_KEY,
