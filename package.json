@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "pdf-parse": "^2.4.5",
-    "pdfjs-dist": "^5.4.624"
+    "pdfjs-dist": "^5.4.624",
+    "proj4": "^2.12.1"
   }
 }

@@ -7,6 +7,11 @@
 // ─ 블랙리스트·업태 필터: public-license.js의 applyBusinessLogic과 동일 기준
 // ─ save=true: 집계 결과를 market_snapshots 테이블에 upsert
 
+import proj4 from 'proj4';
+
+// 인허가 좌표(CRD_INFO_X/Y)는 EPSG:5174 (중부원점 TM, Bessel) — WGS84로 변환해 저장
+const EPSG5174 = '+proj=tmerc +lat_0=38 +lon_0=127.0028902777778 +k=1 +x_0=200000 +y_0=500000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43';
+
 const ENDPOINTS = {
     general_restaurants: 'https://apis.data.go.kr/1741000/general_restaurants/info',
     rest_cafes:          'https://apis.data.go.kr/1741000/rest_cafes/info',
@@ -161,17 +166,26 @@ function extract(item, mode, expectedSido) {
 }
 
 // ── 매장 좌표 추출 (WGS84) ────────────────────────────────
-// 1741000 신규 스키마: LAT_EPSG4326 / LOT_EPSG4326 (스펙 오타 LOT_EPST4326 병행)
-// 구 스키마 fallback: WGS84_LAT / WGS84_LOT
-// 한반도 범위(위도 33~39, 경도 124~132) 밖이면 무효로 간주
+// 음식점 /info 엔드포인트는 CRD_INFO_X/Y (EPSG:5174 TM) 제공 → WGS84로 변환.
+// 일부 데이터셋이 WGS84(LAT_EPSG4326 등)를 직접 줄 경우 우선 사용.
+// 한반도 범위(위도 33~39, 경도 124~132) 밖이면 무효로 간주.
 function extractCoords(item) {
-    const latRaw = item.LAT_EPSG4326 ?? item.WGS84_LAT;
-    const lngRaw = item.LOT_EPSG4326 ?? item.LOT_EPST4326 ?? item.WGS84_LOT;
-    const lat = parseFloat(latRaw);
-    const lng = parseFloat(lngRaw);
+    let lat = parseFloat(item.LAT_EPSG4326 ?? item.WGS84_LAT);
+    let lng = parseFloat(item.LOT_EPSG4326 ?? item.LOT_EPST4326 ?? item.WGS84_LOT);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        const x = parseFloat(item.CRD_INFO_X);
+        const y = parseFloat(item.CRD_INFO_Y);
+        if (Number.isFinite(x) && Number.isFinite(y) && x > 0 && y > 0) {
+            try { [lng, lat] = proj4(EPSG5174, 'EPSG:4326', [x, y]); }
+            catch { return { lat: null, lng: null }; }
+        }
+    }
+
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: null, lng: null };
     if (lat < 33 || lat > 39 || lng < 124 || lng > 132)  return { lat: null, lng: null };
-    return { lat, lng };
+    // 저장 정밀도 6자리(≈0.1m)로 절삭
+    return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
 }
 
 // ── Supabase upsert ─────────────────────────────────────
@@ -259,27 +273,7 @@ export default async function handler(req, res) {
     const ANON_KEY     = process.env.SUPABASE_ANON_KEY;
 
     // ── detail 모드: Supabase에서 개별 매장 목록 반환 ──────────────────
-    const { sido, months = '12', save = '', detail = '', sigungu = '', month = '', debug = '' } = req.query;
-
-    // ── [임시] debug=fields: 원시 응답 필드명 확인용 (좌표 필드 진단 후 제거) ──
-    if (debug === 'fields') {
-        if (!API_KEY) return res.status(500).json({ success: false, error: 'API key missing' });
-        const sidoShort = toShort(sido || '경기도');
-        const now = new Date();
-        const fmt = d => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-        const startStr = fmt(new Date(now.getFullYear(), now.getMonth() - 2, 1));
-        const endStr   = fmt(now);
-        const out = {};
-        for (const t of Object.keys(ENDPOINTS)) {
-            const { items } = await fetchPage(t, API_KEY, sidoShort, 1, 'new', startStr, endStr);
-            const first = items[0] || {};
-            const keys = Object.keys(first);
-            const coordish = {};
-            keys.forEach(k => { if (/LAT|LOT|LA$|LO$|^X$|^Y$|CRD|WGS|EPSG|COORD|좌표|경도|위도/i.test(k)) coordish[k] = first[k]; });
-            out[t] = { count: items.length, allKeys: keys, coordish, name: first.BPLC_NM };
-        }
-        return res.json({ success: true, debug: out });
-    }
+    const { sido, months = '12', save = '', detail = '', sigungu = '', month = '' } = req.query;
 
     if (detail === 'true') {
         if (!sido || !sigungu) {
