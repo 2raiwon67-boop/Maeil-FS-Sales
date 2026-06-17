@@ -912,10 +912,21 @@ function initMap() {
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
     map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
     map.on('load', () => {
+        localizeLabels('ko');   // 라벨 한글 우선
         mapReady = true;
         loadGeoData().then(() => { if (geoData) renderGeoMap([]); });
         if (pendingMapRender) { pendingMapRender(); pendingMapRender = null; }
     });
+}
+
+// MapTiler 벡터 타일 라벨을 한글(name:ko) 우선으로 — 없으면 latin/기본 fallback
+function localizeLabels(lang) {
+    const field = ['coalesce', ['get', `name:${lang}`], ['get', 'name:latin'], ['get', 'name']];
+    for (const layer of map.getStyle().layers) {
+        if (layer.type === 'symbol' && layer.layout && 'text-field' in layer.layout) {
+            try { map.setLayoutProperty(layer.id, 'text-field', field); } catch (_) {}
+        }
+    }
 }
 
 /* ─── AUTH → INIT ─── */
