@@ -28,7 +28,8 @@ jobs:
           cat > config.js << 'EOF'
           window.FS_CONFIG = {
               SUPABASE_URL: '${{ secrets.SUPABASE_URL }}',
-              SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}'
+              SUPABASE_ANON_KEY: '${{ secrets.SUPABASE_ANON_KEY }}',
+              MAPTILER_KEY: '${{ secrets.MAPTILER_KEY }}'
           };
           EOF
 

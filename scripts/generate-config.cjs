@@ -4,6 +4,7 @@ const path = require('path');
 
 const url = process.env.SUPABASE_URL || '';
 const key = process.env.SUPABASE_ANON_KEY || '';
+const maptiler = process.env.MAPTILER_KEY || '';   // 선택값 — 없어도 빌드 통과
 
 if (!url || !key) {
     console.error('[generate-config] SUPABASE_URL 또는 SUPABASE_ANON_KEY 환경변수가 없습니다.');
@@ -12,7 +13,8 @@ if (!url || !key) {
 
 const content = `window.FS_CONFIG = {
     SUPABASE_URL: '${url}',
-    SUPABASE_ANON_KEY: '${key}'
+    SUPABASE_ANON_KEY: '${key}',
+    MAPTILER_KEY: '${maptiler}'
 };
 `;
 

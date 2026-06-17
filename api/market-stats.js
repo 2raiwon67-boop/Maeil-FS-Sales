@@ -218,13 +218,23 @@ async function saveToSupabase(sidoShort, detail, storeRecords = []) {
     }
 
     // 2) market_store_records 개별 매장 upsert
+    // ON CONFLICT 키(sido,sigungu,month,name,status) 중복 시 한 배치에서 같은 행을 두 번
+    // 건드리면 Postgres 21000 에러 → 사전 dedupe (좌표 있는 행 우선, 그다음 마지막 행)
+    const storeMap = new Map();
+    for (const s of storeRecords) {
+        const k = `${s.sido}|${s.sigungu}|${s.month}|${s.name}|${s.status}`;
+        const prev = storeMap.get(k);
+        if (!prev || (s.lat != null && prev.lat == null)) storeMap.set(k, s);
+    }
+    const uniqueStores = [...storeMap.values()];
+
     let storesSaved = 0;
-    for (let i = 0; i < storeRecords.length; i += 100) {
+    for (let i = 0; i < uniqueStores.length; i += 100) {
         const res = await fetch(
             `${SUPABASE_URL}/rest/v1/market_store_records?on_conflict=sido,sigungu,month,name,status`,
-            { method: 'POST', headers: commonHeaders, body: JSON.stringify(storeRecords.slice(i, i + 100)) }
+            { method: 'POST', headers: commonHeaders, body: JSON.stringify(uniqueStores.slice(i, i + 100)) }
         );
-        if (res.ok) storesSaved += Math.min(100, storeRecords.length - i);
+        if (res.ok) storesSaved += Math.min(100, uniqueStores.length - i);
         else {
             const t = await res.text().catch(() => String(res.status));
             lastError = `stores HTTP ${res.status}: ${t.slice(0, 200)}`;

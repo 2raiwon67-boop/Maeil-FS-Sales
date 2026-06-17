@@ -3,5 +3,6 @@
 // config.js는 .gitignore에 의해 커밋되지 않습니다.
 window.FS_CONFIG = {
     SUPABASE_URL: 'https://your-project.supabase.co',
-    SUPABASE_ANON_KEY: 'your-anon-key-here'
+    SUPABASE_ANON_KEY: 'your-anon-key-here',
+    MAPTILER_KEY: 'your-maptiler-key-here'   // discover.html 지도 (maptiler.com 발급, 도메인 제한 설정)
 };
