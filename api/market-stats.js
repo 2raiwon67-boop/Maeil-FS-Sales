@@ -65,11 +65,17 @@ function buildQS(params) {
         .join('&');
 }
 
+// ── 사업장명 추출 ─────────────────────────────────────────
+// 1741000 신규 스키마 정규 필드는 BPLC_NM (언더스코어 有). 구 필드명들은 fallback.
+function getBizName(item) {
+    return (item.BPLC_NM || item.BPLCNM || item.BIZPLC_NM || item.BIZ_PLCE_NM || '').toString().trim();
+}
+
 // ── FS 타겟 여부 판별 ────────────────────────────────────
 // ※ 엔드포인트(rest_cafes / bakeries / general_restaurants)가 이미 업종 필터 역할을 하므로
 //    카테고리 체크는 생략하고 블랙리스트 키워드 제외만 적용
 function isTarget(item) {
-    const bizName = (item.BPLCNM || item.BIZPLC_NM || item.BIZ_PLCE_NM || '').toString().trim();
+    const bizName = getBizName(item);
     if (EXCLUDE_KEYWORDS.some(kw => bizName.includes(kw))) return false;
     return true;
 }
@@ -324,7 +330,7 @@ export default async function handler(req, res) {
                     detail[sigungu][month][key]++;
 
                     // 개별 매장 수집 (드릴다운용)
-                    const name = (item.BPLCNM || item.BIZPLC_NM || item.BIZ_PLCE_NM || '').trim();
+                    const name = getBizName(item);
                     if (!name) return;
                     const areaM2 = parseFloat(
                         (item.LCTN_AREA || item.FCLT_TOTAL_SCL || '0').toString().replace(/,/g, '')
