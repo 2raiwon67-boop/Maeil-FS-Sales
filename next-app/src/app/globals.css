@@ -128,3 +128,17 @@
     @apply font-sans;
   }
 }
+/* ── 인쇄 (견적서 PDF 출력) ──────────────────────────────── */
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  body * { visibility: hidden; }
+  #proposal-paper, #proposal-paper * { visibility: visible; }
+  #proposal-paper {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+  }
+  .no-print { display: none !important; }
+}
