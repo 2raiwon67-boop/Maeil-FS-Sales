@@ -324,6 +324,17 @@
         <h1 class="page-title">인허가 추출</h1>
         <p class="page-sub">공공데이터(data.go.kr) 기준 신규 인허가 업소를 조회하고 엑셀(.xlsx)로 내려받습니다. 모바일에서도 그대로 추출할 수 있습니다.</p>
 
+        <!-- 관리자(사업부) 지점 선택 배너 — 관리자 계정에만 표시 -->
+        <div id="adminBranchBanner" style="display:none; background:#fff8e1; border:1px solid #ffc107; border-radius:10px; padding:10px 14px; margin-bottom:14px; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span style="font-size:13px; font-weight:600; color:#7a5900;">사업부 모드</span>
+            <span style="font-size:13px; color:#555;">추출할 지점:</span>
+            <select id="adminBranchSelect" onchange="onAdminBranchChange(this.value)"
+                style="font-size:13px; padding:5px 10px; border:1px solid #e0c060; border-radius:7px; background:#fffdf0; min-width:160px;">
+                <option value="">— 지점을 선택해주세요 —</option>
+            </select>
+            <span id="adminBranchNote" style="font-size:12px; color:#86868b;"></span>
+        </div>
+
         <!-- 조회 조건 -->
         <div class="card">
             <div class="card-header">조회 조건</div>
@@ -376,6 +387,24 @@
 
         // business_unit 취득 (upload.html과 동일 동작)
         let adminTargetBU = null;
+
+        // ── 관리자 지점 변경 핸들러 ─────────────────────────
+        function onAdminBranchChange(bu) {
+            adminTargetBU = bu || null;
+            currentBusinessUnit = null; // 캐시 초기화
+            document.getElementById('adminBranchNote').textContent =
+                adminTargetBU ? `(${adminTargetBU} 기준 추출)` : '';
+            rawManagerMap = {};
+            const chipContainer = document.getElementById('regionChips');
+            if (!adminTargetBU) {
+                chipContainer.innerHTML = '<span style="font-size:12px;color:#86868b;">지점을 선택하면 지역이 표시됩니다.</span>';
+                return;
+            }
+            chipContainer.innerHTML = '<span style="font-size:12px;color:#888;">지역 로딩 중...</span>';
+            loadRawManagerMap();
+            loadRegionChips();
+        }
+
         async function getBusinessUnit() {
             if (sessionStorage.getItem('fs_admin_access') === 'true') return adminTargetBU;
             if (currentBusinessUnit) return currentBusinessUnit;
@@ -685,6 +714,26 @@
         window.addEventListener('load', () => {
             document.body.classList.add('loaded');
             if (typeof setupLogoutButton === 'function') setupLogoutButton();
+
+            // 관리자(사업부) 모드: 지점 선택 배너 노출 → 선택 시 추출. 자동 로드 안 함.
+            if (sessionStorage.getItem('fs_admin_access') === 'true') {
+                const banner = document.getElementById('adminBranchBanner');
+                if (banner) {
+                    banner.style.display = 'flex';
+                    const sel = document.getElementById('adminBranchSelect');
+                    (typeof BUSINESS_UNITS !== 'undefined' ? BUSINESS_UNITS : []).forEach(bu => {
+                        const opt = document.createElement('option');
+                        opt.value = bu;
+                        opt.textContent = bu;
+                        sel.appendChild(opt);
+                    });
+                }
+                document.getElementById('regionChips').innerHTML =
+                    '<span style="font-size:12px;color:#86868b;">위에서 지점을 선택하면 지역이 표시됩니다.</span>';
+                return;
+            }
+
+            // 일반 지점 담당자: 본인 소속 자동 로드
             if (client) {
                 const { data: { subscription } } = client.auth.onAuthStateChange((event) => {
                     if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
