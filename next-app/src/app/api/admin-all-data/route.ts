@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const ALLOWED_TABLES = ['licenses', 'accounts', 'visit_logs'];
+// 원본 api/admin-all-data.js와 동일: licenses/accounts/managers만 허용
+const ALLOWED_TABLES = ['licenses', 'accounts', 'managers'];
+// 테이블별 반환 컬럼 제한 (managers는 email 노출 금지 — 지역/담당자명만)
+const TABLE_SELECT: Record<string, string> = {
+  managers: 'id,business_unit,manager_name,region1,region2,region3,is_branch_manager',
+};
 
 export async function GET(req: NextRequest) {
   const adminCode = req.headers.get('x-admin-key');
@@ -22,12 +27,12 @@ export async function GET(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  let query = supabase.from(table).select('*');
+  let query = supabase.from(table).select(TABLE_SELECT[table] || '*');
   if (businessUnit) {
     query = query.eq('business_unit', businessUnit);
   }
 
-  const { data, error } = await query.limit(1000);
+  const { data, error } = await query.limit(20000);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
