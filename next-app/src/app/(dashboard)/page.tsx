@@ -39,6 +39,7 @@ import {
 } from '@/components/dashboard/route-panel';
 import { VisitPlansModal, type PlanItem } from '@/components/dashboard/visit-plans-modal';
 import { StoreListPanel } from '@/components/dashboard/store-list-panel';
+import { getColorblind, onColorblindChange, setColorblind as setColorblindSetting } from '@/lib/settings';
 import type { License, Account } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 
@@ -287,18 +288,17 @@ export default function DashboardPage() {
     if (built) applyFilters(filters);
   }, [filters, built, applyFilters]);
 
-  // 색각 보정 설정 로드 (localStorage) — SSR 하이드레이션 불일치 방지 위해 effect에서 비동기 적용
+  // 색각 보정 설정 로드 + 전역 변경(프로필▸설정) 구독 — 사이드바·설정 모달이 같은 값 공유
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        if (localStorage.getItem('fs_colorblind') === '1' && !cancelled) setColorblind(true);
-      } catch {
-        /* ignore */
-      }
+      const v = getColorblind();
+      if (v && !cancelled) setColorblind(true);
     })();
+    const unsub = onColorblindChange((v) => setColorblind(v));
     return () => {
       cancelled = true;
+      unsub();
     };
   }, []);
 
@@ -314,17 +314,8 @@ export default function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [colorblind, built]);
 
-  const toggleColorblind = () => {
-    setColorblind((v) => {
-      const next = !v;
-      try {
-        localStorage.setItem('fs_colorblind', next ? '1' : '0');
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  };
+  // 토글 → 전역 설정에 기록(이벤트 발행). 구독 effect가 상태를 갱신해 마커 재색칠.
+  const toggleColorblind = () => setColorblindSetting(!colorblind);
 
   // ── 필터 토글 ──
   const setTab = (tab: SidebarTab) => setFilters((f) => ({ ...f, tab }));

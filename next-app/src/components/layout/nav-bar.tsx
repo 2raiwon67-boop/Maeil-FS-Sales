@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
+import { SettingsModal } from '@/components/layout/settings-modal';
 
 const NAV_ITEMS = [
   { href: '/', label: '거래처' },
@@ -18,6 +18,7 @@ export function NavBar() {
   const pathname = usePathname();
   const { metadata, signOut } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const displayName = metadata?.full_name
     ? metadata.business_unit
@@ -61,14 +62,11 @@ export function NavBar() {
           <>
             <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
             <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border bg-white py-1 shadow-lg">
-              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                내 일정
-              </button>
-              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
+              <button
+                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => { setDropdownOpen(false); setSettingsOpen(true); }}
+              >
                 설정
-              </button>
-              <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100">
-                이용 가이드
               </button>
               <hr className="my-1" />
               <button
@@ -81,6 +79,8 @@ export function NavBar() {
           </>
         )}
       </div>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </nav>
   );
 }
