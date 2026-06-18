@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+// MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 
@@ -103,7 +105,7 @@ const API_BASE = 'https://maeilfs-sales.vercel.app';
 function getMonthList(): string[] {
   const list: string[] = [];
   const now = new Date();
-  let cur = new Date(2025, 0, 1);
+  const cur = new Date(2025, 0, 1);
   while (cur <= now) {
     list.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
     cur.setMonth(cur.getMonth() + 1);
@@ -162,6 +164,7 @@ export default function DiscoverPage() {
   const [availableSidos, setAvailableSidos] = useState<string[]>([]);
 
   // UI state
+  const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
@@ -212,14 +215,14 @@ export default function DiscoverPage() {
   // ─── MAP INIT ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    // 컨테이너는 loading=false 이후에야 렌더되므로 effect가 loading 변화에 반응해야 함.
+    // (mapRef로 1회 생성만 보장 — 재실행돼도 이미 만들어졌으면 skip)
+    if (!mapContainerRef.current || mapRef.current) return;
     let destroyed = false;
 
     async function initMap() {
       const maplibregl = (await import('maplibre-gl')).default;
-      await import('maplibre-gl/dist/maplibre-gl.css');
-
-      if (destroyed || !mapContainerRef.current) return;
+      if (destroyed || !mapContainerRef.current || mapRef.current) return;
 
       const key = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
       if (!key) console.warn('[discover] MAPTILER_KEY 없음 — 지도 타일이 안 보일 수 있습니다');
@@ -237,6 +240,7 @@ export default function DiscoverPage() {
       mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
       mapInstance.on('load', () => {
+        setMapError(null);
         // Localize labels to Korean
         const field = ['coalesce', ['get', 'name:ko'], ['get', 'name:latin'], ['get', 'name']];
         for (const layer of mapInstance.getStyle().layers) {
@@ -258,7 +262,10 @@ export default function DiscoverPage() {
       mapRef.current = mapInstance;
     }
 
-    initMap();
+    initMap().catch((e) => {
+      console.error('[discover] 지도 초기화 실패', e);
+      setMapError(String((e && (e.stack || e.message)) || e));
+    });
     return () => {
       destroyed = true;
       if (mapRef.current) {
@@ -269,7 +276,7 @@ export default function DiscoverPage() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loading]);
 
   // ─── GEO DATA ──────────────────────────────────────────────────────────────
 
@@ -870,6 +877,14 @@ export default function DiscoverPage() {
 
       {/* ── MAP ── */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+      {mapError && (
+        <div
+          data-map-error={mapError}
+          className="absolute left-3 top-3 z-50 max-w-[90%] rounded-lg bg-red-600/95 px-3 py-2 text-xs text-white shadow-lg"
+        >
+          지도 초기화 실패: {mapError}
+        </div>
+      )}
 
       {/* ── VIEW TOGGLE ── */}
       <div className="absolute top-3.5 left-3.5 z-[600] flex gap-0.5 p-[3px] rounded-full bg-white border border-slate-200 shadow-sm">
