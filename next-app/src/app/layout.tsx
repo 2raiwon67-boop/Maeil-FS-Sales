@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
+import { PwaRegister } from '@/components/pwa-register';
 import './globals.css';
 
 const geistSans = Geist({
@@ -16,13 +17,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: 'FS MISO',
   description: 'FS 영업사원을 위한 All-In-One 대시보드',
-  icons: { icon: '/favicon.ico' },
+  appleWebApp: {
+    capable: true,
+    title: 'MISO',
+    statusBarStyle: 'black-translucent',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/icon-192x192.png',
+  },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  themeColor: '#1d1d1f',
 };
 
 export default function RootLayout({
@@ -38,6 +48,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col">
         {children}
         <Toaster richColors position="top-center" />
+        <PwaRegister />
       </body>
     </html>
   );
