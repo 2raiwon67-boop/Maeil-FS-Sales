@@ -2,8 +2,13 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import {
+  FolderOpen, Save, Printer, Search, Sparkles, Plus, LayoutGrid, Store,
+  ChevronDown, X, Trash2, Copy,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
+import { PageHeader, headerBtn } from '@/components/layout/page-header';
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
@@ -189,6 +194,7 @@ export default function ProposalPage() {
   // 카탈로그 피커
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerCat, setPickerCat] = useState('all');
+  const [analysisOpen, setAnalysisOpen] = useState(true);
 
   // 견적 불러오기
   const [quotePickerOpen, setQuotePickerOpen] = useState(false);
@@ -468,232 +474,227 @@ export default function ProposalPage() {
   // ── 렌더 ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-5 md:px-6">
-      {/* 헤더 액션 */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">견적서 시스템</h1>
-        <div className="flex flex-wrap gap-2">
-          <button onClick={openQuotePicker} className="rounded-full bg-amber-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-amber-600">📂 불러오기</button>
-          <button onClick={() => saveQuote(false)} disabled={savingQuote} className="rounded-full bg-green-500 px-4 py-1.5 text-sm font-semibold text-white hover:bg-green-600 disabled:opacity-60">💾 저장</button>
-          {loadedQuoteId && <button onClick={() => saveQuote(true)} className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1.5 text-xs font-semibold hover:bg-gray-100">복사본</button>}
-          <button onClick={generatePDF} className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-blue-700">🖨️ PDF 출력</button>
-        </div>
-      </div>
+    <div className="min-h-full bg-[#f6f7f9]">
+      <PageHeader
+        title="견적서"
+        subtitle="매장 분석 → 단가·마진 검토 → 맞춤 카탈로그"
+        actions={
+          <>
+            <button onClick={openQuotePicker} className={headerBtn.outline}><FolderOpen size={15} />불러오기</button>
+            <button onClick={() => saveQuote(false)} disabled={savingQuote} className={headerBtn.outline}><Save size={15} />저장</button>
+            {loadedQuoteId && <button onClick={() => saveQuote(true)} className={headerBtn.outline}><Copy size={15} />복사본</button>}
+            <button onClick={generatePDF} className={headerBtn.primary}><Printer size={15} />PDF 출력</button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)_360px]">
-        {/* ── 좌측: AI 분석 ── */}
-        <aside className="no-print flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm">
-          <div className="text-lg font-bold">🛍️ 매장 맞춤 분석</div>
-          <div>
-            <label className="mb-2 block text-xs font-semibold text-gray-500">매장명 / 키워드</label>
-            <input value={storeInput} onChange={(e) => setStoreInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && analyzeStore()}
-              placeholder="예: 스타벅스 강남점, 가성비 카페" className="w-full rounded-lg border border-gray-200 p-2.5 text-sm" />
-          </div>
-          <button onClick={analyzeStore} disabled={analyzing} className="rounded-lg bg-blue-600 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-blue-300">
-            {analyzing ? '분석 중...' : '분석 및 추천상품 검색'}
-          </button>
+      <div className="mx-auto max-w-[1500px] px-4 pb-16 pt-5 md:px-6">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
 
-          {analysis && (
-            <div className="rounded-xl bg-gray-50 p-4">
-              <h4 className="mb-2.5 text-sm font-bold">🎯 AI 공략 포인트</h4>
-              <div className="mb-3 flex flex-wrap gap-1">
-                {analysis.tags.map((t) => <span key={t} className="rounded bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-600">#{t}</span>)}
+          {/* ── 좌측: 작업 패널 ── */}
+          <div className="no-print flex flex-col gap-3.5">
+
+            {/* 견적 설정 */}
+            <div className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
+              <div className="mb-3 flex gap-1.5">
+                <button onClick={() => setQuoteMode('custom')} className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${quoteMode === 'custom' ? 'bg-[#2563eb] text-white' : 'bg-gray-100 text-gray-500'}`}>맞춤형</button>
+                <button onClick={() => setQuoteMode('general')} className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${quoteMode === 'general' ? 'bg-[#2563eb] text-white' : 'bg-gray-100 text-gray-500'}`}>범용</button>
               </div>
-              <p className="text-xs leading-relaxed text-gray-600">{analysis.description}</p>
+              {showRecipient && (
+                <label className="mb-2.5 flex items-center gap-2 rounded-lg border border-[#e2e8f0] px-3 py-2.5 focus-within:border-[#2563eb]">
+                  <Store size={15} className="shrink-0 text-[#94a3b8]" />
+                  <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="거래처명 입력" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+                </label>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <input value={managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="담당자" className="rounded-lg border border-[#e2e8f0] px-3 py-2.5 text-sm outline-none focus:border-[#2563eb]" />
+                <input value={managerPhone} onChange={(e) => setManagerPhone(e.target.value)} placeholder="연락처" className="rounded-lg border border-[#e2e8f0] px-3 py-2.5 text-sm outline-none focus:border-[#2563eb]" />
+              </div>
+              <input value={quoteMemo} onChange={(e) => setQuoteMemo(e.target.value)} placeholder="메모 (예: 초안, 최종확정)" className="mt-2 w-full rounded-lg border border-[#e2e8f0] px-3 py-2.5 text-sm outline-none focus:border-[#2563eb]" />
+            </div>
 
-              {recipes.length > 0 && (
-                <div className="mt-3.5 rounded-lg border border-orange-200 bg-orange-50/60 p-3">
-                  <h4 className="mb-2 text-xs font-bold text-orange-800">🍽️ 자사 레시피 추천</h4>
-                  <div className="flex flex-col gap-2">
-                    {recipes.map((r) => (
-                      <div key={r.name} className={`rounded-lg border-l-[3px] border-orange-400 bg-white px-3 py-2 ${r.pdf_url ? 'cursor-pointer' : ''}`}
-                        onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}>
-                        <div className="text-xs font-bold">{r.name}</div>
-                        {r.reason && <div className="mt-0.5 text-[11px] text-blue-600">{r.reason}</div>}
-                      </div>
-                    ))}
+            {/* 매장 분석 (접이식) */}
+            <div className="overflow-hidden rounded-2xl border border-[#e8ebf0] bg-white">
+              <button onClick={() => setAnalysisOpen((o) => !o)} className="flex w-full items-center justify-between px-4 py-3">
+                <span className="flex items-center gap-2 text-sm text-[#475569]">
+                  <Sparkles size={16} className="text-[#2563eb]" />AI 매장 분석
+                  {analysis && <span className="text-[#2563eb]">· 추천 {analysis.items.length}개</span>}
+                </span>
+                <ChevronDown size={16} className={`text-[#cbd5e1] transition-transform ${analysisOpen ? '' : '-rotate-90'}`} />
+              </button>
+              {analysisOpen && (
+                <div className="border-t border-[#eef1f5] p-4">
+                  <div className="flex gap-2">
+                    <label className="flex flex-1 items-center gap-2 rounded-lg border border-[#e2e8f0] px-3 py-2.5 focus-within:border-[#2563eb]">
+                      <Search size={15} className="shrink-0 text-[#94a3b8]" />
+                      <input value={storeInput} onChange={(e) => setStoreInput(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && analyzeStore()} placeholder="매장명·키워드" className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
+                    </label>
+                    <button onClick={analyzeStore} disabled={analyzing} className="shrink-0 rounded-lg bg-[#2563eb] px-4 text-sm font-medium text-white disabled:opacity-50">{analyzing ? '분석 중' : '분석'}</button>
                   </div>
+
+                  {analysis && (
+                    <>
+                      <div className="mt-3 rounded-xl bg-[#f0f4fa] p-3.5">
+                        <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-[#1B3F82]"><Sparkles size={14} />AI 공략 포인트</div>
+                        <div className="mb-2 flex flex-wrap gap-1.5">
+                          {analysis.tags.map((t) => <span key={t} className="rounded-md bg-[#dde7f5] px-2 py-0.5 text-[11px] text-[#1B3F82]">#{t}</span>)}
+                        </div>
+                        <p className="text-xs leading-relaxed text-[#5b6675]">{analysis.description}</p>
+                      </div>
+
+                      {recipes.length > 0 && (
+                        <div className="mt-3 rounded-xl border border-[#f3e3cf] bg-[#fdf6ec] p-3">
+                          <div className="mb-1.5 text-xs font-medium text-[#9a6512]">자사 레시피 추천</div>
+                          <div className="flex flex-col gap-1.5">
+                            {recipes.map((r) => (
+                              <div key={r.name} className={`rounded-md border-l-[3px] border-[#e0a04a] bg-white px-3 py-1.5 ${r.pdf_url ? 'cursor-pointer' : ''}`} onClick={() => r.pdf_url && window.open(r.pdf_url, '_blank')}>
+                                <div className="text-xs font-medium text-[#0f172a]">{r.name}</div>
+                                {r.reason && <div className="mt-0.5 text-[11px] text-[#2563eb]">{r.reason}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="mt-3">
+                        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-[#94a3b8]">영업 메모</div>
+                        <textarea value={salesMemo} onChange={(e) => setSalesMemo(e.target.value)} placeholder="방문 전략, 핵심 포인트 등" className="min-h-[64px] w-full resize-y rounded-lg border border-[#e2e8f0] p-2.5 text-xs outline-none focus:border-[#2563eb]" />
+                      </div>
+
+                      <div className="mb-2 mt-3 text-[10px] uppercase tracking-wider text-[#94a3b8]">추천 상품 · 담으면 카탈로그에 추가</div>
+                      <div className="flex flex-col gap-2">
+                        {analysis.items.map((item, i) => {
+                          const matched = productDB.find((p) => p.name === item.name);
+                          const imgUrl = item.imageUrl || matched?.imageUrl || '';
+                          return (
+                            <button key={i} onClick={() => addProduct(matched ?? { name: item.name, spec: item.spec ?? '', price: item.price ?? 0, taxFree: item.taxFree ?? false, imageUrl: item.imageUrl ?? null, maxDc: item.maxDc ?? 0, desc: '', usage: '', expiryDate: item.expiryDate ?? '' })}
+                              className="flex items-center gap-3 rounded-xl border border-[#eef1f5] p-2.5 text-left hover:bg-[#f5f9ff]">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#eef2f7]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                {imgUrl ? <img src={imgUrl} alt={item.name} className="h-full w-full object-cover" /> : <LayoutGrid size={18} className="text-[#9aa7b6]" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="truncate text-xs font-medium text-[#0f172a]">{item.name}</div>
+                                <div className="truncate text-[11px] text-[#94a3b8]">{item.spec}</div>
+                              </div>
+                              <Plus size={16} className="shrink-0 text-[#1B3F82]" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
+            </div>
 
-              <div className="mt-3.5 rounded-lg border border-indigo-100 bg-indigo-50/40 p-3">
-                <label className="mb-1.5 block text-xs font-bold text-indigo-500">📝 영업 메모</label>
-                <textarea value={salesMemo} onChange={(e) => setSalesMemo(e.target.value)} placeholder="방문 전략, 핵심 포인트 등"
-                  className="min-h-[72px] w-full resize-y rounded-lg border border-indigo-100 p-2.5 text-xs" />
-              </div>
-
-              <hr className="my-4 border-gray-200" />
-              <h4 className="mb-2.5 text-sm font-bold">✨ 추천 상품 (클릭하여 추가)</h4>
+            {/* 품목 단가 · 마진 */}
+            <div className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
+              <div className="mb-3 text-[10px] uppercase tracking-wider text-[#94a3b8]">품목 단가 · 마진</div>
               <div className="flex flex-col gap-2">
-                {analysis.items.map((item, i) => {
-                  const matched = productDB.find((p) => p.name === item.name);
-                  const imgUrl = item.imageUrl || matched?.imageUrl || '';
+                {items.map((it, idx) => {
+                  const margin = rowMargin(it);
+                  const mColor = margin >= 20 ? '#0f8a5f' : margin >= 10 ? '#d97706' : '#dc2626';
                   return (
-                    <div key={i} onClick={() => addProduct(matched ?? { name: item.name, spec: item.spec ?? '', price: item.price ?? 0, taxFree: item.taxFree ?? false, imageUrl: item.imageUrl ?? null, maxDc: item.maxDc ?? 0, desc: '', usage: '', expiryDate: item.expiryDate ?? '' })}
-                      className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-200 bg-white p-2.5 hover:bg-blue-50">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100">
-                        {imgUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={imgUrl} alt={item.name} className="h-full w-full object-cover" />
-                        ) : <span className="text-xl">📦</span>}
+                    <div key={it.id} className="rounded-xl border border-[#eef1f5] p-3">
+                      <div className="mb-2 flex items-center gap-1.5">
+                        <span className="w-3 shrink-0 text-center text-[11px] text-[#cbd5e1]">{idx + 1}</span>
+                        <input value={it.name} onChange={(e) => updateItem(it.id, { name: e.target.value })} list="proposal-products" placeholder="품명" className="h-7 min-w-0 flex-1 rounded-md border border-[#e2e8f0] px-2 text-[13px] outline-none focus:border-[#2563eb]" />
+                        <input value={it.spec} onChange={(e) => updateItem(it.id, { spec: e.target.value })} placeholder="내입수" className="h-7 w-16 shrink-0 rounded-md border border-[#e2e8f0] px-1.5 text-xs outline-none focus:border-[#2563eb]" />
+                        <button onClick={() => removeItem(it.id)} className="shrink-0 text-[#cbd5e1] hover:text-red-500"><X size={15} /></button>
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs font-semibold">{item.name}</div>
-                        <div className="text-[11px] text-gray-500">{item.spec}</div>
+                      <div className="flex items-end gap-2">
+                        <label className="flex-1">
+                          <div className="mb-1 text-[9px] text-[#94a3b8]">출고가</div>
+                          <input type="number" value={it.factoryPrice} onChange={(e) => updateItem(it.id, { factoryPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#e2e8f0] px-1.5 text-[12px] font-medium tabular-nums outline-none focus:border-[#2563eb]" />
+                        </label>
+                        <label className="flex-1">
+                          <div className="mb-1 text-[9px] text-[#94a3b8]">DC %</div>
+                          <input type="number" value={it.dcRate} onChange={(e) => updateItem(it.id, { dcRate: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#bcd3f5] bg-[#f5f9ff] px-1.5 text-[12px] font-medium tabular-nums text-[#2563eb] outline-none focus:border-[#2563eb]" />
+                        </label>
+                        <label className="flex-1">
+                          <div className="mb-1 text-[9px] text-[#94a3b8]">판매가</div>
+                          <input type="number" value={it.salesPrice} onChange={(e) => updateItem(it.id, { salesPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#e2e8f0] px-1.5 text-[12px] font-medium tabular-nums outline-none focus:border-[#2563eb]" />
+                        </label>
+                        <div className="w-[52px] shrink-0 pb-1 text-right">
+                          <div className="mb-1 text-[9px] text-[#94a3b8]">마진</div>
+                          <div className="text-[12px] font-medium tabular-nums" style={{ color: mColor }}>{margin.toFixed(1)}%</div>
+                        </div>
                       </div>
-                      <div className="text-lg text-blue-600">+</div>
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-[#b6c0cc]">
+                        <label className="flex cursor-pointer items-center gap-1">
+                          <input type="checkbox" checked={it.taxFree} onChange={(e) => updateItem(it.id, { taxFree: e.target.checked })} className="h-3 w-3" /> 면세
+                        </label>
+                        <span>공급가 <span className="tabular-nums text-[#94a3b8]">{Math.floor(rowCost(it)).toLocaleString()}원</span></span>
+                      </div>
                     </div>
                   );
                 })}
               </div>
-            </div>
-          )}
-        </aside>
 
-        {/* ── 중앙: A4 카탈로그 미리보기 ── */}
-        <main className="flex justify-center">
-          <div id="proposal-paper" className="w-full max-w-[794px] rounded bg-white p-6 shadow-lg print:max-w-none print:rounded-none print:shadow-none">
-            {/* 카탈로그 헤더 */}
-            <div className="mb-3 border-b-2 border-[#1B3F82] pb-3.5 text-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/images/logo.png" alt="매일유업" className="mx-auto mb-2 h-10 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              <div className="text-2xl font-extrabold tracking-wide text-[#1B3F82]">매일유업 푸드 서비스</div>
-              <div className="text-sm font-semibold tracking-wide text-[#1B3F82]">Maeil Food service</div>
-              {showRecipient && (
-                <div className="mt-1.5 flex flex-wrap justify-center gap-x-5 gap-y-1 border-t border-blue-50 pt-2 text-xs text-gray-700">
-                  <span>수신 <strong className="text-[#1B3F82]">{customerName || '—'}</strong></span>
-                  <span>담당 <strong className="text-[#1B3F82]">{managerName || '—'}</strong></span>
-                  <span>연락처 <strong className="text-[#1B3F82]">{managerPhone || '—'}</strong></span>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => addItem()} className="flex-1 rounded-lg border border-dashed border-[#cbd5e1] py-2 text-xs font-medium text-[#64748b] hover:border-[#2563eb] hover:text-[#2563eb]"><Plus size={14} className="-mt-0.5 mr-1 inline" />품목 추가</button>
+                <button onClick={() => setPickerOpen(true)} className="flex-1 rounded-lg border border-dashed border-[#93b4ef] bg-[#f5f9ff] py-2 text-xs font-medium text-[#2563eb] hover:bg-[#eaf2ff]"><LayoutGrid size={14} className="-mt-0.5 mr-1 inline" />카탈로그에서 선택</button>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between border-t border-[#eef1f5] pt-3 text-[11px] text-[#94a3b8]">
+                <span>합계 <span className="font-medium tabular-nums text-[#475569]">{Math.floor(totalSales).toLocaleString()}원</span></span>
+                <span>평균 마진 <span className="font-medium tabular-nums" style={{ color: totalMargin >= 15 ? '#0f8a5f' : totalMargin >= 5 ? '#d97706' : '#dc2626' }}>{totalMargin.toFixed(1)}%</span></span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 우측: 카탈로그 (인쇄 대상) ── */}
+          <div>
+            <div id="proposal-paper" className="rounded-2xl border border-[#e8ebf0] bg-white p-5 print:rounded-none print:border-0 md:p-7">
+              <div className="mb-4 border-b-2 border-[#1B3F82] pb-3.5 text-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/images/logo.png" alt="매일유업" className="mx-auto mb-2 h-9 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <div className="text-lg font-semibold tracking-wide text-[#1B3F82]">매일유업 푸드서비스</div>
+                <div className="text-xs font-medium tracking-wide text-[#1B3F82]">Maeil Food Service</div>
+                {showRecipient && (
+                  <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 border-t border-[#eef1f5] pt-2 text-[11px] text-[#64748b]">
+                    <span>수신 <strong className="font-medium text-[#1B3F82]">{customerName || '—'}</strong></span>
+                    <span>담당 <strong className="font-medium text-[#1B3F82]">{managerName || '—'}</strong></span>
+                    <span>연락처 <strong className="font-medium text-[#1B3F82]">{managerPhone || '—'}</strong></span>
+                  </div>
+                )}
+              </div>
+
+              {items.filter((it) => it.name).length === 0 ? (
+                <div className="flex flex-col items-center justify-center gap-2 py-20 text-center text-[#a7b4c4]">
+                  <LayoutGrid size={26} />
+                  <span className="text-sm">왼쪽에서 품목을 추가하면<br />여기에 카탈로그가 만들어집니다</span>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  {items.filter((it) => it.name).map((it) => {
+                    const img = findProductImage(it.name);
+                    return (
+                      <div key={it.id} className="flex break-inside-avoid gap-3.5 rounded-xl border border-[#e8ebf0] p-3">
+                        <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f4f6fa]">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          {img ? <img src={img} alt={it.name} className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <LayoutGrid size={26} className="text-[#9aa7b6]" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-[13px] font-medium text-[#0f172a]">{it.name}</span>
+                            <span className="shrink-0 text-[13px] font-semibold tabular-nums text-[#1B3F82]">{Math.floor(it.salesPrice).toLocaleString()}원</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-[#64748b]">
+                            {it.spec}{it.spec && it.expiryDate ? ' · ' : ''}{it.expiryDate && <span className="text-[#1B3F82]">소비기한 {it.expiryDate}</span>}
+                          </div>
+                          {it.desc && <div className="mt-1 text-[11px] leading-relaxed text-[#94a3b8]">{it.desc}</div>}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
-
-            {/* 2열 카드 그리드 */}
-            <div className="grid grid-cols-2 gap-2">
-              {items.filter((it) => it.name).map((it) => {
-                const img = findProductImage(it.name);
-                return (
-                  <div key={it.id} className="flex break-inside-avoid overflow-hidden rounded-md border border-gray-200">
-                    <div className="flex w-[130px] flex-shrink-0 items-center justify-center border-r border-gray-100 bg-white p-2">
-                      {img ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt={it.name} className="max-h-[116px] max-w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      ) : <div className="text-3xl opacity-30">📦</div>}
-                    </div>
-                    <div className="flex min-w-0 flex-1 flex-col gap-0.5 p-2.5">
-                      <div className="line-clamp-2 text-xs font-bold leading-snug">{it.name}</div>
-                      {it.spec && <div className="text-[11px] text-gray-500">{it.spec}</div>}
-                      {it.expiryDate && <div className="text-[11px] text-blue-600">소비기한: {it.expiryDate}</div>}
-                      {it.desc && <div className="flex-1 text-[11px] leading-snug text-gray-600">{it.desc}</div>}
-                      <div className="mt-1 border-t border-gray-100 pt-1 text-[13px] font-extrabold text-[#1B3F82]">{Math.floor(it.salesPrice).toLocaleString()}원</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {items.filter((it) => it.name).length === 0 && (
-              <div className="py-16 text-center text-sm text-gray-400">우측에서 품목을 추가하면 여기에 표시됩니다.</div>
-            )}
-          </div>
-        </main>
-
-        {/* ── 우측: 견적 설정 + 품목 입력 ── */}
-        <section className="no-print flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm">
-          <div className="text-base font-bold">📝 견적 설정</div>
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-gray-500">견적서 유형</label>
-            <div className="flex gap-4 text-sm">
-              <label className="flex cursor-pointer items-center gap-1.5">
-                <input type="radio" checked={quoteMode === 'custom'} onChange={() => setQuoteMode('custom')} /> 맞춤형
-              </label>
-              <label className="flex cursor-pointer items-center gap-1.5">
-                <input type="radio" checked={quoteMode === 'general'} onChange={() => setQuoteMode('general')} /> 범용
-              </label>
-            </div>
           </div>
 
-          {quoteMode === 'custom' && (
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500">거래처 명</label>
-              <input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="상호명 입력" className="w-full rounded-lg border border-gray-200 p-2.5 text-sm" />
-            </div>
-          )}
-
-          <div>
-            <label className="mb-1.5 block text-xs font-semibold text-gray-500">메모 <span className="font-normal text-gray-400">(예: 초안, 최종확정)</span></label>
-            <input value={quoteMemo} onChange={(e) => setQuoteMemo(e.target.value)} placeholder="버전 구분용 메모 (선택)" className="w-full rounded-lg border border-gray-200 p-2.5 text-sm" />
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500">담당자</label>
-              <input value={managerName} onChange={(e) => setManagerName(e.target.value)} placeholder="담당자 이름" className="w-full rounded-lg border border-gray-200 p-2.5 text-sm" />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-gray-500">연락처</label>
-              <input value={managerPhone} onChange={(e) => setManagerPhone(e.target.value)} placeholder="010-0000-0000" className="w-full rounded-lg border border-gray-200 p-2.5 text-sm" />
-            </div>
-          </div>
-
-          <div className="mt-2 text-base font-bold">📊 품목 및 계산</div>
-
-          <div className="flex flex-col gap-2">
-            {items.map((it, idx) => {
-              const margin = rowMargin(it);
-              const marginColor = margin >= 20 ? 'bg-green-500' : margin >= 10 ? 'bg-orange-500' : 'bg-red-500';
-              return (
-                <div key={it.id} className="rounded-lg border border-gray-200 bg-white p-2.5">
-                  <div className="mb-1.5 flex items-center gap-1.5">
-                    <span className="w-4 flex-shrink-0 text-center text-xs font-bold text-gray-400">{idx + 1}</span>
-                    <input value={it.name} onChange={(e) => updateItem(it.id, { name: e.target.value })} list="proposal-products" placeholder="품명"
-                      className="h-[30px] min-w-0 flex-1 rounded border border-gray-200 px-2 text-[13px]" />
-                    <input value={it.spec} onChange={(e) => updateItem(it.id, { spec: e.target.value })} placeholder="규격"
-                      className="h-[30px] w-[60px] flex-shrink-0 rounded border border-gray-200 px-1.5 text-xs" />
-                    <button onClick={() => removeItem(it.id)} className="flex-shrink-0 text-[15px] text-red-500">✕</button>
-                  </div>
-                  <div className="flex gap-1.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 text-[10px] font-semibold text-gray-500">출고가</div>
-                      <input type="number" value={it.factoryPrice} onChange={(e) => updateItem(it.id, { factoryPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded border border-gray-200 px-1.5 text-[13px]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 text-[10px] font-semibold text-gray-500">DC%</div>
-                      <input type="number" value={it.dcRate} onChange={(e) => updateItem(it.id, { dcRate: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded border border-gray-200 px-1.5 text-[13px]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-0.5 text-[10px] font-semibold text-gray-500">판매가</div>
-                      <input type="number" value={it.salesPrice} onChange={(e) => updateItem(it.id, { salesPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded border border-gray-200 px-1.5 text-[13px]" />
-                    </div>
-                  </div>
-                  <div className="mt-1 flex items-center justify-between text-[11px]">
-                    <label className="flex cursor-pointer items-center gap-1 text-gray-500">
-                      <input type="checkbox" checked={it.taxFree} onChange={(e) => updateItem(it.id, { taxFree: e.target.checked })} /> 면세
-                    </label>
-                    <span className="text-gray-500">공급가: {Math.floor(rowCost(it)).toLocaleString()}원</span>
-                    <span className={`rounded px-1 py-0.5 text-[10px] font-bold text-white ${marginColor}`}>{margin.toFixed(1)}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={() => addItem()} className="flex-1 rounded border border-dashed border-gray-300 py-2 text-sm text-gray-500 hover:border-blue-500 hover:text-blue-600">+ 품목 직접 추가</button>
-            <button onClick={() => setPickerOpen(true)} className="flex-1 rounded border border-dashed border-blue-500 py-2 text-sm text-blue-600 hover:bg-blue-50">📦 카탈로그에서 선택</button>
-          </div>
-
-          <div className="rounded-xl bg-gray-50 p-4">
-            <div className="mb-2 flex justify-between text-sm">
-              <span className="font-semibold">전체 합계:</span>
-              <span className="font-bold text-blue-600">{Math.floor(totalSales).toLocaleString()}원</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold">평균 마진율:</span>
-              <span className="font-bold" style={{ color: totalMargin >= 15 ? '#34c759' : totalMargin >= 5 ? '#ff9500' : '#ff3b30' }}>{totalMargin.toFixed(1)}%</span>
-            </div>
-          </div>
-        </section>
+        </div>
       </div>
 
       {/* 제품 자동완성 datalist */}
@@ -706,8 +707,8 @@ export default function ProposalPage() {
         <div className="fixed inset-0 z-[8999] flex items-center justify-center bg-black/45 p-4" onClick={() => setPickerOpen(false)}>
           <div className="flex h-[76vh] max-h-[720px] w-full max-w-[680px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div className="text-sm font-bold">📦 상품 카탈로그</div>
-              <button onClick={() => setPickerOpen(false)} className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold">✕ 닫기</button>
+              <div className="text-sm font-semibold text-[#0f172a]">상품 카탈로그</div>
+              <button onClick={() => setPickerOpen(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100"><X size={18} /></button>
             </div>
             <div className="flex gap-1.5 overflow-x-auto border-b border-gray-200 px-4 py-2.5">
               {PICKER_CATS.map(([cat, label]) => (
@@ -726,9 +727,9 @@ export default function ProposalPage() {
                       {img ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={img} alt={p.name} loading="lazy" className="h-full w-full object-contain" />
-                      ) : <span className="text-[22px]">📦</span>}
+                      ) : <LayoutGrid size={22} className="text-[#9aa7b6]" />}
                     </div>
-                    <div className="line-clamp-2 text-center text-[11px] font-bold">{p.name}</div>
+                    <div className="line-clamp-2 text-center text-[11px] font-medium text-[#0f172a]">{p.name}</div>
                     {p.spec && <div className="text-center text-[10px] text-gray-400">{p.spec}</div>}
                   </div>
                 );
@@ -743,8 +744,8 @@ export default function ProposalPage() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-4" onClick={() => setQuotePickerOpen(false)}>
           <div className="flex max-h-[80vh] w-full max-w-[480px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
-              <span className="text-base font-bold">📁 저장된 견적 불러오기</span>
-              <button onClick={() => setQuotePickerOpen(false)} className="text-xl text-gray-400">✕</button>
+              <span className="text-sm font-semibold text-[#0f172a]">저장된 견적 불러오기</span>
+              <button onClick={() => setQuotePickerOpen(false)} className="rounded-full p-1 text-gray-400 hover:bg-gray-100"><X size={18} /></button>
             </div>
             <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
               {savedQuotes.length === 0 ? (
@@ -758,8 +759,8 @@ export default function ProposalPage() {
                     </div>
                     <div className="text-[11px] text-gray-500">{q.created_by} · {new Date(q.updated_at || q.created_at).toLocaleDateString('ko-KR')} · {Number(q.total_amount).toLocaleString()}원</div>
                   </div>
-                  <button onClick={() => loadQuote(q.id)} className="flex-shrink-0 rounded-md bg-blue-600 px-2.5 py-1 text-xs text-white">불러오기</button>
-                  <button onClick={() => deleteQuote(q.id)} className="flex-shrink-0 rounded-md border border-red-500 px-2 py-1 text-xs text-red-500">삭제</button>
+                  <button onClick={() => loadQuote(q.id)} className="flex-shrink-0 rounded-md bg-[#2563eb] px-2.5 py-1 text-xs text-white hover:bg-[#1d4fd0]">불러오기</button>
+                  <button onClick={() => deleteQuote(q.id)} className="flex-shrink-0 rounded-md border border-red-300 p-1.5 text-red-500 hover:bg-red-50" aria-label="삭제"><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
