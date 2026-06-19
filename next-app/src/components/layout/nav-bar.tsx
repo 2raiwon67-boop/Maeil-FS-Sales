@@ -3,16 +3,47 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  Store,
+  FileText,
+  Map as MapIcon,
+  Database,
+  Search,
+  Bell,
+  MapPin,
+  ChevronDown,
+  Settings,
+  LogOut,
+  type LucideIcon,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { SettingsModal } from '@/components/layout/settings-modal';
 
-const NAV_ITEMS = [
-  { href: '/', label: '거래처' },
-  { href: '/proposal', label: '견적서' },
-  { href: '/discover', label: '시장 분석', mobileHide: true },
-  { href: '/upload', label: '데이터 관리', mobileHide: true },
+const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
+  { href: '/', label: '거래처', icon: Store },
+  { href: '/proposal', label: '견적서', icon: FileText },
+  { href: '/discover', label: '시장 분석', icon: MapIcon },
+  { href: '/upload', label: '데이터 관리', icon: Database },
 ];
+
+const NAVY = '#1B3F82';
+
+function LogoLockup() {
+  return (
+    <Link href="/" className="flex items-center gap-2.5">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/assets/images/logo.png" alt="Maeil" className="h-[19px] w-auto" />
+      <span
+        className="text-[17px] font-medium leading-none tracking-[0.04em]"
+        style={{ color: NAVY }}
+      >
+        MISO
+      </span>
+    </Link>
+  );
+}
 
 export function NavBar() {
   const pathname = usePathname();
@@ -20,67 +51,134 @@ export function NavBar() {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const displayName = metadata?.full_name
-    ? metadata.business_unit
-      ? `${metadata.full_name}님 (${metadata.business_unit})`
-      : `${metadata.full_name}님`
-    : '';
+  const fullName = metadata?.full_name ?? '';
+  const unit = metadata?.business_unit ?? '';
+  const initials = fullName ? fullName.slice(0, 2) : '∙';
 
   return (
-    <nav className="sticky top-0 z-50 flex items-center justify-between bg-[#1a1a2e] px-4 py-3 text-white shadow-md">
-      <div className="flex items-center gap-4">
-        <Link href="/" className="text-lg font-bold tracking-wide text-white">
-          FS MISO
-        </Link>
-        <div className="hidden items-center gap-1 md:flex">
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-sm transition-colors hover:bg-white/10',
-                pathname === item.href
-                  ? 'bg-white/15 font-medium text-white'
-                  : 'text-gray-300',
-                item.mobileHide && 'hidden lg:inline-flex',
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
-        </div>
-      </div>
+    <>
+      {/* 데스크톱 — 화이트 2단 셸바 */}
+      <nav className="sticky top-0 z-50 hidden border-b border-[#e8ebf0] bg-white md:block">
+        {/* 상단 유틸 행 */}
+        <div className="flex items-center gap-4 px-5 py-2.5">
+          <LogoLockup />
 
-      <div className="relative hidden md:block">
-        <button
-          className="text-sm text-gray-300 hover:text-white"
-          onClick={() => setDropdownOpen(!dropdownOpen)}
-        >
-          {displayName}
-        </button>
-        {dropdownOpen && (
-          <>
-            <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
-            <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-md border bg-white py-1 shadow-lg">
-              <button
-                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                onClick={() => { setDropdownOpen(false); setSettingsOpen(true); }}
+          <button
+            type="button"
+            onClick={() => toast('전역 검색은 곧 제공됩니다')}
+            className="flex max-w-[320px] flex-1 items-center gap-2 rounded-lg bg-[#f3f5f8] px-3 py-2 text-left text-xs text-[#94a3b8] transition-colors hover:bg-[#eceff4]"
+          >
+            <Search className="h-4 w-4 shrink-0" />
+            <span className="truncate">거래처·인허가·매장 검색</span>
+          </button>
+
+          <div className="flex-1" />
+
+          {unit && (
+            <span
+              className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium lg:inline-flex"
+              style={{ background: '#eef3fb', color: NAVY }}
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              {unit}
+            </span>
+          )}
+
+          <button
+            type="button"
+            onClick={() => toast('알림 기능은 준비 중입니다')}
+            className="rounded-md p-1.5 text-[#475569] transition-colors hover:bg-gray-100"
+            aria-label="알림"
+          >
+            <Bell className="h-[18px] w-[18px]" />
+          </button>
+
+          <div className="relative border-l border-[#e8ebf0] pl-3">
+            <button
+              type="button"
+              className="flex items-center gap-2"
+              onClick={() => setDropdownOpen((o) => !o)}
+            >
+              <span
+                className="flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium text-white"
+                style={{ background: NAVY }}
               >
-                설정
-              </button>
-              <hr className="my-1" />
-              <button
-                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-100"
-                onClick={() => { setDropdownOpen(false); signOut(); }}
+                {initials}
+              </span>
+              <span className="text-[13px] text-[#0f172a]">{fullName || '사용자'}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-[#94a3b8]" />
+            </button>
+            {dropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
+                <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-[#e8ebf0] bg-white py-1 shadow-lg">
+                  <button
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[#334155] hover:bg-gray-50"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      setSettingsOpen(true);
+                    }}
+                  >
+                    <Settings className="h-4 w-4" />
+                    설정
+                  </button>
+                  <hr className="my-1 border-[#eef1f5]" />
+                  <button
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50"
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      signOut();
+                    }}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    로그아웃
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 하단 모듈 행 */}
+        <div className="flex items-center gap-1 border-t border-[#eef1f5] bg-[#f8fafc] px-5">
+          {NAV_ITEMS.map((item) => {
+            const Icon = item.icon;
+            const active = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] transition-colors',
+                  active
+                    ? 'font-medium'
+                    : 'border-transparent text-[#64748b] hover:text-[#334155]',
+                )}
+                style={active ? { borderColor: NAVY, color: NAVY } : undefined}
               >
-                로그아웃
-              </button>
-            </div>
-          </>
+                <Icon className="h-[15px] w-[15px]" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* 모바일 — 슬림 로고 바 (네비게이션은 하단 탭바가 담당) */}
+      <header className="sticky top-0 z-40 flex h-12 items-center border-b border-[#e8ebf0] bg-white px-4 md:hidden">
+        <LogoLockup />
+        {unit && (
+          <span
+            className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
+            style={{ background: '#eef3fb', color: NAVY }}
+          >
+            <MapPin className="h-3 w-3" />
+            {unit}
+          </span>
         )}
-      </div>
+      </header>
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
-    </nav>
+    </>
   );
 }

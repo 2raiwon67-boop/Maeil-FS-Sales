@@ -22,10 +22,6 @@ export const metadata: Metadata = {
     title: 'MISO',
     statusBarStyle: 'black-translucent',
   },
-  icons: {
-    icon: '/favicon.ico',
-    apple: '/icons/icon-192x192.png',
-  },
 };
 
 export const viewport: Viewport = {
