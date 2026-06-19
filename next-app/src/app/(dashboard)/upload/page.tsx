@@ -3,9 +3,14 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import {
+  FileText, Store, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
+  UploadCloud, Plus, ChevronLeft, ChevronRight, Search,
+} from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
 import { BUSINESS_UNITS } from '@/types';
+import { PageHeader, headerBtn } from '@/components/layout/page-header';
 
 // ── 타입 정의 ──────────────────────────────────────────────────────────────────
 
@@ -774,144 +779,173 @@ export default function UploadPage() {
   const totalPages = Math.ceil(dbTotal / PREVIEW_PAGE_SIZE);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-5 md:px-8">
-      <h1 className="mb-1 text-2xl font-bold">데이터 관리</h1>
-      <p className="mb-6 text-sm text-gray-500">
-        지점 데이터를 확인하고 관리합니다. 담당자·거래처는 직접 편집, 인허가는 엑셀 업로드로 교체합니다.
-      </p>
+    <div className="min-h-full bg-[#f6f7f9]">
+      <PageHeader
+        title="데이터 관리"
+        subtitle="지점 데이터를 확인하고 관리합니다 · 담당자·거래처는 직접 편집, 인허가는 엑셀로 교체"
+        actions={isAdmin ? (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700"><Crown size={13} />관리자</span>
+            <select value={adminTargetBU} onChange={(e) => handleAdminBranchChange(e.target.value)} className="rounded-lg border border-[#d6dbe3] px-2.5 py-1.5 text-xs text-[#334155] outline-none">
+              <option value="">조회할 지점 선택</option>
+              {BUSINESS_UNITS.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
+            </select>
+          </div>
+        ) : undefined}
+      />
 
-      {/* 관리자 지점 선택 */}
-      {isAdmin && (
-        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5">
-          <span className="text-sm font-semibold text-amber-800">👑 관리자 모드</span>
-          <span className="text-sm text-gray-600">조회할 지점:</span>
-          <select
-            value={adminTargetBU}
-            onChange={(e) => handleAdminBranchChange(e.target.value)}
-            className="min-w-[160px] rounded-md border border-amber-300 bg-amber-50/50 px-2.5 py-1 text-sm"
-          >
-            <option value="">— 지점을 선택해주세요 —</option>
-            {BUSINESS_UNITS.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
-          </select>
-          {adminTargetBU && <span className="text-xs text-gray-500">({adminTargetBU} 데이터 조회 중)</span>}
+      <div className="mx-auto max-w-[1500px] px-4 pb-16 pt-5 md:px-6">
+
+        {/* 유형 탭 */}
+        <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef1f5] p-1">
+          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
+            <button key={t} onClick={() => selectType(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${selectedType === t ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}>
+              <Icon size={15} />{label}
+            </button>
+          ))}
         </div>
-      )}
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* 왼쪽 */}
-        <div className="flex flex-col gap-3.5">
-          {/* 유형 선택 */}
-          <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-            <div className="border-b border-gray-100 px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-              1 — 업로드할 데이터 유형
-            </div>
-            <div className="p-5">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {([['licenses', '📋', '인허가 데이터'], ['accounts', '🏪', '주요거래처'], ['managers', '👥', '담당자관리'], ...(isAdmin ? [['recipes', '📖', '레시피 데이터']] : [])] as [string, string, string][]).map(([t, icon, label]) => (
-                  <button
-                    key={t}
-                    onClick={() => selectType(t)}
-                    className={`rounded-xl border-2 px-2 py-3.5 text-sm transition ${selectedType === t ? 'border-blue-500 bg-blue-50 font-semibold text-blue-600' : 'border-gray-200 bg-white text-gray-800 hover:border-gray-300 hover:bg-gray-50'}`}
-                  >
-                    <span className="mb-1.5 block text-xl">{icon}</span>{label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </section>
+        {/* 상단: 공공조회(인허가) + 엑셀 업로드 */}
+        <div className={`mb-4 grid grid-cols-1 gap-4 ${selectedType === 'licenses' ? 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]' : ''}`}>
 
           {/* 공공인허가 조회 (인허가 탭만) */}
           {selectedType === 'licenses' && (
-            <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                공공인허가 데이터 조회 (data.go.kr)
+            <section className="rounded-2xl border border-[#e8ebf0] bg-white p-4 md:p-5">
+              <div className="mb-3 text-[10px] uppercase tracking-wider text-[#94a3b8]">공공인허가 데이터 조회 · data.go.kr</div>
+              <div className="mb-3 flex flex-wrap items-end gap-2.5">
+                <div className="flex flex-1 flex-col gap-1">
+                  <label className="text-[11px] text-[#94a3b8]">시작일</label>
+                  <input type="date" value={srchStart} onChange={(e) => setSrchStart(e.target.value)} className="rounded-lg border border-[#e2e8f0] px-2.5 py-2 text-sm outline-none focus:border-[#2563eb]" />
+                </div>
+                <div className="flex flex-1 flex-col gap-1">
+                  <label className="text-[11px] text-[#94a3b8]">종료일</label>
+                  <input type="date" value={srchEnd} onChange={(e) => setSrchEnd(e.target.value)} className="rounded-lg border border-[#e2e8f0] px-2.5 py-2 text-sm outline-none focus:border-[#2563eb]" />
+                </div>
+                <button onClick={searchPublicLicense} disabled={searching} className="inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-4 py-2 text-sm font-medium text-white hover:bg-[#1d4fd0] disabled:bg-gray-300">
+                  <Search size={15} />{searching ? '조회 중' : '조회'}
+                </button>
               </div>
-              <div className="p-5">
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">조회 기간</div>
-                <div className="mb-3.5 flex flex-wrap items-end gap-2.5">
-                  <div className="flex flex-1 flex-col gap-1">
-                    <label className="text-[11px] font-semibold uppercase text-gray-500">시작일</label>
-                    <input type="date" value={srchStart} onChange={(e) => setSrchStart(e.target.value)} className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm" />
-                  </div>
-                  <div className="flex flex-1 flex-col gap-1">
-                    <label className="text-[11px] font-semibold uppercase text-gray-500">종료일</label>
-                    <input type="date" value={srchEnd} onChange={(e) => setSrchEnd(e.target.value)} className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm" />
-                  </div>
-                  <button onClick={searchPublicLicense} disabled={searching} className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300">
-                    {searching ? '조회 중...' : '조회'}
+
+              <div className="mb-1.5 text-[11px] text-[#94a3b8]">업종</div>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {([['general_restaurants', '일반음식점'], ['rest_cafes', '휴게음식점'], ['bakeries', '제과점영업']] as [string, string][]).map(([code, label]) => (
+                  <button key={code} onClick={() => setTypeChips((prev) => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n; })}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${typeChips.has(code) ? 'bg-[#2563eb] text-white' : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#2563eb]'}`}>
+                    {label}
                   </button>
-                </div>
-
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">업종</div>
-                <div className="mb-3.5 flex flex-wrap gap-1.5">
-                  {([['general_restaurants', '일반음식점'], ['rest_cafes', '휴게음식점'], ['bakeries', '제과점영업']] as [string, string][]).map(([code, label]) => (
-                    <button key={code} onClick={() => setTypeChips((prev) => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n; })}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${typeChips.has(code) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-blue-500 hover:text-blue-600'}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">지역</div>
-                <div className="mb-3.5 flex flex-wrap gap-1.5">
-                  {regionChips.length === 0 ? (
-                    <span className="text-xs text-gray-500">{regionMsg}</span>
-                  ) : regionChips.map((chip) => (
-                    <button key={chip.filterRegion + chip.label} onClick={() => setActiveRegions((prev) => { const n = new Set(prev); n.has(chip.filterRegion) ? n.delete(chip.filterRegion) : n.add(chip.filterRegion); return n; })}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${activeRegions.has(chip.filterRegion) ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-blue-500 hover:text-blue-600'}`}>
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* 검색 결과 */}
-                {srchResults.length > 0 && (
-                  <div>
-                    <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium">총 {srchResults.length}건</span>
-                        {srchSelected.size > 0 && <span className="rounded-full border border-blue-500 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{srchSelected.size}건 선택</span>}
-                      </div>
-                      <button onClick={downloadSrchResults} disabled={srchSelected.size === 0} className="inline-flex items-center gap-1.5 rounded-lg bg-green-500 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-green-600 disabled:bg-gray-300">
-                        ⬇️ 선택 항목 엑셀 다운로드 ({srchSelected.size}건)
-                      </button>
-                    </div>
-                    <div className="max-h-[400px] overflow-auto rounded-md border border-gray-200">
-                      <table className="w-max min-w-full text-xs">
-                        <thead className="sticky top-0 bg-gray-50">
-                          <tr>
-                            <th className="w-9 px-2 py-2"><input type="checkbox" checked={srchSelected.size === srchResults.length} onChange={(e) => setSrchSelected(e.target.checked ? new Set(srchResults.map((_, i) => i)) : new Set())} /></th>
-                            {['영업 허가일', '사업장명', '업태구분명', '평형', '도로명전체주소', '담당자'].map((h) => <th key={h} className="whitespace-nowrap px-3 py-2 text-left font-semibold">{h}</th>)}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {srchResults.map((item, i) => (
-                            <tr key={i} className="border-b border-gray-50">
-                              <td className="px-2 py-2 text-center"><input type="checkbox" checked={srchSelected.has(i)} onChange={() => setSrchSelected((prev) => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; })} /></td>
-                              <td className="whitespace-nowrap px-3 py-2">{item.permit_date || '-'}</td>
-                              <td className="whitespace-nowrap px-3 py-2">{item.business_name}</td>
-                              <td className="whitespace-nowrap px-3 py-2">{item.business_type}</td>
-                              <td className="whitespace-nowrap px-3 py-2">{item.area || '-'}</td>
-                              <td className="whitespace-nowrap px-3 py-2">{item.road_address || '-'}</td>
-                              <td className="whitespace-nowrap px-3 py-2">{item.manager || <span className="text-amber-600">미지정</span>}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
+
+              <div className="mb-1.5 text-[11px] text-[#94a3b8]">지역</div>
+              <div className="flex flex-wrap gap-1.5">
+                {regionChips.length === 0 ? (
+                  <span className="text-xs text-[#94a3b8]">{regionMsg}</span>
+                ) : regionChips.map((chip) => (
+                  <button key={chip.filterRegion + chip.label} onClick={() => setActiveRegions((prev) => { const n = new Set(prev); n.has(chip.filterRegion) ? n.delete(chip.filterRegion) : n.add(chip.filterRegion); return n; })}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${activeRegions.has(chip.filterRegion) ? 'bg-[#2563eb] text-white' : 'bg-[#f1f5f9] text-[#64748b] hover:text-[#2563eb]'}`}>
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* 검색 결과 */}
+              {srchResults.length > 0 && (
+                <div className="mt-4">
+                  <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-xs font-medium text-[#475569]">총 {srchResults.length}건</span>
+                      {srchSelected.size > 0 && <span className="rounded-full bg-[#e6f1fb] px-2.5 py-1 text-xs font-medium text-[#185fa5]">{srchSelected.size}건 선택</span>}
+                    </div>
+                    <button onClick={downloadSrchResults} disabled={srchSelected.size === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-[#d6dbe3] px-3 py-1.5 text-xs font-medium text-[#334155] hover:bg-gray-50 disabled:opacity-50">
+                      <Download size={14} />선택 다운로드 ({srchSelected.size})
+                    </button>
+                  </div>
+                  <div className="max-h-[360px] overflow-auto rounded-lg border border-[#e8ebf0]">
+                    <table className="w-max min-w-full text-xs">
+                      <thead className="sticky top-0 bg-[#f8fafc]">
+                        <tr>
+                          <th className="w-9 px-2 py-2"><input type="checkbox" checked={srchSelected.size === srchResults.length} onChange={(e) => setSrchSelected(e.target.checked ? new Set(srchResults.map((_, i) => i)) : new Set())} /></th>
+                          {['영업 허가일', '사업장명', '업태구분명', '평형', '도로명전체주소', '담당자'].map((h) => <th key={h} className="whitespace-nowrap px-3 py-2 text-left font-medium text-[#64748b]">{h}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {srchResults.map((item, i) => (
+                          <tr key={i} className="border-b border-[#f1f5f9]">
+                            <td className="px-2 py-2 text-center"><input type="checkbox" checked={srchSelected.has(i)} onChange={() => setSrchSelected((prev) => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; })} /></td>
+                            <td className="whitespace-nowrap px-3 py-2">{item.permit_date || '-'}</td>
+                            <td className="whitespace-nowrap px-3 py-2">{item.business_name}</td>
+                            <td className="whitespace-nowrap px-3 py-2">{item.business_type}</td>
+                            <td className="whitespace-nowrap px-3 py-2">{item.area || '-'}</td>
+                            <td className="whitespace-nowrap px-3 py-2">{item.road_address || '-'}</td>
+                            <td className="whitespace-nowrap px-3 py-2">{item.manager || <span className="text-amber-600">미지정</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </section>
           )}
 
-          {/* DB 현황 */}
-          <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5">
-              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">현재 DB 현황 ({dbLoading ? '…' : `${dbTotal}건`})</span>
-              <button onClick={() => loadCurrentData()} title="새로고침" className="text-gray-400 hover:text-gray-700">🔄</button>
+          {/* 엑셀 업로드 */}
+          {!cfg.noBusinessUnit && (
+            <section className="rounded-2xl border border-[#e8ebf0] bg-white p-4 md:p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider text-[#94a3b8]">엑셀 업로드 · 대량 추가</span>
+                <button onClick={downloadTemplate} className="inline-flex items-center gap-1 text-xs font-medium text-[#2563eb] hover:underline"><Download size={13} />템플릿</button>
+              </div>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); }}
+                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 text-center text-sm transition ${dragOver ? 'border-[#2563eb] bg-[#f5f9ff] text-[#2563eb]' : fileName ? 'border-[#34c759] bg-[#f0fdf4] text-[#0f172a]' : 'border-[#cbd5e1] bg-[#fbfcfe] text-[#64748b] hover:border-[#2563eb]'}`}
+              >
+                <UploadCloud size={26} className={dragOver ? 'text-[#2563eb]' : 'text-[#94a3b8]'} />
+                <div>{fileName ? <strong className="font-medium">{fileName}</strong> : '파일을 끌어다 놓거나 클릭'}</div>
+                <div className="text-[11px] text-[#b6c0cc]">.xlsx · .xls 지원</div>
+              </div>
+              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { if (e.target.files?.[0]) processFile(e.target.files[0]); }} />
+            </section>
+          )}
+        </div>
+
+        {/* 데이터 미리보기 + 업로드 확인 */}
+        {parsedData && parsedData.length > 0 && (
+          <section className="mb-4 rounded-2xl border border-[#e8ebf0] bg-white p-4 md:p-5">
+            <div className="mb-3 text-[10px] uppercase tracking-wider text-[#94a3b8]">데이터 미리보기 · 상위 5행 · 총 {parsedData.length}건 인식</div>
+            <div className="overflow-x-auto rounded-lg border border-[#e8ebf0]">
+              <table className="w-max min-w-full text-xs">
+                <thead className="bg-[#f8fafc]">
+                  <tr>{Object.keys(parsedData[0]).map((k) => <th key={k} className="whitespace-nowrap px-3 py-2 text-left font-medium text-[#64748b]">{k}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {parsedData.slice(0, 5).map((row, i) => (
+                    <tr key={i} className="border-b border-[#f1f5f9]">
+                      {Object.keys(parsedData[0]).map((k) => <td key={k} className="max-w-[160px] truncate px-3 py-2" title={fmtCell(row[k])}>{fmtCell(row[k])}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="p-5">
+            {uploadBanner && <div className={`mt-3 rounded-lg border px-4 py-3 text-xs ${uploadBanner.cls}`}>{uploadBanner.html}</div>}
+            <button onClick={confirmUpload} disabled={uploadDisabled || uploading} className="mt-3 w-full rounded-lg bg-[#2563eb] py-3 text-sm font-medium text-white hover:bg-[#1d4fd0] disabled:bg-gray-300">
+              {uploading ? '업로드 중...' : uploadDisabled ? '업로드 불가 — 값 오류' : cfg.mode === 'add_new_only' ? `업로드 확인 (최대 ${parsedData.length}건 추가)` : `업로드 확인 (${parsedData.length}건 교체)`}
+            </button>
+          </section>
+        )}
+        {uploadBanner && (!parsedData || parsedData.length === 0) && (
+          <div className={`mb-4 rounded-lg border px-4 py-3 text-xs ${uploadBanner.cls}`}>{uploadBanner.html}</div>
+        )}
+
+        {/* DB 현황 — 전체 너비 */}
+        <section className="rounded-2xl border border-[#e8ebf0] bg-white">
+          <div className="flex items-center justify-between border-b border-[#eef1f5] px-5 py-3.5">
+            <span className="text-[10px] uppercase tracking-wider text-[#94a3b8]">현재 DB 현황 · {dbLoading ? '…' : `${dbTotal}건`}</span>
+            <button onClick={() => loadCurrentData()} title="새로고침" className="text-[#94a3b8] hover:text-[#475569]"><RefreshCw size={15} /></button>
+          </div>
+          <div className="p-4 md:p-5">
               {dbLoading ? (
                 <div className="py-7 text-center text-sm text-gray-500">데이터 로딩 중...</div>
               ) : dbError ? (
@@ -921,18 +955,18 @@ export default function UploadPage() {
               ) : (
                 <>
                   <div className="mb-2.5 flex flex-wrap items-center gap-1.5">
-                    <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium">{dbTotal}건</span>
+                    <span className="rounded-full bg-[#f1f5f9] px-2.5 py-1 text-xs font-medium text-[#475569]">{dbTotal}건</span>
                     <div className="ml-auto flex flex-wrap items-center gap-1.5">
                       {cfg.table !== 'recipes' && (deleteMode ? (
                         <>
-                          <button onClick={deleteCheckedRows} className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-medium text-white">🗑️ 삭제 확인 ({checkedRows.size}건)</button>
-                          <button onClick={() => { setDeleteMode(false); setCheckedRows(new Set()); }} className="rounded-md bg-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700">✕ 취소</button>
+                          <button onClick={deleteCheckedRows} className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600"><Trash2 size={14} />삭제 확인 ({checkedRows.size})</button>
+                          <button onClick={() => { setDeleteMode(false); setCheckedRows(new Set()); }} className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-200"><X size={14} />취소</button>
                         </>
                       ) : (
                         <>
-                          {cfg.editable && <button onClick={saveEditableData} className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700">변경사항 저장</button>}
-                          <button onClick={() => { setDeleteMode(true); setCheckedRows(new Set()); }} className="rounded-md border border-red-500 bg-white px-3 py-1.5 text-xs font-medium text-red-500">🗑️ 선택 행 삭제</button>
-                          <button onClick={downloadCurrentDb} className="rounded-md bg-green-500 px-3 py-1.5 text-xs font-medium text-white">⬇️ DB 다운로드</button>
+                          {cfg.editable && <button onClick={saveEditableData} className="rounded-lg bg-[#2563eb] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#1d4fd0]">변경사항 저장</button>}
+                          <button onClick={() => { setDeleteMode(true); setCheckedRows(new Set()); }} className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50"><Trash2 size={14} />선택 행 삭제</button>
+                          <button onClick={downloadCurrentDb} className="inline-flex items-center gap-1.5 rounded-lg border border-[#d6dbe3] px-3 py-1.5 text-xs font-medium text-[#334155] hover:bg-gray-50"><Download size={14} />DB 다운로드</button>
                         </>
                       ))}
                     </div>
@@ -976,79 +1010,20 @@ export default function UploadPage() {
                   </div>
 
                   {cfg.editable && !deleteMode && (
-                    <button onClick={addEditableRow} className="mt-2 w-full rounded-lg border-2 border-dashed border-gray-300 py-2.5 text-sm text-gray-500 hover:border-blue-500 hover:bg-blue-50 hover:text-blue-600">+ 행 추가</button>
+                    <button onClick={addEditableRow} className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-[#cbd5e1] py-2.5 text-sm font-medium text-[#64748b] hover:border-[#2563eb] hover:text-[#2563eb]"><Plus size={15} />행 추가</button>
                   )}
 
                   {!cfg.editable && totalPages > 1 && (
-                    <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
-                      <button onClick={() => setPreviewPage((p) => Math.max(0, p - 1))} disabled={previewPage === 0} className="rounded border border-gray-300 px-2.5 py-0.5 disabled:opacity-40">◀ 이전</button>
-                      <span>{previewPage + 1} / {totalPages}페이지 (총 {dbTotal}건)</span>
-                      <button onClick={() => setPreviewPage((p) => Math.min(totalPages - 1, p + 1))} disabled={previewPage >= totalPages - 1} className="rounded border border-gray-300 px-2.5 py-0.5 disabled:opacity-40">다음 ▶</button>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-[#64748b]">
+                      <button onClick={() => setPreviewPage((p) => Math.max(0, p - 1))} disabled={previewPage === 0} className="inline-flex items-center gap-1 rounded-lg border border-[#d6dbe3] px-2.5 py-1 disabled:opacity-40"><ChevronLeft size={13} />이전</button>
+                      <span className="tabular-nums">{previewPage + 1} / {totalPages}페이지 · 총 {dbTotal}건</span>
+                      <button onClick={() => setPreviewPage((p) => Math.min(totalPages - 1, p + 1))} disabled={previewPage >= totalPages - 1} className="inline-flex items-center gap-1 rounded-lg border border-[#d6dbe3] px-2.5 py-1 disabled:opacity-40">다음<ChevronRight size={13} /></button>
                     </div>
                   )}
                 </>
               )}
             </div>
           </section>
-        </div>
-
-        {/* 오른쪽: 엑셀 업로드 */}
-        <div className="flex flex-col gap-3.5 lg:sticky lg:top-5">
-          {!cfg.noBusinessUnit && (
-            <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                엑셀 업로드 (대량 데이터 추가)
-              </div>
-              <div className="p-5">
-                <button onClick={downloadTemplate} className="mb-3.5 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm font-medium hover:bg-gray-100">
-                  ⬇️ 템플릿 다운로드 (.xlsx)
-                </button>
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                  onDragLeave={() => setDragOver(false)}
-                  onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); }}
-                  className={`cursor-pointer rounded-xl border-2 border-dashed p-10 text-center text-sm transition ${dragOver ? 'border-blue-500 bg-blue-50 text-blue-600' : fileName ? 'border-green-500 bg-green-50 text-gray-800' : 'border-gray-300 text-gray-500 hover:border-blue-500 hover:bg-blue-50/50'}`}
-                >
-                  <div className="mb-2.5 text-3xl">📁</div>
-                  <div>{fileName ? <strong>{fileName}</strong> : '파일을 여기에 드롭하거나 클릭하세요'}</div>
-                  <div className="mt-1.5 text-xs text-gray-400">.xlsx, .xls 파일 지원</div>
-                </div>
-                <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { if (e.target.files?.[0]) processFile(e.target.files[0]); }} />
-              </div>
-            </section>
-          )}
-
-          {/* 미리보기 + 확인 */}
-          {parsedData && parsedData.length > 0 && (
-            <section className="overflow-hidden rounded-2xl bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-gray-500">데이터 미리보기 (상위 5행)</div>
-              <div className="overflow-x-auto p-5">
-                <p className="mb-3 text-xs text-gray-500">총 <strong className="text-gray-800">{parsedData.length}건</strong> 인식됨</p>
-                <table className="w-max min-w-full text-xs">
-                  <thead className="bg-gray-50">
-                    <tr>{Object.keys(parsedData[0]).map((k) => <th key={k} className="whitespace-nowrap px-3 py-2 text-left font-semibold">{k}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {parsedData.slice(0, 5).map((row, i) => (
-                      <tr key={i} className="border-b border-gray-50">
-                        {Object.keys(parsedData[0]).map((k) => <td key={k} className="max-w-[160px] truncate px-3 py-2" title={fmtCell(row[k])}>{fmtCell(row[k])}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {uploadBanner && <div className={`mt-3 rounded-lg border px-4 py-3 text-xs ${uploadBanner.cls}`}>{uploadBanner.html}</div>}
-                <button onClick={confirmUpload} disabled={uploadDisabled || uploading} className="mt-3 w-full rounded-lg bg-blue-600 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-gray-300">
-                  {uploading ? '업로드 중...' : uploadDisabled ? '업로드 불가 — 값 오류' : cfg.mode === 'add_new_only' ? `업로드 확인 (최대 ${parsedData.length}건 추가)` : `업로드 확인 (${parsedData.length}건 교체)`}
-                </button>
-              </div>
-            </section>
-          )}
-
-          {uploadBanner && (!parsedData || parsedData.length === 0) && (
-            <div className={`rounded-lg border px-4 py-3 text-xs ${uploadBanner.cls}`}>{uploadBanner.html}</div>
-          )}
-        </div>
       </div>
     </div>
   );
