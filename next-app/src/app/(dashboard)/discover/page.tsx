@@ -4,6 +4,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import {
+  Map as MapIcon, BarChart3, RefreshCw, X, Coffee, Croissant, UtensilsCrossed,
+  Inbox, Clock, Star, TrendingUp, ChevronDown,
+} from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -890,15 +894,15 @@ export default function DiscoverPage() {
       <div className="absolute top-3.5 left-3.5 z-[600] flex gap-0.5 p-[3px] rounded-full bg-white border border-slate-200 shadow-sm">
         <button
           onClick={() => handleSetViewMode('map')}
-          className={`h-8 px-[15px] rounded-full border-none text-xs font-semibold cursor-pointer transition-all whitespace-nowrap ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'bg-transparent text-slate-500 hover:text-slate-900'}`}
+          className={`inline-flex h-8 items-center gap-1.5 rounded-full border-none px-[15px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'bg-transparent text-slate-500 hover:text-slate-900'}`}
         >
-          🗺 지도
+          <MapIcon size={14} />지도
         </button>
         <button
           onClick={() => handleSetViewMode('rank')}
-          className={`h-8 px-[15px] rounded-full border-none text-xs font-semibold cursor-pointer transition-all whitespace-nowrap ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'bg-transparent text-slate-500 hover:text-slate-900'}`}
+          className={`inline-flex h-8 items-center gap-1.5 rounded-full border-none px-[15px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'bg-transparent text-slate-500 hover:text-slate-900'}`}
         >
-          📊 랭킹
+          <BarChart3 size={14} />랭킹
         </button>
       </div>
 
@@ -935,7 +939,7 @@ export default function DiscoverPage() {
           onClick={() => loadDashboardData(regionMode, regionSido)}
           className="h-8 px-[13px] rounded-full border border-slate-200 bg-white text-slate-500 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm hover:border-blue-500 hover:text-blue-600 disabled:opacity-35 disabled:cursor-not-allowed"
         >
-          <span className={refreshing ? 'animate-spin' : ''}>↺</span> 새로고침
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />새로고침
         </button>
       </div>
 
@@ -968,9 +972,9 @@ export default function DiscoverPage() {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`h-7 px-3 text-xs font-semibold rounded-full border cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50'}`}
+                className={`inline-flex h-7 items-center gap-1 rounded-full border px-3 text-xs font-semibold cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50'}`}
               >
-                {cat === 'all' ? '전체' : cat === 'cafe' ? '☕ 카페' : cat === 'bakery' ? '🥐 베이커리' : '🍽 음식점'}
+                {cat === 'all' ? '전체' : cat === 'cafe' ? <><Coffee size={12} />카페</> : cat === 'bakery' ? <><Croissant size={12} />베이커리</> : <><UtensilsCrossed size={12} />음식점</>}
               </button>
             ))}
           </div>
@@ -1020,9 +1024,9 @@ export default function DiscoverPage() {
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 flex-shrink-0 bg-slate-50">
           <button
             onClick={closePanel}
-            className="w-[30px] h-[30px] rounded-full border border-slate-200 bg-white text-slate-500 cursor-pointer flex items-center justify-center text-[13px] flex-shrink-0 transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            className="w-[30px] h-[30px] rounded-full border border-slate-200 bg-white text-slate-500 cursor-pointer flex items-center justify-center flex-shrink-0 transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-200"
           >
-            ✕
+            <X size={16} />
           </button>
           <span className="text-[17px] font-extrabold text-slate-900 flex-1 tracking-[-0.025em]">{drillTitle}</span>
         </div>
@@ -1067,7 +1071,7 @@ export default function DiscoverPage() {
             </div>
           ) : filteredDrillStores.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
-              <span className="text-3xl opacity-70">{drillSummary ? '📭' : '⏳'}</span>
+              <span className="opacity-60">{drillSummary ? <Inbox size={28} /> : <Clock size={28} />}</span>
               {drillSummary ? '해당 데이터 없음' : (
                 <span>데이터 없음<br /><span className="text-xs">상권 통계 저장 후 이용 가능합니다</span></span>
               )}
@@ -1080,7 +1084,7 @@ export default function DiscoverPage() {
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-sm font-bold text-slate-900 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{s.name}</span>
                     {isBig && (
-                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50 rounded px-1.5 py-0.5 flex-shrink-0">★ 대형</span>
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 bg-amber-50 rounded px-1.5 py-0.5 flex-shrink-0"><Star size={10} className="fill-amber-500 text-amber-500" />대형</span>
                     )}
                     <span className={`text-[11px] font-bold px-[9px] py-0.5 rounded-[20px] flex-shrink-0 ${s.status === 'new' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {s.status === 'new' ? '신규' : '폐업'}
@@ -1106,8 +1110,8 @@ export default function DiscoverPage() {
             onClick={() => setSpChartOpen(v => !v)}
             className="w-full flex items-center justify-between px-5 py-2.5 cursor-pointer text-[11px] font-semibold text-slate-500 tracking-[.04em] transition-colors hover:bg-slate-50 select-none"
           >
-            <span>📈 월별 추이</span>
-            <span>{spChartOpen ? '▼ 접기' : '▲ 펼치기'}</span>
+            <span className="inline-flex items-center gap-1.5"><TrendingUp size={13} />월별 추이</span>
+            <ChevronDown size={15} className={`transition-transform ${spChartOpen ? '' : '-rotate-90'}`} />
           </button>
           {spChartOpen && (
             <div className="px-4 pb-3 h-[148px]">
@@ -1140,7 +1144,7 @@ export default function DiscoverPage() {
           <div className="flex-1 overflow-y-auto p-3.5 grid gap-2.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', alignContent: 'start' }}>
             {sortedRegions.length === 0 ? (
               <div className="col-span-full flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
-                <span className="text-3xl opacity-70">⏳</span>
+                <Clock size={28} className="opacity-60" />
                 데이터 불러오는 중...
               </div>
             ) : sortedRegions.map((r, i) => {
