@@ -566,7 +566,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="relative flex h-[calc(100dvh-3.5rem)] w-full">
+    <div className="relative flex h-[calc(100dvh-3rem)] w-full md:h-[calc(100dvh-88px)]">
       <DashboardSidebar
         filters={filters}
         counts={counts}

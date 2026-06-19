@@ -58,9 +58,9 @@ export function NavBar() {
   return (
     <>
       {/* 데스크톱 — 화이트 2단 셸바 */}
-      <nav className="sticky top-0 z-50 hidden border-b border-[#e8ebf0] bg-white md:block">
+      <nav className="sticky top-0 z-50 hidden h-[88px] flex-col border-b border-[#e8ebf0] bg-white md:flex">
         {/* 상단 유틸 행 */}
-        <div className="flex items-center gap-4 px-5 py-2.5">
+        <div className="flex h-12 items-center gap-4 px-5">
           <LogoLockup />
 
           <button
@@ -140,7 +140,7 @@ export function NavBar() {
         </div>
 
         {/* 하단 모듈 행 */}
-        <div className="flex items-center gap-1 border-t border-[#eef1f5] bg-[#f8fafc] px-5">
+        <div className="flex flex-1 items-stretch gap-1 border-t border-[#eef1f5] bg-[#f8fafc] px-5">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
@@ -149,7 +149,7 @@ export function NavBar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] transition-colors',
+                  'flex items-center gap-1.5 border-b-2 px-3 text-[13px] transition-colors',
                   active
                     ? 'font-medium'
                     : 'border-transparent text-[#64748b] hover:text-[#334155]',

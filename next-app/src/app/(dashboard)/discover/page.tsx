@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import {
-  Map as MapIcon, BarChart3, RefreshCw, X, Coffee, Croissant, UtensilsCrossed,
-  Inbox, Clock, Star, TrendingUp, ChevronDown,
+  Map as MapIcon, BarChart3, RefreshCw, X,
+  Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
+  Check, MapPin, CalendarDays, Tag,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -131,6 +132,50 @@ function matchCategory(store: DrillStore, cat: Category): boolean {
   return CAT_KW[cat]?.some(kw => haystack.includes(kw)) ?? false;
 }
 
+// ─── FILTER DROPDOWN ─────────────────────────────────────────────────────────
+
+interface DropdownOption { key: string; label: string; active: boolean; }
+
+function FilterDropdown({
+  icon, value, options, onSelect,
+}: {
+  icon: React.ReactNode;
+  value: string;
+  options: DropdownOption[];
+  onSelect: (key: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+      >
+        <span className="text-slate-400">{icon}</span>
+        {value}
+        <ChevronDown size={13} className="text-slate-400" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[610]" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-[620] mt-1.5 max-h-[280px] min-w-[150px] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+            {options.map(o => (
+              <button
+                key={o.key}
+                onClick={() => { onSelect(o.key); setOpen(false); }}
+                className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition-colors ${o.active ? 'font-semibold text-blue-700 bg-blue-50/60' : 'text-slate-600 hover:bg-slate-50'}`}
+              >
+                {o.label}
+                {o.active && <Check size={13} className="flex-shrink-0 text-blue-600" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function DiscoverPage() {
@@ -170,6 +215,7 @@ export default function DiscoverPage() {
   // UI state
   const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
+  const [dockOpen, setDockOpen] = useState(true);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
@@ -876,8 +922,51 @@ export default function DiscoverPage() {
   const filteredDrillStores = getFilteredDrillStores();
   const bigCount = drillData.filter(s => (s.pyeong || 0) >= 100).length;
 
+  const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
+
+  const regionValue = regionMode === 'branch' ? '내 지점' : (regionSido ?? '내 지점');
+  const regionOptions: DropdownOption[] = [
+    { key: '__branch', label: '내 지점', active: regionMode === 'branch' },
+    ...availableSidos.map(s => ({ key: s, label: s, active: regionMode === 'sido' && regionSido === s })),
+  ];
+
+  const CAT_LABEL: Record<Category, string> = { all: '전체 업종', cafe: '카페', bakery: '베이커리', restaurant: '음식점' };
+  const categoryOptions: DropdownOption[] = (['all', 'cafe', 'bakery', 'restaurant'] as Category[])
+    .map(c => ({ key: c, label: CAT_LABEL[c], active: selectedCategory === c }));
+
+  const monthValue = selectedMonth ? selectedMonth.slice(2).replace('-', '.') : '전체 월';
+  const monthOptions: DropdownOption[] = [
+    { key: '__all', label: '전체 월', active: !selectedMonth },
+    ...[...monthList].reverse().map(mo => ({ key: mo, label: mo.slice(2).replace('-', '.'), active: selectedMonth === mo })),
+  ];
+
   return (
-    <div className="relative flex-1 overflow-hidden" style={{ height: 'calc(100vh - 56px)' }}>
+    <div className="flex h-[calc(100dvh-3rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
+
+      {/* ── HEADS-UP FILTER BAR ── */}
+      <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
+        <FilterDropdown
+          icon={<MapPin size={14} />}
+          value={regionValue}
+          options={regionOptions}
+          onSelect={(k) => (k === '__branch' ? handleSetRegionMode('branch') : handleSetRegionMode('sido', k))}
+        />
+        <FilterDropdown
+          icon={<Tag size={14} />}
+          value={CAT_LABEL[selectedCategory]}
+          options={categoryOptions}
+          onSelect={(k) => setSelectedCategory(k as Category)}
+        />
+        <FilterDropdown
+          icon={<CalendarDays size={14} />}
+          value={monthValue}
+          options={monthOptions}
+          onSelect={(k) => handleMonthSelect(k === '__all' ? null : k)}
+        />
+      </div>
+
+      {/* ── MAP AREA ── */}
+      <div className="relative flex-1 overflow-hidden">
 
       {/* ── MAP ── */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
@@ -890,125 +979,82 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* ── VIEW TOGGLE ── */}
-      <div className="absolute top-3.5 left-3.5 z-[600] flex gap-0.5 p-[3px] rounded-full bg-white border border-slate-200 shadow-sm">
-        <button
-          onClick={() => handleSetViewMode('map')}
-          className={`inline-flex h-8 items-center gap-1.5 rounded-full border-none px-[15px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'bg-transparent text-slate-500 hover:text-slate-900'}`}
-        >
-          <MapIcon size={14} />지도
-        </button>
-        <button
-          onClick={() => handleSetViewMode('rank')}
-          className={`inline-flex h-8 items-center gap-1.5 rounded-full border-none px-[15px] text-xs font-semibold cursor-pointer transition-all whitespace-nowrap ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'bg-transparent text-slate-500 hover:text-slate-900'}`}
-        >
-          <BarChart3 size={14} />랭킹
-        </button>
-      </div>
-
-      {/* ── KPI STRIP ── */}
-      <div className="absolute top-3.5 left-1/2 -translate-x-1/2 z-[200] flex items-center rounded-full bg-white border border-slate-200 shadow-sm whitespace-nowrap max-sm:top-[60px]">
-        <div className="flex flex-col items-center gap-[1px] px-[18px] py-2 max-sm:px-3">
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.08em] uppercase">신규</span>
-          <span className="text-xl font-extrabold text-green-600 tabular-nums leading-none tracking-[-0.03em]">{kpiNew}</span>
+      {/* ── TOP-RIGHT CONTROLS (지도/랭킹 + 새로고침) ── */}
+      <div className="absolute top-3 right-3 z-[600] flex items-center gap-1.5">
+        <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
+          <button
+            onClick={() => handleSetViewMode('map')}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <MapIcon size={14} />지도
+          </button>
+          <button
+            onClick={() => handleSetViewMode('rank')}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <BarChart3 size={14} />랭킹
+          </button>
         </div>
-        <div className="w-px h-6 bg-slate-200 flex-shrink-0" />
-        <div className="flex flex-col items-center gap-[1px] px-[18px] py-2 max-sm:px-3">
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.08em] uppercase">폐업</span>
-          <span className="text-xl font-extrabold text-red-600 tabular-nums leading-none tracking-[-0.03em]">{kpiClosed}</span>
-        </div>
-        <div className="w-px h-6 bg-slate-200 flex-shrink-0" />
-        <div className="flex flex-col items-center gap-[1px] px-[18px] py-2 max-sm:px-3">
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.08em] uppercase">순증</span>
-          <span className="text-xl font-extrabold text-blue-600 tabular-nums leading-none tracking-[-0.03em]">{kpiNet}</span>
-        </div>
-        <div className="w-px h-6 bg-slate-200 flex-shrink-0" />
-        <div className="flex flex-col items-center gap-[1px] px-[18px] py-2 max-sm:px-3">
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.08em] uppercase">성장률</span>
-          <span className="text-xl font-extrabold text-amber-600 tabular-nums leading-none tracking-[-0.03em]">{kpiRate}</span>
-        </div>
-      </div>
-
-      {/* ── TOP RIGHT ── */}
-      <div className="absolute top-3.5 right-3.5 z-[200] flex items-center gap-1.5">
-        <span className="rounded-full px-3 py-1.5 text-[11px] font-medium text-slate-400 bg-white border border-slate-200 shadow-sm whitespace-nowrap">
-          {lastSync}
-        </span>
         <button
           disabled={refreshing}
           onClick={() => loadDashboardData(regionMode, regionSido)}
-          className="h-8 px-[13px] rounded-full border border-slate-200 bg-white text-slate-500 text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 whitespace-nowrap shadow-sm hover:border-blue-500 hover:text-blue-600 disabled:opacity-35 disabled:cursor-not-allowed"
+          title={lastSync}
+          className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
         >
-          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />새로고침
+          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
         </button>
       </div>
 
-      {/* ── FLOATING TOOLBAR ── */}
-      <div className="absolute bottom-[18px] left-1/2 -translate-x-1/2 z-[200] rounded-[14px] px-[14px] pt-[10px] pb-[10px] flex flex-col gap-[7px] max-w-[calc(100vw-28px)] bg-white border border-slate-200 shadow-sm max-sm:bottom-[68px]">
-        {/* Row 1: 지역 + 업종 */}
-        <div className="flex items-center gap-[7px]">
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase whitespace-nowrap flex-shrink-0 min-w-[26px]">지역</span>
-          <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            <button
-              onClick={() => handleSetRegionMode('branch')}
-              className={`h-7 px-3 text-xs font-semibold rounded-full border cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${regionMode === 'branch' ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50'}`}
-            >
-              내 지점
-            </button>
-            {availableSidos.map(sido => (
-              <button
-                key={sido}
-                onClick={() => handleSetRegionMode('sido', sido)}
-                className={`h-7 px-3 text-xs font-semibold rounded-full border cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${regionMode === 'sido' && regionSido === sido ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50'}`}
-              >
-                {sido}
-              </button>
-            ))}
-          </div>
-          <div className="w-px h-4 bg-slate-200 flex-shrink-0" />
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase whitespace-nowrap flex-shrink-0 min-w-[26px]">업종</span>
-          <div className="flex gap-1 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            {(['all', 'cafe', 'bakery', 'restaurant'] as Category[]).map(cat => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`inline-flex h-7 items-center gap-1 rounded-full border px-3 text-xs font-semibold cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${selectedCategory === cat ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50'}`}
-              >
-                {cat === 'all' ? '전체' : cat === 'cafe' ? <><Coffee size={12} />카페</> : cat === 'bakery' ? <><Croissant size={12} />베이커리</> : <><UtensilsCrossed size={12} />음식점</>}
-              </button>
-            ))}
-          </div>
+      {/* ── LEFT INSIGHT DOCK (overlay · 지도 모드 전용) ── */}
+      {viewMode === 'map' && (
+        <div className={`absolute bottom-0 left-0 top-0 z-[400] flex transition-transform duration-300 ease-[cubic-bezier(.4,0,.2,1)] ${dockOpen ? 'translate-x-0' : '-translate-x-[212px]'}`}>
+          <aside className="flex w-[212px] flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-white p-3 shadow-[4px_0_18px_rgba(15,23,42,.06)] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+            {/* KPI 카드 */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">신규</div><div className="text-lg font-extrabold leading-tight text-green-600 tabular-nums">{kpiNew}</div></div>
+              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">폐업</div><div className="text-lg font-extrabold leading-tight text-red-600 tabular-nums">{kpiClosed}</div></div>
+              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">순증</div><div className="text-lg font-extrabold leading-tight text-blue-600 tabular-nums">{kpiNet}</div></div>
+              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">성장률</div><div className="text-lg font-extrabold leading-tight text-amber-600 tabular-nums">{kpiRate}</div></div>
+            </div>
+            {/* 신규 상위 상권 */}
+            <div className="min-h-0 flex-1">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-slate-500">신규 상위 상권</span>
+                <TrendingUp size={14} className="text-green-600" />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                {topNewRegions.length === 0 ? (
+                  <div className="py-6 text-center text-[11px] text-slate-300">데이터 없음</div>
+                ) : topNewRegions.map((r, i) => (
+                  <button
+                    key={r.region}
+                    onClick={() => openDrilldown(r.region)}
+                    className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-slate-50"
+                  >
+                    <span className={`flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-[5px] text-[10px] font-semibold ${i < 2 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
+                    <span className="flex-1 truncate text-xs text-slate-800">{r.region}</span>
+                    <span className={`text-xs font-semibold tabular-nums ${r.new > 0 ? 'text-green-600' : 'text-slate-300'}`}>{r.new > 0 ? `+${r.new}` : '0'}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* 범례 */}
+            <div className="flex gap-3 border-t border-slate-100 pt-2.5 text-[10px] font-medium text-slate-500">
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#34c759' }} />순증</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#ff3b30' }} />순감</span>
+              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#a1a1a6' }} />보합</span>
+            </div>
+          </aside>
+          {/* 접기/펼치기 핸들 */}
+          <button
+            onClick={() => setDockOpen(o => !o)}
+            title={dockOpen ? '패널 접기' : '패널 펼치기'}
+            className="my-auto flex h-11 w-[18px] items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-blue-600"
+          >
+            {dockOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
+          </button>
         </div>
-        {/* Row 2: 월 타임라인 */}
-        <div className="flex items-center gap-[7px]">
-          <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase whitespace-nowrap flex-shrink-0 min-w-[26px]">월</span>
-          <div ref={monthTimelineRef} className="flex gap-1 overflow-x-auto flex-1 min-w-0 [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
-            <button
-              onClick={() => handleMonthSelect(null)}
-              className={`h-7 px-[11px] rounded-full border text-[11px] font-bold cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${!selectedMonth ? 'bg-slate-900 border-slate-900 text-white' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600'}`}
-            >
-              전체
-            </button>
-            {monthList.map(mo => (
-              <button
-                key={mo}
-                data-month={mo}
-                onClick={() => handleMonthSelect(mo)}
-                className={`h-7 px-[11px] rounded-full border text-[11px] font-semibold cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${selectedMonth === mo ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-100 text-slate-400 hover:border-blue-500 hover:text-blue-600'}`}
-              >
-                {mo.slice(2).replace('-', '.')}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ── MAP LEGEND ── */}
-      <div className="absolute z-[200] left-3.5 rounded-[10px] px-3 py-1.5 flex gap-3 text-[11px] text-slate-500 font-medium bg-white border border-slate-200 shadow-sm" style={{ bottom: 'calc(150px + 18px + 4px + 18px)' }}>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#34c759' }} />순증</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#ff3b30' }} />순감</div>
-        <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: '#a1a1a6' }} />보합</div>
-      </div>
+      )}
 
       {/* ── PANEL BACKDROP ── */}
       {panelOpen && (
@@ -1196,6 +1242,7 @@ export default function DiscoverPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
