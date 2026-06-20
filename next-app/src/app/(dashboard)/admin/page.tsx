@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { ShieldCheck, RefreshCw, Check, X, ArrowRightLeft, Trash2, Clock, Users } from 'lucide-react';
+import { PageHeader, headerBtn } from '@/components/layout/page-header';
 import { BUSINESS_UNITS } from '@/types';
 
 interface UserRecord {
@@ -110,25 +112,28 @@ export default function AdminPage() {
 
   if (!authenticated) {
     return (
-      <div className="mx-auto max-w-md p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>관리자 인증</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <input
-              type="password"
-              placeholder="관리자 코드 입력"
-              className="w-full rounded-md border px-3 py-2"
-              value={adminCode}
-              onChange={(e) => setAdminCode(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
-            />
-            <Button onClick={handleAuth} className="w-full">
-              확인
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="mx-auto flex max-w-md flex-col items-center px-6 py-16">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef3fb] text-[#1B3F82]">
+          <ShieldCheck className="h-7 w-7" />
+        </div>
+        <h1 className="text-lg font-semibold text-[#0f172a]">관리자 인증</h1>
+        <p className="mb-5 mt-1 text-sm text-[#94a3b8]">관리자 코드를 입력해 주세요.</p>
+        <div className="w-full space-y-3">
+          <input
+            type="password"
+            placeholder="관리자 코드 입력"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-blue-600"
+            value={adminCode}
+            onChange={(e) => setAdminCode(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAuth()}
+          />
+          <button
+            onClick={handleAuth}
+            className="w-full rounded-lg bg-[#2563eb] py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1d4fd0]"
+          >
+            확인
+          </button>
+        </div>
       </div>
     );
   }
@@ -137,20 +142,30 @@ export default function AdminPage() {
   const shown = tab === 'pending' ? pending : users;
 
   return (
-    <div className="mx-auto max-w-5xl p-4 md:p-6">
-      <h1 className="mb-1 text-2xl font-bold">관리자 페이지</h1>
-      <p className="mb-5 text-sm text-gray-500">가입 신청 승인 및 전체 사용자 현황을 관리합니다.</p>
+    <div>
+      <PageHeader
+        title="관리자"
+        subtitle="가입 신청 승인 및 전체 사용자 현황 관리"
+        actions={
+          <button onClick={loadUsers} disabled={loading} className={headerBtn.outline}>
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />새로고침
+          </button>
+        }
+      />
+      <div className="mx-auto max-w-5xl px-4 py-5 md:px-6">
 
       <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1">
         {(['pending', 'all'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg py-2 text-sm font-medium transition-colors ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-colors ${
               tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
             }`}
           >
-            {t === 'pending' ? `승인 대기 (${pending.length})` : `전체 (${users.length})`}
+            {t === 'pending'
+              ? <><Clock className="h-3.5 w-3.5" />승인 대기 ({pending.length})</>
+              : <><Users className="h-3.5 w-3.5" />전체 ({users.length})</>}
           </button>
         ))}
       </div>
@@ -200,19 +215,19 @@ export default function AdminPage() {
                     {isPending ? (
                       <>
                         <Button size="sm" disabled={busy === user.id} onClick={() => handleApprove(user)}>
-                          승인
+                          <Check className="h-3.5 w-3.5" />승인
                         </Button>
                         <Button size="sm" variant="destructive" disabled={busy === user.id} onClick={() => handleReject(user)}>
-                          거절
+                          <X className="h-3.5 w-3.5" />거절
                         </Button>
                       </>
                     ) : (
                       <>
                         <Button size="sm" variant="outline" disabled={busy === user.id} onClick={() => handleTransfer(user)}>
-                          소속 변경
+                          <ArrowRightLeft className="h-3.5 w-3.5" />소속 변경
                         </Button>
                         <Button size="sm" variant="destructive" disabled={busy === user.id} onClick={() => handleDelete(user)}>
-                          삭제
+                          <Trash2 className="h-3.5 w-3.5" />삭제
                         </Button>
                       </>
                     )}
@@ -223,6 +238,7 @@ export default function AdminPage() {
           })}
         </div>
       )}
+      </div>
     </div>
   );
 }

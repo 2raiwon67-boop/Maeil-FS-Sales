@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import { ClipboardList, SearchX, AlertTriangle, Download, Check, XCircle } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -452,7 +453,7 @@ export default function LicenseExportPage() {
                 onClick={() => toggleType(t.code)}
                 className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-all active:scale-95 ${
                   activeTypes.has(t.code)
-                    ? 'border-blue-500 bg-blue-500 text-white'
+                    ? 'border-blue-600 bg-blue-600 text-white'
                     : 'border-gray-200 bg-white text-gray-700'
                 }`}
               >
@@ -479,7 +480,7 @@ export default function LicenseExportPage() {
                   onClick={() => toggleRegion(chip.filterRegion)}
                   className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-all active:scale-95 ${
                     activeRegions.has(chip.filterRegion)
-                      ? 'border-blue-500 bg-blue-500 text-white'
+                      ? 'border-blue-600 bg-blue-600 text-white'
                       : 'border-gray-200 bg-white text-gray-700'
                   }`}
                 >
@@ -493,7 +494,7 @@ export default function LicenseExportPage() {
           <button
             onClick={handleSearch}
             disabled={searching}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-blue-500 py-3.5 text-[15px] font-bold text-white transition hover:bg-blue-600 active:scale-[0.99] disabled:cursor-default disabled:bg-gray-300"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 py-3.5 text-[15px] font-bold text-white transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-default disabled:bg-gray-300"
           >
             {searching ? (
               <>
@@ -512,7 +513,7 @@ export default function LicenseExportPage() {
         {/* 초기 상태 */}
         {results === null && !searching && !searchError && (
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-gray-400">
-            <span className="text-[34px] opacity-55">📋</span>
+            <ClipboardList className="h-9 w-9 text-gray-300" strokeWidth={1.5} />
             <span>기간·업종·지역을 선택하고 조회하세요.</span>
           </div>
         )}
@@ -527,8 +528,8 @@ export default function LicenseExportPage() {
 
         {/* 오류 */}
         {searchError && (
-          <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            ❌ {searchError}
+          <div className="mb-3 flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <XCircle className="h-4 w-4 shrink-0" />{searchError}
           </div>
         )}
 
@@ -537,14 +538,15 @@ export default function LicenseExportPage() {
           <>
             {/* 누락 경고 */}
             {truncatedWarning && (
-              <div className="mb-3 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
-                ⚠️ <strong>데이터 누락 가능성:</strong> {truncatedWarning}
+              <div className="mb-3 flex items-start gap-1.5 rounded-md border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span><strong>데이터 누락 가능성:</strong> {truncatedWarning}</span>
               </div>
             )}
 
             {results.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-gray-400">
-                <span className="text-[34px] opacity-55">🔍</span>
+                <SearchX className="h-9 w-9 text-gray-300" strokeWidth={1.5} />
                 <span>해당 기간·지역의 신규 인허가 데이터가 없습니다.</span>
               </div>
             ) : (
@@ -552,7 +554,7 @@ export default function LicenseExportPage() {
                 {/* 툴바 */}
                 <div className="sticky top-0 z-20 mb-3 flex items-center justify-between gap-2.5 rounded-xl border border-gray-200 bg-white/90 px-4 py-3 backdrop-blur-md">
                   <span className="text-sm font-semibold">
-                    총 <span className="text-blue-500">{results.length}</span>건 · {selectedIndices.size}건 선택
+                    총 <span className="text-blue-600">{results.length}</span>건 · {selectedIndices.size}건 선택
                   </span>
                   <div className="flex items-center gap-2">
                     <button
@@ -570,7 +572,7 @@ export default function LicenseExportPage() {
                       disabled={selectedIndices.size === 0}
                       className="flex items-center gap-1.5 rounded-full bg-green-600 px-3.5 py-2 text-sm font-bold text-white transition active:scale-97 disabled:cursor-default disabled:bg-gray-300"
                     >
-                      ⬇ 엑셀 ({selectedIndices.size})
+                      <Download className="h-4 w-4" />엑셀 ({selectedIndices.size})
                     </button>
                   </div>
                 </div>
@@ -595,7 +597,7 @@ export default function LicenseExportPage() {
                             selected ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
                           }`}
                         >
-                          {selected && '✓'}
+                          {selected && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                         </span>
 
                         {/* 내용 */}

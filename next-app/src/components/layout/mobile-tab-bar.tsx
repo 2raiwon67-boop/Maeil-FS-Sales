@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Home, FileText, ClipboardList, User } from 'lucide-react';
+import { Home, FileText, ClipboardList, User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { SettingsModal } from '@/components/layout/settings-modal';
 
 const TABS = [
   { href: '/', label: '거래처', icon: Home },
@@ -19,6 +20,7 @@ export function MobileTabBar() {
   const pathname = usePathname();
   const { metadata, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <>
@@ -35,18 +37,16 @@ export function MobileTabBar() {
               : '사용자'}
           </p>
           <div className="flex flex-col gap-2">
-            <Button variant="outline" className="justify-start" onClick={() => setProfileOpen(false)}>
-              내 일정
-            </Button>
-            <Button variant="outline" className="justify-start" onClick={() => setProfileOpen(false)}>
-              설정
-            </Button>
-            <Button variant="outline" className="justify-start" onClick={() => setProfileOpen(false)}>
-              이용 가이드
+            <Button
+              variant="outline"
+              className="justify-start gap-2"
+              onClick={() => { setProfileOpen(false); setSettingsOpen(true); }}
+            >
+              <Settings className="h-4 w-4" />설정
             </Button>
             <Separator />
-            <Button variant="destructive" onClick={() => { setProfileOpen(false); signOut(); }}>
-              로그아웃
+            <Button variant="destructive" className="gap-2" onClick={() => { setProfileOpen(false); signOut(); }}>
+              <LogOut className="h-4 w-4" />로그아웃
             </Button>
           </div>
         </div>
@@ -79,6 +79,8 @@ export function MobileTabBar() {
           <span>프로필</span>
         </button>
       </div>
+
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </>
   );
 }

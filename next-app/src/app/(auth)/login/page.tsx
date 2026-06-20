@@ -102,12 +102,9 @@ export default function LoginPage() {
           className="mx-auto"
           priority
         />
-        <h1 className="text-2xl font-bold text-gray-800">FS MISO</h1>
-        <p className="font-medium text-blue-600">
-          FS 영업사원을 위한 All-In-One 대시보드
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1B3F82]">FS MISO</h1>
         <p className="text-sm text-gray-500">
-          안전한 서비스 이용을 위해 로그인해주세요.
+          FS 영업사원을 위한 All-In-One 대시보드
         </p>
       </CardHeader>
 
