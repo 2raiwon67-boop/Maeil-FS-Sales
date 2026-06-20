@@ -10,7 +10,6 @@ import {
   Map as MapIcon,
   Database,
   Search,
-  Bell,
   MapPin,
   ChevronDown,
   Settings,
@@ -20,6 +19,7 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { SettingsModal } from '@/components/layout/settings-modal';
+import { NotificationBell } from '@/components/layout/notification-bell';
 
 const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/', label: '거래처', icon: Store },
@@ -84,14 +84,7 @@ export function NavBar() {
             </span>
           )}
 
-          <button
-            type="button"
-            onClick={() => toast('알림 기능은 준비 중입니다')}
-            className="rounded-md p-1.5 text-[#475569] transition-colors hover:bg-gray-100"
-            aria-label="알림"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-          </button>
+          <NotificationBell />
 
           <div className="relative border-l border-[#e8ebf0] pl-3">
             <button
@@ -165,17 +158,20 @@ export function NavBar() {
       </nav>
 
       {/* 모바일 — 슬림 로고 바 (네비게이션은 하단 탭바가 담당) */}
-      <header className="sticky top-0 z-40 flex h-12 items-center border-b border-[#e8ebf0] bg-white px-4 md:hidden">
+      <header className="sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-[#e8ebf0] bg-white px-4 md:hidden">
         <LogoLockup />
-        {unit && (
-          <span
-            className="ml-auto inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
-            style={{ background: '#eef3fb', color: NAVY }}
-          >
-            <MapPin className="h-3 w-3" />
-            {unit}
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {unit && (
+            <span
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
+              style={{ background: '#eef3fb', color: NAVY }}
+            >
+              <MapPin className="h-3 w-3" />
+              {unit}
+            </span>
+          )}
+          <NotificationBell />
+        </div>
       </header>
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}

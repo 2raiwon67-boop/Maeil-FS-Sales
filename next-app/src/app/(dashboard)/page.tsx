@@ -90,6 +90,11 @@ export default function DashboardPage() {
 
   // 상세 / 장바구니 / 동선 / 일정
   const [selected, setSelected] = useState<SelectedStore | null>(null);
+  // 알림 클릭 → 해당 인허가 매장 포커스 (?focus=id 또는 헤더 벨 이벤트)
+  const [focusId, setFocusId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('focus') : null,
+  );
+  const focusDoneRef = useRef<string | null>(null);
   const [cart, setCart] = useState<CartStop[]>([]);
   const [routeOpen, setRouteOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
@@ -531,6 +536,38 @@ export default function DashboardPage() {
       mapRef.current.setZoom(16);
     }
   };
+
+  // 헤더 벨에서 같은 페이지 클릭 시 (리마운트 없음) 포커스 이벤트 수신
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const id = (e as CustomEvent<string>).detail;
+      if (id) setFocusId(id);
+    };
+    window.addEventListener('fs-focus-store', onFocus);
+    return () => window.removeEventListener('fs-focus-store', onFocus);
+  }, []);
+
+  // 데이터·지도 준비되면 대상 매장 상세 열기 (마커 좌표 빌드 대기 후)
+  useEffect(() => {
+    if (!focusId || focusDoneRef.current === focusId) return;
+    if (!licenses.length || !mapInstance) return;
+    const lic = licenses.find((l) => l.id === focusId);
+    if (!lic) return;
+    focusDoneRef.current = focusId;
+    const t = setTimeout(() => {
+      const c = coordsByIdRef.current.get(lic.id);
+      setSelected({ item: lic, type: 'license', lat: c?.lat ?? 0, lng: c?.lng ?? 0 });
+      if (c && mapRef.current) {
+        mapRef.current.setCenter(new window.naver.maps.LatLng(c.lat, c.lng));
+        mapRef.current.setZoom(16);
+      }
+      setFocusId(null);
+      if (window.location.search.includes('focus')) {
+        window.history.replaceState(null, '', '/');
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [focusId, licenses, mapInstance]);
 
   const selectedInCart = selected ? cartHas(cartKey(selected.lat, selected.lng)) : false;
 
