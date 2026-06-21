@@ -350,6 +350,8 @@ export default function DiscoverPage() {
           pendingMapRenderRef.current();
           pendingMapRenderRef.current = null;
         }
+        // 일부 환경에서 첫 프레임이 안 그려져 흰 화면으로 남는 문제 → 강제 resize로 페인트 유발
+        [80, 350, 900].forEach(ms => setTimeout(() => { try { mapInstance.resize(); } catch { /* noop */ } }, ms));
       });
 
       mapRef.current = mapInstance;
@@ -1085,10 +1087,17 @@ export default function DiscoverPage() {
 
   // 옛 maeilfs-sales API 대신 로컬 cachedStores에서 즉시 집계 (월·업종은 렌더 시점 라이브 적용)
   function openDrilldown(sigungu: string) {
+    const stores = cachedStoresRef.current;
+    let rows = stores.filter(s => s.sigungu === sigungu);
+    // geojson은 구 단위(예: 고양시덕양구)인데 데이터는 시 단위(고양시)일 수 있음 → 시 폴백
+    if (!rows.length) {
+      const parent = [...new Set(stores.map(s => s.sigungu))].find(sg => sg.endsWith('시') && sigungu.startsWith(sg));
+      if (parent) { sigungu = parent; rows = stores.filter(s => s.sigungu === parent); }
+    }
     setCurrentDrillRegion(sigungu);
     setDrillTitle(sigungu);
     setDrillTab('all');
-    setDrillStores(cachedStoresRef.current.filter(s => s.sigungu === sigungu));
+    setDrillStores(rows);
     setPanelOpen(true);
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
