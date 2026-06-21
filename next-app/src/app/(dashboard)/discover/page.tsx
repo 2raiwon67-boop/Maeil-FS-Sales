@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
-  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers,
+  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -69,7 +69,7 @@ interface DongAgg {
 }
 
 type ViewMode = 'map' | 'rank';
-type DisplayMode = 'area' | 'points' | 'heat';
+type DisplayMode = 'area' | 'points' | 'heat' | 'd3';
 type RegionMode = 'branch' | 'sido';
 type RankSort = 'new' | 'closed' | 'net' | 'rate';
 type DrillTab = 'all' | 'new' | 'closed' | 'big';
@@ -430,8 +430,27 @@ export default function DiscoverPage() {
         paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.45 },
       });
 
+      // 3D 입체 — 순증 크기(|net|)만큼 솟는 블록 (기본 숨김, 입체 모드에서만 표시)
+      mapInstance.addLayer({
+        id: 'muni-extrusion', type: 'fill-extrusion', source: 'munis',
+        layout: { visibility: 'none' },
+        paint: {
+          'fill-extrusion-color': [
+            'case',
+            ['==', tone, 'pos'], ['interpolate', ['linear'], t, 0, '#86efac', 1, '#15803d'],
+            ['==', tone, 'neg'], ['interpolate', ['linear'], t, 0, '#fca5a5', 1, '#b91c1c'],
+            ['==', tone, 'zero'], '#cbd5e1',
+            'rgba(0,0,0,0)',
+          ],
+          'fill-extrusion-height': ['*', ['coalesce', ['feature-state', 'h'], 0], 700],
+          'fill-extrusion-base': 0,
+          'fill-extrusion-opacity': 0.9,
+        },
+      });
+
+      // 면·입체 블록 공용 hover/click 핸들러 (입체 모드에선 muni-fill이 숨겨져 muni-extrusion이 히트테스트 담당)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mapInstance.on('mousemove', 'muni-fill', (e: any) => {
+      const onMuniMove = (e: any) => {
         const f = e.features[0]; if (!f) return;
         const st = f.state || {};
         if (st.tone == null || st.tone === 'none') {
@@ -444,37 +463,32 @@ export default function DiscoverPage() {
         const html = `<div style="background:#0f172a;color:#fff;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(15,23,42,.09);white-space:nowrap"><b style="font-weight:800">${f.properties.name}</b><br>신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div>`;
 
         if (!mapPopupRef.current) {
-          const maplibregl = mapRef.current.constructor;
-          void maplibregl;
-          // Access Popup via dynamic import — already loaded
-          // We use a trick: access the global maplibregl that was loaded
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const ML = (window as any).maplibregl;
           if (ML) {
-            mapPopupRef.current = new ML.Popup({
-              closeButton: false,
-              closeOnClick: false,
-              offset: 10,
-            });
+            mapPopupRef.current = new ML.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
           }
         }
         if (mapPopupRef.current) {
           mapPopupRef.current.setLngLat(e.lngLat).setHTML(html).addTo(mapInstance);
         }
-      });
-
-      mapInstance.on('mouseleave', 'muni-fill', () => {
+      };
+      const onMuniLeave = () => {
         mapInstance.getCanvas().style.cursor = '';
         if (mapPopupRef.current) mapPopupRef.current.remove();
-      });
-
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mapInstance.on('click', 'muni-fill', (e: any) => {
+      const onMuniClick = (e: any) => {
         const f = e.features[0];
         if (f && f.state && f.state.tone && f.state.tone !== 'none') {
           openDrilldown(f.properties.name);
         }
-      });
+      };
+      for (const lid of ['muni-fill', 'muni-extrusion']) {
+        mapInstance.on('mousemove', lid, onMuniMove);
+        mapInstance.on('mouseleave', lid, onMuniLeave);
+        mapInstance.on('click', lid, onMuniClick);
+      }
 
       geoLayerReadyRef.current = true;
     }
@@ -498,7 +512,7 @@ export default function DiscoverPage() {
       else if (d.net < 0) { toneVal = 'neg'; tVal = Math.min(Math.abs(d.net) / 25, 1); }
       mapInstance.setFeatureState(
         { source: 'munis', id: name },
-        { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net }
+        { tone: toneVal, t: tVal, h: Math.abs(d.net), nnew: d.new, closed: d.closed, net: d.net }
       );
     });
 
@@ -596,6 +610,7 @@ export default function DiscoverPage() {
     const mapInstance = mapRef.current;
     if (!mapInstance || !storeLayerReadyRef.current) return;
     const mode = displayModeRef.current;
+    const is3d = mode === 'd3';
 
     const data = buildStoreFeatures(cachedStoresRef.current, selectedMonthRef.current, selectedCategoryRef.current);
     const src = mapInstance.getSource('stores');
@@ -603,13 +618,19 @@ export default function DiscoverPage() {
 
     mapInstance.setLayoutProperty('store-point', 'visibility', mode === 'points' ? 'visible' : 'none');
     mapInstance.setLayoutProperty('store-heat', 'visibility', mode === 'heat' ? 'visible' : 'none');
+    if (mapInstance.getLayer('muni-extrusion')) {
+      mapInstance.setLayoutProperty('muni-extrusion', 'visibility', is3d ? 'visible' : 'none');
+    }
 
-    // 점/히트맵 모드에선 면 색을 살짝 죽여 점이 도드라지게
+    // 입체 모드에선 평면 면을 숨기고(블록만), 그 외엔 모드별로 면 색 농도 조절
     if (mapInstance.getLayer('muni-fill')) {
-      mapInstance.setPaintProperty('muni-fill', 'fill-opacity',
-        mode === 'area'
-          ? ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.25, 0.72]
-          : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38]);
+      mapInstance.setLayoutProperty('muni-fill', 'visibility', is3d ? 'none' : 'visible');
+      if (!is3d) {
+        mapInstance.setPaintProperty('muni-fill', 'fill-opacity',
+          mode === 'area'
+            ? ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.25, 0.72]
+            : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38]);
+      }
     }
   }
 
@@ -617,6 +638,12 @@ export default function DiscoverPage() {
     setDisplayMode(mode);
     displayModeRef.current = mode;
     updateStoreLayer();
+    // 입체 모드는 지도를 기울여(pitch) 3D로, 벗어나면 평면으로 복귀
+    const map = mapRef.current;
+    if (map) {
+      if (mode === 'd3') map.easeTo({ pitch: 52, duration: 700 });
+      else if (map.getPitch() > 0) map.easeTo({ pitch: 0, bearing: 0, duration: 700 });
+    }
   }
 
   // ─── INIT DASHBOARD ────────────────────────────────────────────────────────
@@ -1169,13 +1196,13 @@ export default function DiscoverPage() {
           <div className="ml-auto inline-flex items-center gap-1.5">
             <span className="hidden text-[10px] font-medium text-slate-400 sm:inline">표시</span>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-[3px]">
-              {([['area', '면'], ['points', '점'], ['heat', '히트맵']] as [DisplayMode, string][]).map(([m, label]) => (
+              {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체']] as [DisplayMode, string][]).map(([m, label]) => (
                 <button
                   key={m}
                   onClick={() => handleSetDisplayMode(m)}
                   className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{label}
+                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{m === 'd3' && <Box size={12} />}{label}
                 </button>
               ))}
             </div>
@@ -1266,6 +1293,12 @@ export default function DiscoverPage() {
                 </>
               ) : displayMode === 'heat' ? (
                 <span className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ background: 'rgba(34,197,94,.55)' }} />신규 농도(동 단위)</span>
+              ) : displayMode === 'd3' ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-2 rounded-sm" style={{ background: '#15803d' }} />순증↑</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-2 rounded-sm" style={{ background: '#b91c1c' }} />순감↑</span>
+                  <span className="text-slate-400">높이=순증 크기</span>
+                </>
               ) : (
                 <>
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#16a34a' }} />신규 매장</span>
