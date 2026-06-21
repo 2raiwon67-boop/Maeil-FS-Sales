@@ -5,7 +5,7 @@
       "schedule": "15 0 * * 1-5"
     },
     {
-      "path": "/api/batch-briefings",
+      "path": "/api/refresh-market",
       "schedule": "0 18 * * *"
     }
   ]

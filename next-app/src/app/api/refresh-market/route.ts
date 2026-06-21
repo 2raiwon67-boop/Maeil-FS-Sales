@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const maxDuration = 300;
 
+// 시장 분석(상권) 데이터 야간 갱신 Cron — 매일 03:00 KST(vercel.json `0 18 * * *`).
+// 경기도·서울·인천의 market-stats를 최근 2개월치 save=true로 호출해
+// market_snapshots(집계)·market_store_records(개별 매장)를 새로고침한다.
+// (구 batch-briefings에서 rename — AI 브리핑/임베딩 로직은 마이그레이션 때 미포함)
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
