@@ -54,26 +54,29 @@ export function useDashboardData(): DashboardData {
     if (!businessUnit) return;
     let cancelled = false;
 
-    const licKey = `fs_licenses_${businessUnit}`;
-    const accKey = `fs_accounts_${businessUnit}`;
+    // v2: 구 정적사이트와 origin이 같아 옛 캐시가 남아 마커가 옛 데이터로 고정되던 문제 → 키 분리
+    const licKey = `fs_licenses_v2_${businessUnit}`;
+    const accKey = `fs_accounts_v2_${businessUnit}`;
 
     async function load() {
-      setLoading(true);
       setError(null);
 
-      // 캐시 우선 (force reload 시 무시)
+      // 캐시는 "즉시 표시"용으로만 쓰고, 항상 DB로 재검증한다(stale-while-revalidate).
+      // 예전엔 캐시가 있으면 return해서 DB를 안 읽어 → 옛/불완전 캐시로 마커·카운트가 고정됐음.
+      let hadCache = false;
       if (reloadKey === 0) {
         const cachedLic = readCache<License>(licKey);
         const cachedAcc = readCache<Account>(accKey);
         if (cachedLic && cachedAcc) {
+          hadCache = true;
           if (!cancelled) {
             setLicenses(cachedLic);
             setAccounts(cachedAcc);
             setLoading(false);
           }
-          return;
         }
       }
+      if (!hadCache && !cancelled) setLoading(true);
 
       try {
         const [licRes, accRes] = await Promise.all([
@@ -99,7 +102,7 @@ export function useDashboardData(): DashboardData {
         }
       } catch (e) {
         if (!cancelled) {
-          setError((e as Error).message);
+          if (!hadCache) setError((e as Error).message); // 캐시라도 떠 있으면 에러로 덮지 않음
           setLoading(false);
         }
       }
