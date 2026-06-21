@@ -430,29 +430,28 @@ export default function DiscoverPage() {
         paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.45 },
       });
 
-      // 3D 입체 — 순증 크기(|net|)만큼 솟는 블록 (기본 숨김, 입체 모드에서만 표시)
+      // 3D 입체 — 데이터 있는 시군구만 담은 전용 소스(muni3d)로 솟는 블록.
+      // (feature-state는 layer filter에 못 써서, 무데이터 폴리곤이 검게 깔리는 문제 회피)
+      mapInstance.addSource('muni3d', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       mapInstance.addLayer({
-        id: 'muni-extrusion', type: 'fill-extrusion', source: 'munis',
+        id: 'muni-extrusion', type: 'fill-extrusion', source: 'muni3d',
         layout: { visibility: 'none' },
         paint: {
-          'fill-extrusion-color': [
-            'case',
-            ['==', tone, 'pos'], ['interpolate', ['linear'], t, 0, '#86efac', 1, '#15803d'],
-            ['==', tone, 'neg'], ['interpolate', ['linear'], t, 0, '#fca5a5', 1, '#b91c1c'],
-            ['==', tone, 'zero'], '#cbd5e1',
-            'rgba(0,0,0,0)',
-          ],
-          'fill-extrusion-height': ['*', ['coalesce', ['feature-state', 'h'], 0], 700],
+          'fill-extrusion-color': ['get', 'color'],
+          'fill-extrusion-height': ['get', 'height'],
           'fill-extrusion-base': 0,
-          'fill-extrusion-opacity': 0.9,
+          'fill-extrusion-opacity': 0.92,
         },
       });
 
       // 면·입체 블록 공용 hover/click 핸들러 (입체 모드에선 muni-fill이 숨겨져 muni-extrusion이 히트테스트 담당)
+      // muni-fill은 feature-state, muni-extrusion(muni3d)은 properties에 정보를 담는다.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const muniInfo = (f: any) => (f.state && f.state.tone) ? f.state : (f.properties && f.properties.tone ? f.properties : {});
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onMuniMove = (e: any) => {
         const f = e.features[0]; if (!f) return;
-        const st = f.state || {};
+        const st = muniInfo(f);
         if (st.tone == null || st.tone === 'none') {
           mapInstance.getCanvas().style.cursor = '';
           if (mapPopupRef.current) mapPopupRef.current.remove();
@@ -480,7 +479,8 @@ export default function DiscoverPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onMuniClick = (e: any) => {
         const f = e.features[0];
-        if (f && f.state && f.state.tone && f.state.tone !== 'none') {
+        const st = f && muniInfo(f);
+        if (st && st.tone && st.tone !== 'none') {
           openDrilldown(f.properties.name);
         }
       };
@@ -498,6 +498,8 @@ export default function DiscoverPage() {
 
     mapInstance.removeFeatureState({ source: 'munis' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const d3feats: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     geoData.features.forEach((f: any) => {
       const name = f.properties.name;
       let d = regionMap[name];
@@ -512,9 +514,21 @@ export default function DiscoverPage() {
       else if (d.net < 0) { toneVal = 'neg'; tVal = Math.min(Math.abs(d.net) / 25, 1); }
       mapInstance.setFeatureState(
         { source: 'munis', id: name },
-        { tone: toneVal, t: tVal, h: Math.abs(d.net), nnew: d.new, closed: d.closed, net: d.net }
+        { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net }
       );
+      // 3D 블록 — 데이터 지역만, 높이=|순증|·색=방향
+      d3feats.push({
+        type: 'Feature',
+        geometry: f.geometry,
+        properties: {
+          name, tone: toneVal, nnew: d.new, closed: d.closed, net: d.net,
+          color: toneVal === 'pos' ? '#16a34a' : toneVal === 'neg' ? '#dc2626' : '#cbd5e1',
+          height: 250 + Math.abs(d.net) * 650,
+        },
+      });
     });
+    const s3 = mapInstance.getSource('muni3d');
+    if (s3) s3.setData({ type: 'FeatureCollection', features: d3feats });
 
     // 면 갱신 때마다 점/히트맵도 동기화
     updateStoreLayer();
