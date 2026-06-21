@@ -669,6 +669,7 @@ export default function DiscoverPage() {
     if (map) {
       if (mode === 'd3') map.easeTo({ pitch: 52, duration: 700 });
       else if (map.getPitch() > 0) map.easeTo({ pitch: 0, bearing: 0, duration: 700 });
+      nudgePaint();
     }
   }
 
@@ -1128,6 +1129,13 @@ export default function DiscoverPage() {
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
 
+  // 카메라 이동 후 일부 환경(비포커스 탭 등)에서 렌더 루프가 멈춰 흰 화면이 남는 것 방지
+  function nudgePaint() {
+    const map = mapRef.current;
+    if (!map) return;
+    [40, 500].forEach(ms => setTimeout(() => { try { map.resize(); } catch { /* noop */ } }, ms));
+  }
+
   // 지도를 조건에 맞는 매장들의 범위로 맞춤 (좌측 독·우측 패널 여백 고려)
   function fitToStores(predicate: (s: StoreRow) => boolean, maxZoom: number) {
     const map = mapRef.current;
@@ -1143,6 +1151,7 @@ export default function DiscoverPage() {
       padding: { top: 90, bottom: 130, left: 240, right: 470 },
       maxZoom, duration: 800,
     });
+    nudgePaint();
   }
 
   // 동별 순증 행 클릭 — 토글: 리스트·지도 점을 해당 동만, 지도도 그 동으로 확대
