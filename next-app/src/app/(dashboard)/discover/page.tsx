@@ -273,6 +273,7 @@ export default function DiscoverPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [drillTitle, setDrillTitle] = useState('—');
   const [drillStores, setDrillStores] = useState<StoreRow[]>([]); // 클릭한 시군구의 전체 매장(전월·전업종)
+  const [selectedDong, setSelectedDong] = useState<string | null>(null);
   const [drillTab, setDrillTab] = useState<DrillTab>('all');
   const [spChartOpen, setSpChartOpen] = useState(false);
   const [currentDrillRegion, setCurrentDrillRegion] = useState('');
@@ -283,6 +284,8 @@ export default function DiscoverPage() {
   const selectedMonthRef = useRef<string | null>(null);
   const selectedCategoryRef = useRef<Category>('all');
   const cachedStoresRef = useRef<StoreRow[]>([]);
+  const selectedDongRef = useRef<string | null>(null);
+  const drillRegionRef = useRef<string>('');
   const displayModeRef = useRef<DisplayMode>('points');
   const storeLayerReadyRef = useRef(false);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -602,13 +605,17 @@ export default function DiscoverPage() {
     storeLayerReadyRef.current = true;
   }
 
-  // 필터(월·업종) 적용된 매장 → GeoJSON 포인트
-  function buildStoreFeatures(stores: StoreRow[], month: string | null, cat: Category) {
+  // 필터(월·업종·선택 동) 적용된 매장 → GeoJSON 포인트
+  function buildStoreFeatures(
+    stores: StoreRow[], month: string | null, cat: Category,
+    dongFilter?: { sigungu: string; dong: string } | null,
+  ) {
     const feats = [];
     for (const s of stores) {
       if (s.lat == null || s.lng == null) continue;
       if (month && s.month !== month) continue;
       if (!matchCategory(s, cat)) continue;
+      if (dongFilter && (s.sigungu !== dongFilter.sigungu || s.dong !== dongFilter.dong)) continue;
       feats.push({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
@@ -628,7 +635,10 @@ export default function DiscoverPage() {
     const mode = displayModeRef.current;
     const is3d = mode === 'd3';
 
-    const data = buildStoreFeatures(cachedStoresRef.current, selectedMonthRef.current, selectedCategoryRef.current);
+    const dongFilter = selectedDongRef.current && drillRegionRef.current
+      ? { sigungu: drillRegionRef.current, dong: selectedDongRef.current }
+      : null;
+    const data = buildStoreFeatures(cachedStoresRef.current, selectedMonthRef.current, selectedCategoryRef.current, dongFilter);
     const src = mapInstance.getSource('stores');
     if (src) src.setData(data);
 
@@ -1095,10 +1105,14 @@ export default function DiscoverPage() {
       if (parent) { sigungu = parent; rows = stores.filter(s => s.sigungu === parent); }
     }
     setCurrentDrillRegion(sigungu);
+    drillRegionRef.current = sigungu;
+    setSelectedDong(null);
+    selectedDongRef.current = null;
     setDrillTitle(sigungu);
     setDrillTab('all');
     setDrillStores(rows);
     setPanelOpen(true);
+    updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
 
@@ -1106,8 +1120,49 @@ export default function DiscoverPage() {
     setPanelOpen(false);
     setSpChartOpen(false);
     setCurrentDrillRegion('');
+    drillRegionRef.current = '';
+    setSelectedDong(null);
+    selectedDongRef.current = null;
     setDrillStores([]);
+    updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
+  }
+
+  // 지도를 조건에 맞는 매장들의 범위로 맞춤 (좌측 독·우측 패널 여백 고려)
+  function fitToStores(predicate: (s: StoreRow) => boolean, maxZoom: number) {
+    const map = mapRef.current;
+    if (!map) return;
+    const pts = cachedStoresRef.current.filter(s => s.lat != null && s.lng != null && predicate(s));
+    if (!pts.length) return;
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const p of pts) {
+      minLng = Math.min(minLng, p.lng!); maxLng = Math.max(maxLng, p.lng!);
+      minLat = Math.min(minLat, p.lat!); maxLat = Math.max(maxLat, p.lat!);
+    }
+    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+      padding: { top: 90, bottom: 130, left: 240, right: 470 },
+      maxZoom, duration: 800,
+    });
+  }
+
+  // 동별 순증 행 클릭 — 토글: 리스트·지도 점을 해당 동만, 지도도 그 동으로 확대
+  function handleSelectDong(dong: string) {
+    const next = selectedDong === dong ? null : dong;
+    setSelectedDong(next);
+    selectedDongRef.current = next;
+    if (next) {
+      // 점이 보이도록 점 모드로 전환(입체였다면 평면 복귀)
+      if (displayModeRef.current !== 'points') {
+        setDisplayMode('points');
+        displayModeRef.current = 'points';
+        if (mapRef.current && mapRef.current.getPitch() > 0) mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+      }
+      updateStoreLayer();
+      fitToStores(s => s.sigungu === drillRegionRef.current && s.dong === next, 15.5);
+    } else {
+      updateStoreLayer();
+      fitToStores(s => s.sigungu === drillRegionRef.current, 12.5);
+    }
   }
 
   // ─── RANKING SORT ──────────────────────────────────────────────────────────
@@ -1167,7 +1222,9 @@ export default function DiscoverPage() {
       .map(d => ({ ...d, net: d.new - d.closed }))
       .sort((a, b) => b.net - a.net || b.new - a.new);
   })();
-  const filteredDrillStores: DrillStore[] = drillScoped
+  // 동 선택 시 리스트는 그 동만 (동별 순증 랭킹·요약은 시군구 전체 유지)
+  const drillListBase = selectedDong ? drillScoped.filter(s => s.dong === selectedDong) : drillScoped;
+  const filteredDrillStores: DrillStore[] = drillListBase
     .filter(s => drillTab === 'all' ? true : drillTab === 'new' ? s.status === 'new' : drillTab === 'closed' ? s.status === 'closed' : (s.pyeong || 0) >= 100)
     .map(s => ({ name: s.name, status: s.status, category: s.category || undefined, pyeong: s.pyeong ?? undefined, license_date: s.license_date || undefined, address: s.address || undefined }));
   const bigCount = drillScoped.filter(s => (s.pyeong || 0) >= 100).length;
@@ -1422,6 +1479,14 @@ export default function DiscoverPage() {
           <div className="flex-shrink-0 border-b border-slate-200 px-5 py-3">
             <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
               <MapPin size={12} />동별 순증
+              {selectedDong && (
+                <button
+                  onClick={() => handleSelectDong(selectedDong)}
+                  className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100"
+                >
+                  {selectedDong} <X size={11} />
+                </button>
+              )}
               <span className="ml-auto flex gap-2 text-[9px] font-medium text-slate-400">
                 <span className="w-7 text-right">신규</span>
                 <span className="w-7 text-right">폐업</span>
@@ -1429,15 +1494,22 @@ export default function DiscoverPage() {
               </span>
             </div>
             <div className="flex max-h-[140px] flex-col gap-0.5 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
-              {drillDongs.map((d, i) => (
-                <div key={d.dong} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs hover:bg-slate-50">
-                  <span className={`flex h-[17px] w-[17px] flex-shrink-0 items-center justify-center rounded-[5px] text-[9px] font-semibold ${i < 3 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>{i + 1}</span>
-                  <span className="flex-1 truncate text-slate-800">{d.dong}</span>
-                  <span className="w-7 text-right tabular-nums text-green-600">{d.new || '·'}</span>
-                  <span className="w-7 text-right tabular-nums text-red-500">{d.closed || '·'}</span>
-                  <span className={`w-9 text-right font-semibold tabular-nums ${d.net > 0 ? 'text-green-600' : d.net < 0 ? 'text-red-600' : 'text-slate-400'}`}>{d.net > 0 ? `+${d.net}` : d.net}</span>
-                </div>
-              ))}
+              {drillDongs.map((d, i) => {
+                const sel = selectedDong === d.dong;
+                return (
+                  <button
+                    key={d.dong}
+                    onClick={() => handleSelectDong(d.dong)}
+                    className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-left text-xs transition-colors ${sel ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : 'hover:bg-slate-50'}`}
+                  >
+                    <span className={`flex h-[17px] w-[17px] flex-shrink-0 items-center justify-center rounded-[5px] text-[9px] font-semibold ${sel ? 'bg-blue-600 text-white' : i < 3 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>{i + 1}</span>
+                    <span className={`flex-1 truncate ${sel ? 'font-semibold text-blue-800' : 'text-slate-800'}`}>{d.dong}</span>
+                    <span className="w-7 text-right tabular-nums text-green-600">{d.new || '·'}</span>
+                    <span className="w-7 text-right tabular-nums text-red-500">{d.closed || '·'}</span>
+                    <span className={`w-9 text-right font-semibold tabular-nums ${d.net > 0 ? 'text-green-600' : d.net < 0 ? 'text-red-600' : 'text-slate-400'}`}>{d.net > 0 ? `+${d.net}` : d.net}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
