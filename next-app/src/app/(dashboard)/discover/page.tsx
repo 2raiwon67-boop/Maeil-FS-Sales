@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
-  Check, MapPin, CalendarDays, Tag,
+  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -45,7 +45,30 @@ interface DrillSummary {
   closed: number;
 }
 
+// 개별 매장 레코드 (market_store_records, 좌표 기반 점/히트맵 + 동별 집계)
+interface StoreRow {
+  name: string;
+  sigungu: string;
+  month: string;
+  status: 'new' | 'closed';
+  category: string | null;
+  pyeong: number | null;
+  lat: number;
+  lng: number;
+  address: string | null;
+  license_date: string | null;
+  dong: string;
+}
+
+interface DongAgg {
+  dong: string;
+  new: number;
+  closed: number;
+  net: number;
+}
+
 type ViewMode = 'map' | 'rank';
+type DisplayMode = 'area' | 'points' | 'heat';
 type RegionMode = 'branch' | 'sido';
 type RankSort = 'new' | 'closed' | 'net' | 'rate';
 type DrillTab = 'all' | 'new' | 'closed' | 'big';
@@ -103,8 +126,6 @@ const CAT_KW: Record<string, string[]> = {
                '중식', '일식', '한식', '양식', '탕', '찌개', '국밥', '냉면'],
 };
 
-const API_BASE = 'https://maeilfs-sales.vercel.app';
-
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
 function getMonthList(): string[] {
@@ -126,10 +147,22 @@ function addMonths(ym: string, delta: number): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
-function matchCategory(store: DrillStore, cat: Category): boolean {
+function matchCategory(store: { category?: string | null; name?: string | null }, cat: Category): boolean {
   if (cat === 'all') return true;
   const haystack = ((store.category || '') + ' ' + (store.name || '')).toLowerCase();
   return CAT_KW[cat]?.some(kw => haystack.includes(kw)) ?? false;
+}
+
+// 주소에서 동/읍/면 추출.
+// 도로명주소는 끝 괄호의 법정동 `(여울동)`을, 지번/읍면은 중간 `향남읍`을 사용.
+// 건물 동(101동·상가동 등)은 제외 — 행정 단위만.
+function extractDong(address?: string | null): string {
+  if (!address) return '기타';
+  const paren = address.match(/\(([가-힣]+[0-9]?(?:동|읍|면|가))\)\s*$/);
+  if (paren) return paren[1];
+  const eupmyeon = address.match(/\s([가-힣]{2,}(?:읍|면))(?:\s|$)/);
+  if (eupmyeon) return eupmyeon[1];
+  return '기타';
 }
 
 // ─── FILTER DROPDOWN ─────────────────────────────────────────────────────────
@@ -209,12 +242,15 @@ export default function DiscoverPage() {
   const [sidoSigunguMap, setSidoSigunguMap] = useState<Record<string, string[]>>({});
   const [sigunguSidoMap, setSigunguSidoMap] = useState<Record<string, string>>({});
   const [cachedSnaps, setCachedSnaps] = useState<SnapRow[]>([]);
+  const [cachedStores, setCachedStores] = useState<StoreRow[]>([]);
   const [cachedRegionsArr, setCachedRegionsArr] = useState<RegionData[]>([]);
   const [availableSidos, setAvailableSidos] = useState<string[]>([]);
 
   // UI state
   const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('points');
+  const [playing, setPlaying] = useState(false);
   const [dockOpen, setDockOpen] = useState(true);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
@@ -235,10 +271,8 @@ export default function DiscoverPage() {
   // Panel state
   const [panelOpen, setPanelOpen] = useState(false);
   const [drillTitle, setDrillTitle] = useState('—');
-  const [drillSummary, setDrillSummary] = useState<DrillSummary | null>(null);
-  const [drillData, setDrillData] = useState<DrillStore[]>([]);
+  const [drillStores, setDrillStores] = useState<StoreRow[]>([]); // 클릭한 시군구의 전체 매장(전월·전업종)
   const [drillTab, setDrillTab] = useState<DrillTab>('all');
-  const [drillLoading, setDrillLoading] = useState(false);
   const [spChartOpen, setSpChartOpen] = useState(false);
   const [currentDrillRegion, setCurrentDrillRegion] = useState('');
 
@@ -247,11 +281,16 @@ export default function DiscoverPage() {
   const viewSidoRef = useRef<string | null>(null);
   const selectedMonthRef = useRef<string | null>(null);
   const selectedCategoryRef = useRef<Category>('all');
+  const cachedStoresRef = useRef<StoreRow[]>([]);
+  const displayModeRef = useRef<DisplayMode>('points');
+  const storeLayerReadyRef = useRef(false);
+  const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { sigunguSidoMapRef.current = sigunguSidoMap; }, [sigunguSidoMap]);
   useEffect(() => { viewSidoRef.current = regionSido; }, [regionSido]);
   useEffect(() => { selectedMonthRef.current = selectedMonth; }, [selectedMonth]);
   useEffect(() => { selectedCategoryRef.current = selectedCategory; }, [selectedCategory]);
+  useEffect(() => { cachedStoresRef.current = cachedStores; }, [cachedStores]);
 
   // ─── AUTH CHECK ────────────────────────────────────────────────────────────
 
@@ -272,6 +311,9 @@ export default function DiscoverPage() {
 
     async function initMap() {
       const maplibregl = (await import('maplibre-gl')).default;
+      // Popup 생성 시 참조 (muni hover · store click 팝업 공용)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).maplibregl = maplibregl;
       if (destroyed || !mapContainerRef.current || mapRef.current) return;
 
       const key = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
@@ -436,6 +478,9 @@ export default function DiscoverPage() {
       geoLayerReadyRef.current = true;
     }
 
+    // 매장 점/히트맵 레이어를 시군구 면 위에 얹는다 (순서 보장)
+    ensureStoreLayers(mapInstance);
+
     mapInstance.removeFeatureState({ source: 'munis' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     geoData.features.forEach((f: any) => {
@@ -455,6 +500,122 @@ export default function DiscoverPage() {
         { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net }
       );
     });
+
+    // 면 갱신 때마다 점/히트맵도 동기화
+    updateStoreLayer();
+  }
+
+  // ─── STORE POINT / HEATMAP LAYERS ──────────────────────────────────────────
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function ensureStoreLayers(mapInstance: any) {
+    if (storeLayerReadyRef.current || !mapInstance) return;
+
+    mapInstance.addSource('stores', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+
+    // 히트맵 — 줌아웃 시 동 단위 신규 농도
+    mapInstance.addLayer({
+      id: 'store-heat', type: 'heatmap', source: 'stores',
+      layout: { visibility: 'none' },
+      paint: {
+        'heatmap-weight': ['case', ['==', ['get', 'status'], 'new'], 1, 0.3],
+        'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 8, 0.7, 14, 1.6],
+        'heatmap-radius': ['interpolate', ['linear'], ['zoom'], 8, 14, 12, 26, 15, 40],
+        'heatmap-color': [
+          'interpolate', ['linear'], ['heatmap-density'],
+          0, 'rgba(22,163,74,0)',
+          0.25, 'rgba(134,239,172,0.55)',
+          0.55, 'rgba(34,197,94,0.75)',
+          0.85, 'rgba(21,128,61,0.9)',
+          1, 'rgba(20,83,45,1)',
+        ],
+        'heatmap-opacity': ['interpolate', ['linear'], ['zoom'], 8, 0.85, 15, 0.55],
+      },
+    });
+
+    // 점 — 신규 초록 / 폐업 빨강
+    mapInstance.addLayer({
+      id: 'store-point', type: 'circle', source: 'stores',
+      layout: { visibility: 'visible' },
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2.6, 11, 4, 14, 6.5, 16, 9],
+        'circle-color': ['match', ['get', 'status'], 'new', '#16a34a', 'closed', '#e24b4a', '#94a3b8'],
+        'circle-opacity': 0.82,
+        'circle-stroke-width': 0.7,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-opacity': 0.85,
+      },
+    });
+
+    // 점 클릭 → 매장 팝업
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapInstance.on('mouseenter', 'store-point', () => { mapInstance.getCanvas().style.cursor = 'pointer'; });
+    mapInstance.on('mouseleave', 'store-point', () => { mapInstance.getCanvas().style.cursor = ''; });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapInstance.on('click', 'store-point', (e: any) => {
+      const f = e.features?.[0]; if (!f) return;
+      const p = f.properties || {};
+      const badge = p.status === 'new'
+        ? '<span style="color:#16a34a;font-weight:800">신규</span>'
+        : '<span style="color:#e24b4a;font-weight:800">폐업</span>';
+      const meta = [p.category, p.pyeong ? `${p.pyeong}평` : '', p.month].filter(Boolean).join(' · ');
+      const html = `<div style="background:#0f172a;color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;max-width:230px;box-shadow:0 4px 20px rgba(15,23,42,.12)"><b style="font-weight:800;font-size:13px">${p.name || '매장'}</b> ${badge}<br><span style="color:#94a3b8">${meta}</span></div>`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ML = (window as any).maplibregl;
+      if (ML) new ML.Popup({ closeButton: false, offset: 12 }).setLngLat(e.lngLat).setHTML(html).addTo(mapInstance);
+    });
+
+    storeLayerReadyRef.current = true;
+  }
+
+  // 필터(월·업종) 적용된 매장 → GeoJSON 포인트
+  function buildStoreFeatures(stores: StoreRow[], month: string | null, cat: Category) {
+    const feats = [];
+    for (const s of stores) {
+      if (s.lat == null || s.lng == null) continue;
+      if (month && s.month !== month) continue;
+      if (!matchCategory(s, cat)) continue;
+      feats.push({
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
+        properties: {
+          name: s.name, status: s.status, category: s.category || '',
+          pyeong: s.pyeong || 0, month: s.month,
+        },
+      });
+    }
+    return { type: 'FeatureCollection' as const, features: feats };
+  }
+
+  // 매장 레이어 데이터 + 표시 모드 반영 (refs 사용 — 핸들러 재생성 회피)
+  function updateStoreLayer() {
+    const mapInstance = mapRef.current;
+    if (!mapInstance || !storeLayerReadyRef.current) return;
+    const mode = displayModeRef.current;
+
+    const data = buildStoreFeatures(cachedStoresRef.current, selectedMonthRef.current, selectedCategoryRef.current);
+    const src = mapInstance.getSource('stores');
+    if (src) src.setData(data);
+
+    mapInstance.setLayoutProperty('store-point', 'visibility', mode === 'points' ? 'visible' : 'none');
+    mapInstance.setLayoutProperty('store-heat', 'visibility', mode === 'heat' ? 'visible' : 'none');
+
+    // 점/히트맵 모드에선 면 색을 살짝 죽여 점이 도드라지게
+    if (mapInstance.getLayer('muni-fill')) {
+      mapInstance.setPaintProperty('muni-fill', 'fill-opacity',
+        mode === 'area'
+          ? ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.25, 0.72]
+          : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38]);
+    }
+  }
+
+  function handleSetDisplayMode(mode: DisplayMode) {
+    setDisplayMode(mode);
+    displayModeRef.current = mode;
+    updateStoreLayer();
   }
 
   // ─── INIT DASHBOARD ────────────────────────────────────────────────────────
@@ -569,6 +730,40 @@ export default function DiscoverPage() {
       }
 
       setCachedSnaps(snaps);
+
+      // 매장 레코드 (점/히트맵 + 동별 집계) — 같은 스코프로 직접 로드
+      const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,address,license_date';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let rawStores: any[] = [];
+      try {
+        if (mode === 'sido' && sido) {
+          const { data } = await supabase
+            .from('market_store_records').select(storeCols)
+            .eq('sido', sido).gte('month', '2025-01').not('lat', 'is', null).limit(20000);
+          rawStores = data || [];
+        } else {
+          const all = await Promise.all(
+            Object.entries(sSigunguMap).map(([s, list]) =>
+              supabase
+                .from('market_store_records').select(storeCols)
+                .eq('sido', s).in('sigungu', list).gte('month', '2025-01').not('lat', 'is', null).limit(20000)
+                .then(({ data }) => data || [])
+            )
+          );
+          rawStores = all.flat();
+        }
+      } catch (e) {
+        console.warn('[discover] 매장 레코드 로드 실패', e);
+      }
+      const storeRows: StoreRow[] = rawStores.map(r => ({
+        name: r.name, sigungu: r.sigungu, month: r.month,
+        status: r.status === 'closed' ? 'closed' : 'new',
+        category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
+        lat: Number(r.lat), lng: Number(r.lng), address: r.address,
+        license_date: r.license_date, dong: extractDong(r.address),
+      }));
+      setCachedStores(storeRows);
+      cachedStoresRef.current = storeRows;
 
       const lastUpd = snaps.reduce((mx, r) => r.updated_at > mx ? r.updated_at : mx, '');
       if (lastUpd) {
@@ -706,11 +901,36 @@ export default function DiscoverPage() {
 
   function handleSetViewMode(mode: ViewMode) {
     setViewMode(mode);
+    if (mode === 'rank') stopPlay();
     if (mode === 'map') {
       setTimeout(() => { mapRef.current?.resize(); }, 100);
       setTimeout(() => { mapRef.current?.resize(); }, 350);
     }
   }
+
+  // ─── TIMELAPSE PLAY ────────────────────────────────────────────────────────
+
+  function stopPlay() {
+    if (playTimerRef.current) { clearInterval(playTimerRef.current); playTimerRef.current = null; }
+    setPlaying(false);
+  }
+
+  function handleTogglePlay() {
+    if (playTimerRef.current) { stopPlay(); return; }
+    let idx = selectedMonth ? monthList.indexOf(selectedMonth) : -1;
+    if (idx >= monthList.length - 1) idx = -1; // 끝(또는 전체)이면 처음부터
+    setPlaying(true);
+    const step = () => {
+      idx += 1;
+      if (idx >= monthList.length) { stopPlay(); return; }
+      handleMonthSelect(monthList[idx]);
+    };
+    step();
+    playTimerRef.current = setInterval(step, 750);
+  }
+
+  // 언마운트 시 타이머 정리
+  useEffect(() => () => { if (playTimerRef.current) clearInterval(playTimerRef.current); }, []);
 
   // ─── CHARTS ────────────────────────────────────────────────────────────────
 
@@ -834,39 +1054,21 @@ export default function DiscoverPage() {
 
   // ─── DRILLDOWN ─────────────────────────────────────────────────────────────
 
-  async function openDrilldown(sigungu: string) {
+  // 옛 maeilfs-sales API 대신 로컬 cachedStores에서 즉시 집계 (월·업종은 렌더 시점 라이브 적용)
+  function openDrilldown(sigungu: string) {
     setCurrentDrillRegion(sigungu);
     setDrillTitle(sigungu);
-    setDrillSummary(null);
-    setDrillData([]);
     setDrillTab('all');
-    setDrillLoading(true);
+    setDrillStores(cachedStoresRef.current.filter(s => s.sigungu === sigungu));
     setPanelOpen(true);
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
-
-    try {
-      const sido = sigunguSidoMapRef.current[sigungu] || viewSidoRef.current || '경기도';
-      const monthParam = selectedMonthRef.current ? `&month=${encodeURIComponent(selectedMonthRef.current)}` : '';
-      const res = await fetch(`${API_BASE}/api/market-stats?detail=true&sido=${encodeURIComponent(sido)}&sigungu=${encodeURIComponent(sigungu)}${monthParam}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || '조회 실패');
-      setDrillSummary(data.summary);
-      setDrillData(data.stores || []);
-    } catch (e) {
-      console.error('[discover] drilldown error', e);
-      setDrillData([]);
-      setDrillSummary(null);
-    } finally {
-      setDrillLoading(false);
-    }
   }
 
   function closePanel() {
     setPanelOpen(false);
     setSpChartOpen(false);
     setCurrentDrillRegion('');
-    setDrillData([]);
-    setDrillSummary(null);
+    setDrillStores([]);
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
 
@@ -880,17 +1082,6 @@ export default function DiscoverPage() {
       if (rankSort === 'rate')   return b.netRate - a.netRate;
       return 0;
     });
-  }
-
-  // ─── DRILL LIST ────────────────────────────────────────────────────────────
-
-  function getFilteredDrillStores(): DrillStore[] {
-    let stores = drillData;
-    if (drillTab === 'new')    stores = stores.filter(s => s.status === 'new');
-    if (drillTab === 'closed') stores = stores.filter(s => s.status === 'closed');
-    if (drillTab === 'big')    stores = stores.filter(s => (s.pyeong || 0) >= 100);
-    if (selectedCategory !== 'all') stores = stores.filter(s => matchCategory(s, selectedCategory));
-    return stores;
   }
 
   // ─── SCROLL MONTH INTO VIEW ON INIT ───────────────────────────────────────
@@ -919,8 +1110,29 @@ export default function DiscoverPage() {
 
   const sortedRegions = getSortedRegions();
   const maxNew = Math.max(...sortedRegions.map(r => r.new), 1);
-  const filteredDrillStores = getFilteredDrillStores();
-  const bigCount = drillData.filter(s => (s.pyeong || 0) >= 100).length;
+
+  // 드릴다운 라이브 집계 (선택 월·업종 즉시 반영)
+  const drillScoped = drillStores
+    .filter(s => !selectedMonth || s.month === selectedMonth)
+    .filter(s => matchCategory(s, selectedCategory));
+  const drillSummary: DrillSummary | null = drillStores.length
+    ? { new: drillScoped.filter(s => s.status === 'new').length, closed: drillScoped.filter(s => s.status === 'closed').length }
+    : null;
+  const drillDongs: DongAgg[] = (() => {
+    const m: Record<string, DongAgg> = {};
+    drillScoped.forEach(s => {
+      const k = s.dong || '기타';
+      if (!m[k]) m[k] = { dong: k, new: 0, closed: 0, net: 0 };
+      if (s.status === 'new') m[k].new++; else m[k].closed++;
+    });
+    return Object.values(m)
+      .map(d => ({ ...d, net: d.new - d.closed }))
+      .sort((a, b) => b.net - a.net || b.new - a.new);
+  })();
+  const filteredDrillStores: DrillStore[] = drillScoped
+    .filter(s => drillTab === 'all' ? true : drillTab === 'new' ? s.status === 'new' : drillTab === 'closed' ? s.status === 'closed' : (s.pyeong || 0) >= 100)
+    .map(s => ({ name: s.name, status: s.status, category: s.category || undefined, pyeong: s.pyeong ?? undefined, license_date: s.license_date || undefined, address: s.address || undefined }));
+  const bigCount = drillScoped.filter(s => (s.pyeong || 0) >= 100).length;
 
   const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
 
@@ -955,7 +1167,7 @@ export default function DiscoverPage() {
           icon={<Tag size={14} />}
           value={CAT_LABEL[selectedCategory]}
           options={categoryOptions}
-          onSelect={(k) => setSelectedCategory(k as Category)}
+          onSelect={(k) => { setSelectedCategory(k as Category); selectedCategoryRef.current = k as Category; updateStoreLayer(); }}
         />
         <FilterDropdown
           icon={<CalendarDays size={14} />}
@@ -963,6 +1175,24 @@ export default function DiscoverPage() {
           options={monthOptions}
           onSelect={(k) => handleMonthSelect(k === '__all' ? null : k)}
         />
+
+        {/* 표시 모드 — 면 / 점 / 히트맵 */}
+        {viewMode === 'map' && (
+          <div className="ml-auto inline-flex items-center gap-1.5">
+            <span className="hidden text-[10px] font-medium text-slate-400 sm:inline">표시</span>
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-[3px]">
+              {([['area', '면'], ['points', '점'], ['heat', '히트맵']] as [DisplayMode, string][]).map(([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => handleSetDisplayMode(m)}
+                  className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── MAP AREA ── */}
@@ -1038,11 +1268,22 @@ export default function DiscoverPage() {
                 ))}
               </div>
             </div>
-            {/* 범례 */}
-            <div className="flex gap-3 border-t border-slate-100 pt-2.5 text-[10px] font-medium text-slate-500">
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#34c759' }} />순증</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#ff3b30' }} />순감</span>
-              <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#a1a1a6' }} />보합</span>
+            {/* 범례 — 표시 모드에 맞춤 */}
+            <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-100 pt-2.5 text-[10px] font-medium text-slate-500">
+              {displayMode === 'area' ? (
+                <>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#34c759' }} />순증</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#ff3b30' }} />순감</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#a1a1a6' }} />보합</span>
+                </>
+              ) : displayMode === 'heat' ? (
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ background: 'rgba(34,197,94,.55)' }} />신규 농도(동 단위)</span>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#16a34a' }} />신규 매장</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#e24b4a' }} />폐업 매장</span>
+                </>
+              )}
             </div>
           </aside>
           {/* 접기/펼치기 핸들 */}
@@ -1053,6 +1294,43 @@ export default function DiscoverPage() {
           >
             {dockOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
           </button>
+        </div>
+      )}
+
+      {/* ── TIMELAPSE 재생 바 ── */}
+      {viewMode === 'map' && (
+        <div className="absolute bottom-3 left-3 right-14 z-[450] md:left-[232px]">
+          <div className="mx-auto flex max-w-[520px] items-center gap-3 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur">
+            <button
+              onClick={handleTogglePlay}
+              title={playing ? '일시정지' : '월별 재생'}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700"
+            >
+              {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
+            </button>
+            <div className="flex-1">
+              <input
+                type="range" min={0} max={monthList.length - 1} step={1}
+                value={selectedMonth ? monthList.indexOf(selectedMonth) : 0}
+                onChange={(e) => { stopPlay(); handleMonthSelect(monthList[Number(e.target.value)]); }}
+                className="w-full accent-blue-600"
+                aria-label="월 타임라인"
+              />
+              <div className="mt-0.5 flex justify-between text-[10px] text-slate-400">
+                <span>{monthList[0]?.slice(2).replace('-', '.')}</span>
+                <span className="font-semibold text-blue-600">{selectedMonth ? selectedMonth.slice(2).replace('-', '.') + (playing ? ' 재생 중' : '') : '전체 월'}</span>
+                <span>{monthList[monthList.length - 1]?.slice(2).replace('-', '.')}</span>
+              </div>
+            </div>
+            {selectedMonth && (
+              <button
+                onClick={() => { stopPlay(); handleMonthSelect(null); }}
+                className="flex-shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                전체
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1095,6 +1373,31 @@ export default function DiscoverPage() {
           </div>
         )}
 
+        {/* 동별 순증 집계 */}
+        {drillDongs.length > 0 && (
+          <div className="flex-shrink-0 border-b border-slate-200 px-5 py-3">
+            <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+              <MapPin size={12} />동별 순증
+              <span className="ml-auto flex gap-2 text-[9px] font-medium text-slate-400">
+                <span className="w-7 text-right">신규</span>
+                <span className="w-7 text-right">폐업</span>
+                <span className="w-9 text-right">순증</span>
+              </span>
+            </div>
+            <div className="flex max-h-[140px] flex-col gap-0.5 overflow-y-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+              {drillDongs.map((d, i) => (
+                <div key={d.dong} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs hover:bg-slate-50">
+                  <span className={`flex h-[17px] w-[17px] flex-shrink-0 items-center justify-center rounded-[5px] text-[9px] font-semibold ${i < 3 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-400'}`}>{i + 1}</span>
+                  <span className="flex-1 truncate text-slate-800">{d.dong}</span>
+                  <span className="w-7 text-right tabular-nums text-green-600">{d.new || '·'}</span>
+                  <span className="w-7 text-right tabular-nums text-red-500">{d.closed || '·'}</span>
+                  <span className={`w-9 text-right font-semibold tabular-nums ${d.net > 0 ? 'text-green-600' : d.net < 0 ? 'text-red-600' : 'text-slate-400'}`}>{d.net > 0 ? `+${d.net}` : d.net}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Drill tabs */}
         <div className="flex gap-1 px-3.5 py-[9px] border-b border-slate-200 flex-shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
           {(['all', 'new', 'closed', 'big'] as DrillTab[]).map(tab => (
@@ -1110,12 +1413,7 @@ export default function DiscoverPage() {
 
         {/* Drill list */}
         <div className="flex-1 overflow-y-auto min-h-0 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
-          {drillLoading ? (
-            <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-              불러오는 중...
-            </div>
-          ) : filteredDrillStores.length === 0 ? (
+          {filteredDrillStores.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
               <span className="opacity-60">{drillSummary ? <Inbox size={28} /> : <Clock size={28} />}</span>
               {drillSummary ? '해당 데이터 없음' : (
