@@ -733,7 +733,7 @@ export default function DiscoverPage() {
       // (예전엔 독은 market_snapshots 집계·드릴다운은 store_records라 숫자가 어긋났음 → 통일)
       // PostgREST max-rows(≈1000) 캡 때문에 .order('id')+.range() 페이지네이션 필수.
       // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
-      const storeCols = 'sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
+      const storeCols = 'name,sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
       const PAGE = 1000;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const loadScoped = async (build: () => any) => {
