@@ -731,23 +731,37 @@ export default function DiscoverPage() {
 
       setCachedSnaps(snaps);
 
-      // 매장 레코드 (점/히트맵 + 동별 집계) — 같은 스코프로 직접 로드
+      // 매장 레코드 (점/히트맵 + 동별 집계) — 같은 스코프로 직접 로드.
+      // PostgREST max-rows(≈1000) 서버 캡 때문에 .range() 페이지네이션 필수
+      // (.order 없이 한 방에 받으면 임의의 1000건만 와서 일부 시군구가 통째로 누락됨).
       const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,address,license_date';
+      const PAGE = 1000;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const loadScoped = async (build: () => any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const acc: any[] = [];
+        for (let from = 0; from < 100000; from += PAGE) {
+          const { data, error } = await build().order('id').range(from, from + PAGE - 1);
+          if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); break; }
+          const batch = data || [];
+          acc.push(...batch);
+          if (batch.length < PAGE) break;
+        }
+        return acc;
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let rawStores: any[] = [];
       try {
         if (mode === 'sido' && sido) {
-          const { data } = await supabase
-            .from('market_store_records').select(storeCols)
-            .eq('sido', sido).gte('month', '2025-01').not('lat', 'is', null).limit(20000);
-          rawStores = data || [];
+          rawStores = await loadScoped(() =>
+            supabase.from('market_store_records').select(storeCols)
+              .eq('sido', sido).gte('month', '2025-01').not('lat', 'is', null));
         } else {
           const all = await Promise.all(
             Object.entries(sSigunguMap).map(([s, list]) =>
-              supabase
-                .from('market_store_records').select(storeCols)
-                .eq('sido', s).in('sigungu', list).gte('month', '2025-01').not('lat', 'is', null).limit(20000)
-                .then(({ data }) => data || [])
+              loadScoped(() =>
+                supabase.from('market_store_records').select(storeCols)
+                  .eq('sido', s).in('sigungu', list).gte('month', '2025-01').not('lat', 'is', null))
             )
           );
           rawStores = all.flat();
