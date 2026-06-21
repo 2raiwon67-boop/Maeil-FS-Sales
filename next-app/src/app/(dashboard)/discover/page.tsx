@@ -48,13 +48,14 @@ interface DrillSummary {
 // 개별 매장 레코드 (market_store_records, 좌표 기반 점/히트맵 + 동별 집계)
 interface StoreRow {
   name: string;
+  sido: string;
   sigungu: string;
   month: string;
   status: 'new' | 'closed';
   category: string | null;
   pyeong: number | null;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   address: string | null;
   license_date: string | null;
   dong: string;
@@ -650,9 +651,9 @@ export default function DiscoverPage() {
         setSigunguSidoMap(newSigunguSidoMap);
         sigunguSidoMapRef.current = newSigunguSidoMap;
 
-        // Fetch available sidos from market_snapshots for region chips
+        // 시도 칩 목록도 단일 소스(market_store_records)에서
         const { data: sidoData } = await supabase
-          .from('market_snapshots')
+          .from('market_store_records')
           .select('sido')
           .gte('month', '2025-01');
         const sidos = [...new Set((sidoData || []).map((r: { sido: string }) => r.sido))].sort();
@@ -685,56 +686,11 @@ export default function DiscoverPage() {
     mapCenteredRef.current = false;
 
     try {
-      let snaps: SnapRow[] = [];
-
-      if (mode === 'sido' && sido) {
-        const { data, error } = await supabase
-          .from('market_snapshots')
-          .select('sido, sigungu, month, new_count, closed_count, updated_at')
-          .eq('sido', sido)
-          .gte('month', '2025-01')
-          .order('month', { ascending: true });
-        if (error) throw error;
-        snaps = data || [];
-
-        // Update sigunguSidoMap for newly loaded regions
-        const updatedMap = { ...sguSidoMap };
-        snaps.forEach(r => { updatedMap[r.sigungu] = r.sido; });
-        setSigunguSidoMap(updatedMap);
-        sigunguSidoMapRef.current = updatedMap;
-
-      } else {
-        const updatedMap: Record<string, string> = {};
-        Object.entries(sSigunguMap).forEach(([s, list]) => {
-          list.forEach(sgu => { updatedMap[sgu] = s; });
-        });
-        setSigunguSidoMap(updatedMap);
-        sigunguSidoMapRef.current = updatedMap;
-
-        const allSnaps = await Promise.all(
-          Object.entries(sSigunguMap).map(([s, siguList]) =>
-            supabase
-              .from('market_snapshots')
-              .select('sido, sigungu, month, new_count, closed_count, updated_at')
-              .eq('sido', s)
-              .in('sigungu', siguList)
-              .gte('month', '2025-01')
-              .order('month', { ascending: true })
-              .then(({ data, error }) => {
-                if (error) throw error;
-                return data || [];
-              })
-          )
-        );
-        snaps = allSnaps.flat();
-      }
-
-      setCachedSnaps(snaps);
-
-      // 매장 레코드 (점/히트맵 + 동별 집계) — 같은 스코프로 직접 로드.
-      // PostgREST max-rows(≈1000) 서버 캡 때문에 .range() 페이지네이션 필수
-      // (.order 없이 한 방에 받으면 임의의 1000건만 와서 일부 시군구가 통째로 누락됨).
-      const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,address,license_date';
+      // 단일 소스: market_store_records만 읽고, 독/KPI/랭킹/면/차트/드릴다운 전부 이 데이터로 집계.
+      // (예전엔 독은 market_snapshots 집계·드릴다운은 store_records라 숫자가 어긋났음 → 통일)
+      // PostgREST max-rows(≈1000) 캡 때문에 .order('id')+.range() 페이지네이션 필수.
+      // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
+      const storeCols = 'sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
       const PAGE = 1000;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const loadScoped = async (build: () => any) => {
@@ -751,35 +707,53 @@ export default function DiscoverPage() {
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let rawStores: any[] = [];
-      try {
-        if (mode === 'sido' && sido) {
-          rawStores = await loadScoped(() =>
-            supabase.from('market_store_records').select(storeCols)
-              .eq('sido', sido).gte('month', '2025-01').not('lat', 'is', null));
-        } else {
-          const all = await Promise.all(
-            Object.entries(sSigunguMap).map(([s, list]) =>
-              loadScoped(() =>
-                supabase.from('market_store_records').select(storeCols)
-                  .eq('sido', s).in('sigungu', list).gte('month', '2025-01').not('lat', 'is', null))
-            )
-          );
-          rawStores = all.flat();
-        }
-      } catch (e) {
-        console.warn('[discover] 매장 레코드 로드 실패', e);
+      if (mode === 'sido' && sido) {
+        rawStores = await loadScoped(() =>
+          supabase.from('market_store_records').select(storeCols)
+            .eq('sido', sido).gte('month', '2025-01'));
+      } else {
+        const all = await Promise.all(
+          Object.entries(sSigunguMap).map(([s, list]) =>
+            loadScoped(() =>
+              supabase.from('market_store_records').select(storeCols)
+                .eq('sido', s).in('sigungu', list).gte('month', '2025-01'))
+          )
+        );
+        rawStores = all.flat();
       }
+
       const storeRows: StoreRow[] = rawStores.map(r => ({
-        name: r.name, sigungu: r.sigungu, month: r.month,
+        name: r.name, sido: r.sido, sigungu: r.sigungu, month: r.month,
         status: r.status === 'closed' ? 'closed' : 'new',
         category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
-        lat: Number(r.lat), lng: Number(r.lng), address: r.address,
-        license_date: r.license_date, dong: extractDong(r.address),
+        lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
+        address: r.address, license_date: r.license_date, dong: extractDong(r.address),
       }));
       setCachedStores(storeRows);
       cachedStoresRef.current = storeRows;
 
-      const lastUpd = snaps.reduce((mx, r) => r.updated_at > mx ? r.updated_at : mx, '');
+      // sigunguSidoMap 갱신 (지도 중심 이동·라벨용)
+      const updatedMap: Record<string, string> = mode === 'sido' && sido ? { ...sguSidoMap } : {};
+      if (mode === 'sido' && sido) {
+        storeRows.forEach(r => { updatedMap[r.sigungu] = r.sido; });
+      } else {
+        Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(sgu => { updatedMap[sgu] = s; }));
+      }
+      setSigunguSidoMap(updatedMap);
+      sigunguSidoMapRef.current = updatedMap;
+
+      // 매장 → SnapRow 집계 (다운스트림 KPI/랭킹/면/차트는 SnapRow를 그대로 소비)
+      const snapAgg = new Map<string, SnapRow>();
+      for (const r of storeRows) {
+        const k = `${r.sido}|${r.sigungu}|${r.month}`;
+        let o = snapAgg.get(k);
+        if (!o) { o = { sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: 0, closed_count: 0, updated_at: '' }; snapAgg.set(k, o); }
+        if (r.status === 'new') o.new_count++; else o.closed_count++;
+      }
+      const snaps = [...snapAgg.values()];
+      setCachedSnaps(snaps);
+
+      const lastUpd = rawStores.reduce((mx, r) => (r.updated_at && r.updated_at > mx ? r.updated_at : mx), '');
       if (lastUpd) {
         const d = new Date(lastUpd).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
         setLastSync(`갱신 ${d}`);
