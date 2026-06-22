@@ -100,13 +100,12 @@ const SIDO_NORM: Record<string, string> = {
 };
 // 지역 드롭다운 — 전국 17개 시도 (수도권=데이터 보유 우선, 나머지는 UI만/선택 시 데이터 없음)
 const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
-// 전국에 같은 이름이 여럿인 시군구(중구·서구 등) — 이런 건 시도를 앞에 붙여 구분
-const DUP_SIGUNGU = new Set(['중구', '서구', '동구', '남구', '북구', '강서구', '고성군']);
 // 줌인 시 표시할 행정동 경계 파일 (데이터 있는 시도만, public/geojson/dong/)
 const DONG_FILE: Record<string, string> = { 서울: 'seoul', 경기도: 'gyeonggi', 인천: 'incheon' };
 function shortSido(s: string) { return s === '경기도' ? '경기' : s; }
-function regionLabel(sido: string, sigungu: string) {
-  return sido && DUP_SIGUNGU.has(sigungu) ? `${shortSido(sido)} ${sigungu}` : sigungu;
+// 여러 시도를 함께 볼 때(withSido)만 시도 접두 — 단일 시도 보기면 드롭다운이 이미 알려주므로 생략
+function regionLabel(sido: string, sigungu: string, withSido: boolean) {
+  return withSido && sido ? `${shortSido(sido)} ${sigungu}` : sigungu;
 }
 function normSido(s?: string | null) {
   return SIDO_NORM[s?.trim() ?? ''] || s?.trim() || '';
@@ -493,7 +492,7 @@ export default function DiscoverPage() {
         }
         mapInstance.getCanvas().style.cursor = 'pointer';
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
-        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, f.properties.name)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
+        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
 
         if (!mapPopupRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1228,7 +1227,7 @@ export default function DiscoverPage() {
     drillRegionRef.current = sigungu;
     setSelectedDong(null);
     selectedDongRef.current = null;
-    setDrillTitle(regionLabel(sd, sigungu));
+    setDrillTitle(regionLabel(sd, sigungu, scopeSidosRef.current.length > 1));
     setDrillTab('all');
     setDrillStores(rows);
     setPanelOpen(true);
@@ -1359,6 +1358,8 @@ export default function DiscoverPage() {
 
   const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
 
+  // 여러 시도를 함께 보는 경우(내 지점에 시도가 2개+)만 라벨에 시도 접두
+  const multiSido = regionMode === 'branch' && Object.keys(sidoSigunguMap).length > 1;
   const regionValue = regionMode === 'branch' ? '내 지점' : (regionSido ?? '내 지점');
   // 내 지점(기본) + 전국 17개 시도 (데이터 없는 시도는 선택 시 빈 화면)
   const regionOptions: DropdownOption[] = [
@@ -1486,7 +1487,7 @@ export default function DiscoverPage() {
                     className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-slate-50"
                   >
                     <span className={`flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-[5px] text-[10px] font-semibold ${i < 2 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
-                    <span className="flex-1 truncate text-xs text-slate-800">{regionLabel(r.sido, r.region)}</span>
+                    <span className="flex-1 truncate text-xs text-slate-800">{regionLabel(r.sido, r.region, multiSido)}</span>
                     <span className={`text-xs font-semibold tabular-nums ${r.new > 0 ? 'text-green-600' : 'text-slate-300'}`}>{r.new > 0 ? `+${r.new}` : '0'}</span>
                   </button>
                 ))}
@@ -1752,7 +1753,7 @@ export default function DiscoverPage() {
                   <div className="flex items-baseline justify-between mb-2.5">
                     <div className="flex items-baseline gap-2">
                       <span className="text-[11px] font-semibold text-slate-400 min-w-[22px]">#{i + 1}</span>
-                      <span className="text-base font-extrabold text-slate-900 tracking-[-0.02em]">{regionLabel(r.sido, r.region)}</span>
+                      <span className="text-base font-extrabold text-slate-900 tracking-[-0.02em]">{regionLabel(r.sido, r.region, multiSido)}</span>
                     </div>
                     <span className={`text-[15px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
                   </div>
