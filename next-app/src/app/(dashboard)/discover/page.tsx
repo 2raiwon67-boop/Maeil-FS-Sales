@@ -40,6 +40,17 @@ interface DrillStore {
   pyeong?: number;
   license_date?: string;
   address?: string;
+  lat?: number | null;
+  lng?: number | null;
+  dong?: string | null;
+  key: string;
+}
+
+type DrillSort = 'default' | 'pyeong' | 'date' | 'name';
+
+// 매장 식별 키 (지도 점 ↔ 리스트 항목 매칭용) — 이름+좌표로 고유화
+function storeKey(name: string, lat?: number | null, lng?: number | null) {
+  return `${name}|${lat ?? ''}|${lng ?? ''}`;
 }
 
 interface DrillSummary {
@@ -295,8 +306,13 @@ export default function DiscoverPage() {
   const [drillStores, setDrillStores] = useState<StoreRow[]>([]); // 클릭한 시군구의 전체 매장(전월·전업종)
   const [selectedDong, setSelectedDong] = useState<string | null>(null);
   const [drillTab, setDrillTab] = useState<DrillTab>('all');
+  const [drillSort, setDrillSort] = useState<DrillSort>('default');
+  const [selectedStoreKey, setSelectedStoreKey] = useState<string | null>(null);
   const [spChartOpen, setSpChartOpen] = useState(false);
   const [currentDrillRegion, setCurrentDrillRegion] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const drillListRef = useRef<any>(null);
+  const selectedStoreKeyRef = useRef<string | null>(null);
 
   // Refs to hold mutable values without triggering re-renders in map handlers
   const sigunguSidoMapRef = useRef<Record<string, string>>({});
@@ -323,6 +339,18 @@ export default function DiscoverPage() {
   useEffect(() => { selectedMonthRef.current = selectedMonth; }, [selectedMonth]);
   useEffect(() => { selectedCategoryRef.current = selectedCategory; }, [selectedCategory]);
   useEffect(() => { cachedStoresRef.current = cachedStores; }, [cachedStores]);
+
+  // 선택된 매장이 바뀌면 리스트에서 해당 행을 화면 안으로 스크롤 (점 클릭 → 리스트 동기화)
+  useEffect(() => {
+    if (!selectedStoreKey) return;
+    const cont = drillListRef.current;
+    if (!cont) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let found: any = null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cont.querySelectorAll('[data-skey]').forEach((el: any) => { if (el.getAttribute('data-skey') === selectedStoreKey) found = el; });
+    if (found) found.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedStoreKey]);
 
   // ─── AUTH CHECK ────────────────────────────────────────────────────────────
 
@@ -707,6 +735,25 @@ export default function DiscoverPage() {
       },
     });
 
+    // 선택된 매장 강조 — 흰 헤일로(뒤) + 파란 링(앞). 표시모드 무관 항상 표시.
+    mapInstance.addSource('store-sel', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    mapInstance.addLayer({
+      id: 'store-sel-halo', type: 'circle', source: 'store-sel',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 11, 12, 17, 15, 24, 17, 32],
+        'circle-color': 'rgba(0,0,0,0)',
+        'circle-stroke-width': 7, 'circle-stroke-color': '#ffffff', 'circle-stroke-opacity': 0.9,
+      },
+    });
+    mapInstance.addLayer({
+      id: 'store-sel-ring', type: 'circle', source: 'store-sel',
+      paint: {
+        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 11, 12, 17, 15, 24, 17, 32],
+        'circle-color': 'rgba(0,0,0,0)',
+        'circle-stroke-width': 3, 'circle-stroke-color': '#2563eb', 'circle-stroke-opacity': 1,
+      },
+    });
+
     // 매장 점 — hover 시 현대적 반투명 검정 툴팁 (+ 모바일 탭 대비 click도)
     const POP = 'background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;max-width:240px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32)';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -735,9 +782,12 @@ export default function DiscoverPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mapInstance.on('click', 'store-point', (e: any) => {
       const f = e.features?.[0]; if (!f) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const ML = (window as any).maplibregl;
-      if (ML) new ML.Popup({ closeButton: false, offset: 12, className: 'fs-pop' }).setLngLat(e.lngLat).setHTML(storeHtml(f.properties || {})).addTo(mapInstance);
+      const p = f.properties || {};
+      const coords = f.geometry?.coordinates || [];
+      const lng = Number(coords[0]), lat = Number(coords[1]);
+      // 해당 시군구 패널을 열고(없으면), 그 매장을 리스트에서 선택·스크롤
+      if (p.sigungu) openDrilldown(String(p.sigungu), p.sido ? String(p.sido) : undefined);
+      selectStore(String(p.k || storeKey(p.name, lat, lng)), lat, lng, false);
     });
 
     storeLayerReadyRef.current = true;
@@ -765,6 +815,8 @@ export default function DiscoverPage() {
         properties: {
           name: s.name, status: s.status, category: s.category || '',
           pyeong: s.pyeong || 0, month: s.month,
+          sigungu: s.sigungu, sido: s.sido, lat: s.lat, lng: s.lng,
+          k: storeKey(s.name, s.lat, s.lng),
           big,
           color: s.status === 'new' ? newC : closedC,
           ring: big ? bigRing : '#ffffff',
@@ -1276,6 +1328,9 @@ export default function DiscoverPage() {
     selectedDongRef.current = null;
     setDrillTitle(regionLabel(sd, sigungu, scopeSidosRef.current.length > 1));
     setDrillTab('all');
+    setSelectedStoreKey(null);
+    selectedStoreKeyRef.current = null;
+    updateSelectedMarker(null);
     setDrillStores(rows);
     setPanelOpen(true);
     updateStoreLayer();
@@ -1289,6 +1344,9 @@ export default function DiscoverPage() {
     drillRegionRef.current = '';
     setSelectedDong(null);
     selectedDongRef.current = null;
+    setSelectedStoreKey(null);
+    selectedStoreKeyRef.current = null;
+    updateSelectedMarker(null);
     setDrillStores([]);
     updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
@@ -1317,6 +1375,28 @@ export default function DiscoverPage() {
       maxZoom, duration: 800,
     });
     nudgePaint();
+  }
+
+  // 선택 매장 강조 마커 갱신 (좌표 없으면 비움)
+  function updateSelectedMarker(lat?: number | null, lng?: number | null) {
+    const map = mapRef.current;
+    const src = map?.getSource('store-sel');
+    if (!src) return;
+    src.setData(lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)
+      ? { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: {} }] }
+      : { type: 'FeatureCollection', features: [] });
+  }
+
+  // 매장 선택 — 리스트 행 하이라이트 + 지도 강조 링 + (옵션) 해당 위치로 이동
+  function selectStore(key: string | null, lat?: number | null, lng?: number | null, fly = false) {
+    setSelectedStoreKey(key);
+    selectedStoreKeyRef.current = key;
+    updateSelectedMarker(lat, lng);
+    if (fly && lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng) && mapRef.current) {
+      const z = Math.max(mapRef.current.getZoom(), 15);
+      mapRef.current.flyTo({ center: [lng, lat], zoom: z, duration: 700 });
+      nudgePaint();
+    }
   }
 
   // 동별 순증 행 클릭 — 토글: 리스트·지도 점을 해당 동만, 지도도 그 동으로 확대
@@ -1400,7 +1480,12 @@ export default function DiscoverPage() {
   const drillListBase = selectedDong ? drillScoped.filter(s => s.dong === selectedDong) : drillScoped;
   const filteredDrillStores: DrillStore[] = drillListBase
     .filter(s => drillTab === 'all' ? true : drillTab === 'new' ? s.status === 'new' : drillTab === 'closed' ? s.status === 'closed' : (s.pyeong || 0) >= 100)
-    .map(s => ({ name: s.name, status: s.status, category: s.category || undefined, pyeong: s.pyeong ?? undefined, license_date: s.license_date || undefined, address: s.address || undefined }));
+    .map(s => ({ name: s.name, status: s.status, category: s.category || undefined, pyeong: s.pyeong ?? undefined, license_date: s.license_date || undefined, address: s.address || undefined, lat: s.lat, lng: s.lng, dong: s.dong, key: storeKey(s.name, s.lat, s.lng) }))
+    .sort((a, b) =>
+      drillSort === 'pyeong' ? (b.pyeong || 0) - (a.pyeong || 0)
+      : drillSort === 'date' ? (b.license_date || '').localeCompare(a.license_date || '')
+      : drillSort === 'name' ? a.name.localeCompare(b.name, 'ko')
+      : 0);
   const bigCount = drillScoped.filter(s => (s.pyeong || 0) >= 100).length;
 
   const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
@@ -1693,21 +1778,34 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* Drill tabs */}
-        <div className="flex gap-1 px-3.5 py-[9px] border-b border-slate-200 flex-shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden">
-          {(['all', 'new', 'closed', 'big'] as DrillTab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setDrillTab(tab)}
-              className={`h-7 px-[13px] text-xs font-semibold rounded-full border cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${drillTab === tab ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600'}`}
-            >
-              {tab === 'all' ? '전체' : tab === 'new' ? '신규' : tab === 'closed' ? '폐업' : '100평+'}
-            </button>
-          ))}
+        {/* Drill tabs + 정렬 */}
+        <div className="flex items-center gap-2 px-3.5 py-[9px] border-b border-slate-200 flex-shrink-0">
+          <div className="flex gap-1 overflow-x-auto flex-1 [&::-webkit-scrollbar]:hidden">
+            {(['all', 'new', 'closed', 'big'] as DrillTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setDrillTab(tab)}
+                className={`h-7 px-[13px] text-xs font-semibold rounded-full border cursor-pointer whitespace-nowrap flex-shrink-0 transition-all ${drillTab === tab ? 'bg-blue-600 border-blue-600 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600'}`}
+              >
+                {tab === 'all' ? '전체' : tab === 'new' ? '신규' : tab === 'closed' ? '폐업' : '100평+'}
+              </button>
+            ))}
+          </div>
+          <select
+            value={drillSort}
+            onChange={e => setDrillSort(e.target.value as DrillSort)}
+            aria-label="정렬"
+            className="h-7 text-xs font-semibold text-slate-600 border border-slate-200 rounded-full pl-2.5 pr-1.5 bg-white cursor-pointer flex-shrink-0 hover:border-blue-400 focus:outline-none focus:border-blue-500"
+          >
+            <option value="default">기본순</option>
+            <option value="pyeong">평수순</option>
+            <option value="date">최신순</option>
+            <option value="name">이름순</option>
+          </select>
         </div>
 
         {/* Drill list */}
-        <div className="flex-1 overflow-y-auto min-h-0 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
+        <div ref={drillListRef} className="flex-1 overflow-y-auto min-h-0 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
           {filteredDrillStores.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
               <span className="opacity-60">{drillSummary ? <Inbox size={28} /> : <Clock size={28} />}</span>
@@ -1718,8 +1816,16 @@ export default function DiscoverPage() {
           ) : (
             filteredDrillStores.map((s, i) => {
               const isBig = (s.pyeong || 0) >= 100;
+              const isSel = selectedStoreKey === s.key;
+              const hasGeo = s.lat != null && s.lng != null;
               return (
-                <div key={i} className="px-5 py-[13px] border-b border-slate-100 transition-colors hover:bg-slate-50">
+                <div
+                  key={s.key + '|' + i}
+                  data-skey={s.key}
+                  onClick={() => selectStore(s.key, s.lat, s.lng, true)}
+                  title={hasGeo ? '클릭 시 지도에서 위치 보기' : '좌표 정보 없음'}
+                  className={`px-5 py-[13px] border-b border-slate-100 cursor-pointer transition-colors ${isSel ? 'bg-blue-50 ring-1 ring-inset ring-blue-300' : 'hover:bg-slate-50'}`}
+                >
                   <div className="flex items-center gap-2 mb-1.5">
                     <span className="text-sm font-bold text-slate-900 flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{s.name}</span>
                     {isBig && (
