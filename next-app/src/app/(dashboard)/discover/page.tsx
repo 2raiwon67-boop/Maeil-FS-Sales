@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
@@ -251,6 +252,7 @@ export default function DiscoverPage() {
   const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('points');
+  const [colorblind, setColorblind] = useState(false); // 색각보정 (홈/설정모달과 fs_colorblind 공유)
   const [playing, setPlaying] = useState(false);
   const [dockOpen, setDockOpen] = useState(true);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
@@ -287,6 +289,9 @@ export default function DiscoverPage() {
   const selectedDongRef = useRef<string | null>(null);
   const drillRegionRef = useRef<string>('');
   const displayModeRef = useRef<DisplayMode>('points');
+  const colorblindRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const storeHoverPopupRef = useRef<any>(null);
   const storeLayerReadyRef = useRef(false);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -302,6 +307,15 @@ export default function DiscoverPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) router.replace('/login');
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 색각보정 — 공유 설정(fs_colorblind) 읽기 + 같은 탭 변경 구독 → 점/히트맵 재색칠
+  useEffect(() => {
+    const apply = (v: boolean) => { setColorblind(v); colorblindRef.current = v; updateStoreLayer(); };
+    const t = setTimeout(() => apply(getColorblind()), 0); // 초기값(effect 내 동기 setState 회피)
+    const off = onColorblindChange(apply);
+    return () => { clearTimeout(t); off(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -464,13 +478,13 @@ export default function DiscoverPage() {
         }
         mapInstance.getCanvas().style.cursor = 'pointer';
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
-        const html = `<div style="background:#0f172a;color:#fff;border-radius:8px;padding:7px 13px;font-size:13px;font-weight:500;box-shadow:0 4px 20px rgba(15,23,42,.09);white-space:nowrap"><b style="font-weight:800">${f.properties.name}</b><br>신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div>`;
+        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${f.properties.name}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
 
         if (!mapPopupRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const ML = (window as any).maplibregl;
           if (ML) {
-            mapPopupRef.current = new ML.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
+            mapPopupRef.current = new ML.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'fs-pop' });
           }
         }
         if (mapPopupRef.current) {
@@ -575,31 +589,50 @@ export default function DiscoverPage() {
       id: 'store-point', type: 'circle', source: 'stores',
       layout: { visibility: 'visible' },
       paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 2.6, 11, 4, 14, 6.5, 16, 9],
-        'circle-color': ['match', ['get', 'status'], 'new', '#16a34a', 'closed', '#e24b4a', '#94a3b8'],
-        'circle-opacity': 0.82,
-        'circle-stroke-width': 0.7,
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-opacity': 0.85,
+        // 100평+(big=1)은 1.7배 크게 + 굵은 링으로 강조
+        'circle-radius': ['*',
+          ['case', ['==', ['get', 'big'], 1], 1.7, 1],
+          ['interpolate', ['linear'], ['zoom'], 8, 2.6, 11, 4, 14, 6.5, 16, 9],
+        ],
+        'circle-color': ['get', 'color'],
+        'circle-opacity': 0.85,
+        'circle-stroke-width': ['case', ['==', ['get', 'big'], 1], 2.4, 0.7],
+        'circle-stroke-color': ['get', 'ring'],
+        'circle-stroke-opacity': 0.95,
       },
     });
 
-    // 점 클릭 → 매장 팝업
+    // 매장 점 — hover 시 현대적 반투명 검정 툴팁 (+ 모바일 탭 대비 click도)
+    const POP = 'background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;max-width:240px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32)';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mapInstance.on('mouseenter', 'store-point', () => { mapInstance.getCanvas().style.cursor = 'pointer'; });
-    mapInstance.on('mouseleave', 'store-point', () => { mapInstance.getCanvas().style.cursor = ''; });
+    const storeHtml = (p: any) => {
+      const cb = colorblindRef.current;
+      const sc = p.status === 'new' ? (cb ? '#60a5fa' : '#4ade80') : (cb ? '#fb923c' : '#f87171');
+      const label = p.status === 'new' ? '신규' : '폐업';
+      const bigBadge = String(p.big) === '1' ? ' <span style="color:#fbbf24;font-weight:700">· 100평+</span>' : '';
+      const meta = [p.category, p.pyeong && Number(p.pyeong) ? `${p.pyeong}평` : '', p.month].filter(Boolean).join(' · ');
+      return `<div style="${POP}"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${p.name || '매장'} <span style="color:${sc};font-weight:700">${label}</span>${bigBadge}</div><div style="color:#cbd5e1;font-size:11px">${meta}</div></div>`;
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mapInstance.on('mousemove', 'store-point', (e: any) => {
+      const f = e.features?.[0]; if (!f) return;
+      mapInstance.getCanvas().style.cursor = 'pointer';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ML = (window as any).maplibregl;
+      if (!ML) return;
+      if (!storeHoverPopupRef.current) storeHoverPopupRef.current = new ML.Popup({ closeButton: false, closeOnClick: false, offset: 12, className: 'fs-pop' });
+      storeHoverPopupRef.current.setLngLat(e.lngLat).setHTML(storeHtml(f.properties || {})).addTo(mapInstance);
+    });
+    mapInstance.on('mouseleave', 'store-point', () => {
+      mapInstance.getCanvas().style.cursor = '';
+      if (storeHoverPopupRef.current) storeHoverPopupRef.current.remove();
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mapInstance.on('click', 'store-point', (e: any) => {
       const f = e.features?.[0]; if (!f) return;
-      const p = f.properties || {};
-      const badge = p.status === 'new'
-        ? '<span style="color:#16a34a;font-weight:800">신규</span>'
-        : '<span style="color:#e24b4a;font-weight:800">폐업</span>';
-      const meta = [p.category, p.pyeong ? `${p.pyeong}평` : '', p.month].filter(Boolean).join(' · ');
-      const html = `<div style="background:#0f172a;color:#fff;border-radius:8px;padding:8px 12px;font-size:12px;max-width:230px;box-shadow:0 4px 20px rgba(15,23,42,.12)"><b style="font-weight:800;font-size:13px">${p.name || '매장'}</b> ${badge}<br><span style="color:#94a3b8">${meta}</span></div>`;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ML = (window as any).maplibregl;
-      if (ML) new ML.Popup({ closeButton: false, offset: 12 }).setLngLat(e.lngLat).setHTML(html).addTo(mapInstance);
+      if (ML) new ML.Popup({ closeButton: false, offset: 12, className: 'fs-pop' }).setLngLat(e.lngLat).setHTML(storeHtml(f.properties || {})).addTo(mapInstance);
     });
 
     storeLayerReadyRef.current = true;
@@ -610,18 +643,26 @@ export default function DiscoverPage() {
     stores: StoreRow[], month: string | null, cat: Category,
     dongFilter?: { sigungu: string; dong: string } | null,
   ) {
+    const cb = colorblindRef.current;
+    const newC = cb ? '#2563eb' : '#16a34a';   // 색각보정: 신규=파랑 / 폐업=주황 (적록 회피)
+    const closedC = cb ? '#f97316' : '#e24b4a';
+    const bigRing = cb ? '#a855f7' : '#f59e0b'; // 100평+ 링: 일반 앰버 / 색각보정 보라
     const feats = [];
     for (const s of stores) {
       if (s.lat == null || s.lng == null) continue;
       if (month && s.month !== month) continue;
       if (!matchCategory(s, cat)) continue;
       if (dongFilter && (s.sigungu !== dongFilter.sigungu || s.dong !== dongFilter.dong)) continue;
+      const big = (s.pyeong || 0) >= 100 ? 1 : 0;
       feats.push({
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [s.lng, s.lat] },
         properties: {
           name: s.name, status: s.status, category: s.category || '',
           pyeong: s.pyeong || 0, month: s.month,
+          big,
+          color: s.status === 'new' ? newC : closedC,
+          ring: big ? bigRing : '#ffffff',
         },
       });
     }
@@ -644,6 +685,12 @@ export default function DiscoverPage() {
 
     mapInstance.setLayoutProperty('store-point', 'visibility', mode === 'points' ? 'visible' : 'none');
     mapInstance.setLayoutProperty('store-heat', 'visibility', mode === 'heat' ? 'visible' : 'none');
+    // 히트맵 램프도 색각보정 반영 (초록 → 파랑)
+    if (mapInstance.getLayer('store-heat')) {
+      mapInstance.setPaintProperty('store-heat', 'heatmap-color', colorblindRef.current
+        ? ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(37,99,235,0)', 0.25, 'rgba(147,197,253,0.55)', 0.55, 'rgba(59,130,246,0.78)', 0.85, 'rgba(29,78,216,0.92)', 1, 'rgba(30,58,138,1)']
+        : ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(22,163,74,0)', 0.25, 'rgba(134,239,172,0.55)', 0.55, 'rgba(34,197,94,0.75)', 0.85, 'rgba(21,128,61,0.9)', 1, 'rgba(20,83,45,1)']);
+    }
     if (mapInstance.getLayer('muni-extrusion')) {
       mapInstance.setLayoutProperty('muni-extrusion', 'visibility', is3d ? 'visible' : 'none');
     }
@@ -1381,7 +1428,7 @@ export default function DiscoverPage() {
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#a1a1a6' }} />보합</span>
                 </>
               ) : displayMode === 'heat' ? (
-                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ background: 'rgba(34,197,94,.55)' }} />신규 농도(동 단위)</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2 w-3 rounded-sm" style={{ background: colorblind ? 'rgba(59,130,246,.6)' : 'rgba(34,197,94,.55)' }} />신규 농도(동 단위)</span>
               ) : displayMode === 'd3' ? (
                 <>
                   <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-2 rounded-sm" style={{ background: '#15803d' }} />순증↑</span>
@@ -1390,8 +1437,10 @@ export default function DiscoverPage() {
                 </>
               ) : (
                 <>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#16a34a' }} />신규 매장</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#e24b4a' }} />폐업 매장</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: colorblind ? '#2563eb' : '#16a34a' }} />신규 매장</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: colorblind ? '#f97316' : '#e24b4a' }} />폐업 매장</span>
+                  <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full border-2" style={{ borderColor: colorblind ? '#a855f7' : '#f59e0b', background: 'transparent' }} />100평+</span>
+                  {colorblind && <span className="text-slate-400">색각보정</span>}
                 </>
               )}
             </div>
