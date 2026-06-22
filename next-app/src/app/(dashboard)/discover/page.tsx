@@ -97,6 +97,8 @@ const SIDO_NORM: Record<string, string> = {
   경상남도: '경상남도', 경남: '경상남도',
   제주특별자치도: '제주', 제주도: '제주', 제주: '제주',
 };
+// 지역 드롭다운 — 전국 17개 시도 (수도권=데이터 보유 우선, 나머지는 UI만/선택 시 데이터 없음)
+const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 function normSido(s?: string | null) {
   return SIDO_NORM[s?.trim() ?? ''] || s?.trim() || '';
 }
@@ -246,7 +248,6 @@ export default function DiscoverPage() {
   const [cachedSnaps, setCachedSnaps] = useState<SnapRow[]>([]);
   const [cachedStores, setCachedStores] = useState<StoreRow[]>([]);
   const [cachedRegionsArr, setCachedRegionsArr] = useState<RegionData[]>([]);
-  const [availableSidos, setAvailableSidos] = useState<string[]>([]);
 
   // UI state
   const [mapError, setMapError] = useState<string | null>(null);
@@ -754,14 +755,6 @@ export default function DiscoverPage() {
         setSidoSigunguMap(newSidoSigunguMap);
         setSigunguSidoMap(newSigunguSidoMap);
         sigunguSidoMapRef.current = newSigunguSidoMap;
-
-        // 시도 칩 목록도 단일 소스(market_store_records)에서
-        const { data: sidoData } = await supabase
-          .from('market_store_records')
-          .select('sido')
-          .gte('month', '2025-01');
-        const sidos = [...new Set((sidoData || []).map((r: { sido: string }) => r.sido))].sort();
-        setAvailableSidos(sidos);
 
         // Load initial data
         await loadDashboardData('branch', null, newSidoSigunguMap, newSigunguSidoMap);
@@ -1291,9 +1284,10 @@ export default function DiscoverPage() {
   const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
 
   const regionValue = regionMode === 'branch' ? '내 지점' : (regionSido ?? '내 지점');
+  // 내 지점(기본) + 전국 17개 시도 (데이터 없는 시도는 선택 시 빈 화면)
   const regionOptions: DropdownOption[] = [
     { key: '__branch', label: '내 지점', active: regionMode === 'branch' },
-    ...availableSidos.map(s => ({ key: s, label: s, active: regionMode === 'sido' && regionSido === s })),
+    ...ALL_SIDOS.map(s => ({ key: s, label: s, active: regionMode === 'sido' && regionSido === s })),
   ];
 
   const CAT_LABEL: Record<Category, string> = { all: '전체 업종', cafe: '카페', bakery: '베이커리', restaurant: '음식점' };
