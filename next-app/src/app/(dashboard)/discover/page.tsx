@@ -162,7 +162,7 @@ const CAT_KW: Record<string, string[]> = {
 function getMonthList(): string[] {
   const list: string[] = [];
   const now = new Date();
-  const cur = new Date(2025, 0, 1);
+  const cur = new Date(now.getFullYear(), now.getMonth() - 35, 1); // 최근 36개월(3년) — 로드 윈도우와 일치
   while (cur <= now) {
     list.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
     cur.setMonth(cur.getMonth() + 1);
@@ -945,12 +945,25 @@ export default function DiscoverPage() {
       // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
       const storeCols = 'name,sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
       const PAGE = 1000;
+      // 최근 36개월(3년) 롤링 윈도우 — 백필된 과거치까지 노출
+      const minMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 35); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+      // 총건수를 먼저 구해 페이지를 병렬로 로드(3년치=대량이라 순차면 느림). count 불가 시 순차 폴백.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const loadScoped = async (build: () => any) => {
+      const loadScoped = async (applyFilters: (q: any) => any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const acc: any[] = [];
-        for (let from = 0; from < 100000; from += PAGE) {
-          const { data, error } = await build().order('id').range(from, from + PAGE - 1);
+        const { count } = await applyFilters(supabase.from('market_store_records').select('id', { count: 'exact', head: true }));
+        if (count != null && count >= 0) {
+          const pages = Math.min(Math.max(1, Math.ceil(count / PAGE)), 120);
+          const res = await Promise.all(
+            Array.from({ length: pages }, (_, i) =>
+              applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(i * PAGE, i * PAGE + PAGE - 1))
+          );
+          for (const { data, error } of res) { if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); continue; } if (data) acc.push(...data); }
+          return acc;
+        }
+        for (let from = 0; from < 200000; from += PAGE) { // 폴백: 순차 드레인
+          const { data, error } = await applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(from, from + PAGE - 1);
           if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); break; }
           const batch = data || [];
           acc.push(...batch);
@@ -961,15 +974,13 @@ export default function DiscoverPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let rawStores: any[] = [];
       if (mode === 'sido' && sido) {
-        rawStores = await loadScoped(() =>
-          supabase.from('market_store_records').select(storeCols)
-            .eq('sido', sido).gte('month', '2025-01'));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rawStores = await loadScoped((q: any) => q.eq('sido', sido).gte('month', minMonth));
       } else {
         const all = await Promise.all(
           Object.entries(sSigunguMap).map(([s, list]) =>
-            loadScoped(() =>
-              supabase.from('market_store_records').select(storeCols)
-                .eq('sido', s).in('sigungu', list).gte('month', '2025-01'))
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            loadScoped((q: any) => q.eq('sido', s).in('sigungu', list).gte('month', minMonth))
           )
         );
         rawStores = all.flat();
