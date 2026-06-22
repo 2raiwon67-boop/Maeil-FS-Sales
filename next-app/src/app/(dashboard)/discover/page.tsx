@@ -26,6 +26,7 @@ interface SnapRow {
 
 interface RegionData {
   region: string;
+  sido: string;
   new: number;
   closed: number;
   net: number;
@@ -99,6 +100,12 @@ const SIDO_NORM: Record<string, string> = {
 };
 // 지역 드롭다운 — 전국 17개 시도 (수도권=데이터 보유 우선, 나머지는 UI만/선택 시 데이터 없음)
 const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
+// 전국에 같은 이름이 여럿인 시군구(중구·서구 등) — 이런 건 시도를 앞에 붙여 구분
+const DUP_SIGUNGU = new Set(['중구', '서구', '동구', '남구', '북구', '강서구', '고성군']);
+function shortSido(s: string) { return s === '경기도' ? '경기' : s; }
+function regionLabel(sido: string, sigungu: string) {
+  return sido && DUP_SIGUNGU.has(sigungu) ? `${shortSido(sido)} ${sigungu}` : sigungu;
+}
 function normSido(s?: string | null) {
   return SIDO_NORM[s?.trim() ?? ''] || s?.trim() || '';
 }
@@ -479,7 +486,7 @@ export default function DiscoverPage() {
         }
         mapInstance.getCanvas().style.cursor = 'pointer';
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
-        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${f.properties.name}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
+        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, f.properties.name)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
 
         if (!mapPopupRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -534,14 +541,14 @@ export default function DiscoverPage() {
       else if (d.net < 0) { toneVal = 'neg'; tVal = Math.min(Math.abs(d.net) / 25, 1); }
       mapInstance.setFeatureState(
         { source: 'munis', id: name },
-        { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net }
+        { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido }
       );
       // 3D 블록 — 데이터 지역만, 높이=|순증|·색=방향
       d3feats.push({
         type: 'Feature',
         geometry: f.geometry,
         properties: {
-          name, tone: toneVal, nnew: d.new, closed: d.closed, net: d.net,
+          name, tone: toneVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido,
           color: toneVal === 'pos' ? '#16a34a' : toneVal === 'neg' ? '#dc2626' : '#cbd5e1',
           height: 250 + Math.abs(d.net) * 650,
         },
@@ -887,16 +894,16 @@ export default function DiscoverPage() {
 
     const displaySnaps = month ? snaps.filter(r => r.month === month) : snaps;
 
-    const regions: Record<string, { new: number; closed: number }> = {};
+    const regions: Record<string, { new: number; closed: number; sido: string }> = {};
     displaySnaps.forEach(r => {
-      if (!regions[r.sigungu]) regions[r.sigungu] = { new: 0, closed: 0 };
+      if (!regions[r.sigungu]) regions[r.sigungu] = { new: 0, closed: 0, sido: r.sido || '' };
       regions[r.sigungu].new    += r.new_count    || 0;
       regions[r.sigungu].closed += r.closed_count || 0;
     });
 
     const arr: RegionData[] = Object.entries(regions)
-      .map(([region, { new: n, closed: c }]) => ({
-        region, new: n, closed: c, net: n - c,
+      .map(([region, { new: n, closed: c, sido }]) => ({
+        region, sido, new: n, closed: c, net: n - c,
         netRate: n > 0 ? Math.round(((n - c) / n) * 100) : (c > 0 ? -100 : 0),
       }))
       .sort((a, b) => b.new - a.new);
@@ -1140,7 +1147,7 @@ export default function DiscoverPage() {
   // ─── DRILLDOWN ─────────────────────────────────────────────────────────────
 
   // 옛 maeilfs-sales API 대신 로컬 cachedStores에서 즉시 집계 (월·업종은 렌더 시점 라이브 적용)
-  function openDrilldown(sigungu: string) {
+  function openDrilldown(sigungu: string, sido?: string) {
     const stores = cachedStoresRef.current;
     let rows = stores.filter(s => s.sigungu === sigungu);
     // geojson은 구 단위(예: 고양시덕양구)인데 데이터는 시 단위(고양시)일 수 있음 → 시 폴백
@@ -1148,11 +1155,13 @@ export default function DiscoverPage() {
       const parent = [...new Set(stores.map(s => s.sigungu))].find(sg => sg.endsWith('시') && sigungu.startsWith(sg));
       if (parent) { sigungu = parent; rows = stores.filter(s => s.sigungu === parent); }
     }
+    // sido 모르면 데이터에서 유추 (중복명 구분용)
+    const sd = sido || rows[0]?.sido || '';
     setCurrentDrillRegion(sigungu);
     drillRegionRef.current = sigungu;
     setSelectedDong(null);
     selectedDongRef.current = null;
-    setDrillTitle(sigungu);
+    setDrillTitle(regionLabel(sd, sigungu));
     setDrillTab('all');
     setDrillStores(rows);
     setPanelOpen(true);
@@ -1405,12 +1414,12 @@ export default function DiscoverPage() {
                   <div className="py-6 text-center text-[11px] text-slate-300">데이터 없음</div>
                 ) : topNewRegions.map((r, i) => (
                   <button
-                    key={r.region}
-                    onClick={() => openDrilldown(r.region)}
+                    key={r.sido + r.region}
+                    onClick={() => openDrilldown(r.region, r.sido)}
                     className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-slate-50"
                   >
                     <span className={`flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-[5px] text-[10px] font-semibold ${i < 2 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
-                    <span className="flex-1 truncate text-xs text-slate-800">{r.region}</span>
+                    <span className="flex-1 truncate text-xs text-slate-800">{regionLabel(r.sido, r.region)}</span>
                     <span className={`text-xs font-semibold tabular-nums ${r.new > 0 ? 'text-green-600' : 'text-slate-300'}`}>{r.new > 0 ? `+${r.new}` : '0'}</span>
                   </button>
                 ))}
@@ -1669,14 +1678,14 @@ export default function DiscoverPage() {
               const netCls = r.net > 0 ? 'text-green-600' : r.net < 0 ? 'text-red-600' : 'text-slate-400';
               return (
                 <div
-                  key={r.region}
-                  onClick={() => openDrilldown(r.region)}
+                  key={r.sido + r.region}
+                  onClick={() => openDrilldown(r.region, r.sido)}
                   className="bg-white rounded-[10px] border border-slate-200 px-[18px] py-4 cursor-pointer transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-blue-200"
                 >
                   <div className="flex items-baseline justify-between mb-2.5">
                     <div className="flex items-baseline gap-2">
                       <span className="text-[11px] font-semibold text-slate-400 min-w-[22px]">#{i + 1}</span>
-                      <span className="text-base font-extrabold text-slate-900 tracking-[-0.02em]">{r.region}</span>
+                      <span className="text-base font-extrabold text-slate-900 tracking-[-0.02em]">{regionLabel(r.sido, r.region)}</span>
                     </div>
                     <span className={`text-[15px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
                   </div>
