@@ -589,10 +589,13 @@ export default function DiscoverPage() {
       id: 'store-point', type: 'circle', source: 'stores',
       layout: { visibility: 'visible' },
       paint: {
-        // 100평+(big=1)은 1.7배 크게 + 굵은 링으로 강조
-        'circle-radius': ['*',
-          ['case', ['==', ['get', 'big'], 1], 1.7, 1],
-          ['interpolate', ['linear'], ['zoom'], 8, 2.6, 11, 4, 14, 6.5, 16, 9],
+        // 100평+(big=1)은 크게 + 굵은 링으로 강조.
+        // zoom 표현식은 top-level interpolate여야 하므로, 분기는 각 stop 출력에 넣는다.
+        'circle-radius': ['interpolate', ['linear'], ['zoom'],
+          8, ['case', ['==', ['get', 'big'], 1], 4.5, 2.6],
+          11, ['case', ['==', ['get', 'big'], 1], 7, 4],
+          14, ['case', ['==', ['get', 'big'], 1], 11, 6.5],
+          16, ['case', ['==', ['get', 'big'], 1], 15, 9],
         ],
         'circle-color': ['get', 'color'],
         'circle-opacity': 0.85,
