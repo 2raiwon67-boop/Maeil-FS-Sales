@@ -218,6 +218,8 @@ export async function GET(req: NextRequest) {
 
   const sido = searchParams.get('sido');
   const months = searchParams.get('months') || '12';
+  const startYM = searchParams.get('start') || ''; // YYYYMM — 명시 윈도우(과거월 백필, 24개월 캡 우회)
+  const endYM = searchParams.get('end') || '';      // YYYYMM
   const save = searchParams.get('save') || '';
   const detailMode = searchParams.get('detail') || '';
   const sigungu = searchParams.get('sigungu') || '';
@@ -262,14 +264,34 @@ export async function GET(req: NextRequest) {
   if (!sido) return NextResponse.json({ success: false, error: 'sido 파라미터 필요' }, { status: 400 });
 
   const sidoShort = toShort(sido);
-  const monthCount = Math.min(Math.max(parseInt(months) || 12, 1), 24);
   const doSave = save === 'true';
 
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth() - monthCount, 1);
   const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-  const startStr = fmt(start);
-  const endStr = fmt(now);
+
+  // 윈도우 결정: start/end(YYYYMM) 명시 시 그 구간(과거 포함), 아니면 "오늘 기준 N개월"
+  const ymRe = /^\d{6}$/;
+  let startStr: string, endStr: string, monthList: string[];
+  if (ymRe.test(startYM) && ymRe.test(endYM)) {
+    startStr = `${startYM}01`;
+    endStr = `${endYM}31`;
+    monthList = [];
+    let y = parseInt(startYM.slice(0, 4)), m = parseInt(startYM.slice(4, 6));
+    const ey = parseInt(endYM.slice(0, 4)), em = parseInt(endYM.slice(4, 6));
+    while (y < ey || (y === ey && m <= em)) {
+      monthList.push(`${y}-${String(m).padStart(2, '0')}`);
+      m++; if (m > 12) { m = 1; y++; }
+      if (monthList.length > 60) break; // 안전장치
+    }
+  } else {
+    const monthCount = Math.min(Math.max(parseInt(months) || 12, 1), 24);
+    startStr = fmt(new Date(now.getFullYear(), now.getMonth() - monthCount, 1));
+    endStr = fmt(now);
+    monthList = Array.from({ length: monthCount }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (monthCount - 1 - i), 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+  }
 
   try {
     const types = Object.keys(ENDPOINTS);
@@ -330,11 +352,6 @@ export async function GET(req: NextRequest) {
     tally(newRes, 'new');
     tally(closedRes, 'closed');
 
-    const monthList = Array.from({ length: monthCount }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (monthCount - 1 - i), 1);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    });
-
     const monthlyArr = monthList.map((m) => ({
       month: m,
       new: monthly[m]?.new || 0,
@@ -364,7 +381,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       sido: sidoShort,
-      period: { start: startStr.slice(0, 6), end: endStr.slice(0, 6), months: monthCount },
+      period: { start: startStr.slice(0, 6), end: endStr.slice(0, 6), months: monthList.length },
       summary: { totalNew, totalClosed, net: totalNew - totalClosed },
       monthly: monthlyArr,
       regions: regionsArr,
