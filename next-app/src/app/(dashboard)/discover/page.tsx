@@ -108,6 +108,8 @@ const CODE_SIDO: Record<string, string> = {
   '31': '경기도', '32': '강원도', '33': '충청북도', '34': '충청남도', '35': '전라북도', '36': '전라남도', '37': '경상북도', '38': '경상남도', '39': '제주',
 };
 function sidoFromCode(code: unknown) { return CODE_SIDO[String(code ?? '').slice(0, 2)] || ''; }
+// 2013 geojson 이름 → 현재 데이터 이름 (행정구역 개편). 예: 인천 남구→미추홀구(2018)
+const NAME_ALIAS: Record<string, string> = { '인천|남구': '미추홀구' };
 function shortSido(s: string) { return s === '경기도' ? '경기' : s; }
 // 여러 시도를 함께 볼 때(withSido)만 시도 접두 — 단일 시도 보기면 드롭다운이 이미 알려주므로 생략
 function regionLabel(sido: string, sigungu: string, withSido: boolean) {
@@ -513,7 +515,7 @@ export default function DiscoverPage() {
           mapInstance.setFeatureState({ source: 'munis', id: f.id }, { hover: true });
         }
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
-        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
+        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, st.name || f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
 
         if (!mapPopupRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -539,7 +541,7 @@ export default function DiscoverPage() {
         const f = e.features[0];
         const st = f && muniInfo(f);
         if (st && st.tone && st.tone !== 'none') {
-          openDrilldown(f.properties.name);
+          openDrilldown(st.name || f.properties.name, st.sido);
         }
       };
       for (const lid of ['muni-fill', 'muni-extrusion']) {
@@ -562,7 +564,8 @@ export default function DiscoverPage() {
     geoData.features.forEach((f: any) => {
       const name = f.properties.name;
       const fSido = sidoFromCode(f.properties.code); // 코드로 이 폴리곤의 시도 판별
-      let d = regionMap[`${fSido}|${name}`];
+      const dataName = NAME_ALIAS[`${fSido}|${name}`] || name; // 개명 반영(남구→미추홀구)
+      let d = regionMap[`${fSido}|${dataName}`];
       if (!d) {
         // 시 폴백 (고양시덕양구 → 고양시) — 같은 시도 안에서만
         const parentKey = Object.keys(regionMap).find(k =>
@@ -576,14 +579,14 @@ export default function DiscoverPage() {
       else if (d.net < 0) { toneVal = 'neg'; tVal = Math.min(Math.abs(d.net) / 25, 1); }
       mapInstance.setFeatureState(
         { source: 'munis', id: String(f.properties.code) }, // promoteId=code
-        { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido }
+        { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido, name: d.region }
       );
       // 3D 블록 — 데이터 지역만, 높이=|순증|·색=방향
       d3feats.push({
         type: 'Feature',
         geometry: f.geometry,
         properties: {
-          name, tone: toneVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido,
+          name: d.region, tone: toneVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido,
           color: toneVal === 'pos' ? '#16a34a' : toneVal === 'neg' ? '#dc2626' : '#cbd5e1',
           height: 250 + Math.abs(d.net) * 650,
         },
