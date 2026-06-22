@@ -102,6 +102,8 @@ const SIDO_NORM: Record<string, string> = {
 const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 // 전국에 같은 이름이 여럿인 시군구(중구·서구 등) — 이런 건 시도를 앞에 붙여 구분
 const DUP_SIGUNGU = new Set(['중구', '서구', '동구', '남구', '북구', '강서구', '고성군']);
+// 줌인 시 표시할 행정동 경계 파일 (데이터 있는 시도만, public/geojson/dong/)
+const DONG_FILE: Record<string, string> = { 서울: 'seoul', 경기도: 'gyeonggi', 인천: 'incheon' };
 function shortSido(s: string) { return s === '경기도' ? '경기' : s; }
 function regionLabel(sido: string, sigungu: string) {
   return sido && DUP_SIGUNGU.has(sigungu) ? `${shortSido(sido)} ${sigungu}` : sigungu;
@@ -301,6 +303,11 @@ export default function DiscoverPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const storeHoverPopupRef = useRef<any>(null);
   const storeLayerReadyRef = useRef(false);
+  // 행정동 경계(줌인 시) — lazy 로드
+  const dongLayerReadyRef = useRef(false);
+  const dongLoadedKeyRef = useRef('');
+  const dongCacheRef = useRef<Record<string, { features: unknown[] } | null>>({});
+  const scopeSidosRef = useRef<string[]>([]);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { sigunguSidoMapRef.current = sigunguSidoMap; }, [sigunguSidoMap]);
@@ -522,6 +529,7 @@ export default function DiscoverPage() {
 
     // 매장 점/히트맵 레이어를 시군구 면 위에 얹는다 (순서 보장)
     ensureStoreLayers(mapInstance);
+    ensureDongLayer(mapInstance);
 
     mapInstance.removeFeatureState({ source: 'munis' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -559,6 +567,62 @@ export default function DiscoverPage() {
 
     // 면 갱신 때마다 점/히트맵도 동기화
     updateStoreLayer();
+    updateDongBoundaries();
+  }
+
+  // ─── 행정동 경계 (줌인 시 lazy) ────────────────────────────────────────────
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function ensureDongLayer(mapInstance: any) {
+    if (dongLayerReadyRef.current || !mapInstance) return;
+    mapInstance.addSource('dong', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    mapInstance.addLayer({
+      id: 'dong-line', type: 'line', source: 'dong', minzoom: 10.5,
+      paint: {
+        'line-color': '#475569',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.7, 15, 1.3],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0, 12, 0.45, 15, 0.75],
+        'line-dasharray': [2, 1.5],
+      },
+    });
+    // 줌인할 때만 해당 시도 동 경계 로드 (lazy)
+    mapInstance.on('zoomend', updateDongBoundaries);
+    dongLayerReadyRef.current = true;
+  }
+
+  async function loadDongFile(key: string): Promise<{ features: unknown[] } | null> {
+    if (dongCacheRef.current[key] !== undefined) return dongCacheRef.current[key];
+    try {
+      const r = await fetch(`/geojson/dong/${key}.json`);
+      if (!r.ok) { dongCacheRef.current[key] = null; return null; }
+      const j = await r.json();
+      dongCacheRef.current[key] = j;
+      return j;
+    } catch {
+      dongCacheRef.current[key] = null;
+      return null;
+    }
+  }
+
+  // 현재 보고 있는 시도(스코프)의 행정동 경계를 줌인 시 로드해서 표시
+  async function updateDongBoundaries() {
+    const map = mapRef.current;
+    if (!map || !dongLayerReadyRef.current) return;
+    if (map.getZoom() < 10.5) return; // 줌아웃 상태면 로드 안 함
+    const keys = scopeSidosRef.current.map(s => DONG_FILE[s]).filter(Boolean);
+    const sig = [...keys].sort().join(',');
+    if (sig === dongLoadedKeyRef.current) return; // 이미 로드된 스코프
+    dongLoadedKeyRef.current = sig;
+    if (!keys.length) {
+      const src = map.getSource('dong');
+      if (src) src.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+    const fcs = await Promise.all(keys.map(loadDongFile));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const feats = fcs.filter(Boolean).flatMap((fc: any) => fc.features);
+    const src = map.getSource('dong');
+    if (src) src.setData({ type: 'FeatureCollection', features: feats });
   }
 
   // ─── STORE POINT / HEATMAP LAYERS ──────────────────────────────────────────
@@ -788,6 +852,9 @@ export default function DiscoverPage() {
     setRefreshing(true);
     setLastSync('로딩 중...');
     mapCenteredRef.current = false;
+    // 행정동 경계 스코프 갱신 (줌인 시 이 시도들 경계를 로드) — 스코프 바뀌면 재로드
+    scopeSidosRef.current = mode === 'sido' && sido ? [sido] : Object.keys(sSigunguMap);
+    dongLoadedKeyRef.current = '';
 
     try {
       // 단일 소스: market_store_records만 읽고, 독/KPI/랭킹/면/차트/드릴다운 전부 이 데이터로 집계.
