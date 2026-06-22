@@ -1037,13 +1037,29 @@ export default function DiscoverPage() {
       if (!mapRef.current || !geo) return;
 
       if (!mapCenteredRef.current) {
-        const primarySido = (mode === 'sido' && sido)
-          ? sido
-          : Object.entries(sSigunguMap).sort((a, b) => b[1].length - a[1].length)[0]?.[0] || '경기도';
-        const cfg = SIDO_CENTER[primarySido];
-        if (cfg) {
-          mapRef.current.flyTo({ center: cfg.center, zoom: cfg.zoom, duration: 800 });
+        // 내 지점(여러 시도) = 매장 전체 범위로 맞춤(경기+인천 다 보이게). 단일 시도 = 그 시도 중심.
+        const pts = mode === 'branch'
+          ? cachedStoresRef.current.filter(s => s.lat != null && s.lng != null)
+          : [];
+        if (pts.length) {
+          let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+          for (const p of pts) {
+            minLng = Math.min(minLng, p.lng!); maxLng = Math.max(maxLng, p.lng!);
+            minLat = Math.min(minLat, p.lat!); maxLat = Math.max(maxLat, p.lat!);
+          }
+          mapRef.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+            padding: { top: 80, bottom: 120, left: 230, right: 50 }, maxZoom: 11, duration: 800,
+          });
           mapCenteredRef.current = true;
+        } else {
+          const primarySido = (mode === 'sido' && sido)
+            ? sido
+            : Object.entries(sSigunguMap).sort((a, b) => b[1].length - a[1].length)[0]?.[0] || '경기도';
+          const cfg = SIDO_CENTER[primarySido];
+          if (cfg) {
+            mapRef.current.flyTo({ center: cfg.center, zoom: cfg.zoom, duration: 800 });
+            mapCenteredRef.current = true;
+          }
         }
       }
 
