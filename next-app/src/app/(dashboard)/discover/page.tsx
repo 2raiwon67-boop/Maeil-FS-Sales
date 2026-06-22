@@ -102,6 +102,12 @@ const SIDO_NORM: Record<string, string> = {
 const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 // 줌인 시 표시할 행정동 경계 파일 (데이터 있는 시도만, public/geojson/dong/)
 const DONG_FILE: Record<string, string> = { 서울: 'seoul', 경기도: 'gyeonggi', 인천: 'incheon' };
+// geojson code 앞2자리 → 시도 (중복 시군구명 구분용 — southkorea-maps 코드 체계)
+const CODE_SIDO: Record<string, string> = {
+  '11': '서울', '21': '부산', '22': '대구', '23': '인천', '24': '광주', '25': '대전', '26': '울산', '29': '세종',
+  '31': '경기도', '32': '강원도', '33': '충청북도', '34': '충청남도', '35': '전라북도', '36': '전라남도', '37': '경상북도', '38': '경상남도', '39': '제주',
+};
+function sidoFromCode(code: unknown) { return CODE_SIDO[String(code ?? '').slice(0, 2)] || ''; }
 function shortSido(s: string) { return s === '경기도' ? '경기' : s; }
 // 여러 시도를 함께 볼 때(withSido)만 시도 접두 — 단일 시도 보기면 드롭다운이 이미 알려주므로 생략
 function regionLabel(sido: string, sigungu: string, withSido: boolean) {
@@ -236,6 +242,7 @@ export default function DiscoverPage() {
   const geoLayerReadyRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapPopupRef = useRef<any>(null);
+  const hoveredMuniIdRef = useRef<string | number | null>(null);
   const pendingMapRenderRef = useRef<(() => void) | null>(null);
   const mapCenteredRef = useRef(false);
 
@@ -434,14 +441,15 @@ export default function DiscoverPage() {
   function renderGeoMap(regions: RegionData[], geoData: any, mapInstance: any) {
     if (!mapInstance || !geoData) return;
 
+    // (시도|시군구) 복합키 — 같은 이름(중구 등)이라도 시도로 구분
     const regionMap: Record<string, RegionData> = {};
-    regions.forEach(r => { regionMap[r.region] = r; });
+    regions.forEach(r => { regionMap[`${r.sido}|${r.region}`] = r; });
 
     if (!geoLayerReadyRef.current) {
       const maplibregl = (mapInstance as { getLayer: () => void }).constructor;
       void maplibregl;
 
-      mapInstance.addSource('munis', { type: 'geojson', data: geoData, promoteId: 'name' });
+      mapInstance.addSource('munis', { type: 'geojson', data: geoData, promoteId: 'code' });
 
       const tone = ['coalesce', ['feature-state', 'tone'], 'none'];
       const t    = ['coalesce', ['feature-state', 't'], 0];
@@ -460,7 +468,12 @@ export default function DiscoverPage() {
       });
       mapInstance.addLayer({
         id: 'muni-line', type: 'line', source: 'munis',
-        paint: { 'line-color': '#ffffff', 'line-width': 0.8, 'line-opacity': 0.45 },
+        paint: {
+          // 호버한 시군구는 외곽선 강조
+          'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], '#2563eb', '#ffffff'],
+          'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2.6, 0.8],
+          'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0.45],
+        },
       });
 
       // 3D 입체 — 데이터 있는 시군구만 담은 전용 소스(muni3d)로 솟는 블록.
@@ -491,6 +504,14 @@ export default function DiscoverPage() {
           return;
         }
         mapInstance.getCanvas().style.cursor = 'pointer';
+        // 호버 외곽선 강조 (2D muni-fill만; 입체는 블록 자체가 강조)
+        if (f.source === 'munis') {
+          if (hoveredMuniIdRef.current != null && hoveredMuniIdRef.current !== f.id) {
+            mapInstance.setFeatureState({ source: 'munis', id: hoveredMuniIdRef.current }, { hover: false });
+          }
+          hoveredMuniIdRef.current = f.id;
+          mapInstance.setFeatureState({ source: 'munis', id: f.id }, { hover: true });
+        }
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
         const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
 
@@ -508,6 +529,10 @@ export default function DiscoverPage() {
       const onMuniLeave = () => {
         mapInstance.getCanvas().style.cursor = '';
         if (mapPopupRef.current) mapPopupRef.current.remove();
+        if (hoveredMuniIdRef.current != null) {
+          mapInstance.setFeatureState({ source: 'munis', id: hoveredMuniIdRef.current }, { hover: false });
+          hoveredMuniIdRef.current = null;
+        }
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onMuniClick = (e: any) => {
@@ -536,18 +561,21 @@ export default function DiscoverPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     geoData.features.forEach((f: any) => {
       const name = f.properties.name;
-      let d = regionMap[name];
+      const fSido = sidoFromCode(f.properties.code); // 코드로 이 폴리곤의 시도 판별
+      let d = regionMap[`${fSido}|${name}`];
       if (!d) {
-        const parent = Object.keys(regionMap).find(k => k.endsWith('시') && name.startsWith(k));
-        if (parent) d = regionMap[parent];
+        // 시 폴백 (고양시덕양구 → 고양시) — 같은 시도 안에서만
+        const parentKey = Object.keys(regionMap).find(k =>
+          k.startsWith(`${fSido}|`) && k.slice(fSido.length + 1).endsWith('시') && name.startsWith(k.slice(fSido.length + 1)));
+        if (parentKey) d = regionMap[parentKey];
       }
-      if (!d) return;
+      if (!d) return; // 데이터 없는 시도의 동명 폴리곤(서울 중구 등)엔 안 칠해짐
       let toneVal = 'zero';
       let tVal = 0;
       if (d.net > 0)      { toneVal = 'pos'; tVal = Math.min(d.net / 25, 1); }
       else if (d.net < 0) { toneVal = 'neg'; tVal = Math.min(Math.abs(d.net) / 25, 1); }
       mapInstance.setFeatureState(
-        { source: 'munis', id: name },
+        { source: 'munis', id: String(f.properties.code) }, // promoteId=code
         { tone: toneVal, t: tVal, nnew: d.new, closed: d.closed, net: d.net, sido: d.sido }
       );
       // 3D 블록 — 데이터 지역만, 높이=|순증|·색=방향
