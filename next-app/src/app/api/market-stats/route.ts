@@ -273,11 +273,12 @@ export async function GET(req: NextRequest) {
   const ymRe = /^\d{6}$/;
   let startStr: string, endStr: string, monthList: string[];
   if (ymRe.test(startYM) && ymRe.test(endYM)) {
+    const ey = parseInt(endYM.slice(0, 4)), em = parseInt(endYM.slice(4, 6));
+    const lastDay = new Date(ey, em, 0).getDate(); // 해당 월의 실제 말일 (잘못된 31일 방지)
     startStr = `${startYM}01`;
-    endStr = `${endYM}31`;
+    endStr = `${endYM}${String(lastDay).padStart(2, '0')}`;
     monthList = [];
     let y = parseInt(startYM.slice(0, 4)), m = parseInt(startYM.slice(4, 6));
-    const ey = parseInt(endYM.slice(0, 4)), em = parseInt(endYM.slice(4, 6));
     while (y < ey || (y === ey && m <= em)) {
       monthList.push(`${y}-${String(m).padStart(2, '0')}`);
       m++; if (m > 12) { m = 1; y++; }
