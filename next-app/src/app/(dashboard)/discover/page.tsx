@@ -286,7 +286,8 @@ export default function DiscoverPage() {
   const [dockOpen, setDockOpen] = useState(true);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(() => { const ml = getMonthList(); return ml[ml.length - 1] ?? null; });
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [rankSort, setRankSort] = useState<RankSort>('new');
   const [loading, setLoading] = useState(true);
