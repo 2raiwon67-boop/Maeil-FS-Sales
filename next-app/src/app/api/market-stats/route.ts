@@ -13,11 +13,18 @@ const ENDPOINTS: Record<string, string> = {
 };
 
 const EXCLUDE_KEYWORDS = [
-  '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '회', '씨유', '포차', '한끼',
+  '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '씨유', '포차', '한끼',
   'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
   '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
   '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치',
   '곱창', '닭', '이자카야', '라멘', '라면', '우동', '스시', '카츠', '돈까스', '야끼',
+];
+
+// 업종(UPTAE_NM) 기반 제외 — 이름과 무관하게 술집·고기·소매 업종을 차단(이름키워드만으론 새던 것 보완)
+const EXCLUDE_CATEGORIES = [
+  '호프/통닭', '정종/대포집/소주방', '감성주점', '라이브카페', // 술집류
+  '식육(숯불구이)', '횟집', '탕류(보신용)', '복어취급',         // 고기·회
+  '편의점',                                                    // 소매
 ];
 
 const SIDO_SHORT: Record<string, string> = {
@@ -56,6 +63,8 @@ function getBizName(item: any): string {
 }
 
 function isTarget(item: any): boolean {
+  const cat = (item.UPTAE_NM || item.BZSTAT_SE_NM || '').trim();
+  if (EXCLUDE_CATEGORIES.includes(cat)) return false; // 업종 우선 차단
   const bizName = getBizName(item);
   if (EXCLUDE_KEYWORDS.some((kw) => bizName.includes(kw))) return false;
   return true;
