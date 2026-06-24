@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { computeVisitTargets, type LicenseRow } from '@/lib/license-targets';
 
 export const maxDuration = 60;
 
@@ -24,6 +25,31 @@ interface AlertItem {
   business_unit: string;
   openExpected?: boolean;
   naverLink?: string;
+}
+
+// 모든 알림 메일이 공유하는 외곽 셸(헤더 바 + 본문 + 푸터). 헤더 색/문구·인사말·본문만 주입.
+function emailShell(o: { headerBg: string; headerBorder: string; title: string; subtitle: string; greeting: string; content: string }): string {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0; padding:0; background-color:#f8f9fa; font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa"><tr><td align="center" style="padding:20px 10px;">
+<table width="900" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border:1px solid #dee2e6;">
+<tr><td bgcolor="${o.headerBg}" style="background-color:${o.headerBg}; padding:25px 30px; border-bottom:3px solid ${o.headerBorder};">
+<p style="margin:0 0 6px 0; font-size:20px; font-weight:bold; color:#ffffff;">${o.title}</p>
+<p style="margin:0; font-size:13px; color:#bdc3c7;">${o.subtitle}</p>
+</td></tr>
+<tr><td style="padding:30px; background-color:#ffffff;">
+<p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">${o.greeting}</p>
+${o.content}
+</td></tr>
+<tr><td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:18px 30px; border-top:1px solid #dee2e6; text-align:center;">
+<p style="margin:0 0 4px 0; font-size:12px; color:#868e96;">FS MISO | 자동 발송 시스템</p>
+<p style="margin:0; font-size:11px; color:#adb5bd;">본 이메일은 FS MISO AI시스템에 의해 발송되었습니다.</p>
+</td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
 }
 
 function buildAlertEmailHtml(managerName: string, targets: { newObj: AlertItem[]; revisitObj: AlertItem[] }, isManager: boolean): string {
@@ -88,28 +114,14 @@ function buildAlertEmailHtml(managerName: string, targets: { newObj: AlertItem[]
         `<p style="font-size:12px; color:#868e96; margin:0 0 10px 0;">※ 총 ${targets.revisitObj.length}건의 대상이 확인되었습니다.</p>`
       : '<p style="color:#868e96; margin:16px 0;">(금일 재확인 대상 없음)</p>';
 
-  return `<!DOCTYPE html>
-<html lang="ko">
-<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0; padding:0; background-color:#f8f9fa; font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa"><tr><td align="center" style="padding:20px 10px;">
-<table width="900" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border:1px solid #dee2e6;">
-<tr><td bgcolor="#2c3e50" style="background-color:#2c3e50; padding:25px 30px; border-bottom:3px solid #34495e;">
-<p style="margin:0 0 6px 0; font-size:20px; font-weight:bold; color:#ffffff;">📅 인허가 방문 대상 알림</p>
-<p style="margin:0; font-size:13px; color:#bdc3c7;">${today} 기준 방문이 필요한 사업장 리스트입니다.</p>
-</td></tr>
-<tr><td style="padding:30px; background-color:#ffffff;">
-<p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">${managerName}님, 안녕하십니까,<br>금일 기준 방문이 필요한 사업장 리스트를 송부드립니다.<br>방문 일정 조율에 참고하시기 바랍니다.</p>
-${newSection}
-${revisitSection}
-</td></tr>
-<tr><td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:18px 30px; border-top:1px solid #dee2e6; text-align:center;">
-<p style="margin:0 0 4px 0; font-size:12px; color:#868e96;">FS MISO | 자동 발송 시스템</p>
-<p style="margin:0; font-size:11px; color:#adb5bd;">본 이메일은 FS MISO AI시스템에 의해 발송되었습니다.</p>
-</td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+  return emailShell({
+    headerBg: '#2c3e50',
+    headerBorder: '#34495e',
+    title: '📅 인허가 방문 대상 알림',
+    subtitle: `${today} 기준 방문이 필요한 사업장 리스트입니다.`,
+    greeting: `${escHtml(managerName)}님, 안녕하십니까,<br>금일 기준 방문이 필요한 사업장 리스트를 송부드립니다.<br>방문 일정 조율에 참고하시기 바랍니다.`,
+    content: `${newSection}\n${revisitSection}`,
+  });
 }
 
 function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): string {
@@ -128,19 +140,7 @@ function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): st
     })
     .join('');
 
-  return `<!DOCTYPE html>
-<html lang="ko">
-<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0; padding:0; background-color:#f8f9fa; font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa"><tr><td align="center" style="padding:20px 10px;">
-<table width="900" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border:1px solid #dee2e6;">
-<tr><td bgcolor="#2b8a3e" style="background-color:#2b8a3e; padding:25px 30px; border-bottom:3px solid #1e6e2e;">
-<p style="margin:0 0 6px 0; font-size:20px; font-weight:bold; color:#ffffff;">🏭 공사중 거래처 오픈 감지</p>
-<p style="margin:0; font-size:13px; color:#b2f2bb;">${today} 기준 네이버에 등록된 공사중 거래처입니다.</p>
-</td></tr>
-<tr><td style="padding:30px; background-color:#ffffff;">
-<p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">${managerName}님, 안녕하십니까,<br>담당 공사중 거래처 중 네이버 지도에 등록된 곳이 있습니다.<br>방문 후 업데이트 부탁드립니다.</p>
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:8px 0 24px 0; font-size:13px;">
+  const content = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:8px 0 24px 0; font-size:13px;">
 <thead><tr>
 <th style="${TH_LEFT}">사업장명</th>
 <th style="${TH_CENTER}">평형</th>
@@ -150,15 +150,16 @@ function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): st
 </tr></thead>
 <tbody>${rows}</tbody>
 </table>
-<p style="font-size:12px; color:#868e96; margin:0;">※ 네이버 검색 기반 추정이므로 직접 방문 확인을 권장합니다.</p>
-</td></tr>
-<tr><td bgcolor="#f8f9fa" style="background-color:#f8f9fa; padding:18px 30px; border-top:1px solid #dee2e6; text-align:center;">
-<p style="margin:0 0 4px 0; font-size:12px; color:#868e96;">FS MISO | 자동 발송 시스템</p>
-<p style="margin:0; font-size:11px; color:#adb5bd;">본 이메일은 FS MISO AI시스템에 의해 발송되었습니다.</p>
-</td></tr>
-</table>
-</td></tr></table>
-</body></html>`;
+<p style="font-size:12px; color:#868e96; margin:0;">※ 네이버 검색 기반 추정이므로 직접 방문 확인을 권장합니다.</p>`;
+
+  return emailShell({
+    headerBg: '#2b8a3e',
+    headerBorder: '#1e6e2e',
+    title: '🏭 공사중 거래처 오픈 감지',
+    subtitle: `${today} 기준 네이버에 등록된 공사중 거래처입니다.`,
+    greeting: `${escHtml(managerName)}님, 안녕하십니까,<br>담당 공사중 거래처 중 네이버 지도에 등록된 곳이 있습니다.<br>방문 후 업데이트 부탁드립니다.`,
+    content,
+  });
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -203,65 +204,53 @@ export async function GET(req: NextRequest) {
     const allLicenses = licResult.status === 'fulfilled' && Array.isArray(licResult.value) ? licResult.value : [];
     const allManagers = mgrResult.status === 'fulfilled' && Array.isArray(mgrResult.value) ? mgrResult.value : [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // 타겟팅 규칙(14/28일·상태)은 인앱 벨과 공유하는 computeVisitTargets 단일 소스 사용 — 규칙 드리프트 방지.
+    const toItem = (t: { licenseId: string; name: string; area: string; permitDate: string; address: string; manager: string; businessUnit: string }, status: string): AlertItem => ({
+      id: t.licenseId,
+      name: t.name,
+      pyeong: t.area,
+      permitDate: t.permitDate,
+      address: t.address,
+      status,
+      manager: t.manager,
+      business_unit: t.businessUnit,
+    });
 
+    // 월요일에만 신규/재확인 다이제스트 산출
     const newTargets: AlertItem[] = [];
     const revisitTargets: AlertItem[] = [];
-    const constructionAll: AlertItem[] = [];
-
-    allLicenses.forEach((row: any) => {
-      const p = String(row.priority || '').trim();
-      const rank = p.replace(/[^0-9]/g, '');
-      if (rank !== '1' && rank !== '2') return;
-
-      const status = (row.trade_status || '').trim();
-
-      if (status === '공사중' && !row.open_detected_at) {
-        constructionAll.push({
-          id: row.id,
-          name: row.business_name || '',
-          pyeong: row.area || '',
-          permitDate: row.permit_date || '',
-          address: row.road_address || '',
-          status,
-          manager: row.manager || '',
-          business_unit: row.business_unit || '',
-        });
+    if (isMonday) {
+      for (const t of computeVisitTargets(allLicenses as LicenseRow[])) {
+        if (t.kind === 'new') {
+          newTargets.push(toItem(t, '인허가'));
+        } else if (t.kind === 'revisit') {
+          revisitTargets.push(toItem(t, '공사중'));
+        } else if (t.kind === 'open') {
+          revisitTargets.push({
+            ...toItem(t, '공사중'),
+            openExpected: true,
+            naverLink: `https://map.naver.com/v5/search/${encodeURIComponent(t.name)}`,
+          });
+        }
       }
+    }
 
-      if (!isMonday) return;
-
-      const permitDateStr = row.permit_date;
-      if (!permitDateStr) return;
-      const permitDate = new Date(permitDateStr);
-      if (isNaN(permitDate.getTime())) return;
-      permitDate.setHours(0, 0, 0, 0);
-      const daysDiff = Math.floor((today.getTime() - permitDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      const item: AlertItem = {
+    // 일일 오픈감지 후보: 1·2순위 공사중 + 오픈 미감지 (날짜 무관 — computeVisitTargets 범위 밖이라 별도 집계)
+    const constructionAll: AlertItem[] = allLicenses
+      .filter((row: any) => {
+        const rank = String(row.priority || '').replace(/[^0-9]/g, '');
+        return (rank === '1' || rank === '2') && (row.trade_status || '').trim() === '공사중' && !row.open_detected_at;
+      })
+      .map((row: any) => ({
         id: row.id,
         name: row.business_name || '',
         pyeong: row.area || '',
-        permitDate: permitDateStr,
+        permitDate: row.permit_date || '',
         address: row.road_address || '',
-        status,
+        status: '공사중',
         manager: row.manager || '',
         business_unit: row.business_unit || '',
-      };
-
-      if (daysDiff >= 14 && status === '인허가') {
-        newTargets.push(item);
-      } else if (daysDiff >= 28 && status === '공사중' && !row.open_detected_at) {
-        revisitTargets.push(item);
-      } else if (status === '공사중' && row.open_detected_at) {
-        revisitTargets.push({
-          ...item,
-          openExpected: true,
-          naverLink: `https://map.naver.com/v5/search/${encodeURIComponent(row.business_name || '')}`,
-        });
-      }
-    });
+      }));
 
     const newlyDetected: AlertItem[] = [];
 
@@ -364,6 +353,23 @@ export async function GET(req: NextRequest) {
 
     const results: any[] = [];
 
+    // Brevo 발송 단일 헬퍼 — 발송 + 결과 적재(200ms 스로틀)를 일원화.
+    const sendBrevo = async (meta: { type: string; manager: string; bu: string }, email: string, subject: string, html: string) => {
+      const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: FROM_NAME, email: FROM_EMAIL },
+          to: [{ email }],
+          subject,
+          htmlContent: html,
+        }),
+      });
+      const sendData = await sendRes.json();
+      results.push({ ...meta, email, status: sendRes.ok ? 'sent' : 'failed', id: sendData.messageId || sendData.error || 'unknown' });
+      await sleep(200);
+    };
+
     if (hasMonday) {
       const allUnits = [...new Set([...newTargets.map((t) => t.business_unit), ...revisitTargets.map((t) => t.business_unit)])].filter(Boolean);
 
@@ -381,50 +387,22 @@ export async function GET(req: NextRequest) {
           const myNew = unitNew.filter((t) => t.manager === managerName);
           const myRevisit = unitRevisit.filter((t) => t.manager === managerName);
           const html = buildAlertEmailHtml(managerName, { newObj: myNew, revisitObj: myRevisit }, true);
-          const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sender: { name: FROM_NAME, email: FROM_EMAIL },
-              to: [{ email }],
-              subject: `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
-              htmlContent: html,
-            }),
-          });
-          const sendData = await sendRes.json();
-          results.push({
-            type: 'monday',
-            manager: managerName,
-            bu,
+          await sendBrevo(
+            { type: 'monday', manager: managerName, bu },
             email,
-            status: sendRes.ok ? 'sent' : 'failed',
-            id: sendData.messageId || sendData.error || 'unknown',
-          });
-          await sleep(200);
+            `[인허가 알림] 신규 ${myNew.length}건 / 재확인 ${myRevisit.length}건`,
+            html,
+          );
         }
 
         for (const email of branchEmails) {
           const html = buildAlertEmailHtml('전체', { newObj: unitNew, revisitObj: unitRevisit }, false);
-          const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sender: { name: FROM_NAME, email: FROM_EMAIL },
-              to: [{ email }],
-              subject: `[인허가 알림] 신규 ${unitNew.length}건 / 재확인 ${unitRevisit.length}건 (${bu} 전체)`,
-              htmlContent: html,
-            }),
-          });
-          const sendData = await sendRes.json();
-          results.push({
-            type: 'monday',
-            manager: '지점장',
-            bu,
+          await sendBrevo(
+            { type: 'monday', manager: '지점장', bu },
             email,
-            status: sendRes.ok ? 'sent' : 'failed',
-            id: sendData.messageId || sendData.error || 'unknown',
-          });
-          await sleep(200);
+            `[인허가 알림] 신규 ${unitNew.length}건 / 재확인 ${unitRevisit.length}건 (${bu} 전체)`,
+            html,
+          );
         }
       }
     }
@@ -444,26 +422,12 @@ export async function GET(req: NextRequest) {
           if (!email) continue;
           const managerItems = unitItems.filter((t) => t.manager === managerName);
           const html = buildOpenDetectedEmailHtml(managerName, managerItems);
-          const sendRes = await fetch('https://api.brevo.com/v3/smtp/email', {
-            method: 'POST',
-            headers: { 'api-key': BREVO_KEY, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sender: { name: FROM_NAME, email: FROM_EMAIL },
-              to: [{ email }],
-              subject: `[오픈 감지] 공사중 거래처 ${managerItems.length}건 오픈 추정`,
-              htmlContent: html,
-            }),
-          });
-          const sendData = await sendRes.json();
-          results.push({
-            type: 'open-detected',
-            manager: managerName,
-            bu,
+          await sendBrevo(
+            { type: 'open-detected', manager: managerName, bu },
             email,
-            status: sendRes.ok ? 'sent' : 'failed',
-            id: sendData.messageId || sendData.error || 'unknown',
-          });
-          await sleep(200);
+            `[오픈 감지] 공사중 거래처 ${managerItems.length}건 오픈 추정`,
+            html,
+          );
         }
       }
     }
