@@ -48,12 +48,17 @@ export interface Account {
 }
 
 export interface VisitLog {
-  id: number;
-  business_unit: string;
+  id?: number;
+  business_unit?: string | null;
   visit_date: string;
-  manager: string;
+  manager?: string;
   business_name: string;
   visit_type?: string;
+  // 구조화 결과(2026-06 재설계): 코칭·학습의 토대
+  outcome?: string;          // 성공 | 보류 | 거절 | 일반
+  reject_reason?: string;    // 가격 | 시기 | 기존거래 | needs부족 | 기타
+  proposed_products?: string;
+  next_action?: string;
   content?: string;
   created_at?: string;
 }

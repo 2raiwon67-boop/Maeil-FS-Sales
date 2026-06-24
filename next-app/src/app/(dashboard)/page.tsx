@@ -805,6 +805,8 @@ export default function DashboardPage() {
           selected={selected}
           mobile={mobile}
           inCart={selectedInCart}
+          businessUnit={businessUnit}
+          myManagerName={myManagerName}
           onClose={() => setSelected(null)}
           onStatusChange={onStatusChange}
           onMilkChange={onMilkChange}
