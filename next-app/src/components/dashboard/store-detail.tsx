@@ -4,7 +4,6 @@
 // 인라인 거래여부·우유 수정 + 메모 + 장바구니/동선 버튼
 import { useState } from 'react';
 import type { License, Account } from '@/types';
-import { getMemo, setMemo as saveMemoLS, deleteMemo as delMemoLS } from '@/lib/dashboard/memo';
 import { openNaverMapApp } from '@/lib/dashboard/route';
 import { VisitCoachPanel } from '@/components/dashboard/visit-coach-panel';
 
@@ -59,9 +58,7 @@ export function StoreDetail({
   // 부모가 selected 변경 시 key를 바꿔 remount하므로 초기값은 props에서 직접 산출
   const [status, setStatus] = useState(initialStatus);
   const [milk, setMilk] = useState(initialMilk);
-  const [memo, setMemo] = useState(() => (selected ? getMemo(name) : ''));
   const [saving, setSaving] = useState(false);
-  const [savedFlash, setSavedFlash] = useState(false);
 
   if (!selected) return null;
 
@@ -81,16 +78,6 @@ export function StoreDetail({
     const ok = await onMilkChange(v);
     setSaving(false);
     if (!ok) setMilk(prev);
-  };
-
-  const handleSaveMemo = () => {
-    saveMemoLS(name, memo);
-    setSavedFlash(true);
-    setTimeout(() => setSavedFlash(false), 1500);
-  };
-  const handleDeleteMemo = () => {
-    delMemoLS(name);
-    setMemo('');
   };
 
   const statusColor = STATUS_COLORS[status] || '#8e8e93';
@@ -170,31 +157,6 @@ export function StoreDetail({
         )}
 
         {!isAccount && <Row label="허가일" value={lic?.permit_date || '-'} />}
-
-        {/* 메모 */}
-        <div>
-          <div className="mb-1.5 text-[11px] font-semibold text-gray-500">📝 메모</div>
-          <textarea
-            value={memo}
-            onChange={(e) => setMemo(e.target.value)}
-            placeholder="메모를 입력하세요..."
-            className="h-16 w-full resize-none rounded-lg border border-gray-200 p-2 text-[13px] text-gray-900 outline-none focus:border-blue-400"
-          />
-          <div className="mt-1.5 flex gap-1.5">
-            <button
-              onClick={handleSaveMemo}
-              className="rounded-md px-3.5 py-1.5 text-xs font-semibold text-white"
-              style={{ background: savedFlash ? '#34C759' : '#0071e3' }}
-            >
-              {savedFlash ? '✓ 저장됨' : '저장'}
-            </button>
-            {memo.trim() && (
-              <button onClick={handleDeleteMemo} className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white">
-                삭제
-              </button>
-            )}
-          </div>
-        </div>
 
         {/* 방문 코칭 · 기록 */}
         <VisitCoachPanel
