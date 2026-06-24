@@ -1,16 +1,15 @@
 'use client';
 
-// 방문 코칭 · 기록 (StoreDetail 안에 삽입) — 방문 전 액션 코칭 + 구조화 방문 기록 + 최근 이력.
-// 코칭: /api/visit-coach (recipes RAG 근거). 기록: visit_logs upsert(RLS business_unit 격리).
+// 방문 코칭 (StoreDetail 안에 삽입) — 방문 전 액션 코칭 + 최근 방문 이력 조회.
+// 입력은 사내 ERP '활동노트'가 담당 → 여기선 읽기 전용(visit_logs는 엑셀 업로드로 채움).
+// 코칭: /api/visit-coach (recipes RAG 근거).
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { VisitLog } from '@/types';
 
-const OUTCOMES = ['성공', '보류', '거절', '일반'] as const;
 const OUTCOME_COLOR: Record<string, string> = { 성공: '#34C759', 보류: '#FF9500', 거절: '#FF3B30', 일반: '#8E8E93' };
-const REJECT_REASONS = ['가격', '시기', '기존거래', 'needs부족', '기타'];
 
 interface Coaching {
   actions: string[];
@@ -23,23 +22,14 @@ interface Props {
   businessType?: string;
   tradeStatus?: string;
   businessUnit: string | null;
-  manager?: string;
 }
 
-export function VisitCoachPanel({ businessName, businessType, tradeStatus, businessUnit, manager }: Props) {
+export function VisitCoachPanel({ businessName, businessType, tradeStatus, businessUnit }: Props) {
   const [recent, setRecent] = useState<VisitLog[]>([]);
   const [coaching, setCoaching] = useState<Coaching | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
 
-  const [outcome, setOutcome] = useState('');
-  const [rejectReason, setRejectReason] = useState('');
-  const [proposed, setProposed] = useState('');
-  const [nextAction, setNextAction] = useState('');
-  const [content, setContent] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false); // 기록 폼 펼침
-
-  // 이 매장 최근 방문 이력 로드 (RLS가 business_unit 격리)
+  // 이 매장 최근 방문 이력 로드 (RLS가 business_unit 격리). 데이터는 활동노트 엑셀 업로드분.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -75,40 +65,8 @@ export function VisitCoachPanel({ businessName, businessType, tradeStatus, busin
     }
   }
 
-  async function saveVisit() {
-    if (!outcome) { toast.error('방문 결과를 선택하세요'); return; }
-    setSaving(true);
-    try {
-      const supabase = createClient();
-      const today = new Date().toISOString().split('T')[0];
-      const row = {
-        business_unit: businessUnit,
-        business_name: businessName,
-        visit_date: today,
-        manager: manager || '',
-        outcome,
-        reject_reason: outcome === '거절' || outcome === '보류' ? rejectReason || null : null,
-        proposed_products: proposed.trim() || null,
-        next_action: nextAction.trim() || null,
-        content: content.trim() || null,
-      };
-      const { error } = await supabase.from('visit_logs').upsert(row, { onConflict: 'business_unit,visit_date,manager,business_name' });
-      if (error) { toast.error('저장 실패: ' + error.message); return; }
-      toast.success('방문 기록 저장됨');
-      // 폼 초기화 + 이력 재로드
-      setOutcome(''); setRejectReason(''); setProposed(''); setNextAction(''); setContent('');
-      const { data } = await supabase
-        .from('visit_logs').select('*').eq('business_name', businessName)
-        .order('visit_date', { ascending: false }).limit(5);
-      setRecent((data as VisitLog[]) || []);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-2.5">
-      {/* 코칭 */}
       <button
         onClick={getCoaching}
         disabled={coachLoading}
@@ -150,7 +108,7 @@ export function VisitCoachPanel({ businessName, businessType, tradeStatus, busin
         </div>
       )}
 
-      {/* 최근 이력 */}
+      {/* 최근 방문 이력 (활동노트 업로드분) */}
       {recent.length > 0 && (
         <div className="mt-2.5">
           <div className="mb-1 text-[11px] font-semibold text-gray-500">최근 방문</div>
@@ -167,58 +125,6 @@ export function VisitCoachPanel({ businessName, businessType, tradeStatus, busin
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* 방문 기록 폼 */}
-      <button onClick={() => setOpen((o) => !o)} className="mt-2.5 w-full text-left text-[12px] font-semibold text-blue-700">
-        {open ? '− 방문 기록 접기' : '+ 방문 기록 추가'}
-      </button>
-      {open && (
-        <div className="mt-2 space-y-2">
-          <div className="flex gap-1">
-            {OUTCOMES.map((o) => (
-              <button
-                key={o}
-                onClick={() => setOutcome(o)}
-                className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold ${outcome === o ? 'text-white' : 'bg-gray-100 text-gray-600'}`}
-                style={outcome === o ? { background: OUTCOME_COLOR[o] } : undefined}
-              >
-                {o}
-              </button>
-            ))}
-          </div>
-          {(outcome === '거절' || outcome === '보류') && (
-            <select
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-[12px] text-gray-800 outline-none"
-            >
-              <option value="">거절/보류 사유…</option>
-              {REJECT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-          )}
-          <input
-            value={proposed} onChange={(e) => setProposed(e.target.value)}
-            placeholder="제안한 제품 (쉼표구분)"
-            className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-[12px] outline-none focus:border-blue-400"
-          />
-          <input
-            value={nextAction} onChange={(e) => setNextAction(e.target.value)}
-            placeholder="다음에 할 것"
-            className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-[12px] outline-none focus:border-blue-400"
-          />
-          <textarea
-            value={content} onChange={(e) => setContent(e.target.value)}
-            placeholder="메모"
-            className="h-14 w-full resize-none rounded-md border border-gray-200 p-2 text-[12px] outline-none focus:border-blue-400"
-          />
-          <button
-            onClick={saveVisit} disabled={saving}
-            className="w-full rounded-md bg-[#0071e3] py-2 text-[12px] font-bold text-white disabled:opacity-60"
-          >
-            {saving ? '저장 중…' : '방문 기록 저장'}
-          </button>
         </div>
       )}
     </div>

@@ -26,7 +26,6 @@ interface Props {
   mobile: boolean;
   inCart: boolean;
   businessUnit: string | null;
-  myManagerName: string | null;
   onClose: () => void;
   onStatusChange: (newStatus: string) => Promise<boolean>;
   onMilkChange: (newMilk: string) => Promise<boolean>;
@@ -39,7 +38,6 @@ export function StoreDetail({
   mobile,
   inCart,
   businessUnit,
-  myManagerName,
   onClose,
   onStatusChange,
   onMilkChange,
@@ -204,7 +202,6 @@ export function StoreDetail({
           businessType={lic?.business_type}
           tradeStatus={status}
           businessUnit={businessUnit}
-          manager={myManagerName ?? undefined}
         />
       </div>
 
