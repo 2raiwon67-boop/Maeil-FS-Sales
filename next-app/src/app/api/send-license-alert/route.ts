@@ -8,6 +8,11 @@ const TH_LEFT =
   'background-color:#f1f3f5; color:#495057; font-weight:bold; padding:10px 12px; text-align:left; border:1px solid #dee2e6; white-space:nowrap;';
 const TD = 'padding:10px 12px; border:1px solid #e9ecef; color:#212529; vertical-align:middle;';
 
+// 이메일 HTML에 들어가는 업로드 데이터(매장명·주소·담당자·링크 등)는 반드시 이스케이프 — HTML 인젝션 차단
+const escHtml = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"']/g, (c) =>
+    c === '&' ? '&amp;' : c === '<' ? '&lt;' : c === '>' ? '&gt;' : c === '"' ? '&quot;' : '&#39;');
+
 interface AlertItem {
   id: string;
   name: string;
@@ -37,13 +42,13 @@ function buildAlertEmailHtml(managerName: string, targets: { newObj: AlertItem[]
         const btnLabel = showOpen ? '검색결과' : 'N 지도';
         const btnBg = showOpen ? '#2b8a3e' : '#03C75A';
         return `<tr>
-<td style="${TD} font-weight:bold; color:#2c3e50;">${t.name || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap;">${t.pyeong || '-'}평</td>
-<td style="${TD} text-align:center; color:#868e96; white-space:nowrap;">${t.permitDate || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap;" align="center"><span style="background-color:${bdgBg}; color:${bdgColor}; padding:3px 10px; font-size:11px; font-weight:bold; white-space:nowrap;">${badgeLabel}</span></td>
-<td style="${TD}">${t.address || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap; color:#555;">${t.manager || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap;" align="center"><a href="${btnUrl}" style="background-color:${btnBg}; color:#ffffff; padding:5px 12px; text-decoration:none; font-size:11px; font-weight:bold;">${btnLabel}</a></td>
+<td style="${TD} font-weight:bold; color:#2c3e50;">${escHtml(t.name || '-')}</td>
+<td style="${TD} text-align:center; white-space:nowrap;">${escHtml(t.pyeong || '-')}평</td>
+<td style="${TD} text-align:center; color:#868e96; white-space:nowrap;">${escHtml(t.permitDate || '-')}</td>
+<td style="${TD} text-align:center; white-space:nowrap;" align="center"><span style="background-color:${bdgBg}; color:${bdgColor}; padding:3px 10px; font-size:11px; font-weight:bold; white-space:nowrap;">${escHtml(badgeLabel)}</span></td>
+<td style="${TD}">${escHtml(t.address || '-')}</td>
+<td style="${TD} text-align:center; white-space:nowrap; color:#555;">${escHtml(t.manager || '-')}</td>
+<td style="${TD} text-align:center; white-space:nowrap;" align="center"><a href="${escHtml(btnUrl)}" style="background-color:${btnBg}; color:#ffffff; padding:5px 12px; text-decoration:none; font-size:11px; font-weight:bold;">${btnLabel}</a></td>
 </tr>`;
       })
       .join('');
@@ -114,11 +119,11 @@ function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): st
     .map((t) => {
       const btnUrl = t.naverLink || `https://map.naver.com/v5/search/${encodeURIComponent(t.name)}`;
       return `<tr>
-<td style="${TD} font-weight:bold; color:#2c3e50;">${t.name || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap;">${t.pyeong || '-'}평</td>
-<td style="${TD} text-align:center; color:#868e96; white-space:nowrap;">${t.permitDate || '-'}</td>
-<td style="${TD}">${t.address || '-'}</td>
-<td style="${TD} text-align:center; white-space:nowrap;" align="center"><a href="${btnUrl}" style="background-color:#2b8a3e; color:#ffffff; padding:5px 12px; text-decoration:none; font-size:11px; font-weight:bold;">검색결과</a></td>
+<td style="${TD} font-weight:bold; color:#2c3e50;">${escHtml(t.name || '-')}</td>
+<td style="${TD} text-align:center; white-space:nowrap;">${escHtml(t.pyeong || '-')}평</td>
+<td style="${TD} text-align:center; color:#868e96; white-space:nowrap;">${escHtml(t.permitDate || '-')}</td>
+<td style="${TD}">${escHtml(t.address || '-')}</td>
+<td style="${TD} text-align:center; white-space:nowrap;" align="center"><a href="${escHtml(btnUrl)}" style="background-color:#2b8a3e; color:#ffffff; padding:5px 12px; text-decoration:none; font-size:11px; font-weight:bold;">검색결과</a></td>
 </tr>`;
     })
     .join('');
