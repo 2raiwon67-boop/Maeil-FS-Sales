@@ -54,6 +54,14 @@ export function buildCartMarkerIcon(): NaverIcon {
   };
 }
 
+/** 선택된 마커 강조 링 (파란 펄스, 중앙 투명 → 아래 마커가 비침) */
+export function buildSelectionRingIcon(): NaverIcon {
+  return {
+    content: `<div class="marker-sel-ring"></div>`,
+    anchor: new window.naver.maps.Point(15, 15),
+  };
+}
+
 /** 주요거래처 마커 아이콘 (별 모양, 거래상태별 색상) */
 export function buildAccountMarkerIcon(dealStatus: string): NaverIcon {
   const color = ACCOUNT_COLORS[dealStatus] ?? ACCOUNT_COLORS['미거래'];

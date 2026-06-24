@@ -12,7 +12,7 @@ import {
   type NaverMap,
   type NaverMarker,
 } from '@/lib/naver/loader';
-import { buildMarkerIcon, buildCartMarkerIcon, buildAccountMarkerIcon } from '@/lib/dashboard/markers';
+import { buildMarkerIcon, buildCartMarkerIcon, buildAccountMarkerIcon, buildSelectionRingIcon } from '@/lib/dashboard/markers';
 import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/dashboard/constants';
 import {
   emptyFilters,
@@ -75,6 +75,7 @@ export default function DashboardPage() {
   const licMarkersRef = useRef<NaverMarker[]>([]);
   const accMarkersRef = useRef<NaverMarker[]>([]);
   const markerByKeyRef = useRef<Map<string, NaverMarker>>(new Map());
+  const selRingRef = useRef<NaverMarker | null>(null);
   const coordsByIdRef = useRef<Map<string, { lat: number; lng: number }>>(new Map());
 
   const [sdkReady, setSdkReady] = useState(false);
@@ -158,11 +159,34 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [myManagerName, businessUnit]);
 
+  // 선택 강조 링: 선택 위치로 옮기고 표시 / 해제 시 숨김
+  const showSelRing = useCallback((lat: number, lng: number) => {
+    const map = mapRef.current;
+    if (!map || !window.naver) return;
+    const pos = new window.naver.maps.LatLng(lat, lng);
+    if (!selRingRef.current) {
+      selRingRef.current = new window.naver.maps.Marker({
+        position: pos,
+        map,
+        icon: buildSelectionRingIcon(),
+        zIndex: 50,
+        clickable: false,
+      }) as NaverMarker;
+    } else {
+      selRingRef.current.setPosition(pos);
+      selRingRef.current.setMap(map);
+    }
+  }, []);
+  const hideSelRing = useCallback(() => {
+    selRingRef.current?.setMap(null);
+  }, []);
+
   // 마커 클릭 핸들러를 ref로 안정화 (build effect 내부 리스너에서 호출)
   const onMarkerClickRef = useRef<(m: NaverMarker) => void>(() => {});
   useEffect(() => {
     onMarkerClickRef.current = (m: NaverMarker) => {
       const pos = m.getPosition();
+      showSelRing(pos.lat(), pos.lng());
       setSelected({
         item: m._item as License | Account,
         type: (m._dealStatus !== undefined ? 'account' : 'license') as 'license' | 'account',
@@ -184,7 +208,10 @@ export default function DashboardPage() {
           center: new window.naver.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
           zoom: DEFAULT_ZOOM,
         });
-        window.naver.maps.Event.addListener(mapRef.current, 'click', () => setSelected(null));
+        window.naver.maps.Event.addListener(mapRef.current, 'click', () => {
+          selRingRef.current?.setMap(null);
+          setSelected(null);
+        });
         setMapInstance(mapRef.current);
         setSdkReady(true);
       })
@@ -591,6 +618,7 @@ export default function DashboardPage() {
     if (c && mapRef.current) {
       mapRef.current.setCenter(new window.naver.maps.LatLng(c.lat, c.lng));
       mapRef.current.setZoom(16);
+      showSelRing(c.lat, c.lng);
     }
   };
 
@@ -617,6 +645,7 @@ export default function DashboardPage() {
       if (c && mapRef.current) {
         mapRef.current.setCenter(new window.naver.maps.LatLng(c.lat, c.lng));
         mapRef.current.setZoom(16);
+        showSelRing(c.lat, c.lng);
       }
       setFocusId(null);
       if (window.location.search.includes('focus')) {
@@ -624,7 +653,7 @@ export default function DashboardPage() {
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [focusId, licenses, mapInstance]);
+  }, [focusId, licenses, mapInstance, showSelRing]);
 
   const selectedInCart = selected ? cartHas(cartKey(selected.lat, selected.lng)) : false;
 
@@ -655,6 +684,7 @@ export default function DashboardPage() {
           : (selected.item as License).road_address) || '',
       type: 'primary',
     });
+    hideSelRing();
     setSelected(null);
     setRouteOpen(true);
   };
@@ -806,7 +836,7 @@ export default function DashboardPage() {
           mobile={mobile}
           inCart={selectedInCart}
           businessUnit={businessUnit}
-          onClose={() => setSelected(null)}
+          onClose={() => { hideSelRing(); setSelected(null); }}
           onStatusChange={onStatusChange}
           onMilkChange={onMilkChange}
           onToggleCart={onToggleCartFromDetail}
