@@ -70,6 +70,12 @@ function isTarget(item: any): boolean {
   return true;
 }
 
+// YYYYMMDD → YYYY-MM-DD (이미 대시 있으면 그대로). 폐업일자 필터 전용.
+function dashYmd(s: string): string {
+  const d = s.replace(/\D/g, '');
+  return d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : s;
+}
+
 async function fetchPage(type: string, apiKey: string, sido: string, pageNo: number, mode: string, start: string, end: string) {
   const isNew = mode === 'new';
   const qs = buildQS({
@@ -77,9 +83,11 @@ async function fetchPage(type: string, apiKey: string, sido: string, pageNo: num
     pageNo: String(pageNo),
     numOfRows: '100',
     returnType: 'json',
+    // 공공API 함정: 신규(LCPMT_YMD)는 무대시(YYYYMMDD)만, 폐업(CLSBIZ_YMD)은 대시(YYYY-MM-DD)만 필터가 먹힘.
+    // 폐업에 무대시로 보내면 totalCount=0 → 과거 폐업이 안 들어오던 원인.
     ...(isNew
       ? { 'cond[LCPMT_YMD::GTE]': start, 'cond[LCPMT_YMD::LTE]': end, 'cond[SALS_STTS_CD::EQ]': '01' }
-      : { 'cond[CLSBIZ_YMD::GTE]': start, 'cond[CLSBIZ_YMD::LTE]': end }),
+      : { 'cond[CLSBIZ_YMD::GTE]': dashYmd(start), 'cond[CLSBIZ_YMD::LTE]': dashYmd(end), 'cond[SALS_STTS_CD::EQ]': '03' }),
     'cond[LOTNO_ADDR::LIKE]': sido,
   });
 
