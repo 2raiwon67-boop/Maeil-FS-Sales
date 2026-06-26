@@ -318,10 +318,25 @@ export async function GET(req: NextRequest) {
   try {
     const types = Object.keys(ENDPOINTS);
 
-    const [newRes, closedRes] = await Promise.all([
-      Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'new', startStr, endStr))),
-      Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'closed', startStr, endStr))),
-    ]);
+    // 월 단위로 쪼개 수집 — 전체 윈도우를 한 번에 받으면 타입당 2,000행(20p) 캡에 잘림
+    // (경기 음식점 2개월≈2,100 > 2,000 → 최근분 누락). 월별이면 단일월 ~1,200건이라 캡 아래.
+    const ymdRange = (m: string): [string, string] => {
+      const [yy, mm] = m.split('-').map(Number);
+      const last = new Date(yy, mm, 0).getDate();
+      const p = `${yy}${String(mm).padStart(2, '0')}`;
+      return [`${p}01`, `${p}${String(last).padStart(2, '0')}`];
+    };
+    const newRes: { items: any[] }[] = [];
+    const closedRes: { items: any[] }[] = [];
+    for (const m of monthList) {
+      const [ms, me] = ymdRange(m);
+      const [nr, cr] = await Promise.all([
+        Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'new', ms, me))),
+        Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'closed', ms, me))),
+      ]);
+      newRes.push(...nr);
+      closedRes.push(...cr);
+    }
 
     const monthly: Record<string, { new: number; closed: number }> = {};
     const regions: Record<string, { new: number; closed: number }> = {};
