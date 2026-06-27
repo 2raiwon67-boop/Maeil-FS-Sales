@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
   FileText, Store, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
-  UploadCloud, Plus, ChevronLeft, ChevronRight, Search,
+  UploadCloud, Plus, ChevronLeft, ChevronRight, Search, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -242,6 +242,9 @@ export default function UploadPage() {
   const [uploadBanner, setUploadBanner] = useState<{ cls: string; html: string } | null>(null);
   const [uploadDisabled, setUploadDisabled] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // 교체(파괴적) 업로드 확인 모달
+  const [replaceConfirm, setReplaceConfirm] = useState<{ label: string; existing: number; incoming: number } | null>(null);
+  const [dropAck, setDropAck] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -526,7 +529,20 @@ export default function UploadPage() {
 
   // ── 업로드 실행 ───────────────────────────────────────────────────────────
 
-  const confirmUpload = async () => {
+  // 버튼 핸들러: 교체(파괴적) 모드는 확인 모달을 띄우고, 그 외(추가/관리자)는 바로 실행
+  const confirmUpload = () => {
+    if (!parsedData || parsedData.length === 0) return;
+    const c = UPLOAD_TYPES[selectedType];
+    const isReplace = c.mode !== 'add_new_only' && !isAdmin;
+    if (isReplace) {
+      setDropAck(false);
+      setReplaceConfirm({ label: c.label, existing: dbTotal, incoming: parsedData.length });
+      return;
+    }
+    void runUpload();
+  };
+
+  const runUpload = async () => {
     if (!parsedData || parsedData.length === 0) return;
     const c = UPLOAD_TYPES[selectedType];
     setUploading(true);
@@ -782,7 +798,7 @@ export default function UploadPage() {
     <div className="min-h-full bg-[#f6f7f9]">
       <PageHeader
         title="데이터 관리"
-        subtitle="지점 데이터를 확인하고 관리합니다 · 담당자·거래처는 직접 편집, 인허가는 엑셀로 교체"
+        subtitle="지점 데이터를 확인하고 관리합니다 · 인허가·거래처는 신규만 추가, 담당자는 엑셀로 전체 교체"
         actions={isAdmin ? (
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700"><Crown size={13} />관리자</span>
@@ -935,6 +951,38 @@ export default function UploadPage() {
             </button>
           </section>
         )}
+        {replaceConfirm && (() => {
+          const sharpDrop = replaceConfirm.existing > 0 && replaceConfirm.incoming < replaceConfirm.existing * 0.5;
+          return (
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 p-4" onClick={() => setReplaceConfirm(null)}>
+              <div className="w-full max-w-[440px] overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 border-b border-gray-100 px-5 py-4">
+                  <AlertTriangle size={18} className="text-red-500" />
+                  <span className="text-sm font-semibold text-[#0f172a]">{replaceConfirm.label} 전체 교체</span>
+                </div>
+                <div className="space-y-3 px-5 py-4 text-sm leading-relaxed text-[#475569]">
+                  <p>
+                    현재 <b className="text-[#0f172a]">{replaceConfirm.existing.toLocaleString()}건</b>을 모두 삭제하고 파일 <b className="text-[#0f172a]">{replaceConfirm.incoming.toLocaleString()}건</b>으로 교체합니다. <span className="font-medium text-red-600">되돌릴 수 없습니다.</span>
+                  </p>
+                  {sharpDrop && (
+                    <div className="rounded-lg bg-red-50 px-3 py-2.5 text-[13px] text-red-700">
+                      <div className="mb-1 font-semibold">⚠️ 기존보다 {Math.round((1 - replaceConfirm.incoming / replaceConfirm.existing) * 100)}% 감소</div>
+                      파일이 잘못되었거나 일부만 업로드된 게 아닌지 확인하세요.
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 font-medium">
+                        <input type="checkbox" checked={dropAck} onChange={(e) => setDropAck(e.target.checked)} className="h-3.5 w-3.5" />
+                        데이터 감소를 확인했습니다
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2 border-t border-gray-100 px-5 py-3.5">
+                  <button onClick={() => setReplaceConfirm(null)} className="flex-1 rounded-lg bg-gray-100 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-200">취소</button>
+                  <button onClick={() => { setReplaceConfirm(null); void runUpload(); }} disabled={sharpDrop && !dropAck} className="flex-1 rounded-lg bg-red-500 py-2.5 text-sm font-medium text-white hover:bg-red-600 disabled:bg-gray-300">교체 실행</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {uploadBanner && (!parsedData || parsedData.length === 0) && (
           <div className={`mb-4 rounded-lg border px-4 py-3 text-xs ${uploadBanner.cls}`}>{uploadBanner.html}</div>
         )}
