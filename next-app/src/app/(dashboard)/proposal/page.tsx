@@ -190,7 +190,6 @@ export default function ProposalPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [salesMemo, setSalesMemo] = useState('');
   const lastAnalysisRef = useRef(0);
 
   // 카탈로그 피커
@@ -398,6 +397,7 @@ export default function ProposalPage() {
         items: items.map((it) => ({
           name: it.name, spec: it.spec, factoryPrice: it.factoryPrice,
           dcRate: it.dcRate, salesPrice: it.salesPrice, desc: it.desc,
+          taxFree: it.taxFree, expiryDate: it.expiryDate,
         })),
         total_amount: Math.floor(totalSales),
         updated_at: now,
@@ -445,6 +445,7 @@ export default function ProposalPage() {
     const loaded: QuoteItem[] = (data.items || []).map((item: Partial<QuoteItem>) => blankItem({
       name: item.name, spec: item.spec, factoryPrice: item.factoryPrice || 0,
       dcRate: item.dcRate || 0, salesPrice: item.salesPrice || 0, desc: item.desc || '',
+      taxFree: item.taxFree ?? false, expiryDate: item.expiryDate || '',
     }));
     setItems(loaded.length ? loaded : [blankItem()]);
     setQuotePickerOpen(false);
@@ -557,11 +558,6 @@ export default function ProposalPage() {
                           </div>
                         </div>
                       )}
-
-                      <div className="mt-3">
-                        <div className="mb-1.5 text-[10px] uppercase tracking-wider text-[#94a3b8]">영업 메모</div>
-                        <textarea value={salesMemo} onChange={(e) => setSalesMemo(e.target.value)} placeholder="방문 전략, 핵심 포인트 등" className="min-h-[64px] w-full resize-y rounded-lg border border-[#e2e8f0] p-2.5 text-xs outline-none focus:border-[#2563eb]" />
-                      </div>
 
                       <div className="mb-2 mt-3 text-[10px] uppercase tracking-wider text-[#94a3b8]">추천 상품 · 담으면 카탈로그에 추가</div>
                       <div className="flex flex-col gap-2">
