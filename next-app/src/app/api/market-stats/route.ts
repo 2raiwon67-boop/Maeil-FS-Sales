@@ -71,6 +71,11 @@ function isTarget(item: any): boolean {
   if (EXCLUDE_CATEGORIES.includes(cat)) return false; // 업종 우선 차단
   const bizName = getBizName(item);
   if (EXCLUDE_KEYWORDS.some((kw) => bizName.includes(kw))) return false;
+  // 한식은 대량납품 가능한 대형(100평↑=330㎡↑)만 타겟 — 인허가추출 기준과 통일. 면적 결측도 제외.
+  if (cat === '한식') {
+    const areaM2 = parseFloat((item.LCTN_AREA || item.FCLT_TOTAL_SCL || '0').toString().replace(/,/g, '')) || 0;
+    if (areaM2 < 330) return false;
+  }
   return true;
 }
 
