@@ -35,7 +35,11 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({ model: 'models/gemini-embedding-001', content: { parts: [{ text: embedText }] }, outputDimensionality: 768 }),
       },
     );
-    if (!embedRes.ok) return NextResponse.json({ error: '임베딩 생성 실패' }, { status: 500 });
+    if (!embedRes.ok) {
+      const detail = await embedRes.text().catch(() => '');
+      console.error('[visit-coach] embed fail', embedRes.status, detail.slice(0, 300));
+      return NextResponse.json({ error: `임베딩 생성 실패 (${embedRes.status})` }, { status: 500 });
+    }
     const embedData = await embedRes.json();
     const vector = embedData.embedding?.values;
     if (!Array.isArray(vector) || vector.length !== 768) return NextResponse.json({ error: '임베딩 벡터 오류' }, { status: 500 });
@@ -107,7 +111,11 @@ JSON으로만 답하세요.`;
         }),
       },
     );
-    if (!genRes.ok) return NextResponse.json({ error: '코칭 생성 실패' }, { status: 500 });
+    if (!genRes.ok) {
+      const detail = await genRes.text().catch(() => '');
+      console.error('[visit-coach] gen fail', genRes.status, detail.slice(0, 300));
+      return NextResponse.json({ error: `코칭 생성 실패 (${genRes.status})` }, { status: 500 });
+    }
     const genData = await genRes.json();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const parts = genData.candidates?.[0]?.content?.parts || [];
@@ -118,6 +126,7 @@ JSON으로만 답하세요.`;
 
     return NextResponse.json({ coaching, sources: (Array.isArray(matched) ? matched : []).map((r) => r.name) });
   } catch (err) {
+    console.error('[visit-coach] exception', (err as Error).message);
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 }
