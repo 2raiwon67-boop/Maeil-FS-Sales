@@ -2,6 +2,8 @@
 // '바로 실행할' 다음 액션 / 추천 제품 / 예상 거절·반박을 생성.
 import { NextRequest, NextResponse } from 'next/server';
 
+export const maxDuration = 30; // 임베딩+RAG+생성 순차 호출 — 콜드스타트 시 기본 제한 초과 방지
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
