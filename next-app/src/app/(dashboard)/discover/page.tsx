@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
-  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box,
+  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -1846,6 +1846,16 @@ export default function DiscoverPage() {
                     <span className={`text-[11px] font-bold px-[9px] py-0.5 rounded-[20px] flex-shrink-0 ${s.status === 'new' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                       {s.status === 'new' ? '신규' : '폐업'}
                     </span>
+                    <a
+                      href={`https://map.naver.com/p/search/${encodeURIComponent([s.name, s.address].filter(Boolean).join(' '))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="네이버 지도에서 검색"
+                      className="inline-flex items-center gap-0.5 text-[10px] font-bold text-[#03c75a] bg-[#03c75a]/10 rounded px-1.5 py-0.5 flex-shrink-0 hover:bg-[#03c75a]/20 transition-colors"
+                    >
+                      <ExternalLink size={10} />네이버
+                    </a>
                   </div>
                   <div className="flex gap-1.5 flex-wrap mb-1">
                     {s.category    && <span className="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded px-1.5 py-px">{s.category}</span>}
