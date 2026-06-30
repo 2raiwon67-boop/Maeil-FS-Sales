@@ -84,7 +84,7 @@ interface DongAgg {
 type ViewMode = 'map' | 'rank';
 type DisplayMode = 'area' | 'points' | 'heat' | 'd3';
 type RegionMode = 'branch' | 'sido';
-type RankSort = 'new' | 'closed' | 'net' | 'rate';
+type RankSort = 'net' | 'mom' | 'new' | 'closed' | 'rate';
 type DrillTab = 'all' | 'new' | 'closed' | 'big';
 type Category = 'all' | 'cafe' | 'bakery' | 'restaurant';
 
@@ -240,6 +240,30 @@ function FilterDropdown({
   );
 }
 
+// ─── SPARKLINE ───────────────────────────────────────────────────────────────
+// 최근 N개월 순증 미니 막대 (양수 초록↑ / 음수 빨강↓, 0 기준선)
+function Sparkline({ values }: { values: number[] }) {
+  const n = values.length || 1;
+  const max = Math.max(1, ...values.map(v => Math.abs(v)));
+  const W = 58, H = 22, bw = W / n, mid = H / 2;
+  return (
+    <svg width={W} height={H} className="flex-shrink-0" aria-hidden>
+      <line x1={0} y1={mid} x2={W} y2={mid} stroke="#e2e8f0" strokeWidth={1} />
+      {values.map((v, i) => {
+        const h = Math.max(1.5, (Math.abs(v) / max) * (H / 2 - 1.5));
+        return (
+          <rect
+            key={i}
+            x={i * bw + bw * 0.22} y={v >= 0 ? mid - h : mid}
+            width={bw * 0.56} height={h} rx={1}
+            fill={v > 0 ? '#16a34a' : v < 0 ? '#ef4444' : '#cbd5e1'} opacity={0.9}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
 
 export default function DiscoverPage() {
@@ -290,7 +314,7 @@ export default function DiscoverPage() {
   // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
   const [selectedMonth, setSelectedMonth] = useState<string | null>(() => { const ml = getMonthList(); return ml[ml.length - 1] ?? null; });
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
-  const [rankSort, setRankSort] = useState<RankSort>('new');
+  const [rankSort, setRankSort] = useState<RankSort>('net');
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState('로딩 중...');
   const [refreshing, setRefreshing] = useState(false);
@@ -1436,18 +1460,6 @@ export default function DiscoverPage() {
     }
   }
 
-  // ─── RANKING SORT ──────────────────────────────────────────────────────────
-
-  function getSortedRegions(): RegionData[] {
-    return [...cachedRegionsArr].sort((a, b) => {
-      if (rankSort === 'new')    return b.new - a.new;
-      if (rankSort === 'closed') return b.closed - a.closed;
-      if (rankSort === 'net')    return b.net - a.net;
-      if (rankSort === 'rate')   return b.netRate - a.netRate;
-      return 0;
-    });
-  }
-
   // ─── SCROLL MONTH INTO VIEW ON INIT ───────────────────────────────────────
 
   useEffect(() => {
@@ -1472,8 +1484,44 @@ export default function DiscoverPage() {
     );
   }
 
-  const sortedRegions = getSortedRegions();
-  const maxNew = Math.max(...sortedRegions.map(r => r.new), 1);
+  // ─── 랭킹 인사이트 (모멘텀·대형) — 추가 쿼리 없이 cached에서 계산 ──────────
+  const anchorMonth = selectedMonth || monthList[monthList.length - 1];
+  const anchorIdx = monthList.indexOf(anchorMonth);
+  const trendMonths = monthList.slice(Math.max(0, anchorIdx - 5), anchorIdx + 1); // 최근 6개월
+  // 시군구별 월별 순증 시계열
+  const regionMonthlyNet = (() => {
+    const m = new Map<string, Map<string, number>>();
+    for (const r of cachedSnaps) {
+      const k = `${r.sido}|${r.sigungu}`;
+      let mm = m.get(k); if (!mm) { mm = new Map(); m.set(k, mm); }
+      mm.set(r.month, (mm.get(r.month) || 0) + (r.new_count || 0) - (r.closed_count || 0));
+    }
+    return m;
+  })();
+  // 시군구별 100평+ 신규(선택 월 기준, 전체 월이면 전기간)
+  const regionBigNew = (() => {
+    const m = new Map<string, number>();
+    for (const s of cachedStores) {
+      if (s.status !== 'new' || (s.pyeong || 0) < 100) continue;
+      if (selectedMonth && s.month !== selectedMonth) continue;
+      const k = `${s.sido}|${s.sigungu}`;
+      m.set(k, (m.get(k) || 0) + 1);
+    }
+    return m;
+  })();
+  const sortedRegions = cachedRegionsArr.map(r => {
+    const k = `${r.sido}|${r.region}`;
+    const mm = regionMonthlyNet.get(k);
+    const trend = trendMonths.map(mo => mm?.get(mo) ?? 0);
+    const prevNet = anchorIdx > 0 ? (mm?.get(monthList[anchorIdx - 1]) ?? 0) : 0;
+    const curNet = mm?.get(anchorMonth) ?? r.net;
+    return { ...r, trend, mom: curNet - prevNet, big: regionBigNew.get(k) || 0 };
+  }).sort((a, b) =>
+    rankSort === 'new'    ? b.new - a.new
+    : rankSort === 'closed' ? b.closed - a.closed
+    : rankSort === 'mom'    ? b.mom - a.mom
+    : rankSort === 'rate'   ? b.netRate - a.netRate
+    : b.net - a.net);
 
   // 드릴다운 라이브 집계 (선택 월·업종 즉시 반영)
   const drillScoped = drillStores
@@ -1912,70 +1960,77 @@ export default function DiscoverPage() {
           {/* Header */}
           <div className="px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 flex items-center justify-between gap-3">
             <span className="text-[11px] font-bold text-slate-500 tracking-[.1em] uppercase">시군구 랭킹</span>
-            <div className="flex gap-1">
-              {(['new', 'closed', 'net', 'rate'] as RankSort[]).map(sort => (
+            <div className="flex flex-wrap gap-1">
+              {(['net', 'mom', 'new', 'closed', 'rate'] as RankSort[]).map(sort => (
                 <button
                   key={sort}
                   onClick={() => setRankSort(sort)}
                   className={`h-[27px] px-3 rounded-full border text-[11px] font-semibold cursor-pointer transition-all ${rankSort === sort ? 'bg-slate-900 border-slate-900 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600'}`}
                 >
-                  {sort === 'new' ? '신규순' : sort === 'closed' ? '폐업순' : sort === 'net' ? '순증순' : '성장률순'}
+                  {sort === 'net' ? '순증순' : sort === 'mom' ? '모멘텀순' : sort === 'new' ? '신규순' : sort === 'closed' ? '폐업순' : '성장률순'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Card grid */}
-          <div className="flex-1 overflow-y-auto p-3.5 grid gap-2.5 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', alignContent: 'start' }}>
+          {/* Compact ranking table */}
+          <div className="flex-1 overflow-y-auto px-3 py-3 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
             {sortedRegions.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
+              <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
                 <Clock size={28} className="opacity-60" />
                 데이터 불러오는 중...
               </div>
-            ) : sortedRegions.map((r, i) => {
-              const pct    = Math.round((r.new / maxNew) * 100);
-              const up     = r.net > 0, down = r.net < 0;
-              const barC   = up ? '#16a34a' : down ? '#ef4444' : '#cbd5e1';
-              const netStr = up ? `+${r.net}` : String(r.net);
-              const netCls = up ? 'text-green-700 bg-green-50' : down ? 'text-red-700 bg-red-50' : 'text-slate-500 bg-slate-100';
-              // 상위 3위 메달 강조 (금/은/동)
-              const medal  = i === 0 ? 'bg-amber-400 text-white shadow-[0_2px_8px_rgba(245,158,11,.45)]'
-                           : i === 1 ? 'bg-slate-300 text-slate-700'
-                           : i === 2 ? 'bg-orange-300 text-white'
-                           : 'bg-slate-100 text-slate-400';
-              return (
-                <div
-                  key={r.sido + r.region}
-                  onClick={() => openDrilldown(r.region, r.sido)}
-                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
-                >
-                  {/* 순증 방향 좌측 accent */}
-                  <span className="absolute left-0 top-0 h-full w-1" style={{ background: barC }} />
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-extrabold tabular-nums ${medal}`}>{i + 1}</span>
-                    <span className="flex-1 truncate text-[15px] font-extrabold tracking-[-0.02em] text-slate-900">{regionLabel(r.sido, r.region, multiSido)}</span>
-                    <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[13px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
-                  </div>
-                  <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full transition-[width] duration-500 ease-[cubic-bezier(.4,0,.2,1)]" style={{ width: `${pct}%`, background: barC }} />
-                  </div>
-                  <div className="flex items-end gap-4">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-bold uppercase tracking-[.08em] text-green-600">신규</span>
-                      <span className="text-lg font-extrabold leading-none tabular-nums text-green-600">{r.new}</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-bold uppercase tracking-[.08em] text-red-500">폐업</span>
-                      <span className="text-lg font-extrabold leading-none tabular-nums text-red-500">{r.closed}</span>
-                    </div>
-                    <div className="ml-auto flex flex-col items-end gap-0.5">
-                      <span className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">성장률</span>
-                      <span className="text-lg font-extrabold leading-none tabular-nums text-slate-600">{r.netRate}%</span>
-                    </div>
-                  </div>
+            ) : (
+              <div className="mx-auto max-w-[760px]">
+                {/* 컬럼 헤더 */}
+                <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_3rem_4.25rem_4rem_2.25rem] items-center gap-2 px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  <span className="text-center">#</span>
+                  <span>지역</span>
+                  <span className="text-right">순증</span>
+                  <span className="text-center">최근 6개월</span>
+                  <span className="text-right">신·폐</span>
+                  <span className="text-right">대형</span>
                 </div>
-              );
-            })}
+                <div className="flex flex-col gap-1">
+                  {sortedRegions.map((r, i) => {
+                    const up = r.net > 0, down = r.net < 0;
+                    const netStr = up ? `+${r.net}` : String(r.net);
+                    const netCls = up ? 'text-green-600' : down ? 'text-red-600' : 'text-slate-400';
+                    const momIco = r.mom > 0 ? '▲' : r.mom < 0 ? '▼' : '─';
+                    const momCls = r.mom > 0 ? 'text-green-600' : r.mom < 0 ? 'text-red-500' : 'text-slate-300';
+                    const momStr = r.mom > 0 ? `전월대비 +${r.mom}` : r.mom < 0 ? `전월대비 ${r.mom}` : '전월과 동일';
+                    // 상위 3위 메달 강조 (금/은/동)
+                    const medal = i === 0 ? 'bg-amber-400 text-white shadow-[0_2px_6px_rgba(245,158,11,.45)]'
+                                : i === 1 ? 'bg-slate-300 text-slate-700'
+                                : i === 2 ? 'bg-orange-300 text-white'
+                                : 'bg-slate-100 text-slate-400';
+                    return (
+                      <div
+                        key={r.sido + r.region}
+                        onClick={() => openDrilldown(r.region, r.sido)}
+                        className="grid grid-cols-[1.75rem_minmax(0,1fr)_3rem_4.25rem_4rem_2.25rem] items-center gap-2 cursor-pointer rounded-xl border border-slate-200/70 bg-white px-3 py-2.5 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/40"
+                      >
+                        <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold tabular-nums ${medal}`}>{i + 1}</span>
+                        <span className="truncate text-[14px] font-bold tracking-[-0.02em] text-slate-900">{regionLabel(r.sido, r.region, multiSido)}</span>
+                        <span className={`text-right text-[14px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
+                        <span className="flex items-center justify-center gap-0.5" title={momStr}>
+                          <Sparkline values={r.trend} />
+                          <span className={`text-[11px] font-bold ${momCls}`}>{momIco}</span>
+                        </span>
+                        <span className="text-right text-xs tabular-nums">
+                          <span className="font-semibold text-green-600">{r.new}</span>
+                          <span className="text-slate-300">·</span>
+                          <span className="font-semibold text-red-500">{r.closed}</span>
+                        </span>
+                        <span className="text-right text-xs font-extrabold tabular-nums">
+                          {r.big > 0 ? <span className="text-amber-600">{r.big}</span> : <span className="text-slate-300">0</span>}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Overall chart strip */}
