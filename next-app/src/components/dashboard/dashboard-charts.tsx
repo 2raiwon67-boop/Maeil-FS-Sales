@@ -237,16 +237,30 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
     return () => milkChart.current?.destroy();
   }, [cross]);
 
+  const sc = cross.statusCount;
+  const total = Object.values(sc).reduce((a, b) => a + b, 0);
+  const kpis: { label: string; value: string; cls: string; title?: string }[] = [
+    { label: '총 거래처', value: total.toLocaleString(), cls: 'text-slate-900' },
+    { label: '거래', value: (sc['거래'] || 0).toLocaleString(), cls: 'text-blue-600' },
+    { label: '인허가', value: (sc['인허가'] || 0).toLocaleString(), cls: 'text-green-600' },
+    { label: '공사중', value: (sc['공사중'] || 0).toLocaleString(), cls: 'text-amber-600' },
+    { label: '거래율', value: `${cross.successRate}%`, cls: 'text-violet-600', title: '거래 / (거래 + 미거래) 비율' },
+  ];
+
   return (
     <div className="h-full w-full overflow-y-auto bg-gray-50 p-4 pt-16">
-      {/* 거래율 요약 카드 */}
-      <div className="mb-4">
-        <div className="inline-flex flex-col rounded-2xl bg-white px-6 py-4 shadow-sm ring-1 ring-black/5">
-          <span className="text-xs text-gray-500">
-            거래율 <span title="인허가 데이터 중 거래 / (거래 + 미거래) 비율">ℹ️</span>
-          </span>
-          <span className="text-3xl font-bold text-blue-600">{cross.successRate}%</span>
-        </div>
+      {/* KPI 요약 스트립 */}
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        {kpis.map((k) => (
+          <div
+            key={k.label}
+            title={k.title}
+            className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md"
+          >
+            <div className="text-[11px] font-medium text-gray-400">{k.label}</div>
+            <div className={`mt-0.5 text-2xl font-extrabold tabular-nums tracking-tight ${k.cls}`}>{k.value}</div>
+          </div>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

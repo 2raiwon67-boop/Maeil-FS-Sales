@@ -284,6 +284,7 @@ export default function DiscoverPage() {
   const [colorblind, setColorblind] = useState(false); // 색각보정 (홈/설정모달과 fs_colorblind 공유)
   const [playing, setPlaying] = useState(false);
   const [dockOpen, setDockOpen] = useState(true);
+  const [timelineOpen, setTimelineOpen] = useState(true); // 타임랩스 바 접기(지도 시야 확보용)
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
   // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
@@ -544,7 +545,7 @@ export default function DiscoverPage() {
           mapInstance.setFeatureState({ source: 'munis', id: f.id }, { hover: true });
         }
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
-        const html = `<div style="background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, st.name || f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
+        const html = `<div style="background:rgba(15,23,42,0.96);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 20px rgba(0,0,0,0.28);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, st.name || f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
 
         if (!mapPopupRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -755,8 +756,8 @@ export default function DiscoverPage() {
       },
     });
 
-    // 매장 점 — hover 시 현대적 반투명 검정 툴팁 (+ 모바일 탭 대비 click도)
-    const POP = 'background:rgba(17,24,39,0.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;max-width:240px;border:1px solid rgba(255,255,255,0.12);box-shadow:0 8px 28px rgba(0,0,0,0.32)';
+    // 매장 점 — hover 시 거의 불투명한 다크 카드 툴팁 (블러로 인한 배경 겹침 방지)
+    const POP = 'background:rgba(15,23,42,0.96);color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;max-width:240px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 20px rgba(0,0,0,0.28)';
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const storeHtml = (p: any) => {
       const cb = colorblindRef.current;
@@ -1334,6 +1335,8 @@ export default function DiscoverPage() {
     }
     // sido 모르면 데이터에서 유추 (중복명 구분용)
     const sd = sido || rows[0]?.sido || '';
+    // 동 필터가 걸려 있던 경우에만 점 레이어를 다시 그린다 (없으면 표시 점이 동일 → 깜빡임 방지)
+    const hadDongFilter = selectedDongRef.current !== null;
     setCurrentDrillRegion(sigungu);
     drillRegionRef.current = sigungu;
     setSelectedDong(null);
@@ -1345,11 +1348,13 @@ export default function DiscoverPage() {
     updateSelectedMarker(null);
     setDrillStores(rows);
     setPanelOpen(true);
-    updateStoreLayer();
+    if (hadDongFilter) updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
 
   function closePanel() {
+    // 동 필터가 걸려 있던 경우에만 점 레이어 복원 (없으면 전체 점 그대로 → 깜빡임 방지)
+    const hadDongFilter = selectedDongRef.current !== null;
     setPanelOpen(false);
     setSpChartOpen(false);
     setCurrentDrillRegion('');
@@ -1360,7 +1365,7 @@ export default function DiscoverPage() {
     selectedStoreKeyRef.current = null;
     updateSelectedMarker(null);
     setDrillStores([]);
-    updateStoreLayer();
+    if (hadDongFilter) updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
 
@@ -1674,50 +1679,63 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* ── TIMELAPSE 재생 바 ── */}
+      {/* ── TIMELAPSE 재생 바 ── (저프로파일 · 접기 토글로 지도 시야 확보) */}
       {viewMode === 'map' && (
         <div className="absolute bottom-3 left-3 right-14 z-[450] md:left-[232px]">
-          <div className="mx-auto flex max-w-[520px] items-center gap-3 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur">
+          <div className="mx-auto flex w-fit max-w-full items-center gap-2 rounded-full border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95">
+            {/* 재생/일시정지 토글 — 항상 노출 */}
             <button
               onClick={handleTogglePlay}
               title={playing ? '일시정지' : '월별 재생'}
-              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition-colors hover:bg-blue-700"
+              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-colors ${playing ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
               {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
             </button>
-            <div className="flex-1">
-              <input
-                type="range" min={0} max={monthList.length - 1} step={1}
-                value={selectedMonth ? monthList.indexOf(selectedMonth) : 0}
-                onChange={(e) => { stopPlay(); handleMonthSelect(monthList[Number(e.target.value)]); }}
-                className="w-full accent-blue-600"
-                aria-label="월 타임라인"
-              />
-              <div className="mt-0.5 flex justify-between text-[10px] text-slate-400">
-                <span>{monthList[0]?.slice(2).replace('-', '.')}</span>
-                <span className="font-semibold text-blue-600">{selectedMonth ? selectedMonth.slice(2).replace('-', '.') + (playing ? ' 재생 중' : '') : '전체 월'}</span>
-                <span>{monthList[monthList.length - 1]?.slice(2).replace('-', '.')}</span>
+            {/* 현재 월 — 항상 노출 */}
+            <span className="min-w-[40px] flex-shrink-0 text-center text-xs font-bold tabular-nums text-blue-600">
+              {selectedMonth ? selectedMonth.slice(2).replace('-', '.') : '전체'}
+              {playing && <span className="ml-0.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500 align-middle" />}
+            </span>
+            {/* 슬라이더 본체 — 접으면 숨김 */}
+            {timelineOpen && (
+              <div className="flex min-w-0 items-center gap-2 pl-1">
+                <span className="hidden flex-shrink-0 text-[10px] tabular-nums text-slate-400 sm:inline">{monthList[0]?.slice(2).replace('-', '.')}</span>
+                <input
+                  type="range" min={0} max={monthList.length - 1} step={1}
+                  value={selectedMonth ? monthList.indexOf(selectedMonth) : 0}
+                  onChange={(e) => { stopPlay(); handleMonthSelect(monthList[Number(e.target.value)]); }}
+                  className="w-[180px] max-w-full accent-blue-600 sm:w-[240px]"
+                  aria-label="월 타임라인"
+                />
+                <span className="hidden flex-shrink-0 text-[10px] tabular-nums text-slate-400 sm:inline">{monthList[monthList.length - 1]?.slice(2).replace('-', '.')}</span>
+                {selectedMonth && (
+                  <button
+                    onClick={() => { stopPlay(); handleMonthSelect(null); }}
+                    className="flex-shrink-0 rounded-full px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                  >
+                    전체
+                  </button>
+                )}
               </div>
-            </div>
-            {selectedMonth && (
-              <button
-                onClick={() => { stopPlay(); handleMonthSelect(null); }}
-                className="flex-shrink-0 rounded-md px-2 py-1 text-[10px] font-medium text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-              >
-                전체
-              </button>
             )}
+            {/* 접기/펼치기 토글 */}
+            <button
+              onClick={() => setTimelineOpen(o => !o)}
+              title={timelineOpen ? '타임라인 접기' : '타임라인 펼치기'}
+              className="flex h-7 w-6 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              {timelineOpen ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── PANEL BACKDROP ── */}
-      {panelOpen && (
-        <div
-          className="absolute inset-0 bg-slate-900/30 z-[499] transition-opacity duration-300"
-          onClick={closePanel}
-        />
-      )}
+      {/* ── PANEL BACKDROP ── (항상 마운트 → 패널 슬라이드와 같은 300ms로 페이드 인/아웃) */}
+      <div
+        aria-hidden={!panelOpen}
+        onClick={closePanel}
+        className={`absolute inset-0 bg-slate-900/30 z-[499] transition-opacity duration-300 ${panelOpen ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+      />
 
       {/* ── SLIDE PANEL ── */}
       <div className={`absolute top-0 right-0 w-[440px] max-w-full h-full bg-white border-l border-slate-200 shadow-[-6px_0_32px_rgba(15,23,42,.1)] z-[500] flex flex-col overflow-hidden transition-transform duration-300 ease-[cubic-bezier(.4,0,.2,1)] max-sm:w-full ${panelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
@@ -1916,37 +1934,43 @@ export default function DiscoverPage() {
               </div>
             ) : sortedRegions.map((r, i) => {
               const pct    = Math.round((r.new / maxNew) * 100);
-              const barC   = r.net > 0 ? '#34c759' : r.net < 0 ? '#ff3b30' : '#d1d5db';
-              const netStr = r.net > 0 ? `+${r.net}` : String(r.net);
-              const netCls = r.net > 0 ? 'text-green-600' : r.net < 0 ? 'text-red-600' : 'text-slate-400';
+              const up     = r.net > 0, down = r.net < 0;
+              const barC   = up ? '#16a34a' : down ? '#ef4444' : '#cbd5e1';
+              const netStr = up ? `+${r.net}` : String(r.net);
+              const netCls = up ? 'text-green-700 bg-green-50' : down ? 'text-red-700 bg-red-50' : 'text-slate-500 bg-slate-100';
+              // 상위 3위 메달 강조 (금/은/동)
+              const medal  = i === 0 ? 'bg-amber-400 text-white shadow-[0_2px_8px_rgba(245,158,11,.45)]'
+                           : i === 1 ? 'bg-slate-300 text-slate-700'
+                           : i === 2 ? 'bg-orange-300 text-white'
+                           : 'bg-slate-100 text-slate-400';
               return (
                 <div
                   key={r.sido + r.region}
                   onClick={() => openDrilldown(r.region, r.sido)}
-                  className="bg-white rounded-[10px] border border-slate-200 px-[18px] py-4 cursor-pointer transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-blue-200"
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg"
                 >
-                  <div className="flex items-baseline justify-between mb-2.5">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] font-semibold text-slate-400 min-w-[22px]">#{i + 1}</span>
-                      <span className="text-base font-extrabold text-slate-900 tracking-[-0.02em]">{regionLabel(r.sido, r.region, multiSido)}</span>
-                    </div>
-                    <span className={`text-[15px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
+                  {/* 순증 방향 좌측 accent */}
+                  <span className="absolute left-0 top-0 h-full w-1" style={{ background: barC }} />
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <span className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-extrabold tabular-nums ${medal}`}>{i + 1}</span>
+                    <span className="flex-1 truncate text-[15px] font-extrabold tracking-[-0.02em] text-slate-900">{regionLabel(r.sido, r.region, multiSido)}</span>
+                    <span className={`flex-shrink-0 rounded-full px-2.5 py-1 text-[13px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
                   </div>
-                  <div className="h-[3px] bg-slate-200 rounded mb-3 overflow-hidden">
-                    <div className="h-full rounded transition-[width] duration-500 ease-[cubic-bezier(.4,0,.2,1)]" style={{ width: `${pct}%`, background: barC }} />
+                  <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-full rounded-full transition-[width] duration-500 ease-[cubic-bezier(.4,0,.2,1)]" style={{ width: `${pct}%`, background: barC }} />
                   </div>
-                  <div className="flex gap-[18px]">
+                  <div className="flex items-end gap-4">
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-semibold tracking-[.08em] uppercase" style={{ color: '#34c759' }}>신규</span>
-                      <span className="text-[19px] font-extrabold tabular-nums leading-none" style={{ color: '#34c759' }}>{r.new}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-[.08em] text-green-600">신규</span>
+                      <span className="text-lg font-extrabold leading-none tabular-nums text-green-600">{r.new}</span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-semibold tracking-[.08em] uppercase" style={{ color: '#ff3b30' }}>폐업</span>
-                      <span className="text-[19px] font-extrabold tabular-nums leading-none" style={{ color: '#ff3b30' }}>{r.closed}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-[.08em] text-red-500">폐업</span>
+                      <span className="text-lg font-extrabold leading-none tabular-nums text-red-500">{r.closed}</span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[9px] font-semibold text-slate-400 tracking-[.08em] uppercase">성장률</span>
-                      <span className="text-[19px] font-extrabold tabular-nums leading-none text-slate-500">{r.netRate}%</span>
+                    <div className="ml-auto flex flex-col items-end gap-0.5">
+                      <span className="text-[9px] font-bold uppercase tracking-[.08em] text-slate-400">성장률</span>
+                      <span className="text-lg font-extrabold leading-none tabular-nums text-slate-600">{r.netRate}%</span>
                     </div>
                   </div>
                 </div>
