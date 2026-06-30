@@ -238,13 +238,14 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
   }, [cross]);
 
   const sc = cross.statusCount;
+  const cm = cross.statusColorMap; // 거래상태 차트와 동일 색
   const total = Object.values(sc).reduce((a, b) => a + b, 0);
-  const kpis: { label: string; value: string; cls: string; title?: string }[] = [
-    { label: '총 거래처', value: total.toLocaleString(), cls: 'text-slate-900' },
-    { label: '거래', value: (sc['거래'] || 0).toLocaleString(), cls: 'text-blue-600' },
-    { label: '인허가', value: (sc['인허가'] || 0).toLocaleString(), cls: 'text-green-600' },
-    { label: '공사중', value: (sc['공사중'] || 0).toLocaleString(), cls: 'text-amber-600' },
-    { label: '거래율', value: `${cross.successRate}%`, cls: 'text-violet-600', title: '거래 / (거래 + 미거래) 비율' },
+  const kpis: { label: string; value: string; color: string; title?: string }[] = [
+    { label: '총 거래처', value: total.toLocaleString(), color: '#111827' },
+    { label: '거래', value: (sc['거래'] || 0).toLocaleString(), color: cm['거래'] || '#8E8E93' },
+    { label: '인허가', value: (sc['인허가'] || 0).toLocaleString(), color: cm['인허가'] || '#8E8E93' },
+    { label: '공사중', value: (sc['공사중'] || 0).toLocaleString(), color: cm['공사중'] || '#8E8E93' },
+    { label: '거래율', value: `${cross.successRate}%`, color: cm['거래'] || '#007AFF', title: '거래 / (거래 + 미거래) 비율' },
   ];
 
   return (
@@ -258,7 +259,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
             className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md"
           >
             <div className="text-[11px] font-medium text-gray-400">{k.label}</div>
-            <div className={`mt-0.5 text-2xl font-extrabold tabular-nums tracking-tight ${k.cls}`}>{k.value}</div>
+            <div className="mt-0.5 text-2xl font-extrabold tabular-nums tracking-tight" style={{ color: k.color }}>{k.value}</div>
           </div>
         ))}
       </div>
