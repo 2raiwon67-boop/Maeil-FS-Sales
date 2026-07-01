@@ -113,6 +113,7 @@ const SIDO_NORM: Record<string, string> = {
 const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 // 줌인 시 표시할 행정동 경계 파일 (데이터 있는 시도만, public/geojson/dong/)
 const DONG_FILE: Record<string, string> = { 서울: 'seoul', 경기도: 'gyeonggi', 인천: 'incheon' };
+const DONG_FILE_SIDO: Record<string, string> = { seoul: '서울', gyeonggi: '경기도', incheon: '인천' };
 // geojson code 앞2자리 → 시도 (중복 시군구명 구분용 — southkorea-maps 코드 체계)
 const CODE_SIDO: Record<string, string> = {
   '11': '서울', '21': '부산', '22': '대구', '23': '인천', '24': '광주', '25': '대전', '26': '울산', '29': '세종',
@@ -191,6 +192,9 @@ function extractDong(address?: string | null): string {
   if (!address) return '기타';
   const paren = address.match(/\(([가-힣]+[0-9]?(?:동|읍|면|가))\)\s*$/);
   if (paren) return paren[1];
+  // 괄호 안이 "동명,건물명" 형태(도로명주소 흔한 패턴) — 콤마 앞 동명만 추출
+  const parenComma = address.match(/\(([가-힣]+[0-9]?(?:동|읍|면|가)),/);
+  if (parenComma) return parenComma[1];
   const eupmyeon = address.match(/\s([가-힣]{2,}(?:읍|면))(?:\s|$)/);
   if (eupmyeon) return eupmyeon[1];
   return '기타';
@@ -280,6 +284,7 @@ export default function DiscoverPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapPopupRef = useRef<any>(null);
   const hoveredMuniIdRef = useRef<string | number | null>(null);
+  const hoveredDongIdRef = useRef<string | number | null>(null);
   const pendingMapRenderRef = useRef<(() => void) | null>(null);
   const mapCenteredRef = useRef(false);
 
@@ -357,6 +362,10 @@ export default function DiscoverPage() {
   const dongLayerReadyRef = useRef(false);
   const dongLoadedKeyRef = useRef('');
   const dongCacheRef = useRef<Record<string, { features: unknown[] } | null>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dongFeaturesRef = useRef<any[]>([]); // 현재 로드된 동 폴리곤(그라데이션 채색 대상) — sido 주입된 상태
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dongHoverPopupRef = useRef<any>(null);
   const scopeSidosRef = useRef<string[]>([]);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -510,7 +519,8 @@ export default function DiscoverPage() {
       const tone = ['coalesce', ['feature-state', 'tone'], 'none'];
       const t    = ['coalesce', ['feature-state', 't'], 0];
       mapInstance.addLayer({
-        id: 'muni-fill', type: 'fill', source: 'munis',
+        // 줌 10.5부터는 dong-fill(읍면동 그라데이션)이 대체 — 서로 안 겹치게 maxzoom으로 분리
+        id: 'muni-fill', type: 'fill', source: 'munis', maxzoom: 10.5,
         paint: {
           'fill-color': [
             'case',
@@ -659,16 +669,86 @@ export default function DiscoverPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function ensureDongLayer(mapInstance: any) {
     if (dongLayerReadyRef.current || !mapInstance) return;
-    mapInstance.addSource('dong', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+    // promoteId='id' — setFeatureState/클릭 시 안정적인 피처 식별용(id는 `${sgg}|${name}` 합성키, 빌드 시 부여)
+    mapInstance.addSource('dong', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, promoteId: 'id' });
+
+    // 동 그라데이션 채색 — 줌인 시 시군구 면(muni-fill)을 대체(minzoom/maxzoom로 서로 안 겹치게 분리).
+    // store-heat보다 먼저 추가해 매장 점/히트맵 레이어 '아래'에 깔리도록 stacking 보장.
+    const dTone = ['coalesce', ['feature-state', 'tone'], 'none'];
+    const dT    = ['coalesce', ['feature-state', 't'], 0];
+    mapInstance.addLayer({
+      id: 'dong-fill', type: 'fill', source: 'dong', minzoom: 10.5,
+      paint: {
+        'fill-color': [
+          'case',
+          ['==', dTone, 'pos'], ['interpolate', ['linear'], dT, 0, '#bbf7d0', 1, '#15803d'],
+          ['==', dTone, 'neg'], ['interpolate', ['linear'], dT, 0, '#fecaca', 1, '#b91c1c'],
+          ['==', dTone, 'zero'], '#94a3b8',
+          'rgba(148,163,184,0.12)',
+        ],
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0, 11.3, 0.72],
+      },
+    }, 'store-heat');
+
     mapInstance.addLayer({
       id: 'dong-line', type: 'line', source: 'dong', minzoom: 10.5,
       paint: {
-        'line-color': '#475569',
-        'line-width': ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.7, 15, 1.3],
+        'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], '#2563eb', '#475569'],
+        'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2, ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.7, 15, 1.3]],
         'line-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0, 12, 0.45, 15, 0.75],
         'line-dasharray': [2, 1.5],
       },
     });
+
+    // 동 면 hover/click — 시군구 면(muni-fill)과 동일 UX 패턴
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const onDongMove = (e: any) => {
+      const f = e.features[0]; if (!f) return;
+      const st = f.state || {};
+      if (st.tone == null || st.tone === 'none') {
+        mapInstance.getCanvas().style.cursor = '';
+        if (dongHoverPopupRef.current) dongHoverPopupRef.current.remove();
+        return;
+      }
+      mapInstance.getCanvas().style.cursor = 'pointer';
+      if (hoveredDongIdRef.current != null && hoveredDongIdRef.current !== f.id) {
+        mapInstance.setFeatureState({ source: 'dong', id: hoveredDongIdRef.current }, { hover: false });
+      }
+      hoveredDongIdRef.current = f.id;
+      mapInstance.setFeatureState({ source: 'dong', id: f.id }, { hover: true });
+      const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
+      const html = `<div style="background:rgba(15,23,42,0.96);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 20px rgba(0,0,0,0.28);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${f.properties.name}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ML = (window as any).maplibregl;
+      if (ML) {
+        if (!dongHoverPopupRef.current) dongHoverPopupRef.current = new ML.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'fs-pop' });
+        dongHoverPopupRef.current.setLngLat(e.lngLat).setHTML(html).addTo(mapInstance);
+      }
+    };
+    const onDongLeave = () => {
+      mapInstance.getCanvas().style.cursor = '';
+      if (dongHoverPopupRef.current) dongHoverPopupRef.current.remove();
+      if (hoveredDongIdRef.current != null) {
+        mapInstance.setFeatureState({ source: 'dong', id: hoveredDongIdRef.current }, { hover: false });
+        hoveredDongIdRef.current = null;
+      }
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const onDongClick = (e: any) => {
+      const f = e.features[0]; if (!f) return;
+      const st = f.state || {};
+      if (st.tone == null || st.tone === 'none') return; // 데이터 없는 동은 무시
+      const rawName = String(f.properties.name);
+      // openDrilldown 내부의 "시 폴백"이 구 단위(sgg, 예: 수원시장안구)→시 단위(수원시) 매칭을 처리
+      openDrilldown(String(f.properties.sgg), st.sido ? String(st.sido) : undefined);
+      // 행정동이 분동(화정1동 등)인데 매장 주소는 법정동(화정동) 기준일 수 있음 — 실측으로 판정 후 폴백
+      const resolvedSigungu = drillRegionRef.current;
+      const hasRaw = cachedStoresRef.current.some(s => s.sigungu === resolvedSigungu && s.dong === rawName);
+      handleSelectDong(hasRaw ? rawName : rawName.replace(/\d+동$/, '동'));
+    };
+    mapInstance.on('mousemove', 'dong-fill', onDongMove);
+    mapInstance.on('mouseleave', 'dong-fill', onDongLeave);
+    mapInstance.on('click', 'dong-fill', onDongClick);
     // 줌인할 때만 해당 시도 동 경계 로드 (lazy)
     mapInstance.on('zoomend', updateDongBoundaries);
     dongLayerReadyRef.current = true;
@@ -698,15 +778,77 @@ export default function DiscoverPage() {
     if (sig === dongLoadedKeyRef.current) return; // 이미 로드된 스코프
     dongLoadedKeyRef.current = sig;
     if (!keys.length) {
+      dongFeaturesRef.current = [];
       const src = map.getSource('dong');
       if (src) src.setData({ type: 'FeatureCollection', features: [] });
       return;
     }
     const fcs = await Promise.all(keys.map(loadDongFile));
+    // 시도 태그 주입(파일별로 어느 시도인지 알아야 store 데이터와 매칭 가능) — 캐시 원본은 불변 유지 위해 복사
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const feats = fcs.filter(Boolean).flatMap((fc: any) => fc.features);
+    const feats = fcs.flatMap((fc: any, i: number) => {
+      if (!fc) return [];
+      const sido = DONG_FILE_SIDO[keys[i]] || '';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (fc.features as any[]).map(f => ({ ...f, properties: { ...f.properties, sido } }));
+    });
+    dongFeaturesRef.current = feats;
     const src = map.getSource('dong');
     if (src) src.setData({ type: 'FeatureCollection', features: feats });
+    updateDongFillState();
+  }
+
+  // 동 그라데이션 채색 — muni-fill과 동일 컨벤션(월 필터만 반영, 업종 무관 순증)으로
+  // cachedStores를 (시도|시군구|동) 단위 집계해 setFeatureState. 월·매장 데이터 갱신 시마다 재호출.
+  function updateDongFillState() {
+    const map = mapRef.current;
+    if (!map || !dongLayerReadyRef.current) return;
+    const feats = dongFeaturesRef.current;
+    if (!map.getSource('dong')) return;
+    map.removeFeatureState({ source: 'dong' });
+    if (!feats.length) return;
+
+    const month = selectedMonthRef.current;
+    // 시도별로 실제 로드된 시군구 목록(시 폴백 매칭용) + (시도|시군구|동) 순증 집계
+    const sigunguBySido = new Map<string, Set<string>>();
+    const agg = new Map<string, { new: number; closed: number }>();
+    for (const s of cachedStoresRef.current) {
+      if (month && s.month !== month) continue;
+      if (!sigunguBySido.has(s.sido)) sigunguBySido.set(s.sido, new Set());
+      sigunguBySido.get(s.sido)!.add(s.sigungu);
+      const dong = extractDong(s.address);
+      if (dong === '기타') continue;
+      const k = `${s.sido}|${s.sigungu}|${dong}`;
+      let o = agg.get(k);
+      if (!o) { o = { new: 0, closed: 0 }; agg.set(k, o); }
+      if (s.status === 'new') o.new++; else o.closed++;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const f of feats as any[]) {
+      const sido = f.properties.sido as string;
+      const sgg = f.properties.sgg as string;
+      const name = f.properties.name as string;
+      const candidates = sigunguBySido.get(sido);
+      if (!candidates) continue; // 이 시도 데이터가 아예 없음
+      // 정확일치(구 없는 시) 우선, 없으면 시 접두 매칭(예: 수원시장안구 → 수원시)
+      const city = candidates.has(sgg) ? sgg : [...candidates].find(c => sgg.startsWith(c));
+      if (!city) continue; // 매칭되는 시군구 데이터 없음 → 무채색 유지
+      let rec = agg.get(`${sido}|${city}|${name}`);
+      if (!rec) {
+        // 주소는 법정동(예: 화정동)인데 행정동은 분동(화정1동/화정2동)인 경우 — 숫자 뗀 기본명으로 폴백
+        const base = name.replace(/\d+동$/, '동');
+        if (base !== name) rec = agg.get(`${sido}|${city}|${base}`);
+      }
+      if (!rec) continue; // 해당 시군구는 있지만 이 동엔 데이터 없음(순증 0과 구분 위해 무채색 유지)
+      const net = rec.new - rec.closed;
+      let tone = 'zero';
+      let t = 0;
+      // 동 단위는 시군구보다 규모가 작아 스케일 축소(÷8 vs 시군구 ÷25)
+      if (net > 0)      { tone = 'pos'; t = Math.min(net / 8, 1); }
+      else if (net < 0) { tone = 'neg'; t = Math.min(Math.abs(net) / 8, 1); }
+      map.setFeatureState({ source: 'dong', id: f.id }, { tone, t, nnew: rec.new, closed: rec.closed, net, sido });
+    }
   }
 
   // ─── STORE POINT / HEATMAP LAYERS ──────────────────────────────────────────
@@ -888,6 +1030,17 @@ export default function DiscoverPage() {
             : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38]);
       }
     }
+    // 동 그라데이션 — muni-fill과 동일한 모드별 농도, 줌 10.5~11.3 구간 페이드인은 유지
+    if (mapInstance.getLayer('dong-fill')) {
+      mapInstance.setLayoutProperty('dong-fill', 'visibility', is3d ? 'none' : 'visible');
+      if (!is3d) {
+        const maxOpacity = mode === 'area'
+          ? ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.25, 0.72]
+          : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38];
+        mapInstance.setPaintProperty('dong-fill', 'fill-opacity', ['interpolate', ['linear'], ['zoom'], 10.5, 0, 11.3, maxOpacity]);
+      }
+    }
+    updateDongFillState();
   }
 
   function handleSetDisplayMode(mode: DisplayMode) {
