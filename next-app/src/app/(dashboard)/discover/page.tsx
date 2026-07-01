@@ -1553,6 +1553,19 @@ export default function DiscoverPage() {
       : 0);
   const bigCount = drillScoped.filter(s => (s.pyeong || 0) >= 100).length;
 
+  // 드릴다운 요약 인사이트 — 최근 추세·전월대비·주력 업종 (패널 상단 한 줄 요약, 랭킹뷰와 동일 정의로 카테고리 무관 순증 사용)
+  const drillSido = drillStores[0]?.sido || '';
+  const drillMM = regionMonthlyNet.get(`${drillSido}|${currentDrillRegion}`);
+  const drillTrend = trendMonths.map(mo => drillMM?.get(mo) ?? 0);
+  const drillMom = anchorIdx > 0 ? (drillMM?.get(anchorMonth) ?? 0) - (drillMM?.get(monthList[anchorIdx - 1]) ?? 0) : 0;
+  const DRILL_CAT_LABEL: Record<'cafe' | 'bakery' | 'restaurant', string> = { cafe: '카페', bakery: '베이커리', restaurant: '음식점' };
+  const drillTopCategory = (() => {
+    const counts: Record<'cafe' | 'bakery' | 'restaurant', number> = { cafe: 0, bakery: 0, restaurant: 0 };
+    drillScoped.forEach(s => { (['cafe', 'bakery', 'restaurant'] as const).forEach(c => { if (matchCategory(s, c)) counts[c]++; }); });
+    const top = (['cafe', 'bakery', 'restaurant'] as const).reduce((a, b) => counts[b] > counts[a] ? b : a);
+    return counts[top] > 0 ? { cat: top, count: counts[top] } : null;
+  })();
+
   const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
 
   // 여러 시도를 함께 보는 경우(내 지점에 시도가 2개+)만 라벨에 시도 접두
@@ -1800,18 +1813,37 @@ export default function DiscoverPage() {
 
         {/* Drill summary */}
         {drillSummary && (
-          <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex gap-6 flex-shrink-0">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase">신규</span>
-              <span className="text-[26px] font-extrabold tabular-nums leading-none text-green-600">{drillSummary.new}</span>
+          <div className="px-5 pt-2.5 pb-3 bg-slate-50 border-b border-slate-200 flex-shrink-0">
+            {/* 인사이트 한 줄 — 최근 추세·전월대비·주력 업종 (클릭 없이 바로 판단 가능하도록) */}
+            <div className="mb-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className={`inline-flex items-center gap-1 text-xs font-bold ${drillMom > 0 ? 'text-green-600' : drillMom < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                {drillMom > 0 ? '▲' : drillMom < 0 ? '▼' : '─'} 전월대비 {drillMom > 0 ? `+${drillMom}` : drillMom}
+              </span>
+              <Sparkline values={drillTrend} />
+              {bigCount > 0 && (
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600">
+                  <Star size={11} className="fill-amber-500 text-amber-500" />대형 신규 {bigCount}건
+                </span>
+              )}
+              {drillTopCategory && (
+                <span className="text-xs text-slate-400">
+                  주력 <span className="font-bold text-slate-700">{DRILL_CAT_LABEL[drillTopCategory.cat]}</span>
+                </span>
+              )}
             </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase">폐업</span>
-              <span className="text-[26px] font-extrabold tabular-nums leading-none text-red-600">{drillSummary.closed}</span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase">100평+</span>
-              <span className="text-[26px] font-extrabold tabular-nums leading-none text-amber-600">{bigCount}</span>
+            <div className="flex gap-6">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase">신규</span>
+                <span className="text-[26px] font-extrabold tabular-nums leading-none text-green-600">{drillSummary.new}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase">폐업</span>
+                <span className="text-[26px] font-extrabold tabular-nums leading-none text-red-600">{drillSummary.closed}</span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[9px] font-semibold text-slate-400 tracking-[.1em] uppercase">100평+</span>
+                <span className="text-[26px] font-extrabold tabular-nums leading-none text-amber-600">{bigCount}</span>
+              </div>
             </div>
           </div>
         )}
