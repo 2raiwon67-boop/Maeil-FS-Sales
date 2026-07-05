@@ -628,32 +628,50 @@ export default function UploadPage() {
         if (skipped > 0) toast(`중복 ${skipped}건 건너뜀, ${toInsert.length}건 신규 추가`);
       }
 
+      const BATCH = 500;
+      const now = new Date().toISOString();
+
+      // 전체 교체 모드: 삭제 前에 기존 데이터를 스냅샷해 둔다.
+      // 삽입 도중 실패하면 스냅샷을 되돌려 '삭제만 되고 삽입은 실패 → 전멸'을 방지한다.
+      let snapshot: Row[] = [];
       if (!isAddNew) {
+        const { data: snap, error: snapErr } = await supabase.from(c.table).select('*').eq('business_unit', bu);
+        if (snapErr) throw new Error('기존 데이터 확인 실패: ' + snapErr.message);
+        snapshot = (snap as Row[]) ?? [];
         const { error: delErr } = await supabase.from(c.table).delete().eq('business_unit', bu);
         if (delErr) throw new Error('기존 데이터 삭제 실패: ' + delErr.message);
       }
 
-      const BATCH = 500;
-      const now = new Date().toISOString();
       let inserted = 0;
-      for (let i = 0; i < toInsert.length; i += BATCH) {
-        const batch = toInsert.slice(i, i + BATCH).map((row) => ({
-          ...row,
-          business_unit: (row.business_unit as string) || bu, // 활동노트가 사업장+지점을 지정하면 그 값, 아니면 업로더 소속
-          ...(c.noUploadMeta ? {} : { uploaded_by: user.id, uploaded_at: now }),
-        }));
-        const { error } = await supabase.from(c.table).insert(batch);
-        if (error && error.code === '23505') {
-          for (const row of batch) {
-            const { error: rowErr } = await supabase.from(c.table).insert([row]);
-            if (!rowErr) inserted++;
-            else if (rowErr.code !== '23505') throw new Error('업로드 실패: ' + rowErr.message);
+      try {
+        for (let i = 0; i < toInsert.length; i += BATCH) {
+          const batch = toInsert.slice(i, i + BATCH).map((row) => ({
+            ...row,
+            business_unit: (row.business_unit as string) || bu, // 활동노트가 사업장+지점을 지정하면 그 값, 아니면 업로더 소속
+            ...(c.noUploadMeta ? {} : { uploaded_by: user.id, uploaded_at: now }),
+          }));
+          const { error } = await supabase.from(c.table).insert(batch);
+          if (error && error.code === '23505') {
+            for (const row of batch) {
+              const { error: rowErr } = await supabase.from(c.table).insert([row]);
+              if (!rowErr) inserted++;
+              else if (rowErr.code !== '23505') throw new Error('업로드 실패: ' + rowErr.message);
+            }
+          } else if (error) {
+            throw new Error(`업로드 실패: ${error.message}`);
+          } else {
+            inserted += batch.length;
           }
-        } else if (error) {
-          throw new Error(`업로드 실패: ${error.message}`);
-        } else {
-          inserted += batch.length;
         }
+      } catch (insErr) {
+        // 삽입 실패 → 삭제했던 기존 데이터를 복원(전체 교체 모드에 한함)
+        if (snapshot.length) {
+          for (let i = 0; i < snapshot.length; i += BATCH) {
+            await supabase.from(c.table).insert(snapshot.slice(i, i + BATCH));
+          }
+          throw new Error((insErr as Error).message + ' — 기존 데이터는 자동 복원했습니다.');
+        }
+        throw insErr;
       }
       const doneMsg = `✅ ${c.label} ${inserted}건 ${isAddNew ? '신규 추가' : '업로드'} 완료!`;
       setUploadBanner({ cls: 'bg-green-50 border-green-200 text-green-900', html: doneMsg });
@@ -722,19 +740,42 @@ export default function UploadPage() {
       const { data: userData, error: authErr } = await supabase.auth.getUser();
       if (authErr || !userData?.user) throw new Error('로그인 정보를 가져올 수 없습니다.');
       const now = new Date().toISOString();
-      const { error: delErr } = await supabase.from(c.table).delete().eq('business_unit', bu);
-      if (delErr) throw new Error('기존 데이터 삭제 실패: ' + delErr.message);
-      const rows = toSave.map((row) => ({ ...row, business_unit: bu, uploaded_by: userData.user.id, uploaded_at: now }));
+
+      // 안전 교체(insert-first): 기존 데이터를 지우기 前에 새 데이터를 먼저 넣는다.
+      // 과거엔 delete→insert 순서라 insert가 한 번이라도 실패하면 이미 지운 데이터가
+      // 통째로 유실됐다(담당자 전멸 사고). 이제는 삽입이 성공한 뒤에만 기존 행을 지운다.
+      const { data: existing, error: exErr } = await supabase.from(c.table).select('id').eq('business_unit', bu);
+      if (exErr) throw new Error('기존 데이터 확인 실패: ' + exErr.message);
+      const oldIds = (existing ?? []).map((r) => (r as Row).id).filter(Boolean) as string[];
+
+      // 기존 행과 PK 충돌을 피하려 id는 버리고 새로 발급받는다(삽입-우선 순서를 위해 필수).
+      const rows = toSave.map((row) => {
+        const rest: Row = { ...row };
+        delete rest.id;
+        return { ...rest, business_unit: bu, uploaded_by: userData.user.id, uploaded_at: now };
+      });
       const BATCH = 500;
+      const newIds: string[] = [];
       for (let i = 0; i < rows.length; i += BATCH) {
-        const { error } = await supabase.from(c.table).insert(rows.slice(i, i + BATCH));
-        if (error) throw new Error('저장 실패: ' + error.message);
+        const { data: ins, error } = await supabase.from(c.table).insert(rows.slice(i, i + BATCH)).select('id');
+        if (error) {
+          // 이번 저장에서 새로 넣은 행만 되돌리고 기존 데이터는 보존 → 유실 0
+          if (newIds.length) await supabase.from(c.table).delete().in('id', newIds);
+          throw new Error('저장 실패(기존 데이터는 보존됨): ' + error.message);
+        }
+        (ins ?? []).forEach((r) => { const id = (r as Row).id; if (id) newIds.push(id as string); });
+      }
+      // 삽입이 전부 성공한 뒤에만 기존 행 제거
+      for (let i = 0; i < oldIds.length; i += BATCH) {
+        const { error: delErr } = await supabase.from(c.table).delete().in('id', oldIds.slice(i, i + BATCH));
+        if (delErr) throw new Error('새 데이터는 저장됐으나 기존 행 정리에 실패했습니다(중복 가능): ' + delErr.message);
       }
       toast.success(`✅ ${c.label} ${toSave.length}건 저장 완료!`);
       setPreviewPage(0);
       await loadCurrentData();
     } catch (e) {
       toast.error((e as Error).message);
+      await loadCurrentData(); // 화면을 DB 실제 상태와 재동기화
     }
   };
 
