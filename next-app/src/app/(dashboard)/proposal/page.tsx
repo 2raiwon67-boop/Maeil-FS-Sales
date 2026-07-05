@@ -156,6 +156,19 @@ function rowMargin(item: QuoteItem): number {
   return item.salesPrice > 0 ? ((item.salesPrice - cost) / item.salesPrice) * 100 : 0;
 }
 
+// AI 매장분석 description은 강조용 HTML(<strong>·<span>)을 담아 옴. 화이트리스트만 남기고
+// 나머지 태그·속성은 제거해 안전하게 렌더(그대로 렌더하면 </strong> 등 태그가 글자로 노출됨).
+function sanitizeAnalysisHtml(input: string): string {
+  if (!input) return '';
+  return input.replace(/<\/?([a-zA-Z]+)[^>]*>/g, (full, rawName: string) => {
+    const name = rawName.toLowerCase();
+    const closing = full.startsWith('</');
+    if (name === 'strong' || name === 'b') return closing ? '</strong>' : '<strong>';
+    if (name === 'span') return closing ? '</span>' : '<span style="color:#0071e3;font-weight:700">';
+    return ''; // 그 외 태그(및 잠재적 스크립트)는 제거, 안쪽 텍스트는 유지
+  });
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 
 export default function ProposalPage() {
@@ -542,7 +555,7 @@ export default function ProposalPage() {
                         <div className="mb-2 flex flex-wrap gap-1.5">
                           {analysis.tags.map((t) => <span key={t} className="rounded-md bg-[#dde7f5] px-2 py-0.5 text-[11px] text-[#1B3F82]">#{t}</span>)}
                         </div>
-                        <p className="text-xs leading-relaxed text-[#5b6675]">{analysis.description}</p>
+                        <p className="text-xs leading-relaxed text-[#5b6675]" dangerouslySetInnerHTML={{ __html: sanitizeAnalysisHtml(analysis.description) }} />
                       </div>
 
                       {recipes.length > 0 && (

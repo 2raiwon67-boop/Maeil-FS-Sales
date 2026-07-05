@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches } from '@/lib/regions';
+import { loadNaverMaps, cachedGeocode } from '@/lib/naver/loader';
 import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
@@ -352,6 +353,7 @@ export default function DiscoverPage() {
   const selectedMonthRef = useRef<string | null>(null);
   const selectedCategoryRef = useRef<Category>('all');
   const cachedStoresRef = useRef<StoreRow[]>([]);
+  const geocodeRunRef = useRef(0);
   const selectedDongRef = useRef<string | null>(null);
   const drillRegionRef = useRef<string>('');
   const displayModeRef = useRef<DisplayMode>('points');
@@ -1120,6 +1122,30 @@ export default function DiscoverPage() {
 
   // ─── LOAD DASHBOARD DATA ───────────────────────────────────────────────────
 
+  // 좌표 없는 레코드(신규 인허가는 공공 API에 좌표가 아직 없음) 주소 → 좌표 백필.
+  // 홈 지도와 동일한 Naver 지오코더+localStorage 캐시 사용. 백그라운드로 돌며 점이 점진적으로 나타남.
+  const runGeocodeBackfill = useCallback(async (rows: StoreRow[]) => {
+    const runId = ++geocodeRunRef.current; // 새 로드가 시작되면 이전 백필 중단
+    const missing = rows.filter(s => (s.lat == null || s.lng == null) && s.address);
+    if (!missing.length) return;
+    // 현재 보고 있는 월을 먼저 좌표화 (점이 빨리 채워지도록)
+    const sel = selectedMonthRef.current;
+    missing.sort((a, b) => (b.month === sel ? 1 : 0) - (a.month === sel ? 1 : 0));
+    try { await loadNaverMaps(); } catch { return; }
+    if (geocodeRunRef.current !== runId) return;
+    const coordByAddr = new Map<string, { lat: number; lng: number } | null>();
+    let patched = 0;
+    for (const s of missing) {
+      if (geocodeRunRef.current !== runId) return;
+      const addr = s.address!;
+      let c = coordByAddr.get(addr);
+      if (c === undefined) { c = await cachedGeocode(addr); coordByAddr.set(addr, c); }
+      if (c) { s.lat = c.lat; s.lng = c.lng; patched++; if (patched % 20 === 0) updateStoreLayer(); }
+    }
+    if (patched) updateStoreLayer();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadDashboardData = useCallback(async (
     mode: RegionMode,
     sido: string | null,
@@ -1190,6 +1216,7 @@ export default function DiscoverPage() {
       }));
       setCachedStores(storeRows);
       cachedStoresRef.current = storeRows;
+      void runGeocodeBackfill(storeRows); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
       // 선택 월에 데이터가 없으면(월초 야간수집 前·수집 지연 등) 데이터가 있는 최신 월로 폴백
       // — 캘린더상 새 달로 넘어갔지만 아직 그 달 데이터가 없을 때 화면 전체가 0으로 비는 문제 방지
