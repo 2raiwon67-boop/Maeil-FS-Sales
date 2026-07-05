@@ -694,7 +694,11 @@ export default function DiscoverPage() {
       id: 'dong-line', type: 'line', source: 'dong', minzoom: 10.5,
       paint: {
         'line-color': ['case', ['boolean', ['feature-state', 'hover'], false], '#2563eb', '#475569'],
-        'line-width': ['case', ['boolean', ['feature-state', 'hover'], false], 2, ['interpolate', ['linear'], ['zoom'], 10.5, 0.2, 13, 0.7, 15, 1.3]],
+        // zoom 표현식은 top-level interpolate에만 허용 — hover 분기는 각 stop 출력 안에서 처리
+        'line-width': ['interpolate', ['linear'], ['zoom'],
+          10.5, ['case', ['boolean', ['feature-state', 'hover'], false], 2, 0.2],
+          13, ['case', ['boolean', ['feature-state', 'hover'], false], 2, 0.7],
+          15, ['case', ['boolean', ['feature-state', 'hover'], false], 2.4, 1.3]],
         'line-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0, 12, 0.45, 15, 0.75],
         'line-dasharray': [2, 1.5],
       },
