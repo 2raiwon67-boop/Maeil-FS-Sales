@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
+import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches } from '@/lib/regions';
 import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
@@ -630,6 +631,15 @@ export default function DiscoverPage() {
       const fSido = sidoFromCode(f.properties.code); // 코드로 이 폴리곤의 시도 판별
       const dataName = NAME_ALIAS[`${fSido}|${name}`] || name; // 개명 반영(남구→미추홀구)
       let d = regionMap[`${fSido}|${dataName}`];
+      // 행정구역 개편(2026-07 인천 등): 옛 폴리곤 하나에 새 구 여러 개가 대응 → 합산해서 칠한다
+      const curNames = LEGACY_TO_CURRENT[`${fSido}|${dataName}`];
+      if (curNames) {
+        const ds = curNames.map(n => regionMap[`${fSido}|${n}`]).filter(Boolean);
+        if (ds.length) {
+          d = ds.reduce((a, b) => ({ ...a, new: a.new + b.new, closed: a.closed + b.closed, net: a.net + b.net }));
+          if (ds.length > 1) d = { ...d, region: ds.map(x => x.region).join('·') };
+        }
+      }
       if (!d) {
         // 시 폴백 (고양시덕양구 → 고양시) — 같은 시도 안에서만
         const parentKey = Object.keys(regionMap).find(k =>
@@ -747,7 +757,7 @@ export default function DiscoverPage() {
       openDrilldown(String(f.properties.sgg), st.sido ? String(st.sido) : undefined);
       // 행정동이 분동(화정1동 등)인데 매장 주소는 법정동(화정동) 기준일 수 있음 — 실측으로 판정 후 폴백
       const resolvedSigungu = drillRegionRef.current;
-      const hasRaw = cachedStoresRef.current.some(s => s.sigungu === resolvedSigungu && s.dong === rawName);
+      const hasRaw = cachedStoresRef.current.some(s => sigunguMatches(s.sido, s.sigungu, resolvedSigungu) && s.dong === rawName);
       handleSelectDong(hasRaw ? rawName : rawName.replace(/\d+동$/, '동'));
     };
     mapInstance.on('mousemove', 'dong-fill', onDongMove);
@@ -819,10 +829,12 @@ export default function DiscoverPage() {
     for (const s of cachedStoresRef.current) {
       if (month && s.month !== month) continue;
       if (!sigunguBySido.has(s.sido)) sigunguBySido.set(s.sido, new Set());
-      sigunguBySido.get(s.sido)!.add(s.sigungu);
+      // 동 경계(geojson)는 옛 구명 기준 — 개편된 새 구명(검단구 등)은 옛 이름으로 정규화해 매칭
+      const lsg = legacySigungu(s.sido, s.sigungu);
+      sigunguBySido.get(s.sido)!.add(lsg);
       const dong = extractDong(s.address);
       if (dong === '기타') continue;
-      const k = `${s.sido}|${s.sigungu}|${dong}`;
+      const k = `${s.sido}|${lsg}|${dong}`;
       let o = agg.get(k);
       if (!o) { o = { new: 0, closed: 0 }; agg.set(k, o); }
       if (s.status === 'new') o.new++; else o.closed++;
@@ -979,7 +991,7 @@ export default function DiscoverPage() {
       if (s.lat == null || s.lng == null) continue;
       if (month && s.month !== month) continue;
       if (!matchCategory(s, cat)) continue;
-      if (dongFilter && (s.sigungu !== dongFilter.sigungu || s.dong !== dongFilter.dong)) continue;
+      if (dongFilter && (!sigunguMatches(s.sido, s.sigungu, dongFilter.sigungu) || s.dong !== dongFilter.dong)) continue;
       const big = (s.pyeong || 0) >= 100 ? 1 : 0;
       feats.push({
         type: 'Feature' as const,
@@ -1517,7 +1529,8 @@ export default function DiscoverPage() {
   // 옛 maeilfs-sales API 대신 로컬 cachedStores에서 즉시 집계 (월·업종은 렌더 시점 라이브 적용)
   function openDrilldown(sigungu: string, sido?: string) {
     const stores = cachedStoresRef.current;
-    let rows = stores.filter(s => s.sigungu === sigungu);
+    // 신구명 모두 매칭(개편 폴리곤 클릭 시 검단구·서해구 데이터가 '서구'로 들어옴)
+    let rows = stores.filter(s => sigunguMatches(s.sido, s.sigungu, sigungu));
     // geojson은 구 단위(예: 고양시덕양구)인데 데이터는 시 단위(고양시)일 수 있음 → 시 폴백
     if (!rows.length) {
       const parent = [...new Set(stores.map(s => s.sigungu))].find(sg => sg.endsWith('시') && sigungu.startsWith(sg));
@@ -1619,10 +1632,10 @@ export default function DiscoverPage() {
         if (mapRef.current && mapRef.current.getPitch() > 0) mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 500 });
       }
       updateStoreLayer();
-      fitToStores(s => s.sigungu === drillRegionRef.current && s.dong === next, 15.5);
+      fitToStores(s => sigunguMatches(s.sido, s.sigungu, drillRegionRef.current) && s.dong === next, 15.5);
     } else {
       updateStoreLayer();
-      fitToStores(s => s.sigungu === drillRegionRef.current, 12.5);
+      fitToStores(s => sigunguMatches(s.sido, s.sigungu, drillRegionRef.current), 12.5);
     }
   }
 
