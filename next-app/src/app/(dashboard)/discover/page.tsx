@@ -1179,6 +1179,15 @@ export default function DiscoverPage() {
       setCachedStores(storeRows);
       cachedStoresRef.current = storeRows;
 
+      // 선택 월에 데이터가 없으면(월초 야간수집 前·수집 지연 등) 데이터가 있는 최신 월로 폴백
+      // — 캘린더상 새 달로 넘어갔지만 아직 그 달 데이터가 없을 때 화면 전체가 0으로 비는 문제 방지
+      const selMonth = selectedMonthRef.current;
+      if (selMonth && storeRows.length && !storeRows.some(r => r.month === selMonth)) {
+        const latest = storeRows.reduce((m, r) => (r.month > m ? r.month : m), '');
+        setSelectedMonth(latest);
+        selectedMonthRef.current = latest;
+      }
+
       // sigunguSidoMap 갱신 (지도 중심 이동·라벨용)
       const updatedMap: Record<string, string> = mode === 'sido' && sido ? { ...sguSidoMap } : {};
       if (mode === 'sido' && sido) {
