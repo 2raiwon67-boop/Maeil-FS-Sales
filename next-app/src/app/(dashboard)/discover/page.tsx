@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
-  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download,
+  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download, Info,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -495,6 +495,7 @@ export default function DiscoverPage() {
   const [rangeTo, setRangeTo] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [rankSort, setRankSort] = useState<RankSort>('net');
+  const [dedupInfoOpen, setDedupInfoOpen] = useState(false); // 중복 집계 제거 로직 설명 패널
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState('로딩 중...');
   const [refreshing, setRefreshing] = useState(false);
@@ -2594,13 +2595,30 @@ export default function DiscoverPage() {
                 </div>
                 </div>
 
-                {/* 푸터 — 데이터 신뢰성 표기 */}
+                {/* 푸터 — 데이터 신뢰성 표기 + 중복 집계 제거 로직 설명(토글) */}
                 <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2.5 text-[12px] text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
-                    <RefreshCw size={12} />데이터 기준 {monthFilterLabel || '최근 3년'} · {lastSync} · 동일 매장 반복 등재 제거 적용
+                    <RefreshCw size={12} />데이터 기준 {monthFilterLabel || '최근 3년'} · {lastSync} ·
+                    <button
+                      onClick={() => setDedupInfoOpen((o) => !o)}
+                      className={`inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 transition-colors ${dedupInfoOpen ? 'text-blue-600' : 'hover:text-blue-600'}`}
+                    >
+                      동일 매장 반복 등재 제거 적용 <Info size={12} />
+                    </button>
                   </span>
                   <span>행을 누르면 동별 상세로 이동</span>
                 </div>
+                {dedupInfoOpen && (
+                  <div className="mt-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-[12px] leading-relaxed text-slate-600 shadow-sm">
+                    <div className="mb-1 font-bold text-slate-800">폐업·신규 중복 집계 검증과 제거 규칙</div>
+                    공공 인허가 API는 폐업(일부 신규) 레코드를 여러 달의 월간 스냅샷에 반복 노출합니다.
+                    2026-07 실측 기준 폐업 <b className="text-slate-800">1,515곳</b>이 2개월 이상 반복 등재(최대 22개월)되어,
+                    그대로 합산하면 폐업이 약 <b className="text-slate-800">2,600건 과다 집계</b>됩니다.
+                    이 화면은 (이름·주소·상태)가 같은 매장이 <b className="text-slate-800">직전 달에도 등재돼 있으면 반복 노출로 보고 제외</b>하고,
+                    연속 등재의 <b className="text-slate-800">시작 달 1건만 실제 발생</b>으로 집계합니다.
+                    1개월 이상 공백 후 다시 나타나면 별개 사건(재개업 후 재폐업 등)으로 인정합니다.
+                  </div>
+                )}
               </div>
             )}
           </div>
