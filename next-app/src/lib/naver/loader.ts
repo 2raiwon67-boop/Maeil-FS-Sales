@@ -25,7 +25,21 @@ function registerAuthFailureGlobal() {
   };
 }
 
-/** Naver Maps SDK를 1회만 로드 (중복 호출 안전) */
+// 본체(maps.js) onload 후에도 geocoder 서브모듈(maps-geocoder.js)은 비동기로 늦게 붙음.
+// Service 준비 전에 resolve하면 지오코딩이 전부 즉시 null — Service까지 폴링 대기.
+function waitForGeocoderService(timeoutMs = 10000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const t0 = Date.now();
+    const tick = () => {
+      if (window.naver?.maps?.Service) return resolve();
+      if (Date.now() - t0 > timeoutMs) return reject(new Error('Naver geocoder 서브모듈 로드 시간 초과'));
+      setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
+/** Naver Maps SDK를 1회만 로드 (중복 호출 안전). geocoder 서브모듈까지 준비된 뒤 resolve. */
 export function loadNaverMaps(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   registerAuthFailureGlobal();
@@ -35,18 +49,19 @@ export function loadNaverMaps(): Promise<void> {
   loadPromise = new Promise<void>((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>(`script[src^="https://oapi.map.naver.com"]`);
     if (existing) {
-      existing.addEventListener('load', () => resolve());
+      existing.addEventListener('load', () => waitForGeocoderService().then(resolve, reject));
       existing.addEventListener('error', () => reject(new Error('Naver Maps SDK 로드 실패')));
-      if (window.naver?.maps) resolve();
+      if (window.naver?.maps) waitForGeocoderService().then(resolve, reject);
       return;
     }
     const script = document.createElement('script');
     script.src = SDK_URL;
     script.async = true;
-    script.onload = () => resolve();
+    script.onload = () => waitForGeocoderService().then(resolve, reject);
     script.onerror = () => reject(new Error('Naver Maps SDK 로드 실패'));
     document.head.appendChild(script);
   });
+  loadPromise.catch(() => { loadPromise = null; }); // 실패를 캐시하지 않음 — 다음 호출에서 재시도
   return loadPromise;
 }
 
