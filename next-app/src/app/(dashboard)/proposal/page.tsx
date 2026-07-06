@@ -492,8 +492,6 @@ export default function ProposalPage() {
   return (
     <div className="min-h-full bg-[#f6f7f9]">
       <PageHeader
-        title="견적서"
-        subtitle="매장 분석 → 단가·마진 검토 → 맞춤 카탈로그"
         actions={
           <>
             <button onClick={openQuotePicker} className={headerBtn.outline}><FolderOpen size={15} />불러오기</button>

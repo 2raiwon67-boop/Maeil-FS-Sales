@@ -877,8 +877,6 @@ export default function UploadPage() {
   return (
     <div className="min-h-full bg-[#f6f7f9]">
       <PageHeader
-        title="데이터 관리"
-        subtitle="지점 데이터를 확인하고 관리합니다 · 인허가·거래처는 신규만 추가, 담당자는 엑셀로 전체 교체"
         actions={isAdmin ? (
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700"><Crown size={13} />관리자</span>

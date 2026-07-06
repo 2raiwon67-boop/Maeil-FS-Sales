@@ -7,19 +7,25 @@ export function PageHeader({
   actions,
   className = '',
 }: {
-  title: string;
+  title?: string;
   subtitle?: string;
   actions?: ReactNode;
   className?: string;
 }) {
+  const hasText = !!title || !!subtitle;
+  // 제목·부제목·액션이 모두 없으면 빈 바를 그리지 않는다 (예: 비관리자 데이터관리 → 콘텐츠가 위로)
+  if (!hasText && !actions) return null;
+
   return (
     <div
-      className={`flex flex-wrap items-center justify-between gap-3 border-b border-[#e8ebf0] bg-white px-4 py-3.5 md:px-6 ${className}`}
+      className={`flex flex-wrap items-center gap-3 border-b border-[#e8ebf0] bg-white px-4 py-3.5 md:px-6 ${hasText ? 'justify-between' : 'justify-end'} ${className}`}
     >
-      <div>
-        <h1 className="text-base font-semibold text-[#0f172a]">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>}
-      </div>
+      {hasText && (
+        <div>
+          {title && <h1 className="text-base font-semibold text-[#0f172a]">{title}</h1>}
+          {subtitle && <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>}
+        </div>
+      )}
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
