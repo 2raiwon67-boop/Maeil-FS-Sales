@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches } from '@/lib/regions';
-import { loadNaverMaps, cachedGeocode } from '@/lib/naver/loader';
+import { loadNaverMaps, cachedGeocode, cleanGeocodeQuery } from '@/lib/naver/loader';
 import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
@@ -62,6 +62,7 @@ interface DrillSummary {
 
 // 개별 매장 레코드 (market_store_records, 좌표 기반 점/히트맵 + 동별 집계)
 interface StoreRow {
+  id?: number; // 지오코딩 백필 영속화(market-geocode)용 — DB 행 식별
   name: string;
   sido: string;
   sigungu: string;
@@ -1124,6 +1125,7 @@ export default function DiscoverPage() {
 
   // 좌표 없는 레코드(신규 인허가는 공공 API에 좌표가 아직 없음) 주소 → 좌표 백필.
   // 홈 지도와 동일한 Naver 지오코더+localStorage 캐시 사용. 백그라운드로 돌며 점이 점진적으로 나타남.
+  // 성공분은 /api/market-geocode로 DB에도 저장 — 첫 사용자가 채우면 이후 세션·사용자는 재지오코딩 불필요.
   const runGeocodeBackfill = useCallback(async (rows: StoreRow[]) => {
     const runId = ++geocodeRunRef.current; // 새 로드가 시작되면 이전 백필 중단
     const missing = rows.filter(s => (s.lat == null || s.lng == null) && s.address);
@@ -1134,15 +1136,30 @@ export default function DiscoverPage() {
     try { await loadNaverMaps(); } catch { return; }
     if (geocodeRunRef.current !== runId) return;
     const coordByAddr = new Map<string, { lat: number; lng: number } | null>();
+    let pendingSave: { id: number; lat: number; lng: number }[] = [];
+    const flushSave = async () => {
+      if (!pendingSave.length) return;
+      const body = JSON.stringify({ updates: pendingSave });
+      pendingSave = [];
+      try {
+        await fetch('/api/market-geocode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+      } catch { /* 저장 실패해도 이번 세션 화면 표시는 유지 */ }
+    };
     let patched = 0;
     for (const s of missing) {
-      if (geocodeRunRef.current !== runId) return;
-      const addr = s.address!;
+      if (geocodeRunRef.current !== runId) { await flushSave(); return; }
+      const addr = cleanGeocodeQuery(s.address!);
       let c = coordByAddr.get(addr);
       if (c === undefined) { c = await cachedGeocode(addr); coordByAddr.set(addr, c); }
-      if (c) { s.lat = c.lat; s.lng = c.lng; patched++; if (patched % 20 === 0) updateStoreLayer(); }
+      if (c) {
+        s.lat = c.lat; s.lng = c.lng; patched++;
+        if (s.id != null) pendingSave.push({ id: s.id, lat: c.lat, lng: c.lng });
+        if (patched % 20 === 0) updateStoreLayer();
+        if (pendingSave.length >= 100) await flushSave();
+      }
     }
     if (patched) updateStoreLayer();
+    await flushSave();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1164,7 +1181,7 @@ export default function DiscoverPage() {
       // (예전엔 독은 market_snapshots 집계·드릴다운은 store_records라 숫자가 어긋났음 → 통일)
       // PostgREST max-rows(≈1000) 캡 때문에 .order('id')+.range() 페이지네이션 필수.
       // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
-      const storeCols = 'name,sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
+      const storeCols = 'id,name,sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
       const PAGE = 1000;
       // 최근 36개월(3년) 롤링 윈도우 — 백필된 과거치까지 노출
       const minMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 35); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();

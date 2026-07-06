@@ -50,46 +50,68 @@ export function loadNaverMaps(): Promise<void> {
   return loadPromise;
 }
 
-/** 주소 → 좌표 (Naver geocoder). 실패 시 null. localStorage 캐시. */
-export function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+// 상세 결과 — noMatch(정상 응답이나 매칭 주소 없음)와 일시 오류(SDK 미로딩·쿼터·네트워크)를 구분.
+// noMatch만 네거티브 캐시 대상: 일시 오류를 캐시하면 멀쩡한 주소가 TTL 동안 결측으로 남음.
+function geocodeDetailed(address: string): Promise<{ coords: { lat: number; lng: number } | null; noMatch: boolean }> {
   return new Promise((resolve) => {
     const naver = window.naver;
     if (!naver?.maps?.Service || !address) {
-      resolve(null);
+      resolve({ coords: null, noMatch: false });
       return;
     }
     naver.maps.Service.geocode({ query: address }, (status: string, response: NaverGeocodeResponse) => {
       if (status !== naver.maps.Service.Status.OK) {
-        resolve(null);
+        resolve({ coords: null, noMatch: false });
         return;
       }
       try {
         const result = response.v2.addresses[0];
-        resolve({ lat: parseFloat(result.y), lng: parseFloat(result.x) });
+        const lat = parseFloat(result.y);
+        const lng = parseFloat(result.x);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) resolve({ coords: { lat, lng }, noMatch: false });
+        else resolve({ coords: null, noMatch: true });
       } catch {
-        resolve(null);
+        resolve({ coords: null, noMatch: true });
       }
     });
   });
 }
 
-/** 캐시 적용 지오코딩 (localStorage, 키 prefix maeil_geo_) */
+/** 주소 → 좌표 (Naver geocoder). 실패 시 null. */
+export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  return (await geocodeDetailed(address)).coords;
+}
+
+/** 지오코더 질의용 주소 정제 — 쉼표 이후 동/호/괄호는 매칭률을 떨어뜨리므로 도로명+번지까지만 */
+export function cleanGeocodeQuery(address: string): string {
+  return (address || '').split(',')[0].replace(/\s+/g, ' ').trim();
+}
+
+const FAIL_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 무매칭 주소 재시도 유예 3일
+
+/** 캐시 적용 지오코딩 (localStorage, 키 prefix maeil_geo_). 무매칭도 TTL 캐시해 쿼터 낭비 방지. */
 export async function cachedGeocode(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!address) return null;
   const key = `maeil_geo_${address}`;
+  const failKey = `maeil_geo_fail_${address}`;
   try {
     const cached = localStorage.getItem(key);
     if (cached) return JSON.parse(cached);
+    const failedAt = parseInt(localStorage.getItem(failKey) || '0', 10);
+    if (failedAt && Date.now() - failedAt < FAIL_TTL_MS) return null;
   } catch {
     /* ignore */
   }
-  const coords = await geocodeAddress(address);
-  if (coords) {
-    try {
+  const { coords, noMatch } = await geocodeDetailed(address);
+  try {
+    if (coords) {
       localStorage.setItem(key, JSON.stringify(coords));
-    } catch {
-      /* quota exceeded — ignore */
+      localStorage.removeItem(failKey);
+    } else if (noMatch) {
+      localStorage.setItem(failKey, String(Date.now()));
     }
+  } catch {
+    /* quota exceeded — ignore */
   }
   return coords;
 }

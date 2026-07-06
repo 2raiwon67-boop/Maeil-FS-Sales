@@ -4,7 +4,7 @@
 // 네이버 주소 지오코더(클라이언트, 도메인 화이트리스트 키)로 도로명주소→좌표를 채운다.
 // 라이브 도메인에서 실행해야 지오코더 키가 동작. 결측 조회/저장은 /api/admin-geocode(admin 코드).
 import { useState } from 'react';
-import { loadNaverMaps, cachedGeocode } from '@/lib/naver/loader';
+import { loadNaverMaps, cachedGeocode, cleanGeocodeQuery } from '@/lib/naver/loader';
 
 type Phase = 'idle' | 'fetching' | 'running' | 'done' | 'error';
 
@@ -53,11 +53,9 @@ export default function GeocodeToolPage() {
       setOk(okN);
       buf = [];
     };
-    // 도로명+번지까지만 사용(쉼표 이후 동/호/괄호는 지오코더 매칭률 저하) → 첫 쉼표 앞만
-    const cleanAddr = (a: string) => (a || '').split(',')[0].replace(/\s+/g, ' ').trim();
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const c = await cachedGeocode(cleanAddr(row.address));
+      const c = await cachedGeocode(cleanGeocodeQuery(row.address));
       if (c && Number.isFinite(c.lat) && Number.isFinite(c.lng)) buf.push({ id: row.id, lat: c.lat, lng: c.lng });
       else { failN++; setFail(failN); }
       setDone(i + 1);
