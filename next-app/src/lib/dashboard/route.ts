@@ -160,12 +160,37 @@ function enc(s: string): string {
   return encodeURIComponent(s);
 }
 
-function buildNaverWebRouteUrl(waypoints: RouteStop[], dest: RouteStop): string {
-  const parts = [
-    ...waypoints.map((s) => `${s.lng},${s.lat},${enc(s.name)}`),
-    `${dest.lng},${dest.lat},${enc(dest.name)}`,
-  ];
-  return `https://map.naver.com/p/directions/-/${parts.join('/')}/-/car`;
+// nmap:// 스킴 필수 파라미터 — 없으면 네이버 지도 앱이 요청을 거부함
+const NMAP_APPNAME = `appname=${enc('https://maeilfs-sales.vercel.app')}`;
+
+// map.naver.com/p/directions는 경위도가 아니라 Web Mercator(EPSG:3857) 좌표를 받는다.
+// WGS84를 그대로 넣으면 적도 부근 (0,0)으로 해석돼 길찾기가 실패.
+function toMercator(lng: number, lat: number): [number, number] {
+  const R = 20037508.34;
+  const x = (lng * R) / 180;
+  const y = ((Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) / (Math.PI / 180)) * R) / 180;
+  return [x, y];
+}
+
+function buildNaverWebRouteUrl(dest: RouteStop): string {
+  // 세그먼트 구조: /p/directions/{출발}/{도착}/{경유}/car — 출발·경유는 '-'(빈값)로 두면
+  // 사용자가 지도에서 현위치 기준으로 시작. (경유지 URL 인코딩은 비공개 포맷이라 웹은 목적지만)
+  const [x, y] = toMercator(dest.lng, dest.lat);
+  return `https://map.naver.com/p/directions/-/${x.toFixed(1)},${y.toFixed(1)},${enc(dest.name)}/-/car`;
+}
+
+// 앱 스킴 시도 후 웹 폴백. 앱이 열리면 페이지가 숨겨지므로(pagehide/visibilitychange)
+// 폴백을 건너뛴다 — 이전의 경과시간 비교는 항상 참이라 앱이 열려도 웹이 또 열렸음.
+function openSchemeWithWebFallback(schemeUrl: string, webUrl: string, waitMs = 1800): void {
+  let appOpened = false;
+  const markHidden = () => { if (document.hidden) appOpened = true; };
+  document.addEventListener('visibilitychange', markHidden);
+  window.addEventListener('pagehide', () => { appOpened = true; }, { once: true });
+  window.location.href = schemeUrl;
+  setTimeout(() => {
+    document.removeEventListener('visibilitychange', markHidden);
+    if (!appOpened) window.open(webUrl, '_blank');
+  }, waitMs);
 }
 
 /** 네이버 지도 앱/웹으로 경로 연결 (모바일 앱 스킴 + 웹 폴백) */
@@ -173,23 +198,20 @@ export function openNaverMapsRoute(stops: RouteStop[]): void {
   if (stops.length === 0) return;
   const dest = stops[stops.length - 1];
   const waypoints = stops.slice(1, -1);
-  const webUrl = buildNaverWebRouteUrl(waypoints, dest);
+  const webUrl = buildNaverWebRouteUrl(dest);
   const isAndroid = /Android/i.test(navigator.userAgent);
   const isIOS = /iPhone|iPad/i.test(navigator.userAgent);
 
   let routeParams = `dlat=${dest.lat}&dlng=${dest.lng}&dname=${enc(dest.name)}`;
-  waypoints.forEach((stop, i) => {
+  waypoints.slice(0, 5).forEach((stop, i) => {
     routeParams += `&v${i + 1}lat=${stop.lat}&v${i + 1}lng=${stop.lng}&v${i + 1}name=${enc(stop.name)}`;
   });
+  routeParams += `&${NMAP_APPNAME}`;
 
   if (isAndroid) {
     window.location.href = `intent://route/car?${routeParams}#Intent;scheme=nmap;package=com.nhn.android.nmap;S.browser_fallback_url=${enc(webUrl)};end`;
   } else if (isIOS) {
-    const startTime = Date.now();
-    window.location.href = `nmap://route/car?${routeParams}`;
-    setTimeout(() => {
-      if (Date.now() - startTime < 2500) window.open(webUrl, '_blank');
-    }, 2000);
+    openSchemeWithWebFallback(`nmap://route/car?${routeParams}`, webUrl);
   } else {
     window.open(webUrl, '_blank');
   }
@@ -198,14 +220,14 @@ export function openNaverMapsRoute(stops: RouteStop[]): void {
 /** 단일 매장 네이버 지도 열기 */
 export function openNaverMapApp(lat: number, lng: number, name: string): void {
   const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+  const webUrl = `https://map.naver.com/p/search/${enc(name)}`;
   if (isMobile) {
-    const startTime = Date.now();
-    window.location.href = `nmap://place?lat=${lat}&lng=${lng}&name=${enc(name)}&appname=fs.maeil.app`;
-    setTimeout(() => {
-      if (Date.now() - startTime < 2500)
-        window.open(`https://map.naver.com/v5/search/${enc(name)}`, '_blank');
-    }, 1500);
+    openSchemeWithWebFallback(
+      `nmap://place?lat=${lat}&lng=${lng}&name=${enc(name)}&${NMAP_APPNAME}`,
+      webUrl,
+      1500,
+    );
   } else {
-    window.open(`https://map.naver.com/v5/search/${enc(name)}`, '_blank');
+    window.open(webUrl, '_blank');
   }
 }

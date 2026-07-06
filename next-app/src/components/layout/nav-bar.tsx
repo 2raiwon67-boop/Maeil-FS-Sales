@@ -13,6 +13,7 @@ import {
   MapPin,
   ChevronDown,
   Settings,
+  ShieldCheck,
   LogOut,
   type LucideIcon,
 } from 'lucide-react';
@@ -115,6 +116,14 @@ export function NavBar() {
                     <Settings className="h-4 w-4" />
                     설정
                   </button>
+                  <Link
+                    href="/admin"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[#334155] hover:bg-gray-50"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    관리자
+                  </Link>
                   <hr className="my-1 border-[#eef1f5]" />
                   <button
                     className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-gray-50"

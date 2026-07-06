@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ShieldCheck, RefreshCw, Check, X, ArrowRightLeft, Trash2, Clock, Users } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Check, X, ArrowRightLeft, Trash2, Clock, Users, MapPin } from 'lucide-react';
 import { PageHeader, headerBtn } from '@/components/layout/page-header';
 import { BUSINESS_UNITS } from '@/types';
 
@@ -147,9 +147,14 @@ export default function AdminPage() {
         title="관리자"
         subtitle="가입 신청 승인 및 전체 사용자 현황 관리"
         actions={
-          <button onClick={loadUsers} disabled={loading} className={headerBtn.outline}>
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />새로고침
-          </button>
+          <>
+            <a href="/geocode-tool" className={headerBtn.outline}>
+              <MapPin className="h-3.5 w-3.5" />좌표 보정 도구
+            </a>
+            <button onClick={loadUsers} disabled={loading} className={headerBtn.outline}>
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />새로고침
+            </button>
+          </>
         }
       />
       <div className="mx-auto max-w-5xl px-4 py-5 md:px-6">
