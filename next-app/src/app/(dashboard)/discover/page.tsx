@@ -182,6 +182,14 @@ function addMonths(ym: string, delta: number): string {
   return `${y}-${String(m).padStart(2, '0')}`;
 }
 
+// 월 필터 매칭 — from=null이면 전체, to가 없거나 from과 같으면 단일 월, 그 외 [from..to] 범위.
+// 'YYYY-MM' 형식은 사전순 비교가 시간순과 일치해 문자열 비교로 충분.
+function monthInSel(m: string, from: string | null, to: string | null): boolean {
+  if (!from) return true;
+  if (!to || to === from) return m === from;
+  return m >= from && m <= to;
+}
+
 function matchCategory(store: { category?: string | null; name?: string | null }, cat: Category): boolean {
   if (cat === 'all') return true;
   const haystack = ((store.category || '') + ' ' + (store.name || '')).toLowerCase();
@@ -240,6 +248,117 @@ function FilterDropdown({
                 {o.active && <Check size={13} className="flex-shrink-0 text-blue-600" />}
               </button>
             ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── 월/기간 선택 드롭다운 ───────────────────────────────────────────────────
+// 단일 월(기존 동작)과 시작~종료월 범위 지정을 한 드롭다운에서 — 탭 2개 + 빠른 프리셋.
+function MonthRangeDropdown({
+  monthList, selectedMonth, rangeTo, onSelectSingle, onSelectRange,
+}: {
+  monthList: string[];
+  selectedMonth: string | null;
+  rangeTo: string | null;
+  onSelectSingle: (month: string | null) => void;
+  onSelectRange: (from: string, to: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<'single' | 'range'>('single');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const fmt = (m: string) => m.slice(2).replace('-', '.');
+  const last = monthList[monthList.length - 1];
+  const label = selectedMonth ? (rangeTo ? `${fmt(selectedMonth)}~${fmt(rangeTo)}` : fmt(selectedMonth)) : '전체 월';
+
+  const openPanel = () => {
+    setTab(rangeTo ? 'range' : 'single');
+    setFrom(selectedMonth || monthList[Math.max(0, monthList.length - 3)]);
+    setTo(rangeTo || last);
+    setOpen(true);
+  };
+  const applyRange = (f: string, t: string) => {
+    if (f > t) [f, t] = [t, f]; // 시작·종료가 뒤바뀌면 자동 교정
+    onSelectRange(f, t);
+    setOpen(false);
+  };
+  const presets = [
+    { label: '최근 3개월', from: monthList[Math.max(0, monthList.length - 3)] },
+    { label: '최근 6개월', from: monthList[Math.max(0, monthList.length - 6)] },
+    { label: '최근 12개월', from: monthList[Math.max(0, monthList.length - 12)] },
+    { label: '올해', from: `${last?.slice(0, 4)}-01` },
+  ];
+  return (
+    <div className="relative">
+      <button
+        onClick={() => (open ? setOpen(false) : openPanel())}
+        className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+      >
+        <span className="text-slate-400"><CalendarDays size={14} /></span>
+        {label}
+        <ChevronDown size={13} className="text-slate-400" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[610]" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-[620] mt-1.5 w-[248px] rounded-xl border border-slate-200 bg-white shadow-lg">
+            <div className="m-2 grid grid-cols-2 rounded-lg bg-slate-100 p-0.5 text-[12px] font-medium">
+              {([['single', '개별 월'], ['range', '기간 지정']] as const).map(([t, l]) => (
+                <button key={t} onClick={() => setTab(t)} className={`h-7 rounded-md transition-all ${tab === t ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{l}</button>
+              ))}
+            </div>
+            {tab === 'single' ? (
+              <div className="max-h-[240px] overflow-y-auto pb-1 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+                {[{ key: '__all', label: '전체 월', active: !selectedMonth }, ...[...monthList].reverse().map(mo => ({ key: mo, label: fmt(mo), active: !rangeTo && selectedMonth === mo }))].map(o => (
+                  <button
+                    key={o.key}
+                    onClick={() => { onSelectSingle(o.key === '__all' ? null : o.key); setOpen(false); }}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition-colors ${o.active ? 'font-semibold text-blue-700 bg-blue-50/60' : 'text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    {o.label}
+                    {o.active && <Check size={13} className="flex-shrink-0 text-blue-600" />}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5 p-3 pt-1.5">
+                <div className="flex flex-wrap gap-1.5">
+                  {presets.map(p => (
+                    <button
+                      key={p.label}
+                      onClick={() => applyRange(monthList.includes(p.from) ? p.from : monthList[0], last)}
+                      className="rounded-full border border-slate-200 px-2.5 py-1 text-[11px] font-medium text-slate-600 transition-colors hover:border-blue-400 hover:text-blue-600"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={from} onChange={e => setFrom(e.target.value)} aria-label="시작월"
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700"
+                  >
+                    {monthList.map(mo => <option key={mo} value={mo}>{fmt(mo)}</option>)}
+                  </select>
+                  <span className="flex-shrink-0 text-xs text-slate-400">~</span>
+                  <select
+                    value={to} onChange={e => setTo(e.target.value)} aria-label="종료월"
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700"
+                  >
+                    {monthList.map(mo => <option key={mo} value={mo}>{fmt(mo)}</option>)}
+                  </select>
+                </div>
+                <button
+                  onClick={() => from && to && applyRange(from, to)}
+                  className="h-8 rounded-lg bg-blue-600 text-xs font-semibold text-white transition-colors hover:bg-blue-700"
+                >
+                  적용
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -366,6 +485,8 @@ export default function DiscoverPage() {
   const [regionSido, setRegionSido] = useState<string | null>(null);
   // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
   const [selectedMonth, setSelectedMonth] = useState<string | null>(() => { const ml = getMonthList(); return ml[ml.length - 1] ?? null; });
+  // 기간 조회 종료월 — null=단일 월(또는 전체). 설정 시 [selectedMonth..rangeTo] 범위로 집계.
+  const [rangeTo, setRangeTo] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
   const [rankSort, setRankSort] = useState<RankSort>('net');
   const [loading, setLoading] = useState(true);
@@ -397,6 +518,7 @@ export default function DiscoverPage() {
   const sigunguSidoMapRef = useRef<Record<string, string>>({});
   const viewSidoRef = useRef<string | null>(null);
   const selectedMonthRef = useRef<string | null>(null);
+  const rangeToRef = useRef<string | null>(null);
   const selectedCategoryRef = useRef<Category>('all');
   const cachedStoresRef = useRef<StoreRow[]>([]);
   const geocodeRunRef = useRef(0);
@@ -421,6 +543,7 @@ export default function DiscoverPage() {
   useEffect(() => { sigunguSidoMapRef.current = sigunguSidoMap; }, [sigunguSidoMap]);
   useEffect(() => { viewSidoRef.current = regionSido; }, [regionSido]);
   useEffect(() => { selectedMonthRef.current = selectedMonth; }, [selectedMonth]);
+  useEffect(() => { rangeToRef.current = rangeTo; }, [rangeTo]);
   useEffect(() => { selectedCategoryRef.current = selectedCategory; }, [selectedCategory]);
   useEffect(() => { cachedStoresRef.current = cachedStores; }, [cachedStores]);
 
@@ -871,11 +994,12 @@ export default function DiscoverPage() {
     if (!feats.length) return;
 
     const month = selectedMonthRef.current;
+    const monthTo = rangeToRef.current;
     // 시도별로 실제 로드된 시군구 목록(시 폴백 매칭용) + (시도|시군구|동) 순증 집계
     const sigunguBySido = new Map<string, Set<string>>();
     const agg = new Map<string, { new: number; closed: number }>();
     for (const s of cachedStoresRef.current) {
-      if (month && s.month !== month) continue;
+      if (!monthInSel(s.month, month, monthTo)) continue;
       if (!sigunguBySido.has(s.sido)) sigunguBySido.set(s.sido, new Set());
       // 동 경계(geojson)는 옛 구명 기준 — 개편된 새 구명(검단구 등)은 옛 이름으로 정규화해 매칭
       const lsg = legacySigungu(s.sido, s.sigungu);
@@ -1027,7 +1151,7 @@ export default function DiscoverPage() {
 
   // 필터(월·업종·선택 동) 적용된 매장 → GeoJSON 포인트
   function buildStoreFeatures(
-    stores: StoreRow[], month: string | null, cat: Category,
+    stores: StoreRow[], month: string | null, monthTo: string | null, cat: Category,
     dongFilter?: { sigungu: string; dong: string } | null,
   ) {
     const cb = colorblindRef.current;
@@ -1037,7 +1161,7 @@ export default function DiscoverPage() {
     const feats = [];
     for (const s of stores) {
       if (s.lat == null || s.lng == null) continue;
-      if (month && s.month !== month) continue;
+      if (!monthInSel(s.month, month, monthTo)) continue;
       if (!matchCategory(s, cat)) continue;
       if (dongFilter && (!sigunguMatches(s.sido, s.sigungu, dongFilter.sigungu) || s.dong !== dongFilter.dong)) continue;
       const big = (s.pyeong || 0) >= 100 ? 1 : 0;
@@ -1068,7 +1192,7 @@ export default function DiscoverPage() {
     const dongFilter = selectedDongRef.current && drillRegionRef.current
       ? { sigungu: drillRegionRef.current, dong: selectedDongRef.current }
       : null;
-    const data = buildStoreFeatures(cachedStoresRef.current, selectedMonthRef.current, selectedCategoryRef.current, dongFilter);
+    const data = buildStoreFeatures(cachedStoresRef.current, selectedMonthRef.current, rangeToRef.current, selectedCategoryRef.current, dongFilter);
     const src = mapInstance.getSource('stores');
     if (src) src.setData(data);
 
@@ -1321,7 +1445,7 @@ export default function DiscoverPage() {
       }
 
       // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
-      applyFiltersInternal(snaps, selectedMonthRef.current, mode, sido, sSigunguMap);
+      applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
 
     } catch (e) {
       console.error('[discover] load error', e);
@@ -1338,6 +1462,7 @@ export default function DiscoverPage() {
   function applyFiltersInternal(
     snaps: SnapRow[],
     month: string | null,
+    monthTo: string | null,
     mode: RegionMode,
     sido: string | null,
     sSigunguMap: Record<string, string[]>,
@@ -1348,7 +1473,7 @@ export default function DiscoverPage() {
       return;
     }
 
-    const displaySnaps = month ? snaps.filter(r => r.month === month) : snaps;
+    const displaySnaps = month ? snaps.filter(r => monthInSel(r.month, month, monthTo)) : snaps;
 
     const regions: Record<string, { new: number; closed: number; sido: string }> = {};
     displaySnaps.forEach(r => {
@@ -1380,7 +1505,7 @@ export default function DiscoverPage() {
   }
 
   function applyFilters(snaps = cachedSnaps, month = selectedMonth) {
-    applyFiltersInternal(snaps, month, regionMode, regionSido, sidoSigunguMap);
+    applyFiltersInternal(snaps, month, rangeTo, regionMode, regionSido, sidoSigunguMap);
   }
 
   // ─── MAP RENDER ────────────────────────────────────────────────────────────
@@ -1447,7 +1572,9 @@ export default function DiscoverPage() {
   function handleMonthSelect(month: string | null) {
     setSelectedMonth(month);
     selectedMonthRef.current = month;
-    applyFiltersInternal(cachedSnaps, month, regionMode, regionSido, sidoSigunguMap);
+    setRangeTo(null);
+    rangeToRef.current = null;
+    applyFiltersInternal(cachedSnaps, month, null, regionMode, regionSido, sidoSigunguMap);
     // Scroll active pill into view
     setTimeout(() => {
       if (!monthTimelineRef.current) return;
@@ -1459,6 +1586,18 @@ export default function DiscoverPage() {
       }
       mapRef.current?.resize();
     }, 60);
+  }
+
+  // 기간(시작~종료월) 선택 — 같은 달이면 단일 월 선택과 동일 처리
+  function handleRangeSelect(from: string, to: string) {
+    stopPlay();
+    if (from === to) { handleMonthSelect(from); return; }
+    setSelectedMonth(from);
+    selectedMonthRef.current = from;
+    setRangeTo(to);
+    rangeToRef.current = to;
+    applyFiltersInternal(cachedSnaps, from, to, regionMode, regionSido, sidoSigunguMap);
+    setTimeout(() => { mapRef.current?.resize(); }, 60);
   }
 
   // ─── VIEW MODE TOGGLE ──────────────────────────────────────────────────────
@@ -1756,7 +1895,10 @@ export default function DiscoverPage() {
   }
 
   // ─── 랭킹 인사이트 (모멘텀·대형) — 추가 쿼리 없이 cached에서 계산 ──────────
-  const anchorMonth = selectedMonth || monthList[monthList.length - 1];
+  // 기준월(anchor) — 기간 조회 시엔 종료월. 스파크라인 창·전월 비교·부분월 판정의 기준.
+  const anchorMonth = rangeTo || selectedMonth || monthList[monthList.length - 1];
+  // 필터 라벨 — 단일 월 'YYYY-MM' / 기간 'YYYY-MM~YYYY-MM' / 전체 null
+  const monthFilterLabel = selectedMonth ? (rangeTo ? `${selectedMonth}~${rangeTo}` : selectedMonth) : null;
   const anchorIdx = monthList.indexOf(anchorMonth);
   const trendMonths = monthList.slice(Math.max(0, anchorIdx - 5), anchorIdx + 1); // 최근 6개월
   // 시군구별 월별 순증 시계열
@@ -1774,7 +1916,7 @@ export default function DiscoverPage() {
     const m = new Map<string, number>();
     for (const s of cachedStores) {
       if (s.status !== 'new' || (s.pyeong || 0) < 100) continue;
-      if (selectedMonth && s.month !== selectedMonth) continue;
+      if (!monthInSel(s.month, selectedMonth, rangeTo)) continue;
       const k = `${s.sido}|${s.sigungu}`;
       m.set(k, (m.get(k) || 0) + 1);
     }
@@ -1798,7 +1940,7 @@ export default function DiscoverPage() {
   // 순위 변동(▲/▼)은 특정 월 선택 시에만 계산: 전월 데이터로 동일 정렬 기준의 순위표를
   // 만들어 현재 순위와 비교한다. '전체 월'은 3년 누적 순위라 전월 비교가 정의되지 않음.
   const prevRankMap = (() => {
-    if (!selectedMonth || anchorIdx < 1) return null;
+    if (!selectedMonth || rangeTo || anchorIdx < 1) return null; // 기간 조회는 '전월 순위' 비교가 정의되지 않음
     const pm = monthList[anchorIdx - 1];
     const agg = new Map<string, { new: number; closed: number }>();
     for (const s of cachedSnaps) {
@@ -1837,7 +1979,8 @@ export default function DiscoverPage() {
     };
     const cur = monthAgg(anchorMonth);
     const prev = monthAgg(anchorIdx > 0 ? monthList[anchorIdx - 1] : undefined);
-    const delta = cur && prev
+    // 기간 조회는 "기간 합계 vs 직전월" 비교가 성립하지 않으므로 증감 표시 생략
+    const delta = cur && prev && !rangeTo
       ? { new: cur.n - prev.n, closed: cur.c - prev.c, net: (cur.n - cur.c) - (prev.n - prev.c) }
       : null;
     return { new: tNew, closed: tClosed, net: tNew - tClosed, big: tBig, delta };
@@ -1860,13 +2003,13 @@ export default function DiscoverPage() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '시군구 랭킹');
-    XLSX.writeFile(wb, `시군구랭킹_${selectedMonth || '전체월'}.xlsx`);
+    XLSX.writeFile(wb, `시군구랭킹_${monthFilterLabel || '전체월'}.xlsx`);
     toast.success('엑셀 파일을 내려받았습니다');
   };
 
   // 드릴다운 라이브 집계 (선택 월·업종 즉시 반영)
   const drillScoped = drillStores
-    .filter(s => !selectedMonth || s.month === selectedMonth)
+    .filter(s => monthInSel(s.month, selectedMonth, rangeTo))
     .filter(s => matchCategory(s, selectedCategory));
   const drillSummary: DrillSummary | null = drillStores.length
     ? { new: drillScoped.filter(s => s.status === 'new').length, closed: drillScoped.filter(s => s.status === 'closed').length }
@@ -1922,11 +2065,6 @@ export default function DiscoverPage() {
   const categoryOptions: DropdownOption[] = (['all', 'cafe', 'bakery', 'restaurant'] as Category[])
     .map(c => ({ key: c, label: CAT_LABEL[c], active: selectedCategory === c }));
 
-  const monthValue = selectedMonth ? selectedMonth.slice(2).replace('-', '.') : '전체 월';
-  const monthOptions: DropdownOption[] = [
-    { key: '__all', label: '전체 월', active: !selectedMonth },
-    ...[...monthList].reverse().map(mo => ({ key: mo, label: mo.slice(2).replace('-', '.'), active: selectedMonth === mo })),
-  ];
 
   return (
     <div className="flex h-[calc(100dvh-3rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
@@ -1945,11 +2083,12 @@ export default function DiscoverPage() {
           options={categoryOptions}
           onSelect={(k) => { setSelectedCategory(k as Category); selectedCategoryRef.current = k as Category; updateStoreLayer(); }}
         />
-        <FilterDropdown
-          icon={<CalendarDays size={14} />}
-          value={monthValue}
-          options={monthOptions}
-          onSelect={(k) => handleMonthSelect(k === '__all' ? null : k)}
+        <MonthRangeDropdown
+          monthList={monthList}
+          selectedMonth={selectedMonth}
+          rangeTo={rangeTo}
+          onSelectSingle={(m) => { stopPlay(); handleMonthSelect(m); }}
+          onSelectRange={handleRangeSelect}
         />
 
         {/* 표시 모드 — 면 / 점 / 히트맵 */}
@@ -2095,7 +2234,7 @@ export default function DiscoverPage() {
             </button>
             {/* 현재 월 — 항상 노출 */}
             <span className="min-w-[40px] flex-shrink-0 text-center text-xs font-bold tabular-nums text-blue-600">
-              {selectedMonth ? selectedMonth.slice(2).replace('-', '.') : '전체'}
+              {selectedMonth ? (rangeTo ? `${selectedMonth.slice(2).replace('-', '.')}~${rangeTo.slice(2).replace('-', '.')}` : selectedMonth.slice(2).replace('-', '.')) : '전체'}
               {playing && <span className="ml-0.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500 align-middle" />}
             </span>
             {/* 슬라이더 본체 — 접으면 숨김 */}
@@ -2334,7 +2473,7 @@ export default function DiscoverPage() {
           <div className="px-5 py-3 pr-[238px] border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 max-sm:pt-[52px]">
             <div>
               <div className="text-[16px] font-bold tracking-[-0.01em] text-slate-900">시군구 상권 랭킹</div>
-              <div className="mt-0.5 text-[12px] text-slate-500">{selectedMonth ? `${selectedMonth} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '최근 3년 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
+              <div className="mt-0.5 text-[12px] text-slate-500">{monthFilterLabel ? `${monthFilterLabel} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '최근 3년 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
@@ -2378,7 +2517,7 @@ export default function DiscoverPage() {
                       <div className="text-[12px] text-slate-500">{c.label}</div>
                       <div className="mt-0.5 text-[22px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{c.value}</div>
                       <div className={`mt-0.5 text-[12px] font-medium ${c.delta == null || c.delta === 0 || rankPartialMonth ? 'text-slate-400' : (c.delta > 0) !== c.badWhenUp ? rankPosCls : rankNegCls}`}>
-                        {c.delta == null ? '신규 인허가 기준' : rankPartialMonth ? '이달 집계 진행 중' : c.delta === 0 ? '전월과 동일' : `${c.delta > 0 ? '▲' : '▼'} ${Math.abs(c.delta)} 전월 대비`}
+                        {c.delta == null ? (rangeTo ? '선택 기간 합계' : '신규 인허가 기준') : rankPartialMonth ? '이달 집계 진행 중' : c.delta === 0 ? '전월과 동일' : `${c.delta > 0 ? '▲' : '▼'} ${Math.abs(c.delta)} 전월 대비`}
                       </div>
                     </div>
                   ))}
@@ -2452,7 +2591,7 @@ export default function DiscoverPage() {
                 {/* 푸터 — 데이터 신뢰성 표기 */}
                 <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2.5 text-[12px] text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
-                    <RefreshCw size={12} />데이터 기준 {selectedMonth || '최근 3년'} · {lastSync} · 동일 매장 반복 등재 제거 적용
+                    <RefreshCw size={12} />데이터 기준 {monthFilterLabel || '최근 3년'} · {lastSync} · 동일 매장 반복 등재 제거 적용
                   </span>
                   <span>행을 누르면 동별 상세로 이동</span>
                 </div>
