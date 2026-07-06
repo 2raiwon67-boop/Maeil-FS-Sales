@@ -1225,7 +1225,7 @@ export default function DiscoverPage() {
       }
 
       const storeRows: StoreRow[] = rawStores.map(r => ({
-        name: r.name, sido: r.sido, sigungu: r.sigungu, month: r.month,
+        id: r.id, name: r.name, sido: r.sido, sigungu: r.sigungu, month: r.month,
         status: r.status === 'closed' ? 'closed' : 'new',
         category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
         lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
