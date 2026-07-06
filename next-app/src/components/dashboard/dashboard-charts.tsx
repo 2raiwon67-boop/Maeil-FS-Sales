@@ -6,6 +6,9 @@ import {
   Chart,
   BarController,
   BarElement,
+  LineController,
+  LineElement,
+  PointElement,
   DoughnutController,
   ArcElement,
   CategoryScale,
@@ -20,6 +23,9 @@ import type { License } from '@/types';
 Chart.register(
   BarController,
   BarElement,
+  LineController,
+  LineElement,
+  PointElement,
   DoughnutController,
   ArcElement,
   CategoryScale,
@@ -113,15 +119,83 @@ function computeCross(licenses: License[]): CrossData {
   return { matrix, regionCount, statusCount, regionLabels, statusLabels, statusColorMap, milkCount, successRate };
 }
 
+// 월별 신규 인허가 유입 + 그중 현재 '거래' 전환 수 (최근 12개월, permit_date 기준)
+function computeMonthlyIntake(licenses: License[]) {
+  const months: string[] = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const intake = new Map(months.map(m => [m, { total: 0, deal: 0 }]));
+  licenses.forEach((d) => {
+    const mo = (d.permit_date || '').slice(0, 7);
+    const o = intake.get(mo);
+    if (!o) return;
+    o.total++;
+    if ((d.trade_status || '').trim() === '거래') o.deal++;
+  });
+  return { months, rows: months.map(m => intake.get(m)!) };
+}
+
+// 담당자별 상태 분포 + 거래율 (담당 물량 많은 순)
+const MANAGER_STATUS_ORDER = ['거래', '공사중', '인허가', '미거래', 'DROP'];
+function computeByManager(licenses: License[]) {
+  const m = new Map<string, Record<string, number>>();
+  licenses.forEach((d) => {
+    const mgr = (d.manager || '').trim() || '미지정';
+    const status = (d.trade_status || '').trim() || '기타';
+    let o = m.get(mgr);
+    if (!o) { o = {}; m.set(mgr, o); }
+    o[status] = (o[status] || 0) + 1;
+  });
+  return [...m.entries()]
+    .map(([mgr, counts]) => {
+      const total = Object.values(counts).reduce((a, b) => a + b, 0);
+      const deal = counts['거래'] || 0;
+      const nonDeal = counts['미거래'] || 0;
+      return { mgr, counts, total, rate: deal + nonDeal > 0 ? Math.round((deal / (deal + nonDeal)) * 100) : 0 };
+    })
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 10);
+}
+
+// 업태별 규모 + 거래율 (상위 8개)
+function computeByType(licenses: License[]) {
+  const m = new Map<string, { total: number; deal: number; nonDeal: number }>();
+  licenses.forEach((d) => {
+    const t = (d.business_type || '').trim() || '미분류';
+    let o = m.get(t);
+    if (!o) { o = { total: 0, deal: 0, nonDeal: 0 }; m.set(t, o); }
+    o.total++;
+    const s = (d.trade_status || '').trim();
+    if (s === '거래') o.deal++;
+    else if (s === '미거래') o.nonDeal++;
+  });
+  return [...m.entries()]
+    .map(([type, o]) => ({ type, ...o, rate: o.deal + o.nonDeal > 0 ? Math.round((o.deal / (o.deal + o.nonDeal)) * 100) : 0 }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+}
+
 export function DashboardCharts({ licenses }: { licenses: License[] }) {
   const cross = useMemo(() => computeCross(licenses), [licenses]);
+  const monthly = useMemo(() => computeMonthlyIntake(licenses), [licenses]);
+  const byManager = useMemo(() => computeByManager(licenses), [licenses]);
+  const byType = useMemo(() => computeByType(licenses), [licenses]);
 
   const regionCanvas = useRef<HTMLCanvasElement>(null);
   const statusCanvas = useRef<HTMLCanvasElement>(null);
   const milkCanvas = useRef<HTMLCanvasElement>(null);
+  const monthlyCanvas = useRef<HTMLCanvasElement>(null);
+  const managerCanvas = useRef<HTMLCanvasElement>(null);
+  const typeCanvas = useRef<HTMLCanvasElement>(null);
   const regionChart = useRef<ChartType | null>(null);
   const statusChart = useRef<ChartType | null>(null);
   const milkChart = useRef<ChartType | null>(null);
+  const monthlyChart = useRef<ChartType | null>(null);
+  const managerChart = useRef<ChartType | null>(null);
+  const typeChart = useRef<ChartType | null>(null);
 
   // 크로스 필터: 지역 막대 클릭 → 거래상태 차트 필터 / 상태 막대 클릭 → 지역 차트 필터
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
@@ -212,6 +286,121 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
     return () => statusChart.current?.destroy();
   }, [cross, activeRegion]);
 
+  // 월별 인허가 유입·거래 전환 추이 (막대=신규 인허가, 선=그중 거래 전환)
+  useEffect(() => {
+    if (!monthlyCanvas.current) return;
+    const labels = monthly.months.map(m => m.slice(2).replace('-', '.'));
+    monthlyChart.current?.destroy();
+    monthlyChart.current = new Chart(monthlyCanvas.current.getContext('2d')!, {
+      data: {
+        labels,
+        datasets: [
+          { type: 'bar', label: '신규 인허가', data: monthly.rows.map(r => r.total), backgroundColor: '#93c5fd', borderRadius: 5, order: 2 },
+          { type: 'line', label: '거래 전환', data: monthly.rows.map(r => r.deal), borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.35, pointRadius: 3, order: 1 },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { font: { family: 'Pretendard', size: 11 }, boxWidth: 12, padding: 10 } },
+          tooltip: {
+            callbacks: {
+              label: (c) => ` ${c.dataset.label}: ${c.raw}개소`,
+              footer: (items) => {
+                const idx = items[0]?.dataIndex ?? 0;
+                const r = monthly.rows[idx];
+                return r && r.total > 0 ? `전환율 ${Math.round((r.deal / r.total) * 100)}%` : '';
+              },
+            },
+          },
+        },
+        scales: { y: { beginAtZero: true, grid: { color: '#f5f5f7' }, ticks: { precision: 0 } }, x: { grid: { display: false } } },
+      },
+    });
+    return () => monthlyChart.current?.destroy();
+  }, [monthly]);
+
+  // 담당자별 거래 현황 (상태별 누적 가로 막대 — 거래상태 차트와 동일 색)
+  useEffect(() => {
+    if (!managerCanvas.current) return;
+    const { statusColorMap } = cross;
+    const labels = byManager.map(r => r.mgr);
+    const datasets = MANAGER_STATUS_ORDER
+      .filter(s => byManager.some(r => (r.counts[s] || 0) > 0))
+      .map(s => ({
+        label: s,
+        data: byManager.map(r => r.counts[s] || 0),
+        backgroundColor: statusColorMap[s] || '#8e8e93',
+        borderRadius: 3,
+      }));
+    managerChart.current?.destroy();
+    managerChart.current = new Chart(managerCanvas.current.getContext('2d')!, {
+      type: 'bar',
+      data: { labels: labels.length ? labels : ['데이터 없음'], datasets: datasets.length ? datasets : [{ label: '-', data: [0], backgroundColor: '#e5e5ea' }] },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { font: { family: 'Pretendard', size: 11 }, boxWidth: 12, padding: 10 } },
+          tooltip: {
+            callbacks: {
+              label: (c) => ` ${c.dataset.label}: ${c.raw}개소`,
+              footer: (items) => {
+                const idx = items[0]?.dataIndex ?? 0;
+                const r = byManager[idx];
+                return r ? `담당 ${r.total}개소 · 거래율 ${r.rate}%` : '';
+              },
+            },
+          },
+        },
+        scales: {
+          x: { stacked: true, beginAtZero: true, grid: { color: '#f5f5f7' }, ticks: { precision: 0 } },
+          y: { stacked: true, grid: { display: false }, ticks: { font: { family: 'Pretendard', size: 11 } } },
+        },
+      },
+    });
+    return () => managerChart.current?.destroy();
+  }, [cross, byManager]);
+
+  // 업태별 TOP 8 (규모 + 거래율)
+  useEffect(() => {
+    if (!typeCanvas.current) return;
+    const labels = byType.map(r => r.type);
+    typeChart.current?.destroy();
+    typeChart.current = new Chart(typeCanvas.current.getContext('2d')!, {
+      type: 'bar',
+      data: {
+        labels: labels.length ? labels : ['데이터 없음'],
+        datasets: [{ label: '업장 수', data: byType.length ? byType.map(r => r.total) : [0], backgroundColor: '#5856D6', borderRadius: 5 }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (c) => ` ${c.raw}개소`,
+              footer: (items) => {
+                const idx = items[0]?.dataIndex ?? 0;
+                const r = byType[idx];
+                return r ? `거래 ${r.deal} · 미거래 ${r.nonDeal} · 거래율 ${r.rate}%` : '';
+              },
+            },
+          },
+        },
+        scales: {
+          x: { beginAtZero: true, grid: { color: '#f5f5f7' }, ticks: { precision: 0 } },
+          y: { grid: { display: false }, ticks: { font: { family: 'Pretendard', size: 11 } } },
+        },
+      },
+    });
+    return () => typeChart.current?.destroy();
+  }, [byType]);
+
   // 사용우유 도넛
   useEffect(() => {
     if (!milkCanvas.current) return;
@@ -292,6 +481,36 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
           </button>
           <div className="relative h-[270px] w-full">
             <canvas ref={statusCanvas} />
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 lg:col-span-2">
+          <div className="text-sm font-semibold text-gray-800">
+            월별 인허가 유입 · 거래 전환 <span className="text-[11px] font-normal text-gray-400">(최근 12개월 · 영업 허가일 기준)</span>
+          </div>
+          <div className="mb-1.5 text-[11px] text-gray-400">막대=신규 인허가 유입 · 선=그중 현재 거래 전환된 업장 (막대에 마우스를 올리면 전환율)</div>
+          <div className="relative h-[240px] w-full">
+            <canvas ref={monthlyCanvas} />
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <div className="text-sm font-semibold text-gray-800">
+            담당자별 거래 현황 <span className="text-[11px] font-normal text-gray-400">(담당 물량 상위 10명)</span>
+          </div>
+          <div className="mb-1.5 text-[11px] text-gray-400">막대에 마우스를 올리면 담당 규모·거래율</div>
+          <div className="relative h-[270px] w-full">
+            <canvas ref={managerCanvas} />
+          </div>
+        </div>
+
+        <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <div className="text-sm font-semibold text-gray-800">
+            업태별 분포 <span className="text-[11px] font-normal text-gray-400">(상위 8개 업태)</span>
+          </div>
+          <div className="mb-1.5 text-[11px] text-gray-400">막대에 마우스를 올리면 거래·미거래·거래율</div>
+          <div className="relative h-[270px] w-full">
+            <canvas ref={typeCanvas} />
           </div>
         </div>
 
