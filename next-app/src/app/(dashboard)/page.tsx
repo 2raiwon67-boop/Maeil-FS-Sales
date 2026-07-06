@@ -8,6 +8,7 @@ import { useManager } from '@/hooks/use-manager';
 import {
   loadNaverMaps,
   cachedGeocode,
+  cleanGeocodeQuery,
   onNaverAuthFailure,
   type NaverMap,
   type NaverMarker,
@@ -256,18 +257,36 @@ export default function DashboardPage() {
       const licCoords = new Map<string, { lat: number; lng: number }>();
       const accCoords = new Map<string, { lat: number; lng: number }>();
 
+      // 지오코딩 성공분은 /api/license-geocode로 DB에도 저장(결측 행만) —
+      // 첫 사용자가 채우면 이후 세션·사용자·기기는 재지오코딩 불필요 (discover와 동일 패턴).
+      // accounts는 테이블에 lat/lng 컬럼이 없어 localStorage 캐시만 사용.
+      let pendingSave: { id: string; lat: number; lng: number }[] = [];
+      const flushSave = async () => {
+        if (!pendingSave.length) return;
+        const body = JSON.stringify({ updates: pendingSave });
+        pendingSave = [];
+        try {
+          await fetch('/api/license-geocode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        } catch { /* 저장 실패해도 이번 세션 화면 표시는 유지 */ }
+      };
+
       if (total > 0) setGeocoding({ done: 0, total });
       let done = 0;
       for (const l of licNeedGeo) {
-        if (cancelled) return;
-        const c = await cachedGeocode(l.road_address!);
-        if (c) licCoords.set(l.id, c);
+        if (cancelled) { await flushSave(); return; }
+        const c = await cachedGeocode(cleanGeocodeQuery(l.road_address!));
+        if (c) {
+          licCoords.set(l.id, c);
+          pendingSave.push({ id: l.id, lat: c.lat, lng: c.lng });
+          if (pendingSave.length >= 100) await flushSave();
+        }
         done++;
         if (done % 5 === 0 || done === total) setGeocoding({ done, total });
       }
+      await flushSave();
       for (const a of accNeedGeo) {
         if (cancelled) return;
-        const c = await cachedGeocode(a.address!);
+        const c = await cachedGeocode(cleanGeocodeQuery(a.address!));
         if (c) accCoords.set(a.id, c);
         done++;
         if (done % 5 === 0 || done === total) setGeocoding({ done, total });
