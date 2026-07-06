@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
-  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink,
+  Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -249,10 +249,12 @@ function FilterDropdown({
 
 // ─── SPARKLINE ───────────────────────────────────────────────────────────────
 // 최근 N개월 순증 미니 막대 (양수 초록↑ / 음수 빨강↓, 0 기준선)
-function Sparkline({ values }: { values: number[] }) {
+function Sparkline({ values, colorblind = false }: { values: number[]; colorblind?: boolean }) {
   const n = values.length || 1;
   const max = Math.max(1, ...values.map(v => Math.abs(v)));
   const W = 58, H = 22, bw = W / n, mid = H / 2;
+  const pos = colorblind ? '#2563eb' : '#16a34a';
+  const neg = colorblind ? '#f97316' : '#ef4444';
   return (
     <svg width={W} height={H} className="flex-shrink-0" aria-hidden>
       <line x1={0} y1={mid} x2={W} y2={mid} stroke="#e2e8f0" strokeWidth={1} />
@@ -263,12 +265,55 @@ function Sparkline({ values }: { values: number[] }) {
             key={i}
             x={i * bw + bw * 0.22} y={v >= 0 ? mid - h : mid}
             width={bw * 0.56} height={h} rx={1}
-            fill={v > 0 ? '#16a34a' : v < 0 ? '#ef4444' : '#cbd5e1'} opacity={0.9}
+            fill={v > 0 ? pos : v < 0 ? neg : '#cbd5e1'} opacity={0.9}
           />
         );
       })}
     </svg>
   );
+}
+
+// ─── 이벤트 중복 제거 ────────────────────────────────────────────────────────
+// 공공 인허가 API는 폐업(드물게 신규) 레코드를 여러 달의 월간 스냅샷에 반복 노출하고,
+// 야간 refresh-market은 month별 행으로 upsert하므로 같은 매장이 연속된 여러 달에
+// 중복 등재된다 (2026-07 실측: 폐업 1,515곳이 2개월 이상 반복·최대 22개월, 신규 91곳
+// — 그대로 합산하면 폐업이 약 2,600건 과다 집계). 동일 (이름|주소|월|상태) 완전 중복은 0건.
+// 규칙: (이름|주소|상태)별 month 집합에서 "직전 달에도 같은 상태로 존재"하는 행은 같은
+// 이벤트의 반복 노출로 보고 제외 — 연속 체인의 시작 달 1건만 실제 발생으로 남긴다.
+// 체인이 끊긴 뒤(1개월+ 공백) 재등장하면 별개 이벤트(재개업 후 재폐업 등)로 인정.
+// 한계: 조회 창(36개월) 이전에 시작된 체인은 창 안의 첫 달이 발생 월로 기록된다.
+// 반복 노출 행에만 좌표가 있으면 대표 행에 이식해 지도 점 손실을 막는다.
+function prevMonthStr(month: string): string {
+  const [y, m] = month.split('-').map(Number);
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
+}
+
+function dedupeStoreEvents(rows: StoreRow[]): StoreRow[] {
+  const byKey = new Map<string, Map<string, StoreRow>>(); // (이름|주소|상태) → month → 대표 행
+  for (const r of rows) {
+    const k = `${r.name}|${r.address ?? ''}|${r.status}`;
+    let mm = byKey.get(k);
+    if (!mm) { mm = new Map(); byKey.set(k, mm); }
+    const prev = mm.get(r.month);
+    if (!prev || (prev.lat == null && r.lat != null)) mm.set(r.month, r);
+  }
+  const out: StoreRow[] = [];
+  for (const mm of byKey.values()) {
+    for (const mo of [...mm.keys()].sort()) {
+      const row = mm.get(mo)!;
+      if (mm.has(prevMonthStr(mo))) {
+        if (row.lat != null && row.lng != null) {
+          let head = mo;
+          while (mm.has(prevMonthStr(head))) head = prevMonthStr(head);
+          const headRow = mm.get(head)!;
+          if (headRow.lat == null || headRow.lng == null) { headRow.lat = row.lat; headRow.lng = row.lng; }
+        }
+        continue;
+      }
+      out.push(row);
+    }
+  }
+  return out;
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
@@ -1224,13 +1269,15 @@ export default function DiscoverPage() {
         rawStores = all.flat();
       }
 
-      const storeRows: StoreRow[] = rawStores.map(r => ({
+      // 반복 노출 중복 제거(dedupeStoreEvents 주석 참고) — KPI/랭킹/동별/드릴다운/지도 점이
+      // 전부 이 배열에서 파생되므로 여기 한 곳에서 걸러야 화면 간 숫자가 일치한다.
+      const storeRows: StoreRow[] = dedupeStoreEvents(rawStores.map(r => ({
         id: r.id, name: r.name, sido: r.sido, sigungu: r.sigungu, month: r.month,
         status: r.status === 'closed' ? 'closed' : 'new',
         category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
         lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
         address: r.address, license_date: r.license_date, dong: extractDong(r.address),
-      }));
+      })));
       setCachedStores(storeRows);
       cachedStoresRef.current = storeRows;
       void runGeocodeBackfill(storeRows); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
@@ -1273,7 +1320,8 @@ export default function DiscoverPage() {
         setLastSync('데이터 없음');
       }
 
-      applyFiltersInternal(snaps, null, mode, sido, sSigunguMap);
+      // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
+      applyFiltersInternal(snaps, selectedMonthRef.current, mode, sido, sSigunguMap);
 
     } catch (e) {
       console.error('[discover] load error', e);
@@ -1746,6 +1794,76 @@ export default function DiscoverPage() {
     : rankSort === 'rate'   ? b.netRate - a.netRate
     : b.net - a.net);
 
+  // ─── 랭킹뷰 파생값 — 순위 변동·합계 KPI·막대 스케일 ────────────────────────
+  // 순위 변동(▲/▼)은 특정 월 선택 시에만 계산: 전월 데이터로 동일 정렬 기준의 순위표를
+  // 만들어 현재 순위와 비교한다. '전체 월'은 3년 누적 순위라 전월 비교가 정의되지 않음.
+  const prevRankMap = (() => {
+    if (!selectedMonth || anchorIdx < 1) return null;
+    const pm = monthList[anchorIdx - 1];
+    const agg = new Map<string, { new: number; closed: number }>();
+    for (const s of cachedSnaps) {
+      if (s.month !== pm) continue;
+      const k = `${s.sido}|${s.sigungu}`;
+      let o = agg.get(k); if (!o) { o = { new: 0, closed: 0 }; agg.set(k, o); }
+      o.new += s.new_count || 0; o.closed += s.closed_count || 0;
+    }
+    const rows = [...agg.entries()].map(([k, v]) => {
+      const net = v.new - v.closed;
+      const prevPrev = anchorIdx > 1 ? (regionMonthlyNet.get(k)?.get(monthList[anchorIdx - 2]) ?? 0) : 0;
+      return {
+        k, new: v.new, closed: v.closed, net,
+        rate: v.new > 0 ? Math.round((net / v.new) * 100) : (v.closed > 0 ? -100 : 0),
+        mom: net - prevPrev,
+      };
+    }).sort((a, b) =>
+      rankSort === 'new'    ? b.new - a.new
+      : rankSort === 'closed' ? b.closed - a.closed
+      : rankSort === 'mom'    ? b.mom - a.mom
+      : rankSort === 'rate'   ? b.rate - a.rate
+      : b.net - a.net);
+    return new Map(rows.map((r, i) => [r.k, i]));
+  })();
+
+  // 합계 KPI(랭킹뷰 상단 카드) — 표시 지역 합계 + 기준월 vs 직전월 증감
+  const rankTotals = (() => {
+    const tNew = sortedRegions.reduce((s, r) => s + r.new, 0);
+    const tClosed = sortedRegions.reduce((s, r) => s + r.closed, 0);
+    const tBig = sortedRegions.reduce((s, r) => s + r.big, 0);
+    const monthAgg = (mo: string | undefined) => {
+      if (!mo) return null;
+      let n = 0, c = 0;
+      for (const s of cachedSnaps) if (s.month === mo) { n += s.new_count || 0; c += s.closed_count || 0; }
+      return { n, c };
+    };
+    const cur = monthAgg(anchorMonth);
+    const prev = monthAgg(anchorIdx > 0 ? monthList[anchorIdx - 1] : undefined);
+    const delta = cur && prev
+      ? { new: cur.n - prev.n, closed: cur.c - prev.c, net: (cur.n - cur.c) - (prev.n - prev.c) }
+      : null;
+    return { new: tNew, closed: tClosed, net: tNew - tClosed, big: tBig, delta };
+  })();
+  const rankMaxAbsNet = Math.max(1, ...sortedRegions.map(r => Math.abs(r.net)));
+  // 기준월이 아직 진행 중인 달이면 "전월 대비"가 부분월 vs 완전월 비교라 왜곡 → 증감 숨기고 집계 중 표기
+  const rankPartialMonth = (() => { const d = new Date(); return anchorMonth === `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+  // 색각보정 시 초록/빨강 → 파랑/주황 (지도 점과 동일 팔레트)
+  const rankPosCls = colorblind ? 'text-blue-600' : 'text-green-600';
+  const rankNegCls = colorblind ? 'text-orange-500' : 'text-red-500';
+  const rankPosBar = colorblind ? '#2563eb' : '#16a34a';
+  const rankNegBar = colorblind ? '#f97316' : '#ef4444';
+
+  const exportRankXlsx = async () => {
+    const XLSX = await import('xlsx');
+    const rows = sortedRegions.map((r, i) => ({
+      순위: i + 1, 시도: r.sido, 시군구: r.region, 신규: r.new, 폐업: r.closed, 순증: r.net,
+      '성장률(%)': r.netRate, '전월대비 순증변화': r.mom, '대형(100평+)': r.big,
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '시군구 랭킹');
+    XLSX.writeFile(wb, `시군구랭킹_${selectedMonth || '전체월'}.xlsx`);
+    toast.success('엑셀 파일을 내려받았습니다');
+  };
+
   // 드릴다운 라이브 집계 (선택 월·업종 즉시 반영)
   const drillScoped = drillStores
     .filter(s => !selectedMonth || s.month === selectedMonth)
@@ -2042,7 +2160,7 @@ export default function DiscoverPage() {
               <span className={`inline-flex items-center gap-1 text-xs font-bold ${drillMom > 0 ? 'text-green-600' : drillMom < 0 ? 'text-red-500' : 'text-slate-400'}`}>
                 {drillMom > 0 ? '▲' : drillMom < 0 ? '▼' : '─'} 전월대비 {drillMom > 0 ? `+${drillMom}` : drillMom}
               </span>
-              <Sparkline values={drillTrend} />
+              <Sparkline values={drillTrend} colorblind={colorblind} />
               {bigCount > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-600">
                   <Star size={11} className="fill-amber-500 text-amber-500" />대형 신규 {bigCount}건
@@ -2212,77 +2330,131 @@ export default function DiscoverPage() {
       {/* ── RANKING VIEW ── */}
       {viewMode === 'rank' && (
         <div className="absolute inset-0 bg-slate-50 z-[300] flex flex-col overflow-hidden">
-          {/* Header */}
-          <div className="px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 flex items-center justify-between gap-3">
-            <span className="text-[11px] font-bold text-slate-500 tracking-[.1em] uppercase">시군구 랭킹</span>
-            <div className="flex flex-wrap gap-1">
-              {(['net', 'mom', 'new', 'closed', 'rate'] as RankSort[]).map(sort => (
-                <button
-                  key={sort}
-                  onClick={() => setRankSort(sort)}
-                  className={`h-[27px] px-3 rounded-full border text-[11px] font-semibold cursor-pointer transition-all ${rankSort === sort ? 'bg-slate-900 border-slate-900 text-white font-bold' : 'bg-transparent border-slate-200 text-slate-500 hover:border-blue-500 hover:text-blue-600'}`}
-                >
-                  {sort === 'net' ? '순증순' : sort === 'mom' ? '모멘텀순' : sort === 'new' ? '신규순' : sort === 'closed' ? '폐업순' : '성장률순'}
-                </button>
-              ))}
+          {/* Header — 제목·기준월 + 정렬 세그먼트 + 엑셀 (우측 여백은 top-right 지도/랭킹 토글 오버레이 회피) */}
+          <div className="px-5 py-3 pr-[238px] border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 max-sm:pt-[52px]">
+            <div>
+              <div className="text-[16px] font-bold tracking-[-0.01em] text-slate-900">시군구 상권 랭킹</div>
+              <div className="mt-0.5 text-[12px] text-slate-500">{selectedMonth ? `${selectedMonth} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '최근 3년 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
+                {(['net', 'mom', 'new', 'closed', 'rate'] as RankSort[]).map(sort => (
+                  <button
+                    key={sort}
+                    onClick={() => setRankSort(sort)}
+                    className={`h-[30px] cursor-pointer rounded-md px-3 text-[13px] transition-all ${rankSort === sort ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {sort === 'net' ? '순증' : sort === 'mom' ? '모멘텀' : sort === 'new' ? '신규' : sort === 'closed' ? '폐업' : '성장률'}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={exportRankXlsx}
+                className="inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-medium text-slate-600 transition-colors hover:border-blue-400 hover:text-blue-600"
+              >
+                <Download size={14} />엑셀
+              </button>
             </div>
           </div>
 
-          {/* Compact ranking table */}
-          <div className="flex-1 overflow-y-auto px-3 py-3 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
+          {/* KPI + ranking table */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded">
             {sortedRegions.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
                 <Clock size={28} className="opacity-60" />
                 데이터 불러오는 중...
               </div>
             ) : (
-              <div className="mx-auto max-w-[760px]">
-                {/* 컬럼 헤더 */}
-                <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_3rem_4.25rem_4rem_2.25rem] items-center gap-2 px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                  <span className="text-center">#</span>
+              <div className="mx-auto max-w-[820px]">
+                {/* KPI 카드 — 합계 + 전월 대비 (기준월 vs 직전월) */}
+                <div className="mb-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                  {([
+                    { label: '총 순증', value: (rankTotals.net > 0 ? '+' : '') + rankTotals.net.toLocaleString(), delta: rankTotals.delta?.net ?? null, badWhenUp: false },
+                    { label: '신규 개점', value: rankTotals.new.toLocaleString(), delta: rankTotals.delta?.new ?? null, badWhenUp: false },
+                    { label: '폐업', value: rankTotals.closed.toLocaleString(), delta: rankTotals.delta?.closed ?? null, badWhenUp: true },
+                    { label: '대형 매장(100평+)', value: rankTotals.big.toLocaleString(), delta: null, badWhenUp: false },
+                  ] as { label: string; value: string; delta: number | null; badWhenUp: boolean }[]).map(c => (
+                    <div key={c.label} className="rounded-xl border border-slate-200/70 bg-white px-3.5 py-3 shadow-sm">
+                      <div className="text-[12px] text-slate-500">{c.label}</div>
+                      <div className="mt-0.5 text-[22px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{c.value}</div>
+                      <div className={`mt-0.5 text-[12px] font-medium ${c.delta == null || c.delta === 0 || rankPartialMonth ? 'text-slate-400' : (c.delta > 0) !== c.badWhenUp ? rankPosCls : rankNegCls}`}>
+                        {c.delta == null ? '신규 인허가 기준' : rankPartialMonth ? '이달 집계 진행 중' : c.delta === 0 ? '전월과 동일' : `${c.delta > 0 ? '▲' : '▼'} ${Math.abs(c.delta)} 전월 대비`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 컬럼 헤더 + 행 — 좁은 화면에선 가로 스크롤 (컬럼 붕괴 방지) */}
+                <div className="overflow-x-auto">
+                <div className="min-w-[620px]">
+                <div className="grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 px-3 pb-1.5 text-[12px] font-medium text-slate-400">
+                  <span>순위</span>
                   <span>지역</span>
-                  <span className="text-right">순증</span>
-                  <span className="text-center">최근 6개월</span>
-                  <span className="text-right">신·폐</span>
-                  <span className="text-right">대형</span>
+                  <span>순증</span>
+                  <span className="text-right">신규·폐업</span>
+                  <span className="text-center">6개월 추이</span>
+                  <span className="text-right">성장률</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   {sortedRegions.map((r, i) => {
                     const up = r.net > 0, down = r.net < 0;
                     const netStr = up ? `+${r.net}` : String(r.net);
-                    const netCls = up ? 'text-green-600' : down ? 'text-red-600' : 'text-slate-400';
-                    const momIco = r.mom > 0 ? '▲' : r.mom < 0 ? '▼' : '─';
-                    const momCls = r.mom > 0 ? 'text-green-600' : r.mom < 0 ? 'text-red-500' : 'text-slate-300';
+                    const netCls = up ? rankPosCls : down ? rankNegCls : 'text-slate-400';
                     const momStr = r.mom > 0 ? `전월대비 +${r.mom}` : r.mom < 0 ? `전월대비 ${r.mom}` : '전월과 동일';
-                    // 상위 3위 메달 강조 (금/은/동)
-                    const medal = i === 0 ? 'bg-amber-400 text-white shadow-[0_2px_6px_rgba(245,158,11,.45)]'
-                                : i === 1 ? 'bg-slate-300 text-slate-700'
-                                : i === 2 ? 'bg-orange-300 text-white'
-                                : 'bg-slate-100 text-slate-400';
+                    // 순위 변동 — 전월 순위표 대비 (전체 월 보기에선 미표시)
+                    const prevIdx = prevRankMap?.get(`${r.sido}|${r.region}`);
+                    const rankChg = prevRankMap ? (prevIdx == null ? null : prevIdx - i) : null;
+                    const noData = r.new === 0 && r.closed === 0;
                     return (
                       <div
                         key={r.sido + r.region}
                         onClick={() => openDrilldown(r.region, r.sido)}
-                        className="grid grid-cols-[1.75rem_minmax(0,1fr)_3rem_4.25rem_4rem_2.25rem] items-center gap-2 cursor-pointer rounded-xl border border-slate-200/70 bg-white px-3 py-2.5 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/40"
+                        className="grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 cursor-pointer rounded-xl border border-slate-200/70 bg-white px-3 py-3 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/40"
                       >
-                        <span className={`mx-auto flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold tabular-nums ${medal}`}>{i + 1}</span>
+                        <span className="flex items-baseline gap-1">
+                          <span className="w-5 text-[15px] font-bold tabular-nums text-slate-800">{i + 1}</span>
+                          {rankChg == null || rankChg === 0
+                            ? <span className="text-[11px] text-slate-300">—</span>
+                            : rankChg > 0
+                              ? <span className={`text-[11px] font-semibold tabular-nums ${rankPosCls}`}>▲{rankChg}</span>
+                              : <span className={`text-[11px] font-semibold tabular-nums ${rankNegCls}`}>▼{-rankChg}</span>}
+                        </span>
                         <span className="truncate text-[14px] font-bold tracking-[-0.02em] text-slate-900">{regionLabel(r.sido, r.region, multiSido)}</span>
-                        <span className={`text-right text-[14px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
-                        <span className="flex items-center justify-center gap-0.5" title={momStr}>
-                          <Sparkline values={r.trend} />
-                          <span className={`text-[11px] font-bold ${momCls}`}>{momIco}</span>
+                        <span className="flex items-center gap-2">
+                          <span className={`min-w-[2.1rem] text-right text-[14px] font-extrabold tabular-nums ${netCls}`}>{netStr}</span>
+                          <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <span
+                              className="block h-full rounded-full"
+                              style={{ width: `${Math.round((Math.abs(r.net) / rankMaxAbsNet) * 100)}%`, background: up ? rankPosBar : down ? rankNegBar : '#cbd5e1' }}
+                            />
+                          </span>
                         </span>
-                        <span className="text-right text-xs tabular-nums">
-                          <span className="font-semibold text-green-600">{r.new}</span>
-                          <span className="text-slate-300">·</span>
-                          <span className="font-semibold text-red-500">{r.closed}</span>
+                        <span className="text-right text-[13px] tabular-nums">
+                          <span className={`font-semibold ${rankPosCls}`}>{r.new}</span>
+                          <span className="text-slate-300"> · </span>
+                          <span className={`font-semibold ${rankNegCls}`}>{r.closed}</span>
                         </span>
-                        <span className="text-right text-xs font-extrabold tabular-nums">
-                          {r.big > 0 ? <span className="text-amber-600">{r.big}</span> : <span className="text-slate-300">0</span>}
+                        <span className="flex justify-center" title={momStr}>
+                          <Sparkline values={r.trend} colorblind={colorblind} />
+                        </span>
+                        <span className="text-right">
+                          {noData
+                            ? <span className="inline-block rounded-md bg-slate-50 px-1.5 py-0.5 text-[12px] font-medium text-slate-400" title="해당 기간 신규·폐업 데이터 없음">—</span>
+                            : <span className={`inline-block rounded-md px-1.5 py-0.5 text-[12px] font-semibold tabular-nums ${r.netRate >= 0 ? (colorblind ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700') : (colorblind ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600')}`}>{r.netRate}%</span>}
                         </span>
                       </div>
                     );
                   })}
+                </div>
+                </div>
+                </div>
+
+                {/* 푸터 — 데이터 신뢰성 표기 */}
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2.5 text-[12px] text-slate-400">
+                  <span className="inline-flex items-center gap-1.5">
+                    <RefreshCw size={12} />데이터 기준 {selectedMonth || '최근 3년'} · {lastSync} · 동일 매장 반복 등재 제거 적용
+                  </span>
+                  <span>행을 누르면 동별 상세로 이동</span>
                 </div>
               </div>
             )}
