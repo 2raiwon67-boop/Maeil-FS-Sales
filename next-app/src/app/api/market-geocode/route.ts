@@ -43,8 +43,8 @@ export async function POST(req: NextRequest) {
   for (let i = 0; i < valid.length; i += 20) {
     const res = await Promise.all(
       valid.slice(i, i + 20).map((u) =>
-        // lat=is.null 필터 — 이미 좌표가 있는 행(공공 API 정식 좌표)은 건드리지 않음
-        fetch(`${SUPABASE_URL}/rest/v1/market_store_records?id=eq.${u.id}&lat=is.null`, {
+        // 결측 행만 채움 — 이미 좌표가 있는 행(공공 API 정식 좌표)은 건드리지 않음
+        fetch(`${SUPABASE_URL}/rest/v1/market_store_records?id=eq.${u.id}&or=(lat.is.null,lng.is.null)`, {
           method: 'PATCH',
           headers: sb,
           body: JSON.stringify({ lat: u.lat, lng: u.lng }),
