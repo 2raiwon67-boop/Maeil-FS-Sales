@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Home, FileText, ClipboardList, User, Settings, LogOut } from 'lucide-react';
+import { Home, TrendingUp, FileText, ClipboardList, User, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -12,6 +12,7 @@ import { SettingsModal } from '@/components/layout/settings-modal';
 
 const TABS = [
   { href: '/', label: '거래처', icon: Home },
+  { href: '/discover', label: '시장분석', icon: TrendingUp },
   { href: '/proposal', label: '견적서', icon: FileText },
   { href: '/license-export', label: '인허가', icon: ClipboardList },
 ];

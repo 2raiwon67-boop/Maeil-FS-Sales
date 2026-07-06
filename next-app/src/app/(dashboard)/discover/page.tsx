@@ -228,7 +228,7 @@ function FilterDropdown({
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
       >
         <span className="text-slate-400">{icon}</span>
         {value}
@@ -295,7 +295,7 @@ function MonthRangeDropdown({
     <div className="relative">
       <button
         onClick={() => (open ? setOpen(false) : openPanel())}
-        className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
       >
         <span className="text-slate-400"><CalendarDays size={14} /></span>
         {label}
@@ -481,6 +481,12 @@ export default function DiscoverPage() {
   const [playing, setPlaying] = useState(false);
   const [dockOpen, setDockOpen] = useState(true);
   const [timelineOpen, setTimelineOpen] = useState(true); // 타임랩스 바 접기(지도 시야 확보용)
+
+  // 모바일(협폭)에선 인사이트 독이 지도 절반을 가리므로 기본 접힘 (핸들로 언제든 펼침)
+  useEffect(() => {
+    const t = setTimeout(() => { if (window.innerWidth < 768) setDockOpen(false); }, 0);
+    return () => clearTimeout(t);
+  }, []);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
   // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
@@ -2067,10 +2073,10 @@ export default function DiscoverPage() {
 
 
   return (
-    <div className="flex h-[calc(100dvh-3rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
+    <div className="flex h-[calc(100dvh-3rem-4rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
 
       {/* ── HEADS-UP FILTER BAR ── */}
-      <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
+      <div className="relative z-[630] flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
         <FilterDropdown
           icon={<MapPin size={14} />}
           value={regionValue}

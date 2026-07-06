@@ -117,8 +117,8 @@ export function DashboardSidebar({
   return (
     <>
       <aside
-        className={`relative z-10 flex h-full shrink-0 flex-col border-r border-gray-200 bg-gray-50 transition-all duration-200 ${
-          collapsed ? 'w-0 overflow-hidden' : 'w-[300px]'
+        className={`relative z-10 flex h-full shrink-0 flex-col border-r border-gray-200 bg-gray-50 transition-all duration-200 max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:shadow-xl ${
+          collapsed ? 'w-0 overflow-hidden max-md:shadow-none' : 'w-[300px]'
         }`}
       >
         <div className="flex flex-col gap-3 overflow-y-auto p-3">
@@ -256,7 +256,7 @@ export function DashboardSidebar({
       <button
         onClick={onToggleCollapse}
         title="사이드바 접기/펼치기"
-        className="absolute top-1/2 z-20 -translate-y-1/2 rounded-r-lg border border-l-0 border-gray-200 bg-white px-1 py-4 text-gray-500 shadow transition-all hover:bg-gray-50"
+        className="absolute top-1/2 z-40 -translate-y-1/2 rounded-r-lg border border-l-0 border-gray-200 bg-white px-1 py-4 text-gray-500 shadow transition-all hover:bg-gray-50"
         style={{ left: collapsed ? 0 : 300 }}
       >
         {collapsed ? '›' : '‹'}

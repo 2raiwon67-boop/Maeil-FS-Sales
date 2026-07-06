@@ -88,6 +88,12 @@ export default function DashboardPage() {
   const [view, setView] = useState<'map' | 'dashboard'>('map');
   const [colorblind, setColorblind] = useState(false);
 
+  // 모바일(협폭)에선 300px 필터 사이드바가 지도를 대부분 가리므로 기본 접힘
+  useEffect(() => {
+    const t = setTimeout(() => { if (window.innerWidth < 768) setCollapsed(true); }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
   const [search, setSearch] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
 
@@ -690,7 +696,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="relative flex h-[calc(100dvh-3rem)] w-full md:h-[calc(100dvh-88px)]">
+    <div className="relative flex h-[calc(100dvh-3rem-4rem)] w-full md:h-[calc(100dvh-88px)]">
       <DashboardSidebar
         filters={filters}
         counts={counts}
@@ -719,7 +725,7 @@ export default function DashboardPage() {
 
         {/* 지도 검색창 */}
         {view === 'map' && (
-          <div className="absolute left-3 top-3 z-10 w-[min(320px,calc(100%-1.5rem))]">
+          <div className="absolute left-3 top-3 z-10 w-[min(320px,calc(100%-1.5rem))] max-md:top-[3.6rem]">
             <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 shadow-lg ring-1 ring-black/5">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#86868b" strokeWidth="2.5" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8" />
@@ -760,7 +766,7 @@ export default function DashboardPage() {
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
                 view === v ? 'bg-blue-600 text-white' : 'text-gray-600'
               }`}
             >
