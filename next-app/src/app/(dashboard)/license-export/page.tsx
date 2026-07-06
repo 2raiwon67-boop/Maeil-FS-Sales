@@ -105,6 +105,7 @@ export default function LicenseExportPage() {
   const [activeRegions, setActiveRegions] = useState<Set<string>>(new Set());
   const [regionLoading, setRegionLoading] = useState(false);
   const [regionError, setRegionError] = useState('');
+  const [regionsExpanded, setRegionsExpanded] = useState(false); // 지역이 많으면 일부만 보여주고 접기
 
   // 관리자 모드
   const isAdmin = typeof window !== 'undefined' &&
@@ -268,6 +269,12 @@ export default function LicenseExportPage() {
     });
   };
 
+  // 칩 여러 개가 같은 filterRegion을 공유할 수 있어(고양시 3개 구 등) 고유값 기준으로 판단
+  const toggleAllRegions = () => {
+    const uniq = new Set(regionChips.map((c) => c.filterRegion));
+    setActiveRegions((prev) => (prev.size === uniq.size ? new Set() : uniq));
+  };
+
   // ── 검색 ─────────────────────────────────────────────────────────────────
 
   const handleSearch = async () => {
@@ -386,13 +393,15 @@ export default function LicenseExportPage() {
   // ── 렌더 ─────────────────────────────────────────────────────────────────
 
   const allSelected = results !== null && selectedIndices.size === results.length;
+  // 지역 카운터·전체선택 라벨은 "선택 상태인 칩 수" 기준 (filterRegion 공유 칩 포함)
+  const selectedRegionChipCount = regionChips.filter((c) => activeRegions.has(c.filterRegion)).length;
+  const allRegionsSelected = regionChips.length > 0 && selectedRegionChipCount === regionChips.length;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 pb-28">
-      <h1 className="mb-1 text-2xl font-bold tracking-tight">인허가 추출</h1>
-      <p className="mb-5 text-sm leading-relaxed text-gray-500">
+      <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">인허가 추출</h1>
+      <p className="mb-4 text-[13px] leading-relaxed text-gray-500 sm:mb-5 sm:text-sm">
         공공데이터(data.go.kr) 기준 신규 인허가 업소를 조회하고 엑셀(.xlsx)로 내려받습니다.
-        모바일에서도 그대로 추출할 수 있습니다.
       </p>
 
       {/* 관리자 지점 선택 배너 */}
@@ -444,51 +453,77 @@ export default function LicenseExportPage() {
             </label>
           </div>
 
-          {/* 업종 */}
-          <p className="mb-2 mt-[18px] text-[11px] font-bold uppercase tracking-wide text-gray-400">업종</p>
-          <div className="flex flex-wrap gap-2">
-            {BUSINESS_TYPE_CHIPS.map((t) => (
-              <button
-                key={t.code}
-                onClick={() => toggleType(t.code)}
-                className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-all active:scale-95 ${
-                  activeTypes.has(t.code)
-                    ? 'border-blue-600 bg-blue-600 text-white'
-                    : 'border-gray-200 bg-white text-gray-700'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {/* 지역 */}
-          <p className="mb-2 mt-[18px] text-[11px] font-bold uppercase tracking-wide text-gray-400">지역</p>
-          <div className="flex flex-wrap gap-2">
-            {regionLoading ? (
-              <span className="text-xs text-gray-400">지역 로딩 중...</span>
-            ) : regionError ? (
-              <span className="text-xs text-red-600">{regionError}</span>
-            ) : isAdmin && !adminTargetBU ? (
-              <span className="text-xs text-gray-400">위에서 지점을 선택하면 지역이 표시됩니다.</span>
-            ) : regionChips.length === 0 ? (
-              <span className="text-xs text-gray-400">지역 로딩 중...</span>
-            ) : (
-              regionChips.map((chip) => (
+          {/* 업종 — 정렬된 등폭 그리드 (선택=연파랑+체크, 미선택=흰색) */}
+          <p className="mb-2 mt-[18px] text-[11px] font-bold uppercase tracking-wide text-gray-400">
+            업종 <span className="ml-0.5 font-semibold normal-case text-gray-300">{activeTypes.size}/{BUSINESS_TYPE_CHIPS.length}</span>
+          </p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {BUSINESS_TYPE_CHIPS.map((t) => {
+              const on = activeTypes.has(t.code);
+              return (
                 <button
-                  key={chip.filterRegion}
-                  onClick={() => toggleRegion(chip.filterRegion)}
-                  className={`rounded-full border px-3.5 py-2 text-sm font-medium transition-all active:scale-95 ${
-                    activeRegions.has(chip.filterRegion)
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-700'
+                  key={t.code}
+                  onClick={() => toggleType(t.code)}
+                  className={`flex items-center justify-center gap-1 truncate rounded-lg border px-1.5 py-2 text-[13px] transition-colors active:scale-95 ${
+                    on ? 'border-blue-500 bg-blue-50 font-semibold text-blue-700' : 'border-gray-200 bg-white font-medium text-gray-500'
                   }`}
                 >
-                  {chip.label}
+                  {on && <Check className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={3} />}
+                  <span className="truncate">{t.label}</span>
                 </button>
-              ))
+              );
+            })}
+          </div>
+
+          {/* 지역 — 3열 그리드 정렬 + 전체 선택/해제 + 12개 초과 시 접기 */}
+          <div className="mb-2 mt-[18px] flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+              지역 <span className="ml-0.5 font-semibold normal-case text-gray-300">{selectedRegionChipCount}/{regionChips.length}</span>
+            </p>
+            {regionChips.length > 0 && (
+              <button
+                onClick={toggleAllRegions}
+                className="rounded-md px-1.5 py-0.5 text-[12px] font-semibold text-blue-600 transition-colors hover:bg-blue-50"
+              >
+                {allRegionsSelected ? '전체 해제' : '전체 선택'}
+              </button>
             )}
           </div>
+          {regionLoading ? (
+            <span className="text-xs text-gray-400">지역 로딩 중...</span>
+          ) : regionError ? (
+            <span className="text-xs text-red-600">{regionError}</span>
+          ) : isAdmin && !adminTargetBU ? (
+            <span className="text-xs text-gray-400">위에서 지점을 선택하면 지역이 표시됩니다.</span>
+          ) : regionChips.length === 0 ? (
+            <span className="text-xs text-gray-400">지역 로딩 중...</span>
+          ) : (
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+              {(regionsExpanded ? regionChips : regionChips.slice(0, 11)).map((chip) => {
+                const on = activeRegions.has(chip.filterRegion);
+                return (
+                  <button
+                    key={chip.filterRegion}
+                    onClick={() => toggleRegion(chip.filterRegion)}
+                    title={chip.label}
+                    className={`truncate rounded-lg border px-1.5 py-2 text-[13px] transition-colors active:scale-95 ${
+                      on ? 'border-blue-500 bg-blue-50 font-semibold text-blue-700' : 'border-gray-200 bg-white font-medium text-gray-500'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                );
+              })}
+              {regionChips.length > 11 && (
+                <button
+                  onClick={() => setRegionsExpanded((o) => !o)}
+                  className="rounded-lg border border-dashed border-gray-300 px-1.5 py-2 text-[13px] font-semibold text-gray-500 transition-colors hover:border-blue-400 hover:text-blue-600"
+                >
+                  {regionsExpanded ? '접기' : `+${regionChips.length - 11}개 더`}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* 조회 버튼 */}
           <button

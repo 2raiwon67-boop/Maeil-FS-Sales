@@ -40,7 +40,7 @@ import {
 import { VisitPlansModal, type PlanItem } from '@/components/dashboard/visit-plans-modal';
 import { StoreListPanel } from '@/components/dashboard/store-list-panel';
 import { RecommendPanel, type RecItem } from '@/components/dashboard/recommend-panel';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Search } from 'lucide-react';
 import { getColorblind, onColorblindChange, setColorblind as setColorblindSetting } from '@/lib/settings';
 import type { License, Account } from '@/types';
 import { createClient } from '@/lib/supabase/client';
@@ -96,6 +96,10 @@ export default function DashboardPage() {
 
   const [search, setSearch] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
+  // 모바일: 검색창을 상시 노출하지 않고 지도/통계 토글 옆 아이콘으로 여닫음 (컴팩트)
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (mobileSearchOpen) searchInputRef.current?.focus(); }, [mobileSearchOpen]);
 
   // 상세 / 장바구니 / 동선 / 일정
   const [selected, setSelected] = useState<SelectedStore | null>(null);
@@ -621,6 +625,8 @@ export default function DashboardPage() {
     const lat = c?.lat ?? 0;
     const lng = c?.lng ?? 0;
     setSelected({ item, type, lat, lng });
+    // 모바일: 목록 패널(z-50)이 상세 바텀시트를 덮으므로 선택 즉시 닫아 상세가 보이게
+    if (mobile) setListOpen(false);
     if (c && mapRef.current) {
       mapRef.current.setCenter(new window.naver.maps.LatLng(c.lat, c.lng));
       mapRef.current.setZoom(16);
@@ -725,13 +731,14 @@ export default function DashboardPage() {
 
         {/* 지도 검색창 */}
         {view === 'map' && (
-          <div className="absolute left-3 top-3 z-10 w-[min(320px,calc(100%-1.5rem))] max-md:top-[3.6rem]">
+          <div className={`absolute left-3 top-3 z-10 w-[min(320px,calc(100%-1.5rem))] max-md:top-[3.6rem] ${mobileSearchOpen || search ? '' : 'max-md:hidden'}`}>
             <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 shadow-lg ring-1 ring-black/5">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#86868b" strokeWidth="2.5" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input
+                ref={searchInputRef}
                 value={search}
                 onChange={(e) => onSearch(e.target.value)}
                 placeholder="매장명·주소 검색"
@@ -762,6 +769,17 @@ export default function DashboardPage() {
 
         {/* 지도/통계 토글 (통계 오버레이 z-20 위에 떠야 다시 지도로 전환 가능) */}
         <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/5">
+          {view === 'map' && (
+            <button
+              onClick={() => setMobileSearchOpen((o) => !o)}
+              aria-label="매장 검색"
+              className={`flex items-center justify-center rounded-lg px-2.5 transition-colors md:hidden ${
+                mobileSearchOpen || search ? 'bg-blue-600 text-white' : 'text-gray-600'
+              }`}
+            >
+              <Search size={15} />
+            </button>
+          )}
           {(['map', 'dashboard'] as const).map((v) => (
             <button
               key={v}

@@ -83,24 +83,39 @@ export function StoreDetail({
   const statusColor = STATUS_COLORS[status] || '#8e8e93';
   const hasCoord = selected.lat && selected.lng;
 
-  const body = (
-    <>
-      <div className="flex items-start justify-between gap-2 border-b border-gray-100 px-4 py-3">
-        <h3 className="text-base font-bold text-gray-900">{name}</h3>
-        <button onClick={onClose} className="-mr-1 text-2xl leading-none text-gray-400 hover:text-gray-600">
+  // 헤더 — 상태 배지 + 매장명 + 주소 + 메타 한 줄 (모바일에서 스크롤 없이 핵심이 다 보이게)
+  const header = (
+    <div className="border-b border-gray-100 px-4 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{ background: statusColor }}>{status}</span>
+            {!isAccount && milk && (
+              <span className="rounded-full bg-[#5856d6]/10 px-2 py-0.5 text-[11px] font-bold text-[#5856d6]">{milk}우유</span>
+            )}
+          </div>
+          <h3 className="text-base font-bold leading-snug text-gray-900">{name}</h3>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{address}</p>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="닫기"
+          className="-mr-1 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        >
           ×
         </button>
       </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-gray-400">
+        {!isAccount && <span>평형 <b className="font-semibold text-gray-700">{lic?.area || '-'}평</b></span>}
+        {!isAccount && <span>허가일 <b className="font-semibold text-gray-700">{lic?.permit_date || '-'}</b></span>}
+        <span>담당 <b className="font-semibold text-gray-700">{manager}</b></span>
+      </div>
+    </div>
+  );
 
-      <div className="space-y-3 px-4 py-3">
-        {!isAccount && (
-          <Row label="평형" value={`${lic?.area || '-'}평`} />
-        )}
-        <Row label="주소" value={address} small />
-        <Row label="담당자" value={manager} bold />
-
-        {/* 상태/우유 인라인 수정 */}
-        {isAccount ? (
+  const content = (
+    <div className="space-y-3 px-4 py-3">
+      {isAccount ? (
           <div>
             <div className="mb-1.5 text-[11px] font-semibold text-gray-500">거래상태 변경</div>
             <div className="flex gap-1.5">
@@ -156,68 +171,69 @@ export function StoreDetail({
           </div>
         )}
 
-        {!isAccount && <Row label="허가일" value={lic?.permit_date || '-'} />}
+      {/* 방문 코칭 · 기록 */}
+      <VisitCoachPanel
+        businessName={name}
+        businessType={lic?.business_type}
+        tradeStatus={status}
+        businessUnit={businessUnit}
+      />
+    </div>
+  );
 
-        {/* 방문 코칭 · 기록 */}
-        <VisitCoachPanel
-          businessName={name}
-          businessType={lic?.business_type}
-          tradeStatus={status}
-          businessUnit={businessUnit}
-        />
-      </div>
-
-      {/* 액션 버튼 */}
-      <div className="flex gap-1.5 border-t border-gray-100 px-4 py-3">
+  // 액션 버튼 — 시트가 스크롤돼도 항상 하단 고정
+  const actions = (
+    <div className="flex gap-1.5 border-t border-gray-100 bg-white px-4 py-3">
+      <button
+        onClick={() => openNaverMapApp(selected.lat, selected.lng, name)}
+        className="flex-1 rounded-lg bg-[#03C75A] py-3 text-sm font-bold text-white"
+      >
+        네이버
+      </button>
+      {hasCoord && (
         <button
-          onClick={() => openNaverMapApp(selected.lat, selected.lng, name)}
-          className="flex-1 rounded-lg bg-[#03C75A] py-3 text-sm font-bold text-white"
+          onClick={onToggleCart}
+          className="flex-1 rounded-lg py-3 text-sm font-bold text-white"
+          style={{ background: inCart ? '#34C759' : '#5856d6' }}
         >
-          네이버
+          {inCart ? '✓ 담겼음' : '담아두기'}
         </button>
-        {hasCoord && (
-          <button
-            onClick={onToggleCart}
-            className="flex-1 rounded-lg py-3 text-sm font-bold text-white"
-            style={{ background: inCart ? '#34C759' : '#5856d6' }}
-          >
-            {inCart ? '✓ 담겼음' : '담아두기'}
-          </button>
-        )}
-        {hasCoord && (
-          <button onClick={onRouteFrom} className="flex-1 rounded-lg bg-[#1d1d1f] py-3 text-sm font-bold text-white">
-            지금 출발
-          </button>
-        )}
-      </div>
-    </>
+      )}
+      {hasCoord && (
+        <button onClick={onRouteFrom} className="flex-1 rounded-lg bg-[#1d1d1f] py-3 text-sm font-bold text-white">
+          지금 출발
+        </button>
+      )}
+    </div>
   );
 
   if (mobile) {
     return (
       <>
-        <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
-        <div className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl">
-          {body}
+        {/* 하단 탭바(z-50)보다 위 — 액션 버튼이 탭바에 가려지지 않게 */}
+        <div className="fixed inset-0 z-[55] bg-black/30" onClick={onClose} />
+        <div className="fixed inset-x-0 bottom-0 z-[60] flex max-h-[82dvh] flex-col rounded-t-3xl bg-white pb-[env(safe-area-inset-bottom)] shadow-2xl">
+          {/* 그랩 핸들 — 탭하면 닫힘 */}
+          <button aria-label="닫기" onClick={onClose} className="flex w-full items-center justify-center pb-1.5 pt-2.5">
+            <span className="h-1 w-9 rounded-full bg-gray-300" />
+          </button>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {header}
+            {content}
+          </div>
+          {actions}
         </div>
       </>
     );
   }
 
   return (
-    <div className="absolute right-3 top-3 z-30 w-[340px] overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
-      {body}
-    </div>
-  );
-}
-
-function Row({ label, value, small, bold }: { label: string; value: string; small?: boolean; bold?: boolean }) {
-  return (
-    <div className="flex gap-2 text-sm">
-      <span className="shrink-0 text-gray-400">{label}:</span>
-      <span className={`${small ? 'text-xs leading-relaxed' : ''} ${bold ? 'font-semibold text-gray-700' : 'text-gray-800'}`}>
-        {value}
-      </span>
+    <div className="absolute right-3 top-3 z-30 flex max-h-[calc(100%-1.5rem)] w-[340px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {header}
+        {content}
+      </div>
+      {actions}
     </div>
   );
 }
