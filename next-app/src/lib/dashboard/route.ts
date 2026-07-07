@@ -172,11 +172,20 @@ function toMercator(lng: number, lat: number): [number, number] {
   return [x, y];
 }
 
-function buildNaverWebRouteUrl(dest: RouteStop): string {
-  // 세그먼트 구조: /p/directions/{출발}/{도착}/{경유}/car — 출발·경유는 '-'(빈값)로 두면
-  // 사용자가 지도에서 현위치 기준으로 시작. (경유지 URL 인코딩은 비공개 포맷이라 웹은 목적지만)
-  const [x, y] = toMercator(dest.lng, dest.lat);
-  return `https://map.naver.com/p/directions/-/${x.toFixed(1)},${y.toFixed(1)},${enc(dest.name)}/-/car`;
+// map.naver.com/p/directions 한 지점 세그먼트 = "{merX},{merY},{이름}"
+function naverWebSeg(stop: RouteStop): string {
+  const [x, y] = toMercator(stop.lng, stop.lat);
+  return `${x.toFixed(1)},${y.toFixed(1)},${enc(stop.name)}`;
+}
+
+function buildNaverWebRouteUrl(stops: RouteStop[]): string {
+  // 세그먼트 구조: /p/directions/{출발}/{도착}/{경유}/car
+  // 출발(stops[0])을 채워야 웹에서 출발지가 뜬다. 예전엔 '-'로 둬서 목적지만 표시됐음.
+  // 경유(3번째)는 웹 URL 인코딩 포맷이 비공개라 '-' 유지 — 다중 경유 순회는 모바일 앱 스킴에서만.
+  const dest = stops[stops.length - 1];
+  const start = stops.length > 1 ? stops[0] : null;
+  const startSeg = start ? naverWebSeg(start) : '-';
+  return `https://map.naver.com/p/directions/${startSeg}/${naverWebSeg(dest)}/-/car`;
 }
 
 // 앱 스킴 시도 후 웹 폴백. 앱이 열리면 페이지가 숨겨지므로(pagehide/visibilitychange)
@@ -198,7 +207,7 @@ export function openNaverMapsRoute(stops: RouteStop[]): void {
   if (stops.length === 0) return;
   const dest = stops[stops.length - 1];
   const waypoints = stops.slice(1, -1);
-  const webUrl = buildNaverWebRouteUrl(dest);
+  const webUrl = buildNaverWebRouteUrl(stops);
   const isAndroid = /Android/i.test(navigator.userAgent);
   const isIOS = /iPhone|iPad/i.test(navigator.userAgent);
 
