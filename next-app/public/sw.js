@@ -4,8 +4,10 @@
  * - 페이지 네비게이션: 네트워크 우선 (Supabase 인증/SSR 항상 최신, 오프라인 시 캐시 폴백)
  * - 외부 도메인(Naver/OSRM/Supabase) 및 비-GET: 서비스워커 개입 없음
  */
-const CACHE = 'fs-miso-next-v1';
-const STATIC_CACHE = 'fs-miso-static-v1';
+// v2: v1이 네비게이션 응답을 상태코드 무관하게 캐시하던 버그로 stale 404/리다이렉트가
+// 물릴 수 있었음. 버전 상향으로 활성화 시 옛 캐시를 강제 폐기해 클라이언트를 복구시킨다.
+const CACHE = 'fs-miso-next-v2';
+const STATIC_CACHE = 'fs-miso-static-v2';
 
 const PRECACHE = [
   '/icons/favicon.png',
@@ -75,8 +77,12 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, clone));
+          // 정상(200)·비리다이렉트 응답만 캐시. 307(로그인 리다이렉트)/404 등은 캐시 금지
+          // — 예전엔 무조건 캐시해 오프라인 폴백이 stale 404/로그인화면을 물던 버그가 있었음.
+          if (res.ok && !res.redirected) {
+            const clone = res.clone();
+            caches.open(CACHE).then((c) => c.put(request, clone));
+          }
           return res;
         })
         .catch(() => caches.match(request).then((cached) => cached || caches.match('/'))),
