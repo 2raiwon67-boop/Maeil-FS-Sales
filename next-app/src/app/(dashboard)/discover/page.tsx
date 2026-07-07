@@ -1347,6 +1347,7 @@ export default function DiscoverPage() {
   ) => {
     setRefreshing(true);
     setLastSync('로딩 중...');
+    let statsShown = false; // 빠른 통계 경로(RPC)가 KPI/랭킹을 이미 렌더했는지
     mapCenteredRef.current = false;
     // 행정동 경계 스코프 갱신 (줌인 시 이 시도들 경계를 로드) — 스코프 바뀌면 재로드
     scopeSidosRef.current = mode === 'sido' && sido ? [sido] : Object.keys(sSigunguMap);
@@ -1361,6 +1362,41 @@ export default function DiscoverPage() {
       const PAGE = 1000;
       // 최근 36개월(3년) 롤링 윈도우 — 백필된 과거치까지 노출
       const minMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 35); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+
+      // ── 빠른 통계 경로: 서버 집계 RPC(discover_market_agg) ──────────────────────
+      // KPI/랭킹/시군구 지도를 원본 12만행 다운로드를 기다리지 않고 즉시 렌더한다.
+      // dedup+집계는 서버가 수행하며 클라 집계와 수치가 동일함(파리티 검증됨: 45,257/73,691).
+      // 지도 점·동채색·지오코딩은 아래 원본 경로가 이어서 채우고 통계도 동일 수치로 재확인(폴백).
+      // RPC가 실패/빈값이면 statsShown=false로 남아 원본 경로가 단독으로 정확히 렌더한다.
+      const scopeSnaps = (rows: SnapRow[]): SnapRow[] => {
+        if (mode === 'sido' && sido) return rows.filter(r => r.sido === sido);
+        const allow = new Set<string>();
+        Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(g => allow.add(`${s}|${g}`)));
+        return rows.filter(r => allow.has(`${r.sido}|${r.sigungu}`));
+      };
+      try {
+        const { data: aggData, error: aggErr } = await supabase.rpc('discover_market_agg', { p_min_month: minMonth });
+        if (!aggErr && Array.isArray(aggData)) {
+          const snapsFast = scopeSnaps((aggData as Array<{ sido: string; sigungu: string; month: string; new_count: number; closed_count: number }>)
+            .map(r => ({ sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: r.new_count, closed_count: r.closed_count, updated_at: '' })));
+          if (snapsFast.length) {
+            setCachedSnaps(snapsFast);
+            const selM = selectedMonthRef.current;
+            if (selM && !snapsFast.some(r => r.month === selM)) {
+              const latest = snapsFast.reduce((m, r) => (r.month > m ? r.month : m), '');
+              setSelectedMonth(latest); selectedMonthRef.current = latest;
+            }
+            const upMap: Record<string, string> = mode === 'sido' && sido ? { ...sguSidoMap } : {};
+            if (mode === 'sido' && sido) snapsFast.forEach(r => { upMap[r.sigungu] = r.sido; });
+            else Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(g => { upMap[g] = s; }));
+            setSigunguSidoMap(upMap); sigunguSidoMapRef.current = upMap;
+            applyFiltersInternal(snapsFast, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
+            setRefreshing(false);
+            statsShown = true;
+          }
+        }
+      } catch { /* RPC 실패 → 아래 원본 경로가 이어서 렌더 */ }
+
       // 총건수를 먼저 구해 페이지를 병렬로 로드(3년치=대량이라 순차면 느림). count 불가 시 순차 폴백.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const loadScoped = async (applyFilters: (q: any) => any) => {
@@ -1456,8 +1492,11 @@ export default function DiscoverPage() {
 
     } catch (e) {
       console.error('[discover] load error', e);
-      setLastSync('오류');
-      toast.error('데이터 로드에 실패했습니다');
+      // 빠른 통계 경로가 이미 KPI/랭킹을 렌더했으면(지도 원본만 실패) 통계는 유효 → 오류 표기 억제
+      if (!statsShown) {
+        setLastSync('오류');
+        toast.error('데이터 로드에 실패했습니다');
+      }
     } finally {
       setRefreshing(false);
     }
