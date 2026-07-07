@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 import {
   FileText, Store, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
   UploadCloud, Plus, ChevronLeft, ChevronRight, Search, AlertTriangle, ClipboardList,
@@ -495,8 +494,9 @@ export default function UploadPage() {
     const c = UPLOAD_TYPES[selectedType];
     if (!c.columnMap) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
+        const XLSX = await import('xlsx');
         const wb = XLSX.read(ev.target?.result, { type: 'array', cellDates: true });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, raw: false, dateNF: 'YYYY-MM-DD' });
@@ -689,9 +689,10 @@ export default function UploadPage() {
 
   // ── 템플릿/DB 다운로드 ────────────────────────────────────────────────────
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
     const c = UPLOAD_TYPES[selectedType];
     if (!c.templateHeaders || !c.sampleRow) return;
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
     const sample = ['[예시]', ...c.sampleRow.slice(1)];
     const ws = XLSX.utils.aoa_to_sheet([c.templateHeaders, sample]);
@@ -700,10 +701,11 @@ export default function UploadPage() {
     XLSX.writeFile(wb, `FS_MISO_템플릿_${c.label}.xlsx`);
   };
 
-  const downloadCurrentDb = () => {
+  const downloadCurrentDb = async () => {
     const c = UPLOAD_TYPES[selectedType];
     const cols = c.columns ?? c.previewColumns ?? [];
     if (!currentDbData.length) { toast('다운로드할 데이터가 없습니다.'); return; }
+    const XLSX = await import('xlsx');
     const headers = cols.map((col) => col.label);
     const rows = currentDbData.map((row) => cols.map((col) => fmtCell(row[col.key])));
     const wb = XLSX.utils.book_new();
@@ -849,8 +851,9 @@ export default function UploadPage() {
     }
   };
 
-  const downloadSrchResults = () => {
+  const downloadSrchResults = async () => {
     if (!srchSelected.size) return;
+    const XLSX = await import('xlsx');
     const selected = [...srchSelected].map((i) => srchResults[i]);
     const headers = ['NO', '영업 허가일', '사업장명', '거래여부(기입예정)', '업태구분명', '평형', '도로명전체주소', '주소1', '주소2', '주소3', '순위', '담당자', '앱시트등록일', '위도', '경도', '사용우유'];
     const rows = selected.map((item, idx) => [

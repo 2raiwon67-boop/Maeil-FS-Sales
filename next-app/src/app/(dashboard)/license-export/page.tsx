@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { ClipboardList, SearchX, AlertTriangle, Download, Check, XCircle } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
 import { BUSINESS_UNITS } from '@/types';
@@ -355,8 +354,9 @@ export default function LicenseExportPage() {
 
   // ── 엑셀 다운로드 ────────────────────────────────────────────────────────
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!results || selectedIndices.size === 0) return;
+    const XLSX = await import('xlsx');
     const selected = [...selectedIndices].sort((a, b) => a - b).map((i) => results[i]);
     const headers = [
       'NO', '영업 허가일', '사업장명', '거래여부(기입예정)', '업태구분명',
