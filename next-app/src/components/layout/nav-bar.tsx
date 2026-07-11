@@ -15,6 +15,7 @@ import {
   Settings,
   ShieldCheck,
   LogOut,
+  MessageSquareText,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
@@ -25,6 +26,7 @@ import { NotificationBell } from '@/components/layout/notification-bell';
 const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: '/', label: '거래처', icon: Store },
   { href: '/proposal', label: '견적서', icon: FileText },
+  { href: '/consult', label: '메뉴 상담', icon: MessageSquareText },
   { href: '/discover', label: '시장 분석', icon: MapIcon },
   { href: '/upload', label: '데이터 관리', icon: Database },
 ];

@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import {
   FolderOpen, Save, Printer, Search, Sparkles, Plus, LayoutGrid, Store,
-  ChevronDown, X, Trash2, Copy,
+  ChevronDown, X, Trash2, Copy, MessageSquareText,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -494,6 +495,7 @@ export default function ProposalPage() {
       <PageHeader
         actions={
           <>
+            <Link href="/consult" className={headerBtn.outline}><MessageSquareText size={15} />메뉴 상담</Link>
             <button onClick={openQuotePicker} className={headerBtn.outline}><FolderOpen size={15} />불러오기</button>
             <button onClick={() => saveQuote(false)} disabled={savingQuote} className={headerBtn.outline}><Save size={15} />저장</button>
             {loadedQuoteId && <button onClick={() => saveQuote(true)} className={headerBtn.outline}><Copy size={15} />복사본</button>}

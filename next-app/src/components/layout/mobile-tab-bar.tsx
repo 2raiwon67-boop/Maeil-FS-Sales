@@ -23,6 +23,9 @@ export function MobileTabBar() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
+  // 상담 모드는 사장님께 보여주는 presenter 화면 — 탭바를 숨겨 몰입 유지
+  if (pathname === '/consult') return null;
+
   return (
     <>
       {profileOpen && (
