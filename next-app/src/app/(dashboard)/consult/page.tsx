@@ -8,6 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, Search, FileText, Share2, Plus, Check,
@@ -103,6 +104,7 @@ function sanitizeAnalysisHtml(input: string): string {
 export default function ConsultPage() {
   const { user, metadata } = useAuth();
   const supabase = createClient();
+  const router = useRouter();
 
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -342,7 +344,9 @@ export default function ConsultPage() {
         updated_at: new Date().toISOString(),
       });
       if (error) throw error;
-      toast.success('견적 초안을 저장했습니다. 견적서 화면의 "불러오기"에서 확인하세요.');
+      toast.success('견적 초안을 저장했습니다. 견적서의 "불러오기"에서 확인하세요.', {
+        action: { label: '견적서 열기', onClick: () => router.push('/proposal') },
+      });
       setBasket([]);
       setCustomerName('');
       setBasketOpen(false);
@@ -375,14 +379,15 @@ export default function ConsultPage() {
       <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#94a3b8]">메뉴 {basketRecipes.length}</div>
       <div className="flex flex-col gap-1.5">
         {basketRecipes.map((r) => (
-          <div key={r.name} className="flex items-center gap-2 rounded-xl bg-[#f8fafc] px-3 py-2">
-            <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-[#0f172a]">{r.name}</span>
+          <div key={r.name} className="flex items-center gap-2 rounded-xl bg-[#f8fafc] py-1 pl-3 pr-1">
+            <span className="min-w-0 flex-1 truncate py-1.5 text-[13.5px] font-medium text-[#0f172a]">{r.name}</span>
             <button
-              onClick={() => setBasket((prev) => prev.filter((n) => n !== r.name))}
-              className="shrink-0 text-[#cbd5e1] hover:text-red-500"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setBasket((prev) => prev.filter((n) => n !== r.name)); }}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#94a3b8] hover:bg-red-50 hover:text-red-500"
               aria-label={`${r.name} 빼기`}
             >
-              <Trash2 size={15} />
+              <Trash2 size={16} />
             </button>
           </div>
         ))}
@@ -427,16 +432,16 @@ export default function ConsultPage() {
       <div className="hidden md:block">
         <PageHeader
           title="메뉴 상담"
-          subtitle="매장 분석과 레시피 제안 — 담으면 견적 초안이 됩니다"
-          actions={<Link href="/proposal" className={headerBtn.primary}><FileText size={15} />견적서로</Link>}
+          actions={<Link href="/proposal" className={headerBtn.primary}><FileText size={15} />견적서 전환</Link>}
         />
       </div>
 
-      <div className="mx-auto max-w-[520px] px-4 pb-36 pt-4 md:max-w-[1500px] md:px-6 md:pb-16 md:pt-5">
-        <div className="md:grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-start md:gap-4">
+      <div className="mx-auto max-w-[520px] px-4 pb-36 pt-4 md:max-w-[1500px] md:px-6 md:pb-8 md:pt-5">
+        {/* PC: 두 컬럼을 뷰포트 높이에 맞추고 각자 내부 스크롤 — 좌우 시선 이동 최소화 */}
+        <div className="md:grid md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] md:items-start md:gap-4 md:[&>*]:max-h-[calc(100dvh-190px)] md:[&>*]:overflow-y-auto">
 
           {/* ── PC 좌측: AI 매장 분석 + 바구니 ── */}
-          <aside className="hidden md:flex md:flex-col md:gap-3.5">
+          <aside className="hidden md:flex md:flex-col md:gap-3.5 md:pr-0.5">
             <div className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
               <div className="mb-3 flex items-center gap-2 text-sm text-[#475569]">
                 <Sparkles size={16} className="text-[#2563eb]" />AI 매장 분석
@@ -615,7 +620,8 @@ export default function ConsultPage() {
               /* 화면 2: 레시피 리스트 (+ flavor 칩) */
               <>
                 {!searching && flavorChips.length > 0 && (
-                  <div className="sticky top-12 z-10 -mx-4 mb-3 px-4 py-2 backdrop-blur-xl [background:rgba(246,247,249,0.82)] md:top-[88px]">
+                  // PC에선 우측 내부 스크롤 컨테이너 기준으로 상단 고정(md:top-0)
+                  <div className="sticky top-12 z-10 -mx-4 mb-3 px-4 py-2 backdrop-blur-xl [background:rgba(246,247,249,0.82)] md:top-0">
                     <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
                       <button
                         onClick={() => setFlavor(null)}
@@ -703,10 +709,19 @@ export default function ConsultPage() {
       {detail && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 md:items-center" onClick={() => setDetail(null)}>
           <div
-            className="w-full max-w-[520px] rounded-t-[28px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-3 md:rounded-[28px] md:pb-6"
+            className="relative w-full max-w-[520px] rounded-t-[28px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-3 md:rounded-[28px] md:pb-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#e2e8f0] md:hidden" />
+            {/* PC는 backdrop 외에 명시적 닫기 버튼 제공 */}
+            <button
+              type="button"
+              onClick={() => setDetail(null)}
+              className="absolute right-4 top-4 hidden h-8 w-8 items-center justify-center rounded-full text-[#94a3b8] hover:bg-gray-100 md:flex"
+              aria-label="닫기"
+            >
+              <X size={18} />
+            </button>
             <div className="mb-1 flex flex-wrap gap-1 md:mt-3">
               {deriveFlavors(detail.name, detail.main_products || []).map((f) => (
                 <span key={f} className="rounded-full bg-[#f1f5f9] px-2 py-0.5 text-[11px] font-medium text-[#64748b]">#{f}</span>
