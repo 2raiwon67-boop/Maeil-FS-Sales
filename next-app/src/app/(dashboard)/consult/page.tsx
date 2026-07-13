@@ -654,12 +654,25 @@ export default function ConsultPage() {
                       const picked = inBasket(r.name);
                       const prods = (r.main_products || []).slice(0, 2);
                       const more = (r.main_products || []).length - prods.length;
+                      const tint = CATEGORIES.find((c) => c.key === (r.category || '기타'))?.tint ?? '#f1f2f5';
                       return (
                         <button
                           key={r.name}
                           onClick={() => setDetail(r)}
-                          className="flex items-center gap-3 rounded-[20px] border border-[#e8ebf0] bg-white p-4 text-left transition-transform active:scale-[0.98]"
+                          className="flex items-center gap-3 rounded-[20px] border border-[#e8ebf0] bg-white p-3 pr-4 text-left transition-transform active:scale-[0.98]"
                         >
+                          {/* 썸네일 — 누끼컷(lazy), 없으면 카테고리 이모지 */}
+                          <div
+                            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl"
+                            style={{ background: tint }}
+                          >
+                            {r.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={r.image_url} alt="" loading="lazy" className="h-14 w-14 object-contain drop-shadow-sm" />
+                            ) : (
+                              <span className="text-[22px]">{CATEGORIES.find((c) => c.key === (r.category || '기타'))?.emoji ?? '✨'}</span>
+                            )}
+                          </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
                               <span className="truncate text-[16px] font-semibold text-[#0f172a]">{r.name}</span>
