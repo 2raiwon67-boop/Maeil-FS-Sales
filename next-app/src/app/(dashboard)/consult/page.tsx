@@ -43,6 +43,8 @@ interface Recipe {
   category: string | null;
   pdf_url: string | null;
   main_products: string[] | null;
+  image_url: string | null;    // PDF에서 추출한 음료 누끼컷 (Supabase Storage)
+  description: string | null;  // PDF 소개 문장 (Gemini로 띄어쓰기 복원)
 }
 
 interface SheetProduct {
@@ -142,7 +144,7 @@ export default function ConsultPage() {
 
       const { data, error } = await supabase
         .from('recipes')
-        .select('name, category, pdf_url, main_products') // embedding(768차원) 절대 포함 금지
+        .select('name, category, pdf_url, main_products, image_url, description') // embedding(768차원) 절대 포함 금지
         .order('name');
       if (error) toast.error('레시피 로드 실패: ' + error.message);
       setRecipes((data as Recipe[]) || []);
@@ -705,11 +707,11 @@ export default function ConsultPage() {
         </div>
       )}
 
-      {/* ── 상세 바텀시트(모바일) / 중앙 모달(PC) ── */}
+      {/* ── 상세 바텀시트(모바일) / 대형 2단 모달(PC: 좌 음료컷 · 우 정보) ── */}
       {detail && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 md:items-center" onClick={() => setDetail(null)}>
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 md:items-center md:p-6" onClick={() => setDetail(null)}>
           <div
-            className="relative w-full max-w-[520px] rounded-t-[28px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-3 md:rounded-[28px] md:pb-6"
+            className={`relative w-full max-w-[520px] rounded-t-[28px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-3 md:rounded-[28px] md:p-6 md:pb-6 ${detail.image_url ? 'md:max-w-[860px]' : 'md:max-w-[560px]'}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#e2e8f0] md:hidden" />
@@ -717,61 +719,89 @@ export default function ConsultPage() {
             <button
               type="button"
               onClick={() => setDetail(null)}
-              className="absolute right-4 top-4 hidden h-8 w-8 items-center justify-center rounded-full text-[#94a3b8] hover:bg-gray-100 md:flex"
+              className="absolute right-4 top-4 z-10 hidden h-8 w-8 items-center justify-center rounded-full text-[#94a3b8] hover:bg-gray-100 md:flex"
               aria-label="닫기"
             >
               <X size={18} />
             </button>
-            <div className="mb-1 flex flex-wrap gap-1 md:mt-3">
-              {deriveFlavors(detail.name, detail.main_products || []).map((f) => (
-                <span key={f} className="rounded-full bg-[#f1f5f9] px-2 py-0.5 text-[11px] font-medium text-[#64748b]">#{f}</span>
-              ))}
-            </div>
-            <h2 className="text-[22px] font-bold leading-snug text-[#0f172a]">{detail.name}</h2>
-            <p className="mt-1 text-[13px] text-[#94a3b8]">
-              누가 만들어도 같은 맛 — 자세한 조리법은 레시피 PDF에 있습니다
-            </p>
 
-            {(detail.main_products || []).length > 0 && (
-              <div className="mt-4 rounded-2xl bg-[#f8fafc] p-3.5">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#94a3b8]">들어가는 우리 제품</div>
-                <div className="flex flex-col gap-1.5">
-                  {resolveRecipeProducts(detail.name, detail.main_products || [], skuNames)
-                    .filter((p) => p.method !== 'dedupe')
-                    .map((p) => (
-                      <div key={p.raw} className="flex items-center gap-2">
-                        <Store size={13} className="shrink-0 text-[#1B3F82]" />
-                        <span className="text-[13.5px] font-medium text-[#1B3F82]">{p.sku ?? p.raw}</span>
-                      </div>
-                    ))}
+            <div className="md:flex md:items-stretch md:gap-6">
+              {/* PC 좌측: 음료 누끼컷 — 카테고리 틴트 배경 위에 크게 */}
+              {detail.image_url && (
+                <div
+                  className="hidden shrink-0 items-center justify-center rounded-[22px] md:flex md:w-[350px] md:p-8"
+                  style={{ background: CATEGORIES.find((c) => c.key === (detail.category || '기타'))?.tint ?? '#f1f2f5' }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={detail.image_url}
+                    alt={detail.name}
+                    className="max-h-[400px] w-auto object-contain drop-shadow-[0_16px_24px_rgba(15,23,42,0.18)]"
+                  />
+                </div>
+              )}
+
+              <div className="min-w-0 flex-1 md:flex md:flex-col md:py-1">
+                {/* 모바일: 이미지 상단 중앙(작게) */}
+                {detail.image_url && (
+                  <div className="mb-3 flex justify-center md:hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={detail.image_url} alt={detail.name} className="h-44 w-auto object-contain drop-shadow-lg" />
+                  </div>
+                )}
+
+                <div className="mb-1 flex flex-wrap gap-1 md:mt-1">
+                  {deriveFlavors(detail.name, detail.main_products || []).map((f) => (
+                    <span key={f} className="rounded-full bg-[#f1f5f9] px-2 py-0.5 text-[11px] font-medium text-[#64748b]">#{f}</span>
+                  ))}
+                </div>
+                <h2 className="text-[22px] font-bold leading-snug text-[#0f172a] md:text-[26px]">{detail.name}</h2>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-[#64748b] md:text-[14.5px]">
+                  {detail.description || '누가 만들어도 같은 맛 — 자세한 조리법은 레시피 PDF에 있습니다'}
+                </p>
+
+                {(detail.main_products || []).length > 0 && (
+                  <div className="mt-4 rounded-2xl bg-[#f8fafc] p-3.5">
+                    <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#94a3b8]">들어가는 우리 제품</div>
+                    <div className="flex flex-col gap-1.5">
+                      {resolveRecipeProducts(detail.name, detail.main_products || [], skuNames)
+                        .filter((p) => p.method !== 'dedupe')
+                        .map((p) => (
+                          <div key={p.raw} className="flex items-center gap-2">
+                            <Store size={13} className="shrink-0 text-[#1B3F82]" />
+                            <span className="text-[13.5px] font-medium text-[#1B3F82]">{p.sku ?? p.raw}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4 flex gap-2 md:mt-auto md:pt-4">
+                  {detail.pdf_url && (
+                    <>
+                      <button
+                        onClick={() => window.open(detail.pdf_url!, '_blank')}
+                        className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-[#d6dbe3] bg-white py-3 text-[14px] font-semibold text-[#334155]"
+                      >
+                        <FileText size={16} />레시피 보기<ExternalLink size={12} className="text-[#94a3b8]" />
+                      </button>
+                      <button
+                        onClick={() => sharePdf(detail)}
+                        className="flex h-[46px] w-[46px] items-center justify-center rounded-2xl border border-[#d6dbe3] bg-white text-[#334155]"
+                        aria-label="레시피 PDF 공유"
+                      >
+                        <Share2 size={17} />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => { toggleBasket(detail); setDetail(null); }}
+                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-3 text-[14px] font-semibold text-white ${inBasket(detail.name) ? 'bg-[#64748b]' : 'bg-[#2563eb]'}`}
+                  >
+                    {inBasket(detail.name) ? (<><X size={16} />담기 취소</>) : (<><Plus size={16} />담기</>)}
+                  </button>
                 </div>
               </div>
-            )}
-
-            <div className="mt-4 flex gap-2">
-              {detail.pdf_url && (
-                <>
-                  <button
-                    onClick={() => window.open(detail.pdf_url!, '_blank')}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-2xl border border-[#d6dbe3] bg-white py-3 text-[14px] font-semibold text-[#334155]"
-                  >
-                    <FileText size={16} />레시피 보기<ExternalLink size={12} className="text-[#94a3b8]" />
-                  </button>
-                  <button
-                    onClick={() => sharePdf(detail)}
-                    className="flex h-[46px] w-[46px] items-center justify-center rounded-2xl border border-[#d6dbe3] bg-white text-[#334155]"
-                    aria-label="레시피 PDF 공유"
-                  >
-                    <Share2 size={17} />
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => { toggleBasket(detail); setDetail(null); }}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-2xl py-3 text-[14px] font-semibold text-white ${inBasket(detail.name) ? 'bg-[#64748b]' : 'bg-[#2563eb]'}`}
-              >
-                {inBasket(detail.name) ? (<><X size={16} />담기 취소</>) : (<><Plus size={16} />담기</>)}
-              </button>
             </div>
           </div>
         </div>
