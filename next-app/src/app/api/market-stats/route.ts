@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 import proj4 from 'proj4';
 
 const EPSG5174 =
@@ -87,7 +87,9 @@ function dashYmd(s: string): string {
   return d.length === 8 ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : s;
 }
 
-async function fetchPage(type: string, apiKey: string, sido: string, pageNo: number, mode: string, start: string, end: string) {
+// 페이지 요청 실패(타임아웃 포함) 시 최대 2회 재시도 — 실패가 조용히 빈 페이지로 넘어가면
+// 월별 수집이 티 안 나게 결손됨(폐업 186건 유실 사례). 재시도 후에도 실패면 빈 배열.
+async function fetchPage(type: string, apiKey: string, sido: string, pageNo: number, mode: string, start: string, end: string, attempt = 0): Promise<{ items: any[]; totalCount: number }> {
   const isNew = mode === 'new';
   const qs = buildQS({
     serviceKey: apiKey,
@@ -96,9 +98,13 @@ async function fetchPage(type: string, apiKey: string, sido: string, pageNo: num
     returnType: 'json',
     // 공공API 함정: 신규(LCPMT_YMD)는 무대시(YYYYMMDD)만, 폐업(CLSBIZ_YMD)은 대시(YYYY-MM-DD)만 필터가 먹힘.
     // 폐업에 무대시로 보내면 totalCount=0 → 과거 폐업이 안 들어오던 원인.
+    // new_closed: 개업일 기준 + 현재 폐업(03) — 생존편향 교정. 상태 01만 수집하면
+    // 과거 월의 개업 중 이후 폐업한 매장이 '개업' 통계에서 통째로 빠짐(2024-12 경기 음식점 기준 26% 과소).
     ...(isNew
       ? { 'cond[LCPMT_YMD::GTE]': start, 'cond[LCPMT_YMD::LTE]': end, 'cond[SALS_STTS_CD::EQ]': '01' }
-      : { 'cond[CLSBIZ_YMD::GTE]': dashYmd(start), 'cond[CLSBIZ_YMD::LTE]': dashYmd(end), 'cond[SALS_STTS_CD::EQ]': '03' }),
+      : mode === 'new_closed'
+        ? { 'cond[LCPMT_YMD::GTE]': start, 'cond[LCPMT_YMD::LTE]': end, 'cond[SALS_STTS_CD::EQ]': '03' }
+        : { 'cond[CLSBIZ_YMD::GTE]': dashYmd(start), 'cond[CLSBIZ_YMD::LTE]': dashYmd(end), 'cond[SALS_STTS_CD::EQ]': '03' }),
     'cond[LOTNO_ADDR::LIKE]': sido,
   });
 
@@ -107,7 +113,7 @@ async function fetchPage(type: string, apiKey: string, sido: string, pageNo: num
   try {
     const res = await fetch(`${ENDPOINTS[type]}?${qs}`, { signal: ctrl.signal });
     clearTimeout(timer);
-    if (!res.ok) return { items: [] as any[], totalCount: 0 };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const json = await res.json();
     const body = json?.response?.body ?? json?.body ?? json ?? {};
@@ -117,6 +123,10 @@ async function fetchPage(type: string, apiKey: string, sido: string, pageNo: num
     return { items, totalCount };
   } catch {
     clearTimeout(timer);
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      return fetchPage(type, apiKey, sido, pageNo, mode, start, end, attempt + 1);
+    }
     return { items: [] as any[], totalCount: 0 };
   }
 }
@@ -124,11 +134,14 @@ async function fetchPage(type: string, apiKey: string, sido: string, pageNo: num
 async function fetchAll(type: string, apiKey: string, sido: string, mode: string, start: string, end: string) {
   const first = await fetchPage(type, apiKey, sido, 1, mode, start, end);
   const items = [...first.items];
-  const pages = Math.min(Math.ceil((first.totalCount || 0) / 100), 20);
-
-  if (pages > 1) {
-    const rest = await Promise.all(Array.from({ length: pages - 1 }, (_, i) => fetchPage(type, apiKey, sido, i + 2, mode, start, end)));
-    rest.forEach((r) => items.push(...r.items));
+  // 40페이지(4,000행) — 20페이지(2,000행)로는 12월 폐업(경기 음식점 2,063~2,467건)이 조용히 잘렸음.
+  // 페이지는 10개씩 끊어 요청(동시 39건 폭주 방지).
+  const pages = Math.min(Math.ceil((first.totalCount || 0) / 100), 40);
+  for (let p = 2; p <= pages; p += 10) {
+    const batch = await Promise.all(
+      Array.from({ length: Math.min(10, pages - p + 1) }, (_, i) => fetchPage(type, apiKey, sido, p + i, mode, start, end)),
+    );
+    batch.forEach((r) => items.push(...r.items));
   }
 
   return { items, totalCount: first.totalCount };
@@ -294,6 +307,14 @@ export async function GET(req: NextRequest) {
   const sidoShort = toShort(sido);
   const doSave = save === 'true';
 
+  // save=true는 DB 쓰기 경로 — 크론·백필 전용(CRON_SECRET 필요). 조회는 기존대로 공개.
+  if (doSave) {
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && req.headers.get('authorization') !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+  }
+
   const now = new Date();
   const fmt = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
 
@@ -335,14 +356,24 @@ export async function GET(req: NextRequest) {
     };
     const newRes: { items: any[] }[] = [];
     const closedRes: { items: any[] }[] = [];
+    // 수집 완전성 추적 — got(실수신) < want(API totalCount, 캡 반영) 이면 그 달은 결손
+    const coverage: { month: string; got: number; want: number }[] = [];
     for (const m of monthList) {
       const [ms, me] = ymdRange(m);
-      const [nr, cr] = await Promise.all([
+      // new(현재 영업중) + new_closed(개업 후 폐업) 둘 다 '개업'으로 집계 — 생존편향 교정
+      const [nr, ncr, cr] = await Promise.all([
         Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'new', ms, me))),
+        Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'new_closed', ms, me))),
         Promise.all(types.map((t) => fetchAll(t, API_KEY, sidoShort, 'closed', ms, me))),
       ]);
-      newRes.push(...nr);
+      newRes.push(...nr, ...ncr);
       closedRes.push(...cr);
+      const all = [...nr, ...ncr, ...cr];
+      coverage.push({
+        month: m,
+        got: all.reduce((s, r) => s + r.items.length, 0),
+        want: all.reduce((s, r) => s + Math.min(r.totalCount || 0, 4000), 0),
+      });
     }
 
     const monthly: Record<string, { new: number; closed: number }> = {};
@@ -427,6 +458,7 @@ export async function GET(req: NextRequest) {
       sido: sidoShort,
       period: { start: startStr.slice(0, 6), end: endStr.slice(0, 6), months: monthList.length },
       summary: { totalNew, totalClosed, net: totalNew - totalClosed },
+      coverage,
       monthly: monthlyArr,
       regions: regionsArr,
       ...(doSave ? { saved: saveResult } : {}),
