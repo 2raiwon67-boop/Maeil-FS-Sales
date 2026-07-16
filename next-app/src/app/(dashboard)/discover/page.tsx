@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
-import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches } from '@/lib/regions';
+import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket } from '@/lib/regions';
 import { loadNaverMaps, cachedGeocode, cleanGeocodeQuery } from '@/lib/naver/loader';
 import { toast } from 'sonner';
 import {
@@ -1027,7 +1027,9 @@ export default function DiscoverPage() {
       const candidates = sigunguBySido.get(sido);
       if (!candidates) continue; // 이 시도 데이터가 아예 없음
       // 정확일치(구 없는 시) 우선, 없으면 시 접두 매칭(예: 수원시장안구 → 수원시)
-      const city = candidates.has(sgg) ? sgg : [...candidates].find(c => sgg.startsWith(c));
+      // 개편 병합 폴리곤(옛 동구)은 데이터가 다른 버킷(중구)에 정규화돼 있어 버킷명으로 조회
+      const bsgg = geoBucket(sido, sgg);
+      const city = candidates.has(bsgg) ? bsgg : [...candidates].find(c => bsgg.startsWith(c));
       if (!city) continue; // 매칭되는 시군구 데이터 없음 → 무채색 유지
       let rec = agg.get(`${sido}|${city}|${name}`);
       if (!rec) {
@@ -1791,8 +1793,11 @@ export default function DiscoverPage() {
 
   function renderRegionChart(sigungu: string) {
     const monthMap: Record<string, { new: number; closed: number }> = {};
-    cachedSnaps.filter(r => r.sigungu === sigungu).forEach(r => {
-      monthMap[r.month] = { new: r.new_count || 0, closed: r.closed_count || 0 };
+    // 개편 폴리곤 드릴다운('검단구·서해구' 등)은 여러 구가 한 지역이므로 매칭되는 행을 합산
+    cachedSnaps.filter(r => sigunguMatches(r.sido, r.sigungu, sigungu)).forEach(r => {
+      const o = monthMap[r.month] ?? (monthMap[r.month] = { new: 0, closed: 0 });
+      o.new += r.new_count || 0;
+      o.closed += r.closed_count || 0;
     });
     const filtered = monthList
       .map(m => ({ month: m, new: monthMap[m]?.new || 0, closed: monthMap[m]?.closed || 0 }))
@@ -2085,7 +2090,18 @@ export default function DiscoverPage() {
 
   // 드릴다운 요약 인사이트 — 최근 추세·전월대비·주력 업종 (패널 상단 한 줄 요약, 랭킹뷰와 동일 정의로 카테고리 무관 순증 사용)
   const drillSido = drillStores[0]?.sido || '';
-  const drillMM = regionMonthlyNet.get(`${drillSido}|${currentDrillRegion}`);
+  // 개편 폴리곤 드릴다운('검단구·서해구' 등)은 키 직조회가 안 되므로 매칭되는 구들의 시계열을 합산
+  const drillMM = (() => {
+    const direct = regionMonthlyNet.get(`${drillSido}|${currentDrillRegion}`);
+    if (direct || !currentDrillRegion) return direct;
+    const out = new Map<string, number>();
+    for (const [k, mm] of regionMonthlyNet) {
+      const [sd, sg] = k.split('|');
+      if (sd !== drillSido || !sigunguMatches(sd, sg, currentDrillRegion)) continue;
+      for (const [mo, v] of mm) out.set(mo, (out.get(mo) || 0) + v);
+    }
+    return out.size ? out : undefined;
+  })();
   const drillTrend = trendMonths.map(mo => drillMM?.get(mo) ?? 0);
   const drillMom = anchorIdx > 0 ? (drillMM?.get(anchorMonth) ?? 0) - (drillMM?.get(monthList[anchorIdx - 1]) ?? 0) : 0;
   const DRILL_CAT_LABEL: Record<'cafe' | 'bakery' | 'restaurant', string> = { cafe: '카페', bakery: '베이커리', restaurant: '음식점' };
