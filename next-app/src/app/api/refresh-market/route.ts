@@ -23,9 +23,13 @@ export async function GET(req: NextRequest) {
 
   const marketResult: Record<string, any> = {};
   try {
-    const host = req.headers.get('host') || 'maeilfs-sales.vercel.app';
-    const protocol = host.includes('localhost') ? 'http' : 'https';
-    const base = `${protocol}://${host}`;
+    // ⚠️ req host 사용 금지: Vercel cron은 "배포 전용 URL"로 들어오는데, 그 호스트로 내부 재호출하면
+    // Deployment Protection(SSO)에 막혀 조용히 실패함(2026-07 크론 장기 불발의 원인).
+    // 항상 공개 프로덕션 도메인 기준으로 호출한다. (로컬 개발은 host가 localhost일 때만 예외)
+    const reqHost = req.headers.get('host') || '';
+    const base = reqHost.includes('localhost')
+      ? `http://${reqHost}`
+      : `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'maeilfs-sales.vercel.app'}`;
 
     await Promise.all(
       ['경기도', '서울', '인천'].map(async (sido) => {

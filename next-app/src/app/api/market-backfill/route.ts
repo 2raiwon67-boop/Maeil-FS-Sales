@@ -15,9 +15,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const host = req.headers.get('host') || 'maeilfs-sales.vercel.app';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  const base = `${protocol}://${host}`;
+  // req host 금지 — 배포 전용 URL로 재호출 시 Deployment Protection에 막힘 (refresh-market 주석 참고)
+  const reqHost = req.headers.get('host') || '';
+  const base = reqHost.includes('localhost')
+    ? `http://${reqHost}`
+    : `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'maeilfs-sales.vercel.app'}`;
 
   const now = new Date();
   const startYM = new Date(2025, 0, 1);
