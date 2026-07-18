@@ -61,8 +61,8 @@ interface DrillSummary {
 }
 
 // 개별 매장 레코드 (market_store_records, 좌표 기반 점/히트맵 + 동별 집계)
+// 컬럼 다이어트: 주소·인허가일은 본 로드에서 제외(전송량 54%↓), 드릴다운 열 때 지연 로드로 채움
 interface StoreRow {
-  id?: number; // 지오코딩 백필 영속화(market-geocode)용 — DB 행 식별
   name: string;
   sido: string;
   sigungu: string;
@@ -72,9 +72,10 @@ interface StoreRow {
   pyeong: number | null;
   lat: number | null;
   lng: number | null;
-  address: string | null;
-  license_date: string | null;
-  dong: string;
+  dong: string;    // 서버 파생 컬럼(법정동) — 동별 채색·집계용
+  addrKey: string; // 주소 지문(md5 8자, 서버 파생) — 중복제거·지연 로드 매칭용
+  address?: string | null;      // 지연 로드 (undefined=미로드, null=조회했으나 없음)
+  license_date?: string | null; // 〃
 }
 
 interface DongAgg {
@@ -196,19 +197,13 @@ function matchCategory(store: { category?: string | null; name?: string | null }
   return CAT_KW[cat]?.some(kw => haystack.includes(kw)) ?? false;
 }
 
-// 주소에서 동/읍/면 추출.
-// 도로명주소는 끝 괄호의 법정동 `(여울동)`을, 지번/읍면은 중간 `향남읍`을 사용.
-// 건물 동(101동·상가동 등)은 제외 — 행정 단위만.
-function extractDong(address?: string | null): string {
-  if (!address) return '기타';
-  const paren = address.match(/\(([가-힣]+[0-9]?(?:동|읍|면|가))\)\s*$/);
-  if (paren) return paren[1];
-  // 괄호 안이 "동명,건물명" 형태(도로명주소 흔한 패턴) — 콤마 앞 동명만 추출
-  const parenComma = address.match(/\(([가-힣]+[0-9]?(?:동|읍|면|가)),/);
-  if (parenComma) return parenComma[1];
-  const eupmyeon = address.match(/\s([가-힣]{2,}(?:읍|면))(?:\s|$)/);
-  if (eupmyeon) return eupmyeon[1];
-  return '기타';
+// 동/읍/면 추출은 DB 파생 컬럼 `dong`이 담당 (마이그레이션 add_dong_addr_key_generated_columns,
+// 158,830건 기준 99.85% 추출 — 옛 클라 extractDong보다 지번주소·한글자 면 유형까지 커버)
+
+// n개월 전의 YYYY-MM (롤링 윈도우 계산용)
+function monthsAgoStr(n: number): string {
+  const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 // ─── FILTER DROPDOWN ─────────────────────────────────────────────────────────
@@ -408,9 +403,9 @@ function prevMonthStr(month: string): string {
 }
 
 function dedupeStoreEvents(rows: StoreRow[]): StoreRow[] {
-  const byKey = new Map<string, Map<string, StoreRow>>(); // (이름|주소|상태) → month → 대표 행
+  const byKey = new Map<string, Map<string, StoreRow>>(); // (이름|주소지문|상태) → month → 대표 행
   for (const r of rows) {
-    const k = `${r.name}|${r.address ?? ''}|${r.status}`;
+    const k = `${r.name}|${r.addrKey}|${r.status}`;
     let mm = byKey.get(k);
     if (!mm) { mm = new Map(); byKey.set(k, mm); }
     const prev = mm.get(r.month);
@@ -1011,7 +1006,7 @@ export default function DiscoverPage() {
       // 동 경계(geojson)는 옛 구명 기준 — 개편된 새 구명(검단구 등)은 옛 이름으로 정규화해 매칭
       const lsg = legacySigungu(s.sido, s.sigungu);
       sigunguBySido.get(s.sido)!.add(lsg);
-      const dong = extractDong(s.address);
+      const dong = s.dong;
       if (dong === '기타') continue;
       const k = `${s.sido}|${lsg}|${dong}`;
       let o = agg.get(k);
@@ -1302,17 +1297,28 @@ export default function DiscoverPage() {
   // ─── LOAD DASHBOARD DATA ───────────────────────────────────────────────────
 
   // 좌표 없는 레코드(신규 인허가는 공공 API에 좌표가 아직 없음) 주소 → 좌표 백필.
+  // 본 로드는 주소를 안 내려받으므로(컬럼 다이어트) 결측 행(전체의 <1%)만 여기서 별도 조회한다.
   // 홈 지도와 동일한 Naver 지오코더+localStorage 캐시 사용. 백그라운드로 돌며 점이 점진적으로 나타남.
   // 성공분은 /api/market-geocode로 DB에도 저장 — 첫 사용자가 채우면 이후 세션·사용자는 재지오코딩 불필요.
-  const runGeocodeBackfill = useCallback(async (rows: StoreRow[]) => {
+  const runGeocodeBackfill = useCallback(async (minMonth: string) => {
     const runId = ++geocodeRunRef.current; // 새 로드가 시작되면 이전 백필 중단
-    const missing = rows.filter(s => (s.lat == null || s.lng == null) && s.address);
-    if (!missing.length) return;
-    // 현재 보고 있는 월을 먼저 좌표화 (점이 빨리 채워지도록)
-    const sel = selectedMonthRef.current;
-    missing.sort((a, b) => (b.month === sel ? 1 : 0) - (a.month === sel ? 1 : 0));
+    const { data } = await supabase.from('market_store_records')
+      .select('id,name,status,addr_key,address')
+      .in('sido', scopeSidosRef.current).gte('month', minMonth).is('lat', null)
+      .order('month', { ascending: false }).limit(1000); // 최신 월 우선 (점이 빨리 채워지도록)
+    const missing = data || [];
+    if (!missing.length || geocodeRunRef.current !== runId) return;
     try { await loadNaverMaps(); } catch { return; }
     if (geocodeRunRef.current !== runId) return;
+    // 화면 행 매칭 인덱스 (이름|주소지문|상태) — 좌표를 화면 점에도 반영
+    const byKey = new Map<string, StoreRow[]>();
+    for (const r of cachedStoresRef.current) {
+      if (r.lat != null) continue;
+      const k = `${r.name}|${r.addrKey}|${r.status}`;
+      let list = byKey.get(k);
+      if (!list) { list = []; byKey.set(k, list); }
+      list.push(r);
+    }
     const coordByAddr = new Map<string, { lat: number; lng: number } | null>();
     let pendingSave: { id: number; lat: number; lng: number }[] = [];
     const flushSave = async () => {
@@ -1326,15 +1332,15 @@ export default function DiscoverPage() {
     let patched = 0;
     for (const s of missing) {
       if (geocodeRunRef.current !== runId) { await flushSave(); return; }
-      const addr = cleanGeocodeQuery(s.address!);
+      if (!s.address) continue;
+      const addr = cleanGeocodeQuery(s.address);
       let c = coordByAddr.get(addr);
       if (c === undefined) { c = await cachedGeocode(addr); coordByAddr.set(addr, c); }
-      if (c) {
-        s.lat = c.lat; s.lng = c.lng; patched++;
-        if (s.id != null) pendingSave.push({ id: s.id, lat: c.lat, lng: c.lng });
-        if (patched % 20 === 0) updateStoreLayer();
-        if (pendingSave.length >= 100) await flushSave();
-      }
+      if (!c) continue;
+      pendingSave.push({ id: s.id, lat: c.lat, lng: c.lng });
+      for (const row of byKey.get(`${s.name}|${s.addr_key}|${s.status}`) || []) { row.lat = c.lat; row.lng = c.lng; }
+      if (++patched % 20 === 0) updateStoreLayer();
+      if (pendingSave.length >= 100) await flushSave();
     }
     if (patched) updateStoreLayer();
     await flushSave();
@@ -1360,10 +1366,12 @@ export default function DiscoverPage() {
       // (예전엔 독은 market_snapshots 집계·드릴다운은 store_records라 숫자가 어긋났음 → 통일)
       // PostgREST max-rows(≈1000) 캡 때문에 .order('id')+.range() 페이지네이션 필수.
       // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
-      const storeCols = 'id,name,sido,sigungu,month,status,category,pyeong,lat,lng,address,license_date,updated_at';
+      // 컬럼 다이어트: 지도·집계에 필요한 최소 컬럼만 (주소·인허가일은 드릴다운 열 때 지연 로드)
+      const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,dong,addr_key';
       const PAGE = 1000;
       // 최근 36개월(3년) 롤링 윈도우 — 백필된 과거치까지 노출
-      const minMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 35); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; })();
+      const minMonth = monthsAgoStr(35);
+      const recentMin = monthsAgoStr(11); // 우선 로딩 창(최근 12개월) — 첫 지도를 ⅓ 용량으로
 
       // ── 빠른 통계 경로: 서버 집계 RPC(discover_market_agg) ──────────────────────
       // KPI/랭킹/시군구 지도를 원본 12만행 다운로드를 기다리지 않고 즉시 렌더한다.
@@ -1423,74 +1431,80 @@ export default function DiscoverPage() {
         }
         return acc;
       };
+      // 시도별 스코프 — sido 컬럼은 전송하지 않고 클라에서 주입 (조회 조건에 이미 있으므로)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let rawStores: any[] = [];
-      if (mode === 'sido' && sido) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        rawStores = await loadScoped((q: any) => q.eq('sido', sido).gte('month', minMonth));
-      } else {
-        const all = await Promise.all(
-          Object.entries(sSigunguMap).map(([s, list]) =>
+      const scopes: Array<[string, (q: any) => any]> = mode === 'sido' && sido
+        ? [[sido, (q: any) => q.eq('sido', sido)]]
+        : Object.entries(sSigunguMap).map(([s, list]) => [s, (q: any) => q.eq('sido', s).in('sigungu', list)]);
+
+      const loadPhase = async (from: string, to?: string): Promise<StoreRow[]> => (await Promise.all(
+        scopes.map(async ([s, filter]) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (await loadScoped((q: any) => { const b = filter(q).gte('month', from); return to ? b.lt('month', to) : b; }))
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            loadScoped((q: any) => q.eq('sido', s).in('sigungu', list).gte('month', minMonth))
-          )
-        );
-        rawStores = all.flat();
-      }
+            .map((r: any): StoreRow => ({
+              name: r.name, sido: s, sigungu: r.sigungu, month: r.month,
+              status: r.status === 'closed' ? 'closed' : 'new',
+              category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
+              lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
+              dong: r.dong || '기타', addrKey: r.addr_key || '',
+            })))
+      )).flat();
 
-      // 반복 노출 중복 제거(dedupeStoreEvents 주석 참고) — KPI/랭킹/동별/드릴다운/지도 점이
-      // 전부 이 배열에서 파생되므로 여기 한 곳에서 걸러야 화면 간 숫자가 일치한다.
-      const storeRows: StoreRow[] = dedupeStoreEvents(rawStores.map(r => ({
-        id: r.id, name: r.name, sido: r.sido, sigungu: r.sigungu, month: r.month,
-        status: r.status === 'closed' ? 'closed' : 'new',
-        category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
-        lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
-        address: r.address, license_date: r.license_date, dong: extractDong(r.address),
-      })));
-      setCachedStores(storeRows);
-      cachedStoresRef.current = storeRows;
-      void runGeocodeBackfill(storeRows); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
+      // 화면 반영 — 1·2단계 로딩이 같은 경로를 재사용
+      const finishRows = (raw: StoreRow[]) => {
+        // 반복 노출 중복 제거(dedupeStoreEvents 주석 참고) — KPI/랭킹/동별/드릴다운/지도 점이
+        // 전부 이 배열에서 파생되므로 여기 한 곳에서 걸러야 화면 간 숫자가 일치한다.
+        const storeRows = dedupeStoreEvents(raw);
+        setCachedStores(storeRows);
+        cachedStoresRef.current = storeRows;
 
-      // 선택 월에 데이터가 없으면(월초 야간수집 前·수집 지연 등) 데이터가 있는 최신 월로 폴백
-      // — 캘린더상 새 달로 넘어갔지만 아직 그 달 데이터가 없을 때 화면 전체가 0으로 비는 문제 방지
-      const selMonth = selectedMonthRef.current;
-      if (selMonth && storeRows.length && !storeRows.some(r => r.month === selMonth)) {
-        const latest = storeRows.reduce((m, r) => (r.month > m ? r.month : m), '');
-        setSelectedMonth(latest);
-        selectedMonthRef.current = latest;
-      }
+        // 선택 월에 데이터가 없으면(월초 야간수집 前·수집 지연 등) 데이터가 있는 최신 월로 폴백
+        // — 캘린더상 새 달로 넘어갔지만 아직 그 달 데이터가 없을 때 화면 전체가 0으로 비는 문제 방지
+        const selM = selectedMonthRef.current;
+        if (selM && storeRows.length && !storeRows.some(r => r.month === selM)) {
+          const latest = storeRows.reduce((m, r) => (r.month > m ? r.month : m), '');
+          setSelectedMonth(latest);
+          selectedMonthRef.current = latest;
+        }
 
-      // sigunguSidoMap 갱신 (지도 중심 이동·라벨용)
-      const updatedMap: Record<string, string> = mode === 'sido' && sido ? { ...sguSidoMap } : {};
-      if (mode === 'sido' && sido) {
-        storeRows.forEach(r => { updatedMap[r.sigungu] = r.sido; });
-      } else {
-        Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(sgu => { updatedMap[sgu] = s; }));
-      }
-      setSigunguSidoMap(updatedMap);
-      sigunguSidoMapRef.current = updatedMap;
+        // sigunguSidoMap 갱신 (지도 중심 이동·라벨용)
+        const updatedMap: Record<string, string> = mode === 'sido' && sido ? { ...sguSidoMap } : {};
+        if (mode === 'sido' && sido) {
+          storeRows.forEach(r => { updatedMap[r.sigungu] = r.sido; });
+        } else {
+          Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(sgu => { updatedMap[sgu] = s; }));
+        }
+        setSigunguSidoMap(updatedMap);
+        sigunguSidoMapRef.current = updatedMap;
 
-      // 매장 → SnapRow 집계 (다운스트림 KPI/랭킹/면/차트는 SnapRow를 그대로 소비)
-      const snapAgg = new Map<string, SnapRow>();
-      for (const r of storeRows) {
-        const k = `${r.sido}|${r.sigungu}|${r.month}`;
-        let o = snapAgg.get(k);
-        if (!o) { o = { sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: 0, closed_count: 0, updated_at: '' }; snapAgg.set(k, o); }
-        if (r.status === 'new') o.new_count++; else o.closed_count++;
-      }
-      const snaps = [...snapAgg.values()];
-      setCachedSnaps(snaps);
+        // 매장 → SnapRow 집계 (다운스트림 KPI/랭킹/면/차트는 SnapRow를 그대로 소비)
+        const snapAgg = new Map<string, SnapRow>();
+        for (const r of storeRows) {
+          const k = `${r.sido}|${r.sigungu}|${r.month}`;
+          let o = snapAgg.get(k);
+          if (!o) { o = { sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: 0, closed_count: 0, updated_at: '' }; snapAgg.set(k, o); }
+          if (r.status === 'new') o.new_count++; else o.closed_count++;
+        }
+        const snaps = [...snapAgg.values()];
+        setCachedSnaps(snaps);
+        // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
+        applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
+      };
 
-      const lastUpd = rawStores.reduce((mx, r) => (r.updated_at && r.updated_at > mx ? r.updated_at : mx), '');
-      if (lastUpd) {
-        const d = new Date(lastUpd).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
-        setLastSync(`갱신 ${d}`);
-      } else {
-        setLastSync('데이터 없음');
-      }
+      // 1단계: 최근 12개월 먼저 렌더 → 2단계: 과거 24개월 병합 재렌더
+      let raw = await loadPhase(recentMin);
+      finishRows(raw);
+      const older = await loadPhase(minMonth, recentMin);
+      if (older.length) { raw = raw.concat(older); finishRows(raw); }
+      void runGeocodeBackfill(minMonth); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
-      // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
-      applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
+      // "갱신 시각"은 행 전체 대신 최신 1건만 조회 (updated_at 컬럼 다이어트 대체)
+      void supabase.from('market_store_records').select('updated_at')
+        .order('updated_at', { ascending: false }).limit(1).then(({ data }) => {
+          const t = data?.[0]?.updated_at;
+          setLastSync(t ? `갱신 ${new Date(t).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '데이터 없음');
+        });
 
     } catch (e) {
       console.error('[discover] load error', e);
@@ -1833,8 +1847,37 @@ export default function DiscoverPage() {
     updateSelectedMarker(null);
     setDrillStores(rows);
     setPanelOpen(true);
+    void loadDrillDetails(rows); // 주소·인허가일 지연 로드 (컬럼 다이어트 보완)
     if (hadDongFilter) updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
+  }
+
+  // 드릴다운 상세(주소·인허가일) 지연 로드 — 본 로드에서 뺀 무거운 컬럼을 열람 시군구만 채운다.
+  // 같은 행 객체를 다시 열면 address가 이미 있어 재조회하지 않는다.
+  async function loadDrillDetails(rows: StoreRow[]) {
+    const need = rows.filter(r => r.address === undefined);
+    if (!need.length) return;
+    const sd = need[0].sido;
+    const sgs = [...new Set(need.map(r => r.sigungu))];
+    const region = drillRegionRef.current;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const acc: any[] = [];
+    for (let from = 0; from < 20000; from += 1000) {
+      const { data, error } = await supabase.from('market_store_records')
+        .select('name,status,month,addr_key,address,license_date')
+        .eq('sido', sd).in('sigungu', sgs).order('id').range(from, from + 999);
+      if (error || !data) break;
+      acc.push(...data);
+      if (data.length < 1000) break;
+    }
+    if (drillRegionRef.current !== region) return; // 로드 중 다른 지역으로 전환됨
+    const detail = new Map(acc.map(d => [`${d.name}|${d.addr_key}|${d.status}|${d.month}`, d]));
+    for (const r of rows) {
+      const d = detail.get(`${r.name}|${r.addrKey}|${r.status}|${r.month}`);
+      r.address = d?.address ?? null;
+      r.license_date = d?.license_date ?? null;
+    }
+    setDrillStores([...rows]);
   }
 
   function closePanel() {
@@ -2570,15 +2613,16 @@ export default function DiscoverPage() {
                 {/* KPI 카드 — 합계 + 전월 대비 (기준월 vs 직전월) */}
                 <div className="mb-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
                   {([
-                    { label: '총 순증', value: (rankTotals.net > 0 ? '+' : '') + rankTotals.net.toLocaleString(), delta: rankTotals.delta?.net ?? null, badWhenUp: false },
+                    { label: '총 순증', value: (rankTotals.net > 0 ? '+' : '') + rankTotals.net.toLocaleString(), delta: rankTotals.delta?.net ?? null, badWhenUp: false, hero: true },
                     { label: '신규 개점', value: rankTotals.new.toLocaleString(), delta: rankTotals.delta?.new ?? null, badWhenUp: false },
                     { label: '폐업', value: rankTotals.closed.toLocaleString(), delta: rankTotals.delta?.closed ?? null, badWhenUp: true },
                     { label: '대형 매장(100평+)', value: rankTotals.big.toLocaleString(), delta: null, badWhenUp: false },
-                  ] as { label: string; value: string; delta: number | null; badWhenUp: boolean }[]).map(c => (
-                    <div key={c.label} className="rounded-xl border border-slate-200/70 bg-white px-3.5 py-3 shadow-sm">
-                      <div className="text-[12px] text-slate-500">{c.label}</div>
-                      <div className="mt-0.5 text-[22px] font-bold tabular-nums tracking-[-0.01em] text-slate-900">{c.value}</div>
-                      <div className={`mt-0.5 text-[12px] font-medium ${c.delta == null || c.delta === 0 || rankPartialMonth ? 'text-slate-400' : (c.delta > 0) !== c.badWhenUp ? rankPosCls : rankNegCls}`}>
+                  ] as { label: string; value: string; delta: number | null; badWhenUp: boolean; hero?: boolean }[]).map(c => (
+                    // 핵심 지표(총 순증)는 히어로 카드로 승격 — 화면의 한 줄 요약 역할 (시안 A)
+                    <div key={c.label} className={c.hero ? 'rounded-xl bg-gradient-to-br from-blue-600 to-indigo-500 px-3.5 py-3 shadow-sm' : 'rounded-xl border border-slate-200/70 bg-white px-3.5 py-3 shadow-sm'}>
+                      <div className={`text-[12px] ${c.hero ? 'text-blue-100' : 'text-slate-500'}`}>{c.label}</div>
+                      <div className={`mt-0.5 text-[22px] font-bold tabular-nums tracking-[-0.01em] ${c.hero ? 'text-white' : 'text-slate-900'}`}>{c.value}</div>
+                      <div className={`mt-0.5 text-[12px] font-medium ${c.hero ? 'text-blue-100/90' : c.delta == null || c.delta === 0 || rankPartialMonth ? 'text-slate-400' : (c.delta > 0) !== c.badWhenUp ? rankPosCls : rankNegCls}`}>
                         {c.delta == null ? (rangeTo ? '선택 기간 합계' : '신규 인허가 기준') : rankPartialMonth ? '이달 집계 진행 중' : c.delta === 0 ? '전월과 동일' : `${c.delta > 0 ? '▲' : '▼'} ${Math.abs(c.delta)} 전월 대비`}
                       </div>
                     </div>
@@ -2610,7 +2654,7 @@ export default function DiscoverPage() {
                       <div
                         key={r.sido + r.region}
                         onClick={() => openDrilldown(r.region, r.sido)}
-                        className="grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 cursor-pointer rounded-xl border border-slate-200/70 bg-white px-3 py-3 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50/40"
+                        className={`grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 cursor-pointer rounded-xl border bg-white px-3 py-3 shadow-sm transition-all hover:bg-blue-50/40 ${i === 0 ? 'border-blue-400 ring-1 ring-blue-400/50 hover:border-blue-400' : 'border-slate-200/70 hover:border-blue-300'}`}
                       >
                         <span className="flex items-baseline gap-1">
                           <span className="w-5 text-[15px] font-bold tabular-nums text-slate-800">{i + 1}</span>
