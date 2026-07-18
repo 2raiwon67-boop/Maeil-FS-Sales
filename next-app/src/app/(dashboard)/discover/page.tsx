@@ -541,6 +541,10 @@ export default function DiscoverPage() {
   const dongHoverPopupRef = useRef<any>(null);
   const scopeSidosRef = useRef<string[]>([]);
   const playTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // 지역별 세션 캐시 — 한 번 내려받은 원본을 기억해 재방문 시 다운로드 없이 즉시 표시.
+  // 데이터 갱신은 하루 1회(새벽 크론)뿐이라 세션 내 재사용은 안전. 새로고침하면 비워진다.
+  const storeCacheRef = useRef<Map<string, StoreRow[]>>(new Map());
+  const loadRunRef = useRef(0); // 지역을 연달아 바꿀 때 늦게 끝난 이전 로드가 화면을 덮어쓰지 않게
 
   useEffect(() => { sigunguSidoMapRef.current = sigunguSidoMap; }, [sigunguSidoMap]);
   useEffect(() => { viewSidoRef.current = regionSido; }, [regionSido]);
@@ -1355,6 +1359,7 @@ export default function DiscoverPage() {
   ) => {
     setRefreshing(true);
     setLastSync('로딩 중...');
+    const runId = ++loadRunRef.current; // 이 로드가 최신인지 판별 (지역 연속 전환 대비)
     let statsShown = false; // 빠른 통계 경로(RPC)가 KPI/랭킹을 이미 렌더했는지
     mapCenteredRef.current = false;
     // 행정동 경계 스코프 갱신 (줌인 시 이 시도들 경계를 로드) — 스코프 바뀌면 재로드
@@ -1373,6 +1378,12 @@ export default function DiscoverPage() {
       const minMonth = monthsAgoStr(35);
       const recentMin = monthsAgoStr(11); // 우선 로딩 창(최근 12개월) — 첫 지도를 ⅓ 용량으로
 
+      // 세션 캐시 조회 — 이번 세션에 이미 받아본 지역이면 다운로드·RPC 없이 즉시 표시
+      const cacheKey = mode === 'sido' && sido
+        ? `sido|${sido}`
+        : `mine|${Object.entries(sSigunguMap).map(([s, list]) => `${s}:${list.join(',')}`).join(';')}`;
+      const cachedRows = storeCacheRef.current.get(cacheKey);
+
       // ── 빠른 통계 경로: 서버 집계 RPC(discover_market_agg) ──────────────────────
       // KPI/랭킹/시군구 지도를 원본 12만행 다운로드를 기다리지 않고 즉시 렌더한다.
       // dedup+집계는 서버가 수행하며 클라 집계와 수치가 동일함(파리티 검증됨: 45,257/73,691).
@@ -1384,9 +1395,9 @@ export default function DiscoverPage() {
         Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(g => allow.add(`${s}|${g}`)));
         return rows.filter(r => allow.has(`${r.sido}|${r.sigungu}`));
       };
-      try {
+      if (!cachedRows) try {
         const { data: aggData, error: aggErr } = await supabase.rpc('discover_market_agg', { p_min_month: minMonth });
-        if (!aggErr && Array.isArray(aggData)) {
+        if (!aggErr && Array.isArray(aggData) && loadRunRef.current === runId) {
           const snapsFast = scopeSnaps((aggData as Array<{ sido: string; sigungu: string; month: string; new_count: number; closed_count: number }>)
             .map(r => ({ sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: r.new_count, closed_count: r.closed_count, updated_at: '' })));
           if (snapsFast.length) {
@@ -1407,27 +1418,48 @@ export default function DiscoverPage() {
         }
       } catch { /* RPC 실패 → 아래 원본 경로가 이어서 렌더 */ }
 
+      // 점진 렌더 — 페이지가 도착하는 만큼 지도 점을 미리 찍는다(전체 완료를 기다리지 않음).
+      // KPI/랭킹 등 통계는 부분값으로 깜빡이지 않게 여기서 건드리지 않고, 단계 완료 시 finishRows가 확정.
+      const arrived: StoreRow[] = [];
+      let lastPaint = 0;
+      const paintPartial = () => {
+        if (loadRunRef.current !== runId) return; // 더 최신 로드가 시작됨 — 화면 덮어쓰기 금지
+        const now = Date.now();
+        if (now - lastPaint < 500) return; // 0.5초에 한 번만 다시 그리기
+        lastPaint = now;
+        cachedStoresRef.current = dedupeStoreEvents(arrived);
+        updateStoreLayer();
+      };
+
       // 총건수를 먼저 구해 페이지를 병렬로 로드(3년치=대량이라 순차면 느림). count 불가 시 순차 폴백.
+      // 각 페이지는 도착 즉시 StoreRow로 변환·누적하고 paintPartial로 점을 찍는다.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const loadScoped = async (applyFilters: (q: any) => any) => {
+      const loadScoped = async (applyFilters: (q: any) => any, toRow: (r: any) => StoreRow) => {
+        const acc: StoreRow[] = [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const acc: any[] = [];
+        const onPage = (data: any[] | null, error: any): number => {
+          if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); return 0; }
+          const rows = (data || []).map(toRow);
+          acc.push(...rows);
+          arrived.push(...rows);
+          paintPartial();
+          return rows.length;
+        };
         const { count } = await applyFilters(supabase.from('market_store_records').select('id', { count: 'exact', head: true }));
         if (count != null && count >= 0) {
           const pages = Math.min(Math.max(1, Math.ceil(count / PAGE)), 120);
-          const res = await Promise.all(
+          await Promise.all(
             Array.from({ length: pages }, (_, i) =>
-              applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(i * PAGE, i * PAGE + PAGE - 1))
+              applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(i * PAGE, i * PAGE + PAGE - 1)
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .then(({ data, error }: any) => onPage(data, error)))
           );
-          for (const { data, error } of res) { if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); continue; } if (data) acc.push(...data); }
           return acc;
         }
         for (let from = 0; from < 200000; from += PAGE) { // 폴백: 순차 드레인
           const { data, error } = await applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(from, from + PAGE - 1);
-          if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); break; }
-          const batch = data || [];
-          acc.push(...batch);
-          if (batch.length < PAGE) break;
+          if (error) { onPage(null, error); break; }
+          if (onPage(data, null) < PAGE) break;
         }
         return acc;
       };
@@ -1438,21 +1470,23 @@ export default function DiscoverPage() {
         : Object.entries(sSigunguMap).map(([s, list]) => [s, (q: any) => q.eq('sido', s).in('sigungu', list)]);
 
       const loadPhase = async (from: string, to?: string): Promise<StoreRow[]> => (await Promise.all(
-        scopes.map(async ([s, filter]) =>
+        scopes.map(([s, filter]) => loadScoped(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (await loadScoped((q: any) => { const b = filter(q).gte('month', from); return to ? b.lt('month', to) : b; }))
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .map((r: any): StoreRow => ({
-              name: r.name, sido: s, sigungu: r.sigungu, month: r.month,
-              status: r.status === 'closed' ? 'closed' : 'new',
-              category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
-              lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
-              dong: r.dong || '기타', addrKey: r.addr_key || '',
-            })))
+          (q: any) => { const b = filter(q).gte('month', from); return to ? b.lt('month', to) : b; },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (r: any): StoreRow => ({
+            name: r.name, sido: s, sigungu: r.sigungu, month: r.month,
+            status: r.status === 'closed' ? 'closed' : 'new',
+            category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
+            lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
+            dong: r.dong || '기타', addrKey: r.addr_key || '',
+          }),
+        ))
       )).flat();
 
       // 화면 반영 — 1·2단계 로딩이 같은 경로를 재사용
       const finishRows = (raw: StoreRow[]) => {
+        if (loadRunRef.current !== runId) return; // 더 최신 로드가 시작됨 — 화면 덮어쓰기 금지
         // 반복 노출 중복 제거(dedupeStoreEvents 주석 참고) — KPI/랭킹/동별/드릴다운/지도 점이
         // 전부 이 배열에서 파생되므로 여기 한 곳에서 걸러야 화면 간 숫자가 일치한다.
         const storeRows = dedupeStoreEvents(raw);
@@ -1492,11 +1526,17 @@ export default function DiscoverPage() {
         applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
       };
 
-      // 1단계: 최근 12개월 먼저 렌더 → 2단계: 과거 24개월 병합 재렌더
-      let raw = await loadPhase(recentMin);
-      finishRows(raw);
-      const older = await loadPhase(minMonth, recentMin);
-      if (older.length) { raw = raw.concat(older); finishRows(raw); }
+      if (cachedRows) {
+        // 재방문 지역 — 세션 캐시로 다운로드 없이 즉시 표시
+        finishRows(cachedRows);
+      } else {
+        // 1단계: 최근 12개월 먼저 렌더 → 2단계: 과거 24개월 병합 재렌더
+        let raw = await loadPhase(recentMin);
+        finishRows(raw);
+        const older = await loadPhase(minMonth, recentMin);
+        if (older.length) { raw = raw.concat(older); finishRows(raw); }
+        storeCacheRef.current.set(cacheKey, raw); // 다음 방문부터는 즉시 표시
+      }
       void runGeocodeBackfill(minMonth); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
       // "갱신 시각"은 행 전체 대신 최신 1건만 조회 (updated_at 컬럼 다이어트 대체)
@@ -1514,7 +1554,7 @@ export default function DiscoverPage() {
         toast.error('데이터 로드에 실패했습니다');
       }
     } finally {
-      setRefreshing(false);
+      if (loadRunRef.current === runId) setRefreshing(false); // 이전 로드가 새 로드의 스피너를 끄지 않게
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sidoSigunguMap, sigunguSidoMap]);
