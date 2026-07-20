@@ -11,6 +11,7 @@ import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
   Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download, Info,
+  ClipboardList,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -85,7 +86,16 @@ interface DongAgg {
   net: number;
 }
 
-type ViewMode = 'map' | 'rank';
+type ViewMode = 'map' | 'rank' | 'plan';
+
+// 운영계획 뷰 — (시도|시군구)×연도 집계 행. years/nets 인덱스 0~3 = 최근 4개 연도(오래된 순)
+interface PlanRegion {
+  sido: string;
+  sigungu: string;
+  years: { n: number; c: number }[];
+  big: number; // 최근년 신규 중 100평+ 대형
+  nets: number[];
+}
 type DisplayMode = 'area' | 'points' | 'heat' | 'd3';
 type RegionMode = 'branch' | 'sido';
 type RankSort = 'net' | 'mom' | 'new' | 'closed' | 'rate';
@@ -471,6 +481,7 @@ export default function DiscoverPage() {
   // UI state
   const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
+  const [planSort, setPlanSort] = useState<{ k: string; d: 1 | -1 }>({ k: '3:2', d: -1 }); // 운영계획 표 정렬 — 기본: 최근년 순증 내림차순
   const [displayMode, setDisplayMode] = useState<DisplayMode>('points');
   const [colorblind, setColorblind] = useState(false); // 색각보정 (홈/설정모달과 fs_colorblind 공유)
   const [playing, setPlaying] = useState(false);
@@ -1706,7 +1717,7 @@ export default function DiscoverPage() {
 
   function handleSetViewMode(mode: ViewMode) {
     setViewMode(mode);
-    if (mode === 'rank') stopPlay();
+    if (mode !== 'map') stopPlay();
     if (mode === 'map') {
       setTimeout(() => { mapRef.current?.resize(); }, 100);
       setTimeout(() => { mapRef.current?.resize(); }, 350);
@@ -2141,6 +2152,71 @@ export default function DiscoverPage() {
     toast.success('엑셀 파일을 내려받았습니다');
   };
 
+  // ─── 운영계획 뷰 — 지역×연도 트렌드 표 (연말 중점 지역 선정용) ────────────────
+  // cachedStores 단일 소스를 (시도|시군구)×연도로 집계. 업종 칩(selectedCategory) 연동.
+  // 양끝 연도는 부분 집계(조회 창이 최근 36개월) — 표 하단 각주로 안내.
+  const planYear0 = new Date().getFullYear() - 3;
+  const planYearLabel = (yi: number) => `${(planYear0 + yi) % 100}년`;
+  const planRows: PlanRegion[] = (() => {
+    const byRegion = new Map<string, { sido: string; sigungu: string; years: { n: number; c: number }[]; big: number }>();
+    for (const s of cachedStores) {
+      if (!matchCategory(s, selectedCategory)) continue;
+      const yi = Number(s.month.slice(0, 4)) - planYear0;
+      if (yi < 0 || yi > 3) continue;
+      const key = `${s.sido}|${s.sigungu}`;
+      let r = byRegion.get(key);
+      if (!r) {
+        r = { sido: s.sido, sigungu: s.sigungu, years: [{ n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }], big: 0 };
+        byRegion.set(key, r);
+      }
+      if (s.status === 'new') {
+        r.years[yi].n++;
+        if (yi === 3 && (s.pyeong || 0) >= 100) r.big++;
+      } else r.years[yi].c++;
+    }
+    return [...byRegion.values()].map(r => ({ ...r, nets: r.years.map(y => y.n - y.c) }));
+  })();
+  const planVal = (r: PlanRegion, k: string): number => {
+    if (k === 'big') return r.big;
+    const [yi, m] = k.split(':').map(Number);
+    return m === 0 ? r.years[yi].n : m === 1 ? r.years[yi].c : r.nets[yi];
+  };
+  const planSorted = [...planRows].sort((a, b) => planSort.k === 'region'
+    ? planSort.d * `${a.sido} ${a.sigungu}`.localeCompare(`${b.sido} ${b.sigungu}`, 'ko')
+    : planSort.d * (planVal(a, planSort.k) - planVal(b, planSort.k)));
+  const planArrow = (k: string) => planSort.k === k ? (planSort.d === 1 ? ' ↑' : ' ↓') : '';
+  const planSortBy = (k: string) => setPlanSort(p => ({ k, d: p.k === k ? (p.d === 1 ? -1 : 1) : k === 'region' ? 1 : -1 }));
+  // 요약 카드 — 최근년 순증 상위(공략)·하위 음수(주의) 자동 도출
+  const planFocus = planRows.filter(r => r.nets[3] > 0).sort((a, b) => b.nets[3] - a.nets[3]).slice(0, 3);
+  const planRisk = planRows.filter(r => r.nets[3] < 0).sort((a, b) => a.nets[3] - b.nets[3]).slice(0, 3);
+  const planReason = (r: PlanRegion) =>
+    r.nets[1] > 0 && r.nets[2] > 0 ? '순증 플러스 지속' : r.nets[2] < 0 ? `전년 ${r.nets[2]}에서 반등` : '전년 대비 성장';
+  // 순증 비교 가로 막대 — 전 행이 같은 0 기준선 공유 (스케일은 최근년 순증 최대값 기준)
+  const planMaxPos = Math.max(1, ...planRows.map(r => r.nets[3]));
+  const planMaxNeg = Math.max(1, ...planRows.map(r => -r.nets[3]));
+  const planNegBar = colorblind ? '#f97316' : '#e24b4a';
+  const planHeat = (v: number): string | undefined => v === 0 ? undefined
+    : `${v > 0 ? 'rgba(37,99,235,' : colorblind ? 'rgba(249,115,22,' : 'rgba(226,75,74,'}${Math.min(Math.abs(v) / 170 + 0.05, 0.4).toFixed(2)})`;
+  const sidoShort = (s: string) => (s === '경기도' ? '경기' : s);
+  const exportPlanXlsx = async () => {
+    const XLSX = await import('xlsx');
+    const rows = planSorted.map(r => {
+      const o: Record<string, string | number> = { 시도: r.sido, 시군구: r.sigungu };
+      r.years.forEach((y, yi) => {
+        o[`${planYearLabel(yi)} 신규`] = y.n;
+        o[`${planYearLabel(yi)} 폐업`] = y.c;
+        o[`${planYearLabel(yi)} 순증`] = r.nets[yi];
+      });
+      o[`${planYearLabel(3)} 100평+`] = r.big;
+      return o;
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '운영계획');
+    XLSX.writeFile(wb, `운영계획_지역트렌드_${planYear0 + 3}.xlsx`);
+    toast.success('엑셀 파일을 내려받았습니다');
+  };
+
   // 드릴다운 라이브 집계 (선택 월·업종 즉시 반영)
   const drillScoped = drillStores
     .filter(s => monthInSel(s.month, selectedMonth, rangeTo))
@@ -2283,6 +2359,12 @@ export default function DiscoverPage() {
             className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <BarChart3 size={14} />랭킹
+          </button>
+          <button
+            onClick={() => handleSetViewMode('plan')}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'plan' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <ClipboardList size={14} />운영계획
           </button>
         </div>
         <button
@@ -2768,6 +2850,117 @@ export default function DiscoverPage() {
             <div className="flex-1 relative min-h-0">
               <canvas ref={overallChartCanvasRef} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 운영계획 뷰 — 요약 카드(위) + 지역×연도 정렬 표(아래), 머리글 없이 컴팩트 ── */}
+      {viewMode === 'plan' && (
+        <div className="absolute inset-0 z-[300] flex flex-col overflow-hidden bg-slate-50">
+          {/* 슬림 툴바 — 캡션 + 엑셀 (우측 여백은 top-right 토글 오버레이 회피) */}
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2 pr-[320px] max-sm:pr-5 max-sm:pt-[52px]">
+            <div className="text-[12px] text-slate-500">지역 × 연도 신규·폐업·순증 — 머리글 클릭 정렬 · 업종 필터 연동</div>
+            <button
+              onClick={exportPlanXlsx}
+              className="inline-flex h-[28px] cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-600 transition-colors hover:border-blue-400 hover:text-blue-600"
+            >
+              <Download size={13} />엑셀
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto px-4 py-3 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+            {planRows.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-center text-[13px] leading-relaxed text-slate-400">
+                <Clock size={28} className="opacity-60" />
+                데이터 불러오는 중...
+              </div>
+            ) : (
+              <div className="mx-auto max-w-[1400px]">
+                {/* 요약 카드 — 위 (공략 상위 3 + 이탈 주의) */}
+                <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  {planFocus.map((r, i) => (
+                    <div key={`${r.sido}|${r.sigungu}`} className="rounded-xl border border-l-4 border-slate-200/70 border-l-blue-500 bg-white px-3.5 py-2.5 shadow-sm">
+                      <div className="text-[13px] font-bold text-slate-900">
+                        🎯 {sidoShort(r.sido)} {r.sigungu} <span className="font-medium text-slate-400">{i + 1}순위 공략</span>
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-slate-500">
+                        {planYearLabel(3)} 순증 <b className="text-blue-600 tabular-nums">+{r.nets[3]}</b> · {planReason(r)}
+                      </div>
+                    </div>
+                  ))}
+                  {planRisk.length > 0 && (
+                    <div className="rounded-xl border border-l-4 border-slate-200/70 border-l-amber-500 bg-white px-3.5 py-2.5 shadow-sm">
+                      <div className="text-[13px] font-bold text-slate-900">⚠ 이탈 주의</div>
+                      <div className="mt-0.5 text-[12px] text-slate-500 tabular-nums">
+                        {planRisk.map(r => `${r.sigungu} ${r.nets[3]}`).join(' · ')} — 기존 거래처 방문 주기 단축
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 지역×연도 표 — 아래 */}
+                <div className="overflow-x-auto rounded-xl border border-slate-200/70 bg-white shadow-sm">
+                  <table className="w-full min-w-[1040px] border-collapse text-right text-[12.5px] tabular-nums">
+                    <thead>
+                      <tr className="text-[11.5px] text-slate-400">
+                        <th rowSpan={2} className="cursor-pointer select-none px-3 py-1.5 text-left font-semibold hover:text-blue-600" onClick={() => planSortBy('region')}>지역{planArrow('region')}</th>
+                        {[0, 1, 2, 3].map(yi => (
+                          <th key={yi} colSpan={3} className="border-l border-slate-100 px-2 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === 0 || yi === 3 ? '*' : ''}</th>
+                        ))}
+                        <th rowSpan={2} className="cursor-pointer select-none border-l border-slate-100 px-2 py-1.5 font-semibold hover:text-blue-600" onClick={() => planSortBy('big')}>100평+{planArrow('big')}</th>
+                        <th rowSpan={2} className="border-l border-slate-100 px-2 py-1.5 text-center font-semibold">페이스</th>
+                        <th rowSpan={2} className="border-l border-slate-100 px-3 py-1.5 text-left font-semibold">순증 비교({planYearLabel(3)})</th>
+                      </tr>
+                      <tr className="text-[11.5px] text-slate-400">
+                        {[0, 1, 2, 3].flatMap(yi => ['신규', '폐업', '순증'].map((lb, mi) => (
+                          <th key={`${yi}-${mi}`} className={`${mi === 0 ? 'border-l border-slate-100 ' : ''}cursor-pointer select-none px-2 pb-1.5 font-semibold hover:text-blue-600`} onClick={() => planSortBy(`${yi}:${mi}`)}>
+                            {lb}{planArrow(`${yi}:${mi}`)}
+                          </th>
+                        )))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {planSorted.map(r => {
+                        const net3 = r.nets[3];
+                        const pace = net3 > 5 && net3 > r.nets[2] ? 'up' : net3 < -5 ? 'dn' : 'fl';
+                        // 가로 막대 — 전 행 공통 0 기준선, 왼쪽 34px는 음수 라벨 여백
+                        const barSpan = 150;
+                        const xZero = 34 + barSpan * planMaxNeg / (planMaxNeg + planMaxPos);
+                        const w = Math.max(Math.abs(net3) / (planMaxNeg + planMaxPos) * barSpan, 1.5);
+                        return (
+                          <tr key={`${r.sido}|${r.sigungu}`} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60">
+                            <td className="whitespace-nowrap px-3 py-1 text-left text-[13px] font-bold text-slate-900">
+                              <span className="mr-1 text-[11px] font-medium text-slate-400">{sidoShort(r.sido)}</span>{r.sigungu}
+                            </td>
+                            {r.years.flatMap((y, yi) => [
+                              <td key={`n${yi}`} className="border-l border-slate-100 px-2 py-1 text-slate-500">{y.n}</td>,
+                              <td key={`c${yi}`} className="px-2 py-1 text-slate-500">{y.c}</td>,
+                              <td key={`t${yi}`} className="px-2 py-1 font-bold text-slate-900" style={{ background: planHeat(r.nets[yi]) }}>{r.nets[yi] > 0 ? `+${r.nets[yi]}` : r.nets[yi]}</td>,
+                            ])}
+                            <td className={`border-l border-slate-100 px-2 py-1 ${r.big ? 'font-semibold text-slate-700' : 'text-slate-300'}`}>{r.big}</td>
+                            <td className={`border-l border-slate-100 px-2 py-1 text-center text-[11.5px] font-bold ${pace === 'up' ? rankPosCls : pace === 'dn' ? rankNegCls : 'text-slate-400'}`}>
+                              {pace === 'up' ? '▲ 성장' : pace === 'dn' ? '▼ 둔화' : '— 보합'}
+                            </td>
+                            <td className="border-l border-slate-100 px-3 py-0.5 text-left">
+                              <svg width={34 + barSpan + 44} height={16} className="block">
+                                <line x1={xZero} y1={0} x2={xZero} y2={16} stroke="#e2e8f0" />
+                                <rect x={net3 >= 0 ? xZero : xZero - w} y={3} width={w} height={10} rx={2} fill={net3 >= 0 ? '#2563eb' : planNegBar} />
+                                <text x={net3 >= 0 ? xZero + w + 5 : xZero - w - 5} y={12} textAnchor={net3 >= 0 ? 'start' : 'end'} fontSize={11} fontWeight={700} fill={net3 >= 0 ? rankPosBar : rankNegBar}>
+                                  {net3 > 0 ? `+${net3}` : net3}
+                                </text>
+                              </svg>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-2 px-1 text-[11px] leading-relaxed text-slate-400">
+                  * {planYearLabel(0)}·{planYearLabel(3)}은 부분 집계(조회 창 최근 36개월) · 최근 월 폐업은 신고 지연으로 적게 잡힐 수 있음 · 100평+ = {planYearLabel(3)} 신규 중 대형 매장 수
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
