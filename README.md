@@ -1,52 +1,40 @@
 # FS MISO — 인허가 대시보드
 
-매일유업 FS팀의 인허가 현황 시각화 + 영업 지원 대시보드.
+매일유업 FS팀의 인허가 현황 시각화 + 영업 지원 대시보드. **Next.js 16 앱(`next-app/`)** 단일 소스로 운영.
 
-배포: [GitHub Pages](https://2raiwon67-boop.github.io/Maeil-FS-Sales/) | API: Vercel
+라이브: https://maeilfs-sales.vercel.app (Vercel `maeilfs-sales`, Root Directory=`next-app`)
 
 ---
 
 ## 페이지 구성
 
-| 페이지 | 설명 |
-|--------|------|
-| `index.html` | 메인 지도 대시보드 (인허가 + 거래처 마커) |
-| `방문일지.html` | 방문 기록 관리 + AI 브리핑 |
-| `proposal.html` | 견적서 / 매장 맞춤 분석 |
-| `upload.html` | 데이터 관리 (업로드 + DB 현황 + 공공인허가 조회) |
-| `discover.html` | 시장 분석 (상권 인텔리전스) |
-| `admin.html` | 관리자 페이지 (사용자 승인 + 소속 변경) |
+| 경로 | 설명 |
+|------|------|
+| `/` | 거래처 — Naver 지도 + 인허가/거래처 마커 |
+| `/discover` | 시장 분석 — MapLibre 상권 인텔리전스 |
+| `/proposal` | 견적서 / 매장 맞춤 분석 |
+| `/consult` | 메뉴 상담 — 현장 레시피 컨설팅 → 견적 |
+| `/upload` | 데이터 관리 |
+| `/license-export` | 인허가 추출 (xlsx) |
+| `/admin` | 관리자 (사용자 승인 + 소속 변경) |
 
 ---
 
-## 로컬 개발 설정
+## 로컬 개발
 
-### 1. 저장소 클론
 ```bash
-git clone https://github.com/2raiwon67-boop/Maeil-FS-Sales.git
-cd Maeil-FS-Sales
-```
-
-### 2. config.js 생성
-`config.example.js`를 복사해서 `config.js`를 만들고 실제 값을 입력합니다.
-```bash
-cp config.example.js config.js
-# config.js 열어서 SUPABASE_URL, SUPABASE_ANON_KEY 입력
-```
-
-### 3. 로컬 서버 실행
-```bash
-npx serve .
-# 또는
-python3 -m http.server 8000
+cd next-app
+npm install
+cp .env.local.example .env.local   # 없으면 CLAUDE.md의 env 목록 참고해 직접 작성
+npm run dev
 ```
 
 ---
 
 ## 배포 구조
 
-- **프론트엔드**: GitHub Pages — `main` 브랜치 push 시 GitHub Actions 자동 배포
-- **API**: Vercel Serverless Functions (`/api/*.js`)
+- **앱**: Vercel — `main` 브랜치 push 시 자동 배포 (Next.js Route Handlers가 API 포함)
 - **DB**: Supabase (PostgreSQL + pgvector + RLS)
+- **Cron**: Vercel Cron 2개 — 인허가 방문 알림 이메일(평일 09:15 KST), 시장 데이터 야간 갱신(매일 03:00 KST)
 
-GitHub Actions가 배포 시 `SUPABASE_URL`, `SUPABASE_ANON_KEY` Secrets에서 `config.js`를 자동 생성합니다.
+상세 규칙·이력은 `CLAUDE.md` 참고.
