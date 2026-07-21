@@ -805,7 +805,8 @@ export default function ConsultPage() {
                     <div className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-[#475569]">
                       <Sparkles size={14} className="text-[#2563eb]" />이번 시즌 추천
                     </div>
-                    <div className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+                    {/* 모바일만 풀블리드 — PC 내부 스크롤 컬럼에선 음수 마진이 첫 카드를 잘라먹음 */}
+                    <div className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:px-0">
                       {heroes.map((r) => {
                         const tint = CATEGORIES.find((c) => c.key === (r.category || '기타'))?.tint ?? '#f1f2f5';
                         return (
