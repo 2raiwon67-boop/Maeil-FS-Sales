@@ -1724,6 +1724,7 @@ export default function DiscoverPage() {
   function handleSetViewMode(mode: ViewMode) {
     setViewMode(mode);
     if (mode !== 'map') stopPlay();
+    if (mode === 'plan' && panelOpen) closePanel(); // 랭킹 드릴다운 패널이 운영계획 화면을 덮은 채 남지 않게
     if (mode === 'map') {
       setTimeout(() => { mapRef.current?.resize(); }, 100);
       setTimeout(() => { mapRef.current?.resize(); }, 350);
@@ -2722,7 +2723,7 @@ export default function DiscoverPage() {
       {viewMode === 'rank' && (
         <div className="absolute inset-0 bg-slate-50 z-[300] flex flex-col overflow-hidden">
           {/* Header — 제목·기준월 + 정렬 세그먼트 + 엑셀 (우측 여백은 top-right 지도/랭킹 토글 오버레이 회피) */}
-          <div className="px-5 py-3 pr-[345px] border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 max-sm:pt-[52px]">
+          <div className={`px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 max-sm:pt-[52px] ${panelOpen ? 'pr-[455px]' : 'pr-[345px]'}`}>
             <div>
               <div className="text-[16px] font-bold tracking-[-0.01em] text-slate-900">시군구 상권 랭킹</div>
               <div className="mt-0.5 text-[12px] text-slate-500">{monthFilterLabel ? `${monthFilterLabel} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '최근 3년 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
