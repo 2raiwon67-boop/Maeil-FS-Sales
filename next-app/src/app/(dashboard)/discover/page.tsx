@@ -2205,23 +2205,24 @@ export default function DiscoverPage() {
   const planHeat = (v: number): string | undefined => v === 0 ? undefined
     : `${v > 0 ? 'rgba(37,99,235,' : colorblind ? 'rgba(249,115,22,' : 'rgba(226,75,74,'}${Math.min(Math.abs(v) / 170 + 0.05, 0.4).toFixed(2)})`;
   const sidoShort = (s: string) => (s === '경기도' ? '경기' : s);
-  // 펼친 지역의 동별 집계 — "파주 +70의 실체가 어느 동인지"를 행 클릭만으로 확인 (최근년 순증 상위 12개 동)
+  // 선택 지역의 동별 집계 — "파주 +70의 실체가 어느 동인지"를 행 클릭 → 오른쪽 패널로 확인
+  // 본 표와 같은 문법(연도별 신규·폐업·순증)으로 전 동 표시, 최근년 순증 내림차순
   const planDongRows = (() => {
     if (!planOpenRegion) return [];
     const [sd, sgg] = planOpenRegion.split('|');
-    const byDong = new Map<string, { nets: number[]; n3: number; c3: number }>();
+    const byDong = new Map<string, { n: number; c: number }[]>();
     for (const s of cachedStores) {
       if (s.sido !== sd || s.sigungu !== sgg || !matchCategory(s, selectedCategory)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > 3) continue;
       const key = s.dong || '기타';
       let d = byDong.get(key);
-      if (!d) { d = { nets: [0, 0, 0, 0], n3: 0, c3: 0 }; byDong.set(key, d); }
-      d.nets[yi] += s.status === 'new' ? 1 : -1;
-      if (yi === 3) { if (s.status === 'new') d.n3++; else d.c3++; }
+      if (!d) { d = [{ n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }]; byDong.set(key, d); }
+      if (s.status === 'new') d[yi].n++; else d[yi].c++;
     }
-    return [...byDong.entries()].map(([dong, v]) => ({ dong, ...v }))
-      .sort((a, b) => b.nets[3] - a.nets[3]).slice(0, 12);
+    return [...byDong.entries()]
+      .map(([dong, years]) => ({ dong, years, nets: years.map(y => y.n - y.c) }))
+      .sort((a, b) => b.nets[3] - a.nets[3]);
   })();
   const exportPlanXlsx = async () => {
     const XLSX = await import('xlsx');
@@ -2894,7 +2895,8 @@ export default function DiscoverPage() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-auto px-4 py-3 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+          <div className="relative flex-1 overflow-hidden">
+          <div className={`h-full overflow-auto px-4 py-3 transition-[margin] duration-300 [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200 ${planOpenRegion ? 'mr-[560px] max-lg:mr-0' : ''}`}>
             {planRows.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-center text-[13px] leading-relaxed text-slate-400">
                 <Clock size={28} className="opacity-60" />
@@ -2962,7 +2964,7 @@ export default function DiscoverPage() {
                             className={`cursor-pointer border-t border-slate-100 transition-colors hover:bg-blue-50/60 ${opened ? 'bg-blue-50/60' : 'odd:bg-white even:bg-slate-50/60'}`}
                           >
                             <td className="whitespace-nowrap px-3 py-1 text-left text-[13px] font-bold text-slate-900">
-                              <ChevronDown size={12} className={`mr-1 inline-block text-slate-400 transition-transform ${opened ? '' : '-rotate-90'}`} />
+                              <ChevronRight size={12} className={`mr-1 inline-block ${opened ? 'text-blue-600' : 'text-slate-300'}`} />
                               <span className="mr-1 text-[11px] font-medium text-slate-400">{sidoShort(r.sido)}</span>{r.sigungu}
                             </td>
                             {r.years.flatMap((y, yi) => [
@@ -2984,41 +2986,6 @@ export default function DiscoverPage() {
                               </svg>
                             </td>
                           </tr>
-                          {/* 동별 상세 아코디언 — 지역 행 클릭 시 바로 아래 펼침 (팝업·화면 이동 없음) */}
-                          {opened && (
-                            <tr className="border-t border-blue-100 bg-blue-50/30">
-                              <td colSpan={16} className="px-4 py-2.5">
-                                {planDongRows.length === 0 ? (
-                                  <div className="py-1 text-[12px] text-slate-400">동별 데이터 없음</div>
-                                ) : (
-                                  <div className="overflow-x-auto">
-                                    <table className="w-auto border-collapse text-right text-[12px] tabular-nums">
-                                      <thead>
-                                        <tr className="text-[11px] text-slate-400">
-                                          <th className="px-2.5 pb-1 text-left font-semibold">동 (순증 상위 12)</th>
-                                          {[0, 1, 2, 3].map(yi => <th key={yi} className="px-2.5 pb-1 font-semibold">{planYearLabel(yi)} 순증</th>)}
-                                          <th className="px-2.5 pb-1 font-semibold">{planYearLabel(3)} 신규</th>
-                                          <th className="px-2.5 pb-1 font-semibold">폐업</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {planDongRows.map(d => (
-                                          <tr key={d.dong} className="border-t border-slate-100/80">
-                                            <td className="px-2.5 py-0.5 text-left font-semibold text-slate-800">{d.dong}</td>
-                                            {d.nets.map((v, i) => (
-                                              <td key={i} className="px-2.5 py-0.5 font-bold text-slate-900" style={{ background: planHeat(v) }}>{v > 0 ? `+${v}` : v}</td>
-                                            ))}
-                                            <td className="px-2.5 py-0.5 text-slate-500">{d.n3}</td>
-                                            <td className="px-2.5 py-0.5 text-slate-500">{d.c3}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
                           </Fragment>
                         );
                       })}
@@ -3030,6 +2997,58 @@ export default function DiscoverPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* 동별 상세 패널 — 지역 행 클릭 시 오른쪽에 표시 (본 표와 같은 문법: 연도별 신규·폐업·순증) */}
+          {planOpenRegion && (
+            <aside className="absolute bottom-0 right-0 top-0 z-[350] flex w-[560px] max-w-full flex-col overflow-hidden border-l border-slate-200 bg-white shadow-[-6px_0_24px_rgba(15,23,42,.08)]">
+              <div className="flex flex-shrink-0 items-center gap-2.5 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
+                <button
+                  onClick={() => setPlanOpenRegion(null)}
+                  className="flex h-7 w-7 flex-shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition-all hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                >
+                  <X size={14} />
+                </button>
+                <div>
+                  <div className="text-[14.5px] font-extrabold text-slate-900">
+                    <span className="mr-1 text-[11.5px] font-medium text-slate-400">{sidoShort(planOpenRegion.split('|')[0])}</span>
+                    {planOpenRegion.split('|')[1]} 동별 상세
+                  </div>
+                  <div className="text-[11px] text-slate-500">{planDongRows.length}개 동 · {planYearLabel(3)} 순증 순</div>
+                </div>
+              </div>
+              <div className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+                <table className="w-full border-collapse text-right text-[12px] tabular-nums">
+                  <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(226,232,240,1)]">
+                    <tr className="text-[11px] text-slate-400">
+                      <th className="px-2.5 pt-1.5 text-left font-semibold">동</th>
+                      {[0, 1, 2, 3].map(yi => (
+                        <th key={yi} colSpan={3} className="border-l border-slate-100 px-1 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === 0 || yi === 3 ? '*' : ''}</th>
+                      ))}
+                    </tr>
+                    <tr className="text-[10.5px] text-slate-400">
+                      <th></th>
+                      {[0, 1, 2, 3].flatMap(yi => ['신규', '폐업', '순증'].map((lb, mi) => (
+                        <th key={`${yi}-${mi}`} className={`${mi === 0 ? 'border-l border-slate-100 ' : ''}px-1.5 pb-1.5 font-medium`}>{lb}</th>
+                      )))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {planDongRows.map(d => (
+                      <tr key={d.dong} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60">
+                        <td className="whitespace-nowrap px-2.5 py-1 text-left text-[12.5px] font-bold text-slate-900">{d.dong}</td>
+                        {d.years.flatMap((y, yi) => [
+                          <td key={`n${yi}`} className="border-l border-slate-100 px-1.5 py-1 text-slate-500">{y.n}</td>,
+                          <td key={`c${yi}`} className="px-1.5 py-1 text-slate-500">{y.c}</td>,
+                          <td key={`t${yi}`} className="px-1.5 py-1 font-bold text-slate-900" style={{ background: planHeat(d.nets[yi]) }}>{d.nets[yi] > 0 ? `+${d.nets[yi]}` : d.nets[yi]}</td>,
+                        ])}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </aside>
+          )}
           </div>
         </div>
       )}
