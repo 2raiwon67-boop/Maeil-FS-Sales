@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ChevronLeft, ChevronRight, Search, FileText, Share2, Plus, Check,
-  ShoppingBag, Trash2, X, Store, ExternalLink, Sparkles,
+  ShoppingBag, Trash2, X, Store, ExternalLink, Sparkles, ClipboardList, FolderDown,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -28,14 +28,41 @@ const RATE_LIMIT_MS = 3000;
 const CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // proposal과 캐시 키 공유(store_analysis_*)
 
 // 카테고리 표시 순서·음료 재료 틴트 (사장님께 보이는 화면이라 이모지가 제일 빨리 읽힘)
+// 2026-07 '기타' 85건 재분류 → 티·커피·슈페너·쉐이크·초코·우유·시그니처 신설 ('기타'는 빈 폴백으로 유지)
 const CATEGORIES: { key: string; emoji: string; tint: string }[] = [
   { key: '라떼', emoji: '☕', tint: '#f5efe6' },
+  { key: '커피·슈페너', emoji: '🫘', tint: '#ede7e0' },
+  { key: '티', emoji: '🫖', tint: '#eef4ec' },
   { key: '에이드', emoji: '🍋', tint: '#eaf6ea' },
   { key: '블렌디드', emoji: '🧊', tint: '#eaf1fb' },
+  { key: '쉐이크', emoji: '🥤', tint: '#fdf1e7' },
   { key: '슬러시', emoji: '🍧', tint: '#e9f5f8' },
   { key: '밀크티', emoji: '🧋', tint: '#f3ede4' },
   { key: '스무디', emoji: '🍓', tint: '#f9edf1' },
-  { key: '기타', emoji: '✨', tint: '#f1f2f5' },
+  { key: '초코·우유', emoji: '🍫', tint: '#f3ece8' },
+  { key: '시그니처', emoji: '✨', tint: '#f1eef7' },
+  { key: '기타', emoji: '🧉', tint: '#f1f2f5' },
+];
+
+// 매장 concept 필터 — 사장님 매장 성격에 맞춰 전체 레시피를 한 번에 좁힌다 (카테고리·검색과 AND 결합)
+const CONCEPTS: { key: string; hint: string; match: (tags: string[], products: string[]) => boolean }[] = [
+  {
+    key: '비건·식물성',
+    hint: '오트·두유·아몬드',
+    match: (tags, products) =>
+      tags.some((t) => ['식물성', '비건', 'vegan', '오트', '두유', '아몬드'].includes(t)) ||
+      products.some((p) => p.includes('오트') || p.includes('두유') || p.includes('아몬드')),
+  },
+  {
+    key: '크림·디저트',
+    hint: '크림·폼 올린 메뉴',
+    match: (tags) => tags.some((t) => t === '크림' || t === '폼'),
+  },
+  {
+    key: 'HOT 가능',
+    hint: '따뜻하게 내는 메뉴',
+    match: (tags) => tags.includes('HOT') || tags.includes('핫'),
+  },
 ];
 
 interface Recipe {
@@ -45,6 +72,16 @@ interface Recipe {
   main_products: string[] | null;
   image_url: string | null;    // PDF에서 추출한 음료 누끼컷 (Supabase Storage)
   description: string | null;  // PDF 소개 문장 (Gemini로 띄어쓰기 복원)
+  tags: string[] | null;       // 원천 태그(ICE/HOT/크림/식물성…) — concept 필터 재료
+  flavors: string[] | null;    // 정식 flavor 태그(DB 백필) — 없으면 deriveFlavors 폴백
+  hero_rank: number | null;    // 홈 히어로 큐레이션 순서(NULL=비노출)
+}
+
+interface ConsultPrep {
+  id: string;
+  store_name: string;
+  recipe_names: string[];
+  created_at: string;
 }
 
 interface SheetProduct {
@@ -116,9 +153,15 @@ export default function ConsultPage() {
   // 화면 상태 — category 미선택 = 카테고리 그리드
   const [category, setCategory] = useState<string | null>(null);
   const [flavor, setFlavor] = useState<string | null>(null);
+  const [concept, setConcept] = useState<string | null>(null); // 매장 concept — 화면 전환에도 유지
   const [query, setQuery] = useState('');
   const [detail, setDetail] = useState<Recipe | null>(null);
   const [basketOpen, setBasketOpen] = useState(false);
+
+  // 내근 준비목록 — 방문 전 PC에서 매장별로 찜해두고 현장(폰)에서 불러온다
+  const [preps, setPreps] = useState<ConsultPrep[]>([]);
+  const [prepsOpen, setPrepsOpen] = useState(false);
+  const [prepSaving, setPrepSaving] = useState(false);
 
   // 바구니 — 레시피 이름 단위. 현장에서 실수로 이탈해도 남도록 localStorage 백업
   const [basket, setBasket] = useState<string[]>([]);
@@ -139,12 +182,13 @@ export default function ConsultPage() {
     (async () => {
       try {
         const saved = localStorage.getItem(BASKET_STORAGE_KEY);
-        if (saved) setBasket(JSON.parse(saved));
+        // 과거 바구니는 NFD(자소분리) 이름일 수 있음 — DB가 NFC로 정규화돼 NFC로 맞춰 읽는다
+        if (saved) setBasket((JSON.parse(saved) as string[]).map((n) => n.normalize('NFC')));
       } catch { /* ignore */ }
 
       const { data, error } = await supabase
         .from('recipes')
-        .select('name, category, pdf_url, main_products, image_url, description') // embedding(768차원) 절대 포함 금지
+        .select('name, category, pdf_url, main_products, image_url, description, tags, flavors, hero_rank') // embedding(768차원) 절대 포함 금지
         .order('name');
       if (error) toast.error('레시피 로드 실패: ' + error.message);
       setRecipes((data as Recipe[]) || []);
@@ -170,40 +214,72 @@ export default function ConsultPage() {
     try { localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(basket)); } catch { /* ignore */ }
   }, [basket]);
 
+  // 내근 준비목록 로드 (내 것만 — RLS)
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase
+        .from('consult_preps')
+        .select('id, store_name, recipe_names, created_at')
+        .order('created_at', { ascending: false })
+        .limit(30);
+      setPreps((data as ConsultPrep[]) || []);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   // ── 파생 데이터 ──
+  // 정식 flavor 태그(DB) 우선, 구버전 캐시·미백필 행은 라이브 파생 폴백
+  const flavorsOf = (r: Recipe) => r.flavors ?? deriveFlavors(r.name, r.main_products || []);
+
+  const conceptDef = CONCEPTS.find((c) => c.key === concept);
+
+  // concept 적용된 전체 풀 — 그리드 카운트·리스트·히어로 모두 이 기준
+  const pool = useMemo(
+    () => (conceptDef ? recipes.filter((r) => conceptDef.match(r.tags || [], r.main_products || [])) : recipes),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [recipes, concept],
+  );
+
   const countByCategory = useMemo(() => {
     const m = new Map<string, number>();
-    for (const r of recipes) {
+    for (const r of pool) {
       const c = r.category || '기타';
       m.set(c, (m.get(c) || 0) + 1);
     }
     return m;
-  }, [recipes]);
+  }, [pool]);
+
+  // 히어로 큐레이션 — hero_rank 낮은 순 (concept 필터 존중)
+  const heroes = useMemo(
+    () => pool.filter((r) => r.hero_rank != null).sort((a, b) => (a.hero_rank ?? 99) - (b.hero_rank ?? 99)),
+    [pool],
+  );
 
   const inCategory = useMemo(
-    () => recipes.filter((r) => (r.category || '기타') === category),
-    [recipes, category],
+    () => pool.filter((r) => (r.category || '기타') === category),
+    [pool, category],
   );
 
   // 카테고리 내 flavor 칩 — 빈도순, 실제 있는 것만
   const flavorChips = useMemo(() => {
     const m = new Map<string, number>();
     for (const r of inCategory) {
-      for (const f of deriveFlavors(r.name, r.main_products || [])) m.set(f, (m.get(f) || 0) + 1);
+      for (const f of r.flavors ?? deriveFlavors(r.name, r.main_products || [])) m.set(f, (m.get(f) || 0) + 1);
     }
     return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([f]) => f);
   }, [inCategory]);
 
   const visible = useMemo(() => {
-    const q = query.trim();
+    const q = query.trim().normalize('NFC');
     let list = q
-      ? recipes.filter((r) => r.name.includes(q) || (r.main_products || []).some((p) => p.includes(q)))
+      ? pool.filter((r) => r.name.includes(q) || (r.main_products || []).some((p) => p.includes(q)))
       : inCategory;
     if (!q && flavor) {
-      list = list.filter((r) => deriveFlavors(r.name, r.main_products || []).includes(flavor));
+      list = list.filter((r) => (r.flavors ?? deriveFlavors(r.name, r.main_products || [])).includes(flavor));
     }
     return list;
-  }, [recipes, inCategory, query, flavor]);
+  }, [pool, inCategory, query, flavor]);
 
   const searching = query.trim().length > 0;
 
@@ -359,6 +435,48 @@ export default function ConsultPage() {
     }
   };
 
+  // ── 내근 준비목록: 저장·불러오기·삭제 ──
+  const savePrep = async () => {
+    if (!user) { toast.error('로그인이 필요합니다.'); return; }
+    if (basket.length === 0) { toast.warning('담은 메뉴가 없습니다.'); return; }
+    const store = customerName.trim();
+    if (!store) { toast.warning('어느 매장 준비인지 거래처(매장)명을 먼저 입력해주세요.'); return; }
+    setPrepSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('consult_preps')
+        .insert({ store_name: store, recipe_names: basket })
+        .select('id, store_name, recipe_names, created_at')
+        .single();
+      if (error) throw error;
+      setPreps((prev) => [data as ConsultPrep, ...prev]);
+      toast.success(`"${store}" 준비목록으로 저장했습니다. 현장에서 불러올 수 있어요.`);
+    } catch (e) {
+      toast.error('준비목록 저장 실패: ' + (e as Error).message);
+    } finally {
+      setPrepSaving(false);
+    }
+  };
+
+  const loadPrep = (prep: ConsultPrep) => {
+    const known = prep.recipe_names.filter((n) => recipes.some((r) => r.name === n));
+    const missing = prep.recipe_names.length - known.length;
+    setBasket(known);
+    setCustomerName(prep.store_name);
+    setPrepsOpen(false);
+    setBasketOpen(false);
+    toast.success(
+      `"${prep.store_name}" 준비목록을 불러왔습니다 (메뉴 ${known.length}개${missing > 0 ? `, ${missing}개는 레시피 변경으로 제외` : ''})`,
+    );
+  };
+
+  const deletePrep = async (prep: ConsultPrep) => {
+    const { error } = await supabase.from('consult_preps').delete().eq('id', prep.id);
+    if (error) { toast.error('삭제 실패: ' + error.message); return; }
+    setPreps((prev) => prev.filter((p) => p.id !== prep.id));
+    toast(`"${prep.store_name}" 준비목록을 삭제했습니다`);
+  };
+
   // ── PDF 네이티브 공유 (카톡/문자 — 사장님 leave-behind) ──
   const sharePdf = async (recipe: Recipe) => {
     if (!recipe.pdf_url) { toast.warning('이 레시피는 PDF가 없습니다.'); return; }
@@ -416,15 +534,57 @@ export default function ConsultPage() {
             className="min-w-0 flex-1 bg-transparent text-sm outline-none"
           />
         </label>
-        <button
-          onClick={saveDraft}
-          disabled={saving}
-          className="w-full rounded-2xl bg-[#2563eb] py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
-        >
-          {saving ? '저장 중…' : '견적 초안으로 저장'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={savePrep}
+            disabled={prepSaving}
+            className="flex shrink-0 items-center gap-1.5 rounded-2xl border border-[#d6dbe3] bg-white px-3.5 py-3.5 text-[13px] font-semibold text-[#334155] disabled:opacity-60"
+            title="방문 전 미리 담아두기 — 현장에서 준비목록으로 불러옵니다"
+          >
+            <ClipboardList size={15} />{prepSaving ? '저장 중…' : '준비목록'}
+          </button>
+          <button
+            onClick={saveDraft}
+            disabled={saving}
+            className="flex-1 rounded-2xl bg-[#2563eb] py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
+          >
+            {saving ? '저장 중…' : '견적 초안으로 저장'}
+          </button>
+        </div>
       </div>
     </>
+  );
+
+  // 준비목록 목록(PC 패널·모바일 시트 공용) — 탭하면 바구니로 불러오기
+  const prepsBody = preps.length === 0 ? (
+    <p className="text-xs leading-relaxed text-[#94a3b8]">
+      아직 준비목록이 없습니다. 방문 전 메뉴를 담고 매장명을 적은 뒤
+      &quot;준비목록&quot;을 누르면 여기 저장됩니다.
+    </p>
+  ) : (
+    <div className="flex flex-col gap-1.5">
+      {preps.map((p) => (
+        <div key={p.id} className="flex items-center gap-1 rounded-xl bg-[#f8fafc] py-1 pl-3 pr-1">
+          <button type="button" onClick={() => loadPrep(p)} className="min-w-0 flex-1 py-1.5 text-left">
+            <div className="flex items-center gap-1.5">
+              <FolderDown size={13} className="shrink-0 text-[#2563eb]" />
+              <span className="truncate text-[13.5px] font-semibold text-[#0f172a]">{p.store_name}</span>
+            </div>
+            <div className="mt-0.5 pl-[19px] text-[11px] text-[#94a3b8]">
+              메뉴 {p.recipe_names.length}개 · {new Date(p.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => deletePrep(p)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#94a3b8] hover:bg-red-50 hover:text-red-500"
+            aria-label={`${p.store_name} 준비목록 삭제`}
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      ))}
+    </div>
   );
 
   // ── 렌더 ──
@@ -536,6 +696,15 @@ export default function ConsultPage() {
                 <p className="text-xs text-[#94a3b8]">아직 담은 메뉴가 없습니다. 레시피에서 담기를 누르세요.</p>
               ) : basketBody}
             </div>
+
+            {/* 내근 준비목록 패널 — 사무실에서 찜해두고 현장에서 연다 */}
+            <div className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm text-[#475569]">
+                <ClipboardList size={16} className="text-[#2563eb]" />내근 준비목록
+                {preps.length > 0 && <span className="text-xs text-[#94a3b8]">{preps.length}건</span>}
+              </div>
+              {prepsBody}
+            </div>
           </aside>
 
           {/* ── 공통(모바일 전체 / PC 우측): 레시피 브라우징 ── */}
@@ -567,6 +736,19 @@ export default function ConsultPage() {
                   <p className="text-[12px] text-[#94a3b8]">사장님과 함께 보는 레시피 제안</p>
                 )}
               </div>
+              {/* 준비목록 열기 — 현장 도착 직후 첫 동작이라 헤더 상시 노출 */}
+              <button
+                onClick={() => setPrepsOpen(true)}
+                className="relative flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#334155] shadow-sm"
+                aria-label="내근 준비목록 열기"
+              >
+                <ClipboardList size={18} />
+                {preps.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#2563eb] px-1 text-[9.5px] font-bold text-white">
+                    {preps.length}
+                  </span>
+                )}
+              </button>
             </div>
 
             {/* PC에서 리스트 상단 뒤로가기 */}
@@ -601,30 +783,89 @@ export default function ConsultPage() {
               </div>
             ) : !category && !searching ? (
 
-              /* 화면 1: 카테고리 그리드 */
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                {CATEGORIES.filter((c) => (countByCategory.get(c.key) || 0) > 0).map((c) => (
-                  <button
-                    key={c.key}
-                    onClick={() => { setCategory(c.key); setFlavor(null); }}
-                    className="flex flex-col items-start gap-2 rounded-[22px] border border-black/[0.04] p-4 text-left transition-transform active:scale-[0.97]"
-                    style={{ background: c.tint }}
-                  >
-                    <span className="text-[30px] leading-none">{c.emoji}</span>
-                    <span className="mt-1 text-[16px] font-bold text-[#0f172a]">{c.key}</span>
-                    <span className="text-[12px] text-[#64748b]">{countByCategory.get(c.key)}가지 레시피</span>
-                  </button>
-                ))}
-              </div>
+              /* 화면 1: 매장 컨셉 칩 + 히어로 큐레이션 + 카테고리 그리드 */
+              <>
+                {/* 매장 concept — 사장님 매장 성격에 맞춰 전체 레시피를 좁힘 (전 화면 유지) */}
+                <div className="mb-4 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+                  {CONCEPTS.map((c) => (
+                    <button
+                      key={c.key}
+                      onClick={() => setConcept(concept === c.key ? null : c.key)}
+                      className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${concept === c.key ? 'bg-[#1B3F82] text-white' : 'bg-white text-[#475569] shadow-sm'}`}
+                      title={c.hint}
+                    >
+                      {concept === c.key ? '✓ ' : ''}{c.key}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 히어로 큐레이션 — 시즌 대표 메뉴, 탭하면 바로 상세 */}
+                {heroes.length > 0 && (
+                  <div className="mb-5">
+                    <div className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold text-[#475569]">
+                      <Sparkles size={14} className="text-[#2563eb]" />이번 시즌 추천
+                    </div>
+                    <div className="-mx-4 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+                      {heroes.map((r) => {
+                        const tint = CATEGORIES.find((c) => c.key === (r.category || '기타'))?.tint ?? '#f1f2f5';
+                        return (
+                          <button
+                            key={r.name}
+                            onClick={() => setDetail(r)}
+                            className="w-[150px] shrink-0 snap-start overflow-hidden rounded-[20px] border border-black/[0.04] bg-white text-left transition-transform active:scale-[0.97]"
+                          >
+                            <div className="flex h-[130px] items-end justify-center px-3" style={{ background: tint }}>
+                              {r.image_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={r.image_url} alt="" loading="lazy" className="max-h-[112px] w-auto object-contain drop-shadow-md" />
+                              ) : (
+                                <span className="pb-8 text-[40px]">{CATEGORIES.find((c) => c.key === (r.category || '기타'))?.emoji ?? '✨'}</span>
+                              )}
+                            </div>
+                            <div className="px-3 py-2.5">
+                              <div className="truncate text-[13.5px] font-semibold text-[#0f172a]">{r.name}</div>
+                              <div className="mt-0.5 text-[11px] text-[#94a3b8]">{r.category}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+                  {CATEGORIES.filter((c) => (countByCategory.get(c.key) || 0) > 0).map((c) => (
+                    <button
+                      key={c.key}
+                      onClick={() => { setCategory(c.key); setFlavor(null); }}
+                      className="flex flex-col items-start gap-2 rounded-[22px] border border-black/[0.04] p-4 text-left transition-transform active:scale-[0.97]"
+                      style={{ background: c.tint }}
+                    >
+                      <span className="text-[30px] leading-none">{c.emoji}</span>
+                      <span className="mt-1 text-[16px] font-bold text-[#0f172a]">{c.key}</span>
+                      <span className="text-[12px] text-[#64748b]">{countByCategory.get(c.key)}가지 레시피</span>
+                    </button>
+                  ))}
+                </div>
+              </>
 
             ) : (
 
               /* 화면 2: 레시피 리스트 (+ flavor 칩) */
               <>
-                {!searching && flavorChips.length > 0 && (
+                {!searching && (flavorChips.length > 0 || concept) && (
                   // PC에선 우측 내부 스크롤 컨테이너 기준으로 상단 고정(md:top-0)
                   <div className="sticky top-12 z-10 -mx-4 mb-3 px-4 py-2 backdrop-blur-xl [background:rgba(246,247,249,0.82)] md:top-0">
                     <div className="flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
+                      {concept && (
+                        <button
+                          onClick={() => setConcept(null)}
+                          className="flex shrink-0 items-center gap-1 rounded-full bg-[#1B3F82] px-3 py-1.5 text-[13px] font-medium text-white"
+                          aria-label={`${concept} 컨셉 해제`}
+                        >
+                          {concept}<X size={13} />
+                        </button>
+                      )}
                       <button
                         onClick={() => setFlavor(null)}
                         className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${!flavor ? 'bg-[#0f172a] text-white' : 'bg-white text-[#475569] shadow-sm'}`}
@@ -764,7 +1005,7 @@ export default function ConsultPage() {
                 )}
 
                 <div className="mb-1 flex flex-wrap gap-1 md:mt-1">
-                  {deriveFlavors(detail.name, detail.main_products || []).map((f) => (
+                  {flavorsOf(detail).map((f) => (
                     <span key={f} className="rounded-full bg-[#f1f5f9] px-2 py-0.5 text-[11px] font-medium text-[#64748b]">#{f}</span>
                   ))}
                 </div>
@@ -816,6 +1057,21 @@ export default function ConsultPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 모바일 준비목록 바텀시트 ── */}
+      {prepsOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 md:hidden" onClick={() => setPrepsOpen(false)}>
+          <div
+            className="flex max-h-[70dvh] w-full max-w-[520px] flex-col rounded-t-[28px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[#e2e8f0]" />
+            <h2 className="text-[19px] font-bold text-[#0f172a]">내근 준비목록</h2>
+            <p className="mt-0.5 text-[12.5px] text-[#94a3b8]">방문 전 미리 담아둔 매장별 제안 — 탭하면 바구니로 불러옵니다</p>
+            <div className="mt-4 flex-1 overflow-y-auto">{prepsBody}</div>
           </div>
         </div>
       )}
