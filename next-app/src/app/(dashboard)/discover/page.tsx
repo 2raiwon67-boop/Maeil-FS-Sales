@@ -1393,7 +1393,10 @@ export default function DiscoverPage() {
       const cacheKey = mode === 'sido' && sido
         ? `sido|${sido}`
         : `mine|${Object.entries(sSigunguMap).map(([s, list]) => `${s}:${list.join(',')}`).join(';')}`;
-      const cachedRows = storeCacheRef.current.get(cacheKey);
+      // 빈 캐시는 미스로 취급 — 과거 로드가 실패해 빈 배열이 남아 있으면 그 지역이 새로고침 전까지
+      // 계속 빈 화면으로 보이는 버그가 됨(크롬처럼 탭을 오래 켜두는 환경에서 발생). 재조회로 자가 복구.
+      const cachedHit = storeCacheRef.current.get(cacheKey);
+      const cachedRows = cachedHit && cachedHit.length ? cachedHit : undefined;
 
       // ── 빠른 통계 경로: 서버 집계 RPC(discover_market_agg) ──────────────────────
       // KPI/랭킹/시군구 지도를 원본 12만행 다운로드를 기다리지 않고 즉시 렌더한다.
@@ -1432,6 +1435,7 @@ export default function DiscoverPage() {
       // 점진 렌더 — 페이지가 도착하는 만큼 지도 점을 미리 찍는다(전체 완료를 기다리지 않음).
       // KPI/랭킹 등 통계는 부분값으로 깜빡이지 않게 여기서 건드리지 않고, 단계 완료 시 finishRows가 확정.
       const arrived: StoreRow[] = [];
+      let loadFailed = false; // 페이지 로드 실패 흔적 — 불완전한 결과를 세션 캐시에 남기지 않기 위한 플래그
       let lastPaint = 0;
       const paintPartial = () => {
         if (loadRunRef.current !== runId) return; // 더 최신 로드가 시작됨 — 화면 덮어쓰기 금지
@@ -1449,7 +1453,7 @@ export default function DiscoverPage() {
         const acc: StoreRow[] = [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const onPage = (data: any[] | null, error: any): number => {
-          if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); return 0; }
+          if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); loadFailed = true; return 0; }
           const rows = (data || []).map(toRow);
           acc.push(...rows);
           arrived.push(...rows);
@@ -1546,7 +1550,8 @@ export default function DiscoverPage() {
         finishRows(raw);
         const older = await loadPhase(minMonth, recentMin);
         if (older.length) { raw = raw.concat(older); finishRows(raw); }
-        storeCacheRef.current.set(cacheKey, raw); // 다음 방문부터는 즉시 표시
+        // 완전한 결과만 기억 — 실패 흔적이 있거나 빈 결과면 캐시하지 않고 다음 방문 때 재조회
+        if (!loadFailed && raw.length) storeCacheRef.current.set(cacheKey, raw);
       }
       void runGeocodeBackfill(minMonth); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
