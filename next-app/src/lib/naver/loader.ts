@@ -92,11 +92,6 @@ function geocodeDetailed(address: string): Promise<{ coords: { lat: number; lng:
   });
 }
 
-/** 주소 → 좌표 (Naver geocoder). 실패 시 null. */
-export async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  return (await geocodeDetailed(address)).coords;
-}
-
 /** 지오코더 질의용 주소 정제 — 쉼표 이후 동/호/괄호는 매칭률을 떨어뜨리므로 도로명+번지까지만 */
 export function cleanGeocodeQuery(address: string): string {
   return (address || '').split(',')[0].replace(/\s+/g, ' ').trim();

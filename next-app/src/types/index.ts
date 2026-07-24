@@ -71,17 +71,8 @@ export interface Manager {
   is_branch_manager?: boolean;
 }
 
-export interface DeviceInfo {
-  id: string;
-  type: 'mobile' | 'pc';
-  name: string;
-  registered_at: string;
-  last_seen: string;
-}
-
 export interface UserMetadata {
   full_name?: string;
   business_unit?: string;
   approved?: boolean;
-  registered_devices?: DeviceInfo[];
 }
