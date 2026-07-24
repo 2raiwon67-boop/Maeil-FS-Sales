@@ -822,7 +822,24 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 지도/통계 토글 (통계 오버레이 z-20 위에 떠야 다시 지도로 전환 가능) */}
+        {/* 개척 모드 스위치 — 프로필 아래 우상단 공간 (거래처 탭 전용). 켜면 화면 전체가 개척 뷰로 전환 */}
+        <div className="absolute right-3 top-3 z-30">
+          <button
+            onClick={() => setView(view === 'prospect' ? 'map' : 'prospect')}
+            aria-pressed={view === 'prospect'}
+            className={`flex items-center gap-2 rounded-full py-1.5 pl-3.5 pr-2 text-[13px] font-semibold shadow-lg ring-1 ring-black/5 transition-colors ${
+              view === 'prospect' ? 'bg-[#0f172a] text-white' : 'bg-white/95 text-[#475569]'
+            }`}
+          >
+            개척 모드
+            <span className={`relative h-5 w-9 rounded-full transition-colors ${view === 'prospect' ? 'bg-[#2563eb]' : 'bg-[#cbd5e1]'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${view === 'prospect' ? 'left-[18px]' : 'left-0.5'}`} />
+            </span>
+          </button>
+        </div>
+
+        {/* 지도/통계 토글 (통계 오버레이 z-20 위에 떠야 다시 지도로 전환 가능) — 개척 모드에선 숨김 */}
+        {view !== 'prospect' && (
         <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/5">
           {view === 'map' && (
             <button
@@ -835,18 +852,19 @@ export default function DashboardPage() {
               <Search size={15} />
             </button>
           )}
-          {(['map', 'dashboard', 'prospect'] as const).map((v) => (
+          {(['map', 'dashboard'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors max-md:px-3 ${
+              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
                 view === v ? 'bg-blue-600 text-white' : 'text-gray-600'
               }`}
             >
-              {v === 'map' ? '지도' : v === 'dashboard' ? '통계' : '개척'}
+              {v === 'map' ? '지도' : '통계'}
             </button>
           ))}
         </div>
+        )}
 
         {/* 플로팅 액션 버튼 (목록 / 영업동선 / 내 일정) */}
         {view === 'map' && (

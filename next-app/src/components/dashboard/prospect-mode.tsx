@@ -1,13 +1,16 @@
 'use client';
 
 // 개척 모드 — 인허가·주요거래처 밖에서 영업사원이 직접 발굴하는 거래처 활동 관리.
-// 홈(거래처)의 '개척' 뷰로 전환되면 전체 화면을 차지하는 독립 오버레이 (기존 지도 로직 무접촉).
-// 입력은 미니멀(거래처명/주소/담당자) — 주소는 저장 시 지오코딩해 지도에 즉시 마커.
-// 단계: 타겟 → 방문 → 샘플·견적 → 최종타겟 → F/U대상  ·  개척가능성: 상/중/하/개척완료
+// 홈(거래처) 우상단 "개척 모드" 스위치로 켜면 전체 화면을 차지하는 독립 오버레이 (기존 지도 로직 무접촉).
+//
+// 구조: "개척 활동"(제목+기간)을 만들고 그 안에 타겟을 등록한다.
+//  - 종료일이 지난 활동은 자동으로 '종료(이력)' — 드롭다운에서 골라 과거 활동을 돌아본다.
+//  - 타겟 등록: 단건 폼(거래처명/주소/담당자) 또는 엑셀 일괄 업로드(컬럼 자동 인식).
+//  - 단계: 타겟 → 방문 → 샘플·견적 → 최종타겟 → F/U대상  ·  개척가능성: 상/중/하/개척완료
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, MapPin, Trash2, X, ChartBar, ListFilter } from 'lucide-react';
+import { Plus, MapPin, Trash2, X, ChartBar, ListFilter, CalendarRange, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
   loadNaverMaps,
@@ -18,8 +21,16 @@ import {
 } from '@/lib/naver/loader';
 import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/dashboard/constants';
 
+export interface Campaign {
+  id: string;
+  title: string;
+  start_date: string;
+  end_date: string;
+}
+
 export interface Prospect {
   id: string;
+  campaign_id: string | null;
   name: string;
   address: string;
   manager_name: string;
@@ -41,34 +52,63 @@ const POTENTIAL_COLOR: Record<string, string> = {
   개척완료: '#2563eb',
 };
 
-const PERIODS = [
-  { key: '1m', label: '1개월', months: 1 },
-  { key: '3m', label: '3개월', months: 3 },
-  { key: '6m', label: '6개월', months: 6 },
-  { key: 'all', label: '전체', months: null },
-] as const;
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function campaignStatus(c: Campaign): '진행중' | '예정' | '종료' {
+  const t = todayStr();
+  if (t < c.start_date) return '예정';
+  if (t > c.end_date) return '종료';
+  return '진행중';
+}
+
+function fmtPeriod(c: Campaign): string {
+  const f = (s: string) => s.slice(2).replace(/-/g, '.');
+  return `${f(c.start_date)}~${f(c.end_date)}`;
+}
 
 function markerHtml(color: string, done: boolean): string {
   return `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.35);${done ? 'outline:2px solid ' + color + '55;outline-offset:2px;' : ''}"></div>`;
 }
 
+// 엑셀 헤더 자동 인식 — 컬럼명에 아래 키워드가 포함되면 해당 필드로 매핑
+const XLS_KEYS = {
+  name: ['거래처', '매장', '상호', '업소', '업체'],
+  address: ['주소', '소재지'],
+  manager: ['담당'],
+};
+
 export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: string | null; myManagerName: string | null }) {
   const supabase = createClient();
 
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [campOpen, setCampOpen] = useState(false);       // 활동 선택 드롭다운
+  const [campFormOpen, setCampFormOpen] = useState(false); // 활동 만들기 모달
   const [rows, setRows] = useState<Prospect[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'list' | 'stats'>('list');
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]['key']>('3m');
   const [managerFilter, setManagerFilter] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelId, setConfirmDelId] = useState<string | null>(null);
 
-  // 등록 폼
+  // 활동 만들기 폼
+  const [cTitle, setCTitle] = useState('');
+  const [cStart, setCStart] = useState(todayStr());
+  const [cEnd, setCEnd] = useState('');
+  const [cSaving, setCSaving] = useState(false);
+
+  // 타겟 등록 (단건/엑셀)
   const [formOpen, setFormOpen] = useState(false);
+  const [formTab, setFormTab] = useState<'one' | 'excel'>('one');
   const [fName, setFName] = useState('');
   const [fAddr, setFAddr] = useState('');
   const [fManager, setFManager] = useState('');
   const [saving, setSaving] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const mapElRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMap | null>(null);
@@ -78,12 +118,17 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
   // ── 데이터 로드 ──
   useEffect(() => {
     (async () => {
-      const { data, error } = await supabase
-        .from('prospects')
-        .select('id,name,address,manager_name,stage,potential,lat,lng,created_at')
-        .order('created_at', { ascending: false });
-      if (error) toast.error('개척 목록 로드 실패: ' + error.message);
-      setRows((data as Prospect[]) || []);
+      const [{ data: camps, error: e1 }, { data: pros, error: e2 }] = await Promise.all([
+        supabase.from('prospect_campaigns').select('id,title,start_date,end_date').order('start_date', { ascending: false }),
+        supabase.from('prospects').select('id,campaign_id,name,address,manager_name,stage,potential,lat,lng,created_at').order('created_at', { ascending: false }),
+      ]);
+      if (e1 || e2) toast.error('개척 데이터 로드 실패: ' + (e1 || e2)!.message);
+      const cs = (camps as Campaign[]) || [];
+      setCampaigns(cs);
+      setRows((pros as Prospect[]) || []);
+      // 기본 선택: 진행중 활동 우선, 없으면 최신
+      const active = cs.find((c) => campaignStatus(c) === '진행중') || cs[0];
+      setCampaignId(active?.id ?? null);
       setLoading(false);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,23 +151,20 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
     return () => { cancelled = true; };
   }, []);
 
-  // ── 필터 적용 목록 ──
-  const filtered = useMemo(() => {
-    const p = PERIODS.find((x) => x.key === period)!;
-    let list = rows;
-    if (p.months != null) {
-      const cut = new Date();
-      cut.setMonth(cut.getMonth() - p.months);
-      const cutIso = cut.toISOString();
-      list = list.filter((r) => r.created_at >= cutIso);
-    }
-    if (managerFilter) list = list.filter((r) => r.manager_name === managerFilter);
-    return list;
-  }, [rows, period, managerFilter]);
+  const campaign = useMemo(() => campaigns.find((c) => c.id === campaignId) ?? null, [campaigns, campaignId]);
 
+  // ── 선택 활동의 타겟 목록 (+담당 필터) ──
+  const inCampaign = useMemo(
+    () => rows.filter((r) => r.campaign_id === campaignId),
+    [rows, campaignId],
+  );
+  const filtered = useMemo(
+    () => (managerFilter ? inCampaign.filter((r) => r.manager_name === managerFilter) : inCampaign),
+    [inCampaign, managerFilter],
+  );
   const managerNames = useMemo(
-    () => [...new Set(rows.map((r) => r.manager_name))].sort(),
-    [rows],
+    () => [...new Set(inCampaign.map((r) => r.manager_name))].sort(),
+    [inCampaign],
   );
 
   // ── 마커 동기화 ──
@@ -156,7 +198,6 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
     if (n > 0) map.fitBounds(bounds);
   }, [filtered, sdkReady]);
 
-  // 리스트에서 선택 시 지도 이동
   const focusRow = useCallback((r: Prospect) => {
     setSelectedId(r.id);
     if (r.lat != null && r.lng != null && mapRef.current) {
@@ -165,16 +206,45 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
     }
   }, []);
 
-  // ── 등록 ──
+  // ── 활동 만들기 ──
+  const saveCampaign = async () => {
+    const title = cTitle.trim();
+    if (!title || !cStart || !cEnd) { toast.warning('활동명과 기간을 입력해주세요.'); return; }
+    if (cEnd < cStart) { toast.warning('종료일이 시작일보다 빠릅니다.'); return; }
+    if (!businessUnit) { toast.error('소속 정보가 없습니다.'); return; }
+    setCSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('prospect_campaigns')
+        .insert({ business_unit: businessUnit, title, start_date: cStart, end_date: cEnd })
+        .select('id,title,start_date,end_date')
+        .single();
+      if (error) throw error;
+      const c = data as Campaign;
+      setCampaigns((prev) => [c, ...prev].sort((a, b) => b.start_date.localeCompare(a.start_date)));
+      setCampaignId(c.id);
+      setCampFormOpen(false);
+      setCTitle(''); setCEnd('');
+      toast.success(`"${title}" 활동을 시작합니다 (${fmtPeriod(c)})`);
+    } catch (e) {
+      toast.error('활동 생성 실패: ' + (e as Error).message);
+    } finally {
+      setCSaving(false);
+    }
+  };
+
+  // ── 타겟 등록 (단건) ──
   const openForm = () => {
+    if (!campaign) { toast.warning('먼저 개척 활동(기간)을 만들어주세요.'); setCampFormOpen(true); return; }
     setFManager((prev) => prev || myManagerName || '');
+    setFormTab('one');
     setFormOpen(true);
   };
 
   const saveProspect = async () => {
     const name = fName.trim(), addr = fAddr.trim(), manager = fManager.trim();
     if (!name || !addr || !manager) { toast.warning('거래처명·주소·담당자를 모두 입력해주세요.'); return; }
-    if (!businessUnit) { toast.error('소속 정보가 없습니다.'); return; }
+    if (!businessUnit || !campaign) return;
     setSaving(true);
     try {
       let lat: number | null = null, lng: number | null = null;
@@ -185,17 +255,89 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
       } catch { /* 지오코딩 실패해도 저장은 진행 */ }
       const { data, error } = await supabase
         .from('prospects')
-        .insert({ business_unit: businessUnit, name, address: addr, manager_name: manager, lat, lng })
-        .select('id,name,address,manager_name,stage,potential,lat,lng,created_at')
+        .insert({ business_unit: businessUnit, campaign_id: campaign.id, name, address: addr, manager_name: manager, lat, lng })
+        .select('id,campaign_id,name,address,manager_name,stage,potential,lat,lng,created_at')
         .single();
       if (error) throw error;
       setRows((prev) => [data as Prospect, ...prev]);
       setFName(''); setFAddr(''); setFormOpen(false);
-      toast.success(`"${name}" 개척 거래처로 등록했습니다`);
+      toast.success(`"${name}" 타겟으로 등록했습니다`);
     } catch (e) {
       toast.error('등록 실패: ' + (e as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // ── 타겟 등록 (엑셀 일괄) ──
+  const handleExcel = async (file: File) => {
+    if (!businessUnit || !campaign) return;
+    setBulkProgress('파일 읽는 중…');
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(await file.arrayBuffer());
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const grid: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+      // 헤더 행 탐색(상위 5행) — 거래처/주소 키워드가 함께 있는 행
+      let headIdx = -1;
+      const colOf: { name: number; address: number; manager: number } = { name: -1, address: -1, manager: -1 };
+      for (let i = 0; i < Math.min(5, grid.length); i++) {
+        const cells = grid[i].map((c) => String(c));
+        const found = { name: -1, address: -1, manager: -1 };
+        cells.forEach((c, j) => {
+          if (found.name < 0 && XLS_KEYS.name.some((k) => c.includes(k))) found.name = j;
+          if (found.address < 0 && XLS_KEYS.address.some((k) => c.includes(k))) found.address = j;
+          if (found.manager < 0 && XLS_KEYS.manager.some((k) => c.includes(k))) found.manager = j;
+        });
+        if (found.name >= 0 && found.address >= 0) { headIdx = i; Object.assign(colOf, found); break; }
+      }
+      if (headIdx < 0) {
+        toast.error('헤더를 찾지 못했습니다 — 거래처명·주소(·담당자) 컬럼이 있는 엑셀인지 확인해주세요.');
+        setBulkProgress(null);
+        return;
+      }
+      const items = grid.slice(headIdx + 1)
+        .map((r) => ({
+          name: String(r[colOf.name] ?? '').trim(),
+          address: String(r[colOf.address] ?? '').trim(),
+          manager_name: (colOf.manager >= 0 ? String(r[colOf.manager] ?? '').trim() : '') || myManagerName || '미지정',
+        }))
+        .filter((x) => x.name && x.address);
+      if (!items.length) { toast.warning('등록할 행이 없습니다.'); setBulkProgress(null); return; }
+
+      // 지오코딩(주소 중복은 1회만) → 일괄 insert
+      const coordByAddr = new Map<string, { lat: number; lng: number } | null>();
+      const payload = [];
+      for (let i = 0; i < items.length; i++) {
+        setBulkProgress(`주소 확인 중… (${i + 1}/${items.length})`);
+        const q = cleanGeocodeQuery(items[i].address);
+        if (!coordByAddr.has(q)) {
+          try { coordByAddr.set(q, (await cachedGeocodeDetailed(q)).coords); }
+          catch { coordByAddr.set(q, null); }
+        }
+        const c = coordByAddr.get(q) ?? null;
+        payload.push({
+          business_unit: businessUnit, campaign_id: campaign.id,
+          ...items[i], lat: c?.lat ?? null, lng: c?.lng ?? null,
+        });
+      }
+      setBulkProgress('저장 중…');
+      const inserted: Prospect[] = [];
+      for (let i = 0; i < payload.length; i += 100) {
+        const { data, error } = await supabase.from('prospects').insert(payload.slice(i, i + 100))
+          .select('id,campaign_id,name,address,manager_name,stage,potential,lat,lng,created_at');
+        if (error) throw error;
+        inserted.push(...(data as Prospect[]));
+      }
+      setRows((prev) => [...inserted, ...prev]);
+      const noGeo = inserted.filter((r) => r.lat == null).length;
+      toast.success(`${inserted.length}건 타겟 등록 완료${noGeo ? ` (지도 미표시 ${noGeo}건)` : ''}`);
+      setFormOpen(false);
+    } catch (e) {
+      toast.error('엑셀 등록 실패: ' + (e as Error).message);
+    } finally {
+      setBulkProgress(null);
+      if (fileRef.current) fileRef.current.value = '';
     }
   };
 
@@ -212,10 +354,10 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
     if (error) { toast.error('삭제 실패: ' + error.message); return; }
     setRows((rs) => rs.filter((r) => r.id !== id));
     setConfirmDelId(null);
-    toast('개척 거래처를 삭제했습니다');
+    toast('타겟을 삭제했습니다');
   };
 
-  // ── 통계 (필터 적용분 기준) ──
+  // ── 통계 (선택 활동 + 담당 필터 기준) ──
   const stats = useMemo(() => {
     const byManager = new Map<string, { total: number; done: number }>();
     const byStage = new Map<string, number>();
@@ -239,24 +381,76 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
   // ── 렌더 ──
   const chip = (active: boolean) =>
     `shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${active ? 'bg-[#0f172a] text-white' : 'bg-white text-[#475569] ring-1 ring-black/5'}`;
+  const statusBadge = (s: '진행중' | '예정' | '종료') =>
+    s === '진행중' ? 'bg-[#dcfce7] text-[#15803d]' : s === '예정' ? 'bg-[#e0e7ff] text-[#4338ca]' : 'bg-[#f1f5f9] text-[#64748b]';
 
   return (
     <div className="flex h-full w-full flex-col bg-[#f6f7f9] md:flex-row">
       {/* ── 패널 ── */}
       <div className="order-2 flex min-h-0 flex-1 flex-col md:order-1 md:w-[380px] md:flex-none md:border-r md:border-[#e8ebf0]">
-        {/* 필터 줄 */}
-        <div className="flex items-center gap-1.5 overflow-x-auto px-3 pb-2 pt-3 [scrollbar-width:none]">
-          {PERIODS.map((p) => (
-            <button key={p.key} onClick={() => setPeriod(p.key)} className={chip(period === p.key)}>{p.label}</button>
-          ))}
-          <span className="mx-0.5 h-4 w-px shrink-0 bg-[#e2e8f0]" />
+
+        {/* 활동 선택 줄 */}
+        <div className="flex items-center gap-2 px-3 pb-1 pt-3">
+          <div className="relative min-w-0 flex-1">
+            <button
+              onClick={() => setCampOpen((o) => !o)}
+              className="flex w-full items-center gap-2 rounded-xl bg-white px-3 py-2 text-left ring-1 ring-black/5"
+            >
+              <CalendarRange size={15} className="shrink-0 text-[#2563eb]" />
+              {campaign ? (
+                <>
+                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#0f172a]">{campaign.title}</span>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-semibold ${statusBadge(campaignStatus(campaign))}`}>
+                    {campaignStatus(campaign)}
+                  </span>
+                  <span className="shrink-0 text-[11px] text-[#94a3b8]">{fmtPeriod(campaign)}</span>
+                </>
+              ) : (
+                <span className="flex-1 text-[13px] text-[#94a3b8]">활동 기간을 만들어 시작하세요</span>
+              )}
+              <ChevronDown size={14} className="shrink-0 text-[#94a3b8]" />
+            </button>
+            {campOpen && (
+              <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-64 overflow-y-auto rounded-xl bg-white py-1 shadow-lg ring-1 ring-black/5">
+                {campaigns.length === 0 && (
+                  <div className="px-3 py-2.5 text-[12.5px] text-[#94a3b8]">아직 활동이 없습니다</div>
+                )}
+                {campaigns.map((c) => {
+                  const s = campaignStatus(c);
+                  const cnt = rows.filter((r) => r.campaign_id === c.id).length;
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => { setCampaignId(c.id); setCampOpen(false); setManagerFilter(null); }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[#f8fafc] ${c.id === campaignId ? 'bg-[#eff6ff]' : ''}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#0f172a]">{c.title}</span>
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${statusBadge(s)}`}>{s === '종료' ? '이력' : s}</span>
+                      <span className="shrink-0 text-[11px] text-[#94a3b8]">{fmtPeriod(c)} · {cnt}건</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => { setCampFormOpen(true); setCampOpen(false); }}
+            className="flex h-9 shrink-0 items-center gap-1 rounded-xl bg-white px-2.5 text-[12px] font-semibold text-[#2563eb] ring-1 ring-black/5"
+            title="새 개척 활동(기간) 만들기"
+          >
+            <Plus size={14} />활동
+          </button>
+        </div>
+
+        {/* 담당 필터 줄 */}
+        <div className="flex items-center gap-1.5 overflow-x-auto px-3 pb-2 pt-2 [scrollbar-width:none]">
           <button onClick={() => setManagerFilter(null)} className={chip(!managerFilter)}>담당 전체</button>
           {managerNames.map((m) => (
             <button key={m} onClick={() => setManagerFilter(managerFilter === m ? null : m)} className={chip(managerFilter === m)}>{m}</button>
           ))}
         </div>
 
-        {/* 목록/통계 탭 + 등록 버튼 */}
+        {/* 목록/통계 탭 + 타겟 등록 */}
         <div className="flex items-center gap-2 px-3 pb-2">
           <div className="flex gap-1 rounded-lg bg-white p-0.5 ring-1 ring-black/5">
             <button onClick={() => setTab('list')} className={`flex items-center gap-1 rounded-md px-3 py-1 text-[12.5px] font-medium ${tab === 'list' ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>
@@ -270,7 +464,7 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
             onClick={openForm}
             className="ml-auto flex items-center gap-1 rounded-lg bg-[#2563eb] px-3 py-1.5 text-[12.5px] font-semibold text-white"
           >
-            <Plus size={14} />개척 등록
+            <Plus size={14} />타겟 등록
           </button>
         </div>
 
@@ -278,10 +472,16 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
         <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
           {loading ? (
             <div className="py-16 text-center text-sm text-[#94a3b8]">불러오는 중…</div>
+          ) : !campaign ? (
+            <div className="py-16 text-center text-sm leading-relaxed text-[#94a3b8]">
+              개척은 <b>활동(기간)</b> 단위로 관리됩니다.<br />
+              &quot;+ 활동&quot;으로 첫 활동을 만들어주세요.<br />
+              <span className="text-[12px]">예: 8월 신도시 개척 (8/1~8/31)</span>
+            </div>
           ) : tab === 'list' ? (
             filtered.length === 0 ? (
               <div className="py-16 text-center text-sm leading-relaxed text-[#94a3b8]">
-                아직 개척 거래처가 없습니다.<br />&quot;개척 등록&quot;으로 첫 활동을 기록해보세요.
+                이 활동에 등록된 타겟이 없습니다.<br />&quot;타겟 등록&quot;으로 단건 또는 엑셀 일괄 등록하세요.
               </div>
             ) : (
               <div className="flex flex-col gap-1.5">
@@ -344,7 +544,7 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
             /* ── 통계 ── */
             <div className="flex flex-col gap-4 pt-1">
               <section className="rounded-xl bg-white p-3.5 ring-1 ring-black/5">
-                <h3 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-[#94a3b8]">담당자별 개척 (기간 내)</h3>
+                <h3 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-[#94a3b8]">담당자별 개척 ({campaign.title})</h3>
                 {stats.byManager.length === 0 ? (
                   <p className="text-xs text-[#94a3b8]">데이터 없음</p>
                 ) : stats.byManager.map(([m, v]) => (
@@ -394,7 +594,6 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
       {/* ── 지도 ── */}
       <div className="relative order-1 h-[38dvh] shrink-0 md:order-2 md:h-auto md:flex-1">
         <div ref={mapElRef} className="h-full w-full" />
-        {/* 범례 */}
         <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] text-[#475569] shadow ring-1 ring-black/5">
           {POTENTIALS.map((p) => (
             <span key={p} className="flex items-center gap-1">
@@ -404,43 +603,121 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
         </div>
       </div>
 
-      {/* ── 등록 폼 (바텀시트/모달) ── */}
-      {formOpen && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 md:items-center" onClick={() => setFormOpen(false)}>
+      {/* ── 활동 만들기 모달 ── */}
+      {campFormOpen && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 md:items-center" onClick={() => setCampFormOpen(false)}>
           <div
             className="w-full max-w-[440px] rounded-t-[24px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-4 md:rounded-[24px] md:pb-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-[17px] font-bold text-[#0f172a]">개척 거래처 등록</h2>
-              <button onClick={() => setFormOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[#94a3b8] hover:bg-gray-100" aria-label="닫기">
+              <h2 className="text-[17px] font-bold text-[#0f172a]">개척 활동 만들기</h2>
+              <button onClick={() => setCampFormOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[#94a3b8] hover:bg-gray-100" aria-label="닫기">
                 <X size={17} />
               </button>
             </div>
+            <p className="mb-3 text-[12.5px] leading-relaxed text-[#64748b]">
+              기간을 정해 활동을 진행합니다. 종료일이 지나면 자동으로 이력이 되어 활동별로 돌아볼 수 있습니다.
+            </p>
             <div className="flex flex-col gap-2.5">
               <input
-                value={fName} onChange={(e) => setFName(e.target.value)}
-                placeholder="거래처(매장)명"
+                value={cTitle} onChange={(e) => setCTitle(e.target.value)}
+                placeholder="활동명 (예: 8월 신도시 개척)"
                 className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
               />
-              <input
-                value={fAddr} onChange={(e) => setFAddr(e.target.value)}
-                placeholder="주소 (도로명 권장 — 지도에 자동 표시)"
-                className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
-              />
-              <input
-                value={fManager} onChange={(e) => setFManager(e.target.value)}
-                placeholder="담당자"
-                className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="date" value={cStart} onChange={(e) => setCStart(e.target.value)}
+                  className="flex-1 rounded-xl border border-[#e2e8f0] px-3 py-2.5 text-[14px] outline-none focus:border-[#2563eb]"
+                  aria-label="시작일"
+                />
+                <span className="text-[#94a3b8]">~</span>
+                <input
+                  type="date" value={cEnd} onChange={(e) => setCEnd(e.target.value)} min={cStart}
+                  className="flex-1 rounded-xl border border-[#e2e8f0] px-3 py-2.5 text-[14px] outline-none focus:border-[#2563eb]"
+                  aria-label="종료일"
+                />
+              </div>
               <button
-                onClick={saveProspect}
-                disabled={saving}
+                onClick={saveCampaign}
+                disabled={cSaving}
                 className="mt-1 rounded-xl bg-[#2563eb] py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
               >
-                {saving ? '등록 중…' : '등록 (단계: 타겟 · 가능성: 중으로 시작)'}
+                {cSaving ? '만드는 중…' : '활동 시작'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 타겟 등록 모달 (단건/엑셀) ── */}
+      {formOpen && campaign && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/45 md:items-center" onClick={() => !bulkProgress && setFormOpen(false)}>
+          <div
+            className="w-full max-w-[460px] rounded-t-[24px] bg-white px-5 pb-[max(20px,env(safe-area-inset-bottom))] pt-4 md:rounded-[24px] md:pb-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="text-[17px] font-bold text-[#0f172a]">타겟 등록</h2>
+              <button onClick={() => !bulkProgress && setFormOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[#94a3b8] hover:bg-gray-100" aria-label="닫기">
+                <X size={17} />
+              </button>
+            </div>
+            <p className="mb-3 text-[12px] text-[#94a3b8]">활동: {campaign.title} ({fmtPeriod(campaign)})</p>
+
+            <div className="mb-3 flex gap-1 rounded-lg bg-[#f1f5f9] p-0.5">
+              <button onClick={() => setFormTab('one')} className={`flex-1 rounded-md py-1.5 text-[13px] font-medium ${formTab === 'one' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b]'}`}>직접 입력</button>
+              <button onClick={() => setFormTab('excel')} className={`flex-1 rounded-md py-1.5 text-[13px] font-medium ${formTab === 'excel' ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b]'}`}>엑셀 업로드</button>
+            </div>
+
+            {formTab === 'one' ? (
+              <div className="flex flex-col gap-2.5">
+                <input
+                  value={fName} onChange={(e) => setFName(e.target.value)}
+                  placeholder="거래처(매장)명"
+                  className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
+                />
+                <input
+                  value={fAddr} onChange={(e) => setFAddr(e.target.value)}
+                  placeholder="주소 (도로명 권장 — 지도에 자동 표시)"
+                  className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
+                />
+                <input
+                  value={fManager} onChange={(e) => setFManager(e.target.value)}
+                  placeholder="담당자"
+                  className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
+                />
+                <button
+                  onClick={saveProspect}
+                  disabled={saving}
+                  className="mt-1 rounded-xl bg-[#2563eb] py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
+                >
+                  {saving ? '등록 중…' : '타겟 등록 (단계: 타겟 · 가능성: 중)'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <div className="rounded-xl bg-[#f8fafc] p-3 text-[12.5px] leading-relaxed text-[#64748b]">
+                  <b>거래처명 · 주소 · 담당자</b> 컬럼이 있는 엑셀(.xlsx)을 올리면 자동 인식해 일괄 등록합니다.
+                  담당자 컬럼이 없으면 내 이름으로 등록됩니다. 주소는 자동으로 지도에 표시됩니다.
+                </div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleExcel(f); }}
+                />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  disabled={!!bulkProgress}
+                  className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#cbd5e1] py-6 text-[14px] font-medium text-[#475569] hover:border-[#2563eb] hover:text-[#2563eb] disabled:opacity-60"
+                >
+                  <FileSpreadsheet size={18} />
+                  {bulkProgress ?? '엑셀 파일 선택'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
