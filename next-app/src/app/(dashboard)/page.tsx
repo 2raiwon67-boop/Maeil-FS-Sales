@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useManager } from '@/hooks/use-manager';
 import {
   loadNaverMaps,
-  cachedGeocode,
+  cachedGeocodeDetailed,
   cleanGeocodeQuery,
   onNaverAuthFailure,
   type NaverMap,
@@ -270,11 +270,35 @@ export default function DashboardPage() {
         } catch { /* 저장 실패해도 이번 세션 화면 표시는 유지 */ }
       };
 
+      // 서버 공유 무매칭 목록(시장분석과 공용) — 영구 실패 확정 주소는 시도 자체를 생략.
+      // 새로 확정된 무매칭은 마지막에 한 번 신고해 서버 목록에 병합.
+      let noMatchSet = new Set<string>();
+      try {
+        const r = await fetch('/api/market-geocode');
+        if (r.ok) noMatchSet = new Set<string>((await r.json()).noMatch || []);
+      } catch { /* 목록 없이도 기존 동작 유지 */ }
+      const newNoMatch = new Set<string>();
+      const reportNoMatch = async () => {
+        if (!newNoMatch.size) return;
+        const body = JSON.stringify({ updates: [], noMatch: [...newNoMatch] });
+        newNoMatch.clear();
+        try {
+          await fetch('/api/market-geocode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
+        } catch { /* ignore */ }
+      };
+
       if (total > 0) setGeocoding({ done: 0, total });
       let done = 0;
       for (const l of licNeedGeo) {
-        if (cancelled) { await flushSave(); return; }
-        const c = await cachedGeocode(cleanGeocodeQuery(l.road_address!));
+        if (cancelled) { await flushSave(); await reportNoMatch(); return; }
+        const q = cleanGeocodeQuery(l.road_address!);
+        if (noMatchSet.has(q)) {
+          done++;
+          if (done % 5 === 0 || done === total) setGeocoding({ done, total });
+          continue;
+        }
+        const { coords: c, noMatch } = await cachedGeocodeDetailed(q);
+        if (noMatch) { noMatchSet.add(q); newNoMatch.add(q); }
         if (c) {
           licCoords.set(l.id, c);
           pendingSave.push({ id: l.id, lat: c.lat, lng: c.lng });
@@ -285,12 +309,16 @@ export default function DashboardPage() {
       }
       await flushSave();
       for (const a of accNeedGeo) {
-        if (cancelled) return;
-        const c = await cachedGeocode(cleanGeocodeQuery(a.address!));
+        if (cancelled) { await reportNoMatch(); return; }
+        const q = cleanGeocodeQuery(a.address!);
+        if (noMatchSet.has(q)) { done++; continue; }
+        const { coords: c, noMatch } = await cachedGeocodeDetailed(q);
+        if (noMatch) { noMatchSet.add(q); newNoMatch.add(q); }
         if (c) accCoords.set(a.id, c);
         done++;
         if (done % 5 === 0 || done === total) setGeocoding({ done, total });
       }
+      await reportNoMatch();
       if (cancelled) return;
       setGeocoding(null);
 

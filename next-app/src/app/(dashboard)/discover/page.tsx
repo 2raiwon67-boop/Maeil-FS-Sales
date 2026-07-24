@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket } from '@/lib/regions';
-import { loadNaverMaps, cachedGeocode, cleanGeocodeQuery } from '@/lib/naver/loader';
+import { loadNaverMaps, cachedGeocodeDetailed, cleanGeocodeQuery } from '@/lib/naver/loader';
 import { toast } from 'sonner';
 import {
   Map as MapIcon, BarChart3, RefreshCw, X,
@@ -1335,12 +1335,22 @@ export default function DiscoverPage() {
       if (!list) { list = []; byKey.set(k, list); }
       list.push(r);
     }
+    // 서버 공유 무매칭 목록 — 영구 실패 확정 주소는 시도 자체를 생략 (쿼터 절약).
+    // 새로 확정된 무매칭은 저장 요청에 실어 서버 목록에 병합.
+    let noMatchSet = new Set<string>();
+    try {
+      const r = await fetch('/api/market-geocode');
+      if (r.ok) noMatchSet = new Set<string>((await r.json()).noMatch || []);
+    } catch { /* 목록 없이도 기존 동작 유지 */ }
+    const newNoMatch = new Set<string>();
+
     const coordByAddr = new Map<string, { lat: number; lng: number } | null>();
     let pendingSave: { id: number; lat: number; lng: number }[] = [];
     const flushSave = async () => {
-      if (!pendingSave.length) return;
-      const body = JSON.stringify({ updates: pendingSave });
+      if (!pendingSave.length && !newNoMatch.size) return;
+      const body = JSON.stringify({ updates: pendingSave, noMatch: [...newNoMatch] });
       pendingSave = [];
+      newNoMatch.clear();
       try {
         await fetch('/api/market-geocode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body });
       } catch { /* 저장 실패해도 이번 세션 화면 표시는 유지 */ }
@@ -1350,8 +1360,14 @@ export default function DiscoverPage() {
       if (geocodeRunRef.current !== runId) { await flushSave(); return; }
       if (!s.address) continue;
       const addr = cleanGeocodeQuery(s.address);
+      if (noMatchSet.has(addr)) continue;
       let c = coordByAddr.get(addr);
-      if (c === undefined) { c = await cachedGeocode(addr); coordByAddr.set(addr, c); }
+      if (c === undefined) {
+        const d = await cachedGeocodeDetailed(addr);
+        c = d.coords;
+        coordByAddr.set(addr, c);
+        if (d.noMatch) { noMatchSet.add(addr); newNoMatch.add(addr); }
+      }
       if (!c) continue;
       pendingSave.push({ id: s.id, lat: c.lat, lng: c.lng });
       for (const row of byKey.get(`${s.name}|${s.addr_key}|${s.status}`) || []) { row.lat = c.lat; row.lng = c.lng; }

@@ -97,18 +97,24 @@ export function cleanGeocodeQuery(address: string): string {
   return (address || '').split(',')[0].replace(/\s+/g, ' ').trim();
 }
 
-const FAIL_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 무매칭 주소 재시도 유예 3일
+const FAIL_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 무매칭 주소 재시도 유예 3일 (로컬 캐시 — 서버 공유 목록의 보조)
 
-/** 캐시 적용 지오코딩 (localStorage, 키 prefix maeil_geo_). 무매칭도 TTL 캐시해 쿼터 낭비 방지. */
-export async function cachedGeocode(address: string): Promise<{ lat: number; lng: number } | null> {
-  if (!address) return null;
+/**
+ * 캐시 적용 지오코딩 + 무매칭 여부 (localStorage, 키 prefix maeil_geo_).
+ * noMatch=true는 "지오코더가 정상 응답했지만 매칭 주소가 없음" — 서버 공유 무매칭 목록의 수집 대상.
+ * (로컬 fail 캐시 적중 시에도 true — API 호출 없이 서버 목록 수렴에 기여)
+ */
+export async function cachedGeocodeDetailed(
+  address: string,
+): Promise<{ coords: { lat: number; lng: number } | null; noMatch: boolean }> {
+  if (!address) return { coords: null, noMatch: false };
   const key = `maeil_geo_${address}`;
   const failKey = `maeil_geo_fail_${address}`;
   try {
     const cached = localStorage.getItem(key);
-    if (cached) return JSON.parse(cached);
+    if (cached) return { coords: JSON.parse(cached), noMatch: false };
     const failedAt = parseInt(localStorage.getItem(failKey) || '0', 10);
-    if (failedAt && Date.now() - failedAt < FAIL_TTL_MS) return null;
+    if (failedAt && Date.now() - failedAt < FAIL_TTL_MS) return { coords: null, noMatch: true };
   } catch {
     /* ignore */
   }
@@ -123,7 +129,12 @@ export async function cachedGeocode(address: string): Promise<{ lat: number; lng
   } catch {
     /* quota exceeded — ignore */
   }
-  return coords;
+  return { coords, noMatch };
+}
+
+/** 캐시 적용 지오코딩 — 좌표만 필요할 때의 간편 래퍼 */
+export async function cachedGeocode(address: string): Promise<{ lat: number; lng: number } | null> {
+  return (await cachedGeocodeDetailed(address)).coords;
 }
 
 // ── 최소 타입 선언 (naver.maps 전역) ──────────────────────────────
