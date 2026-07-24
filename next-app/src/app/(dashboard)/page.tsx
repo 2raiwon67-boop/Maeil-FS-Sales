@@ -32,6 +32,7 @@ import {
 } from '@/lib/dashboard/mutations';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
 import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
+import { ProspectMode } from '@/components/dashboard/prospect-mode';
 import { StoreDetail, type SelectedStore } from '@/components/dashboard/store-detail';
 import {
   RoutePanel,
@@ -86,7 +87,7 @@ export default function DashboardPage() {
 
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
   const [collapsed, setCollapsed] = useState(false);
-  const [view, setView] = useState<'map' | 'dashboard'>('map');
+  const [view, setView] = useState<'map' | 'dashboard' | 'prospect'>('map');
   const [colorblind, setColorblind] = useState(false);
 
   // 모바일(협폭)에선 300px 필터 사이드바가 지도를 대부분 가리므로 기본 접힘
@@ -776,6 +777,13 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* 개척 모드 오버레이 — 독립 화면(자체 지도·목록·통계), 기존 지도 로직 무접촉 */}
+        {view === 'prospect' && (
+          <div className="absolute inset-0 z-20">
+            <ProspectMode businessUnit={businessUnit} myManagerName={myManagerName} />
+          </div>
+        )}
+
         {/* 지도 검색창 */}
         {view === 'map' && (
           <div className={`absolute left-3 top-3 z-10 w-[min(320px,calc(100%-1.5rem))] max-md:top-[3.6rem] ${mobileSearchOpen || search ? '' : 'max-md:hidden'}`}>
@@ -827,15 +835,15 @@ export default function DashboardPage() {
               <Search size={15} />
             </button>
           )}
-          {(['map', 'dashboard'] as const).map((v) => (
+          {(['map', 'dashboard', 'prospect'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors max-md:px-3 ${
                 view === v ? 'bg-blue-600 text-white' : 'text-gray-600'
               }`}
             >
-              {v === 'map' ? '지도' : '통계'}
+              {v === 'map' ? '지도' : v === 'dashboard' ? '통계' : '개척'}
             </button>
           ))}
         </div>
