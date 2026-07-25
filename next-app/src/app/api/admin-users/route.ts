@@ -22,6 +22,11 @@ function maskEmail(email: string): string {
   return local.slice(0, 2) + '***@' + domain;
 }
 
+// Supabase auth admin API는 실패 형태가 제각각(error / error_description / msg / message) — 실제 사유를 그대로 노출한다
+function authErrorMessage(data: any): string {
+  return data?.error_description || data?.msg || data?.message || data?.error || '처리 실패';
+}
+
 function verifyAdmin(req: NextRequest): boolean {
   const code = req.headers.get('x-admin-code');
   return !!ADMIN_CODE && code === ADMIN_CODE;
@@ -176,8 +181,8 @@ export async function POST(req: NextRequest) {
       headers: supabaseHeaders,
     });
     if (!response.ok) {
-      const data = await response.json();
-      return NextResponse.json(data, { status: response.status, headers });
+      const data = await response.json().catch(() => ({}));
+      return NextResponse.json({ error: authErrorMessage(data) }, { status: response.status, headers });
     }
     const message = action === 'delete' ? '계정 삭제 완료' : '거절 및 계정 삭제 완료';
     return NextResponse.json({ success: true, message }, { headers });
