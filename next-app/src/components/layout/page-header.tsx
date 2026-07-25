@@ -26,7 +26,8 @@ export function PageHeader({
           {subtitle && <p className="mt-0.5 text-xs text-[#94a3b8]">{subtitle}</p>}
         </div>
       )}
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+      {/* 모바일: 액션이 줄바꿈으로 흩어지지 않게 2열 그리드 정렬 */}
+      {actions && <div className="flex flex-wrap items-center gap-2 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&>*]:justify-center">{actions}</div>}
     </div>
   );
 }

@@ -2332,8 +2332,8 @@ export default function DiscoverPage() {
   return (
     <div className="flex h-[calc(100dvh-3rem-4rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
 
-      {/* ── HEADS-UP FILTER BAR ── */}
-      <div className="relative z-[630] flex flex-shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5">
+      {/* ── HEADS-UP FILTER BAR ── 모바일은 한 줄 가로 스크롤(줄바꿈 시 좌우 불균형 방지) */}
+      <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none] md:flex-wrap">
         <FilterDropdown
           icon={<MapPin size={14} />}
           value={regionValue}
@@ -2356,7 +2356,7 @@ export default function DiscoverPage() {
 
         {/* 표시 모드 — 면 / 점 / 히트맵 */}
         {viewMode === 'map' && (
-          <div className="ml-auto inline-flex items-center gap-1.5">
+          <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">
             <span className="hidden text-[10px] font-medium text-slate-400 sm:inline">표시</span>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-[3px]">
               {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체']] as [DisplayMode, string][]).map(([m, label]) => (
@@ -2392,19 +2392,19 @@ export default function DiscoverPage() {
         <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
           <button
             onClick={() => handleSetViewMode('map')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-7 max-md:gap-1 max-md:px-2.5 max-md:text-[11px] ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <MapIcon size={14} />지도
           </button>
           <button
             onClick={() => handleSetViewMode('rank')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-7 max-md:gap-1 max-md:px-2.5 max-md:text-[11px] ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <BarChart3 size={14} />랭킹
           </button>
           <button
             onClick={() => handleSetViewMode('plan')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all ${viewMode === 'plan' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-7 max-md:gap-1 max-md:px-2.5 max-md:text-[11px] ${viewMode === 'plan' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <ClipboardList size={14} />운영계획
           </button>
@@ -2413,7 +2413,7 @@ export default function DiscoverPage() {
           disabled={refreshing}
           onClick={() => loadDashboardData(regionMode, regionSido)}
           title={lastSync}
-          className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition-all hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
+          className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm max-md:h-[30px] max-md:w-[30px] transition-all hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
         >
           <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
         </button>

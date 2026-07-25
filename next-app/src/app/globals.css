@@ -176,3 +176,10 @@
 .maplibregl-popup.fs-pop .maplibregl-popup-tip {
   display: none;
 }
+
+/* 모바일: 시장분석 지도 줌 버튼 숨김 — 하단 타임랩스 바와 겹치고 핀치 줌으로 충분 */
+@media (max-width: 767px) {
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
+    display: none;
+  }
+}
