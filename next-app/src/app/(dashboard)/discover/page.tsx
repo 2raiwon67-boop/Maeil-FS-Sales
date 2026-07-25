@@ -1682,8 +1682,13 @@ export default function DiscoverPage() {
             minLng = Math.min(minLng, p.lng!); maxLng = Math.max(maxLng, p.lng!);
             minLat = Math.min(minLat, p.lat!); maxLat = Math.max(maxLat, p.lat!);
           }
+          // 좌측 230px 패딩은 PC 드릴다운 패널 공간 — 모바일에 그대로 쓰면 지도가 과도하게 축소됨
+          const mobilePad = typeof window !== 'undefined' && window.innerWidth < 768;
           mapRef.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
-            padding: { top: 80, bottom: 120, left: 230, right: 50 }, maxZoom: 11, duration: 800,
+            padding: mobilePad
+              ? { top: 60, bottom: 110, left: 28, right: 28 }
+              : { top: 80, bottom: 120, left: 230, right: 50 },
+            maxZoom: 11, duration: 800,
           });
           mapCenteredRef.current = true;
         } else {
