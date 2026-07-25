@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, MapPin, Trash2, X, ChartBar, ListFilter, CalendarRange, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Plus, MapPin, Trash2, X, ChartBar, ListFilter, CalendarRange, FileSpreadsheet, ChevronDown, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import {
   loadNaverMaps,
@@ -96,6 +96,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'list' | 'stats'>('list');
   const [managerFilter, setManagerFilter] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelId, setConfirmDelId] = useState<string | null>(null);
 
@@ -163,10 +164,12 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
     () => rows.filter((r) => r.campaign_id === campaignId),
     [rows, campaignId],
   );
-  const filtered = useMemo(
-    () => (managerFilter ? inCampaign.filter((r) => r.manager_name === managerFilter) : inCampaign),
-    [inCampaign, managerFilter],
-  );
+  const filtered = useMemo(() => {
+    let list = managerFilter ? inCampaign.filter((r) => r.manager_name === managerFilter) : inCampaign;
+    const q = query.trim().normalize('NFC');
+    if (q) list = list.filter((r) => r.name.includes(q) || r.address.includes(q) || r.manager_name.includes(q));
+    return list;
+  }, [inCampaign, managerFilter, query]);
   const managerNames = useMemo(
     () => [...new Set(inCampaign.map((r) => r.manager_name))].sort(),
     [inCampaign],
@@ -389,36 +392,36 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
   return (
     <div className="flex h-full w-full flex-col bg-[#f6f7f9] md:flex-row">
       {/* ── 패널 ── */}
-      <div className="order-2 flex min-h-0 flex-1 flex-col md:order-1 md:w-[380px] md:flex-none md:border-r md:border-[#e8ebf0]">
+      <div className="order-2 flex min-h-0 flex-1 flex-col md:order-1 md:w-[300px] md:flex-none md:border-r md:border-[#e8ebf0]">
 
         {/* 컨트롤 묶음 — 흰 블록 하나로 (요소가 흩어져 보이지 않게) */}
-        <div className="border-b border-[#e8ebf0] bg-white pb-2.5 shadow-sm">
+        <div className="border-b border-[#e8ebf0] bg-white pb-2 shadow-sm">
 
         {/* 활동 선택 줄 */}
-        <div className="flex items-center gap-2 px-3 pb-1 pt-2.5">
+        <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-2">
           <div className="relative min-w-0 flex-1">
             <button
               onClick={() => setCampOpen((o) => !o)}
-              className="flex w-full items-center gap-2 rounded-xl bg-[#f8fafc] px-3 py-2 text-left ring-1 ring-black/5"
+              className="flex w-full items-center gap-1.5 rounded-lg bg-[#f8fafc] px-2.5 py-1.5 text-left ring-1 ring-black/5"
             >
-              <CalendarRange size={15} className="shrink-0 text-[#2563eb]" />
+              <CalendarRange size={13} className="shrink-0 text-[#2563eb]" />
               {campaign ? (
                 <>
-                  <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-[#0f172a]">{campaign.title}</span>
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10.5px] font-semibold ${statusBadge(campaignStatus(campaign))}`}>
+                  <span className="min-w-0 flex-1 truncate text-[12px] font-semibold text-[#0f172a]">{campaign.title}</span>
+                  <span className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-semibold ${statusBadge(campaignStatus(campaign))}`}>
                     {campaignStatus(campaign)}
                   </span>
-                  <span className="shrink-0 text-[11px] text-[#94a3b8]">{fmtPeriod(campaign)}</span>
+                  <span className="shrink-0 text-[10px] text-[#94a3b8]">{fmtPeriod(campaign)}</span>
                 </>
               ) : (
-                <span className="flex-1 text-[13px] text-[#94a3b8]">활동 선택</span>
+                <span className="flex-1 text-[12px] text-[#94a3b8]">활동 선택</span>
               )}
-              <ChevronDown size={14} className="shrink-0 text-[#94a3b8]" />
+              <ChevronDown size={12} className="shrink-0 text-[#94a3b8]" />
             </button>
             {campOpen && (
-              <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-64 overflow-y-auto rounded-xl bg-white py-1 shadow-lg ring-1 ring-black/5">
+              <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-64 overflow-y-auto rounded-lg bg-white py-1 shadow-lg ring-1 ring-black/5">
                 {campaigns.length === 0 && (
-                  <div className="px-3 py-2.5 text-[12.5px] text-[#94a3b8]">아직 활동이 없습니다</div>
+                  <div className="px-2.5 py-2 text-[11.5px] text-[#94a3b8]">아직 활동이 없습니다</div>
                 )}
                 {campaigns.map((c) => {
                   const s = campaignStatus(c);
@@ -426,12 +429,12 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
                   return (
                     <button
                       key={c.id}
-                      onClick={() => { setCampaignId(c.id); setCampOpen(false); setManagerFilter(null); }}
-                      className={`flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-[#f8fafc] ${c.id === campaignId ? 'bg-[#eff6ff]' : ''}`}
+                      onClick={() => { setCampaignId(c.id); setCampOpen(false); setManagerFilter(null); setQuery(''); }}
+                      className={`flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left hover:bg-[#f8fafc] ${c.id === campaignId ? 'bg-[#eff6ff]' : ''}`}
                     >
-                      <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-[#0f172a]">{c.title}</span>
-                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${statusBadge(s)}`}>{s === '종료' ? '이력' : s}</span>
-                      <span className="shrink-0 text-[11px] text-[#94a3b8]">{fmtPeriod(c)} · {cnt}건</span>
+                      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-[#0f172a]">{c.title}</span>
+                      <span className={`shrink-0 rounded px-1 py-0.5 text-[9.5px] font-semibold ${statusBadge(s)}`}>{s === '종료' ? '이력' : s}</span>
+                      <span className="shrink-0 text-[10px] text-[#94a3b8]">{fmtPeriod(c)} · {cnt}건</span>
                     </button>
                   );
                 })}
@@ -440,15 +443,31 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
           </div>
           <button
             onClick={() => { setCampFormOpen(true); setCampOpen(false); }}
-            className="flex h-9 shrink-0 items-center gap-1 rounded-xl bg-[#f1f5f9] px-2.5 text-[12px] font-semibold text-[#2563eb]"
+            className="flex h-[30px] shrink-0 items-center gap-0.5 rounded-lg bg-[#f1f5f9] px-2 text-[11px] font-semibold text-[#2563eb]"
             title="새 개척 활동(기간) 만들기"
           >
-            <Plus size={14} />활동
+            <Plus size={12} />활동
           </button>
         </div>
 
+        {/* 검색 줄 */}
+        <label className="mx-2.5 mb-1 flex items-center gap-1.5 rounded-lg bg-[#f1f5f9] px-2 py-1.5">
+          <Search size={12} className="shrink-0 text-[#94a3b8]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="거래처 검색"
+            className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-[#b6c0cc]"
+          />
+          {query && (
+            <button onClick={() => setQuery('')} className="text-[#cbd5e1]" aria-label="검색어 지우기">
+              <X size={12} />
+            </button>
+          )}
+        </label>
+
         {/* 담당 필터 줄 */}
-        <div className="flex items-center gap-1.5 overflow-x-auto px-3 pb-2 pt-2 [scrollbar-width:none]">
+        <div className="flex items-center gap-1 overflow-x-auto px-2.5 pb-1.5 pt-1 [scrollbar-width:none]">
           <button onClick={() => setManagerFilter(null)} className={chip(!managerFilter)}>담당 전체</button>
           {managerNames.map((m) => (
             <button key={m} onClick={() => setManagerFilter(managerFilter === m ? null : m)} className={chip(managerFilter === m)}>{m}</button>
@@ -456,20 +475,20 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
         </div>
 
         {/* 목록/통계 탭 + 타겟 등록 */}
-        <div className="flex items-center gap-2 px-3">
-          <div className="flex gap-1 rounded-lg bg-[#f1f5f9] p-0.5">
-            <button onClick={() => setTab('list')} className={`flex items-center gap-1 rounded-md px-3 py-1 text-[12.5px] font-medium ${tab === 'list' ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>
-              <ListFilter size={13} />목록 {filtered.length}
+        <div className="flex items-center gap-1.5 px-2.5">
+          <div className="flex gap-0.5 rounded-lg bg-[#f1f5f9] p-0.5">
+            <button onClick={() => setTab('list')} className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ${tab === 'list' ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>
+              <ListFilter size={11} />목록 {filtered.length}
             </button>
-            <button onClick={() => setTab('stats')} className={`flex items-center gap-1 rounded-md px-3 py-1 text-[12.5px] font-medium ${tab === 'stats' ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>
-              <ChartBar size={13} />통계
+            <button onClick={() => setTab('stats')} className={`flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium ${tab === 'stats' ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>
+              <ChartBar size={11} />통계
             </button>
           </div>
           <button
             onClick={openForm}
-            className="ml-auto flex items-center gap-1 rounded-lg bg-[#2563eb] px-3 py-1.5 text-[12.5px] font-semibold text-white"
+            className="ml-auto flex items-center gap-0.5 rounded-lg bg-[#2563eb] px-2 py-1 text-[11px] font-semibold text-white"
           >
-            <Plus size={14} />타겟 등록
+            <Plus size={12} />타겟 등록
           </button>
         </div>
         </div>
@@ -484,30 +503,30 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
             filtered.length === 0 ? (
               <div className="py-16 text-center text-sm text-[#94a3b8]">등록된 타겟이 없습니다</div>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-1">
                 {filtered.map((r) => (
                   <div
                     key={r.id}
-                    className={`rounded-xl bg-white p-3 ring-1 transition-shadow ${selectedId === r.id ? 'ring-[#2563eb]' : 'ring-black/5'}`}
+                    className={`rounded-lg bg-white p-2 ring-1 transition-shadow ${selectedId === r.id ? 'ring-[#2563eb]' : 'ring-black/5'}`}
                     onClick={() => focusRow(r)}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: POTENTIAL_COLOR[r.potential] }} />
-                      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-[#0f172a]">{r.name}</span>
-                      <span className="shrink-0 text-[11px] text-[#94a3b8]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: POTENTIAL_COLOR[r.potential] }} />
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#0f172a]">{r.name}</span>
+                      <span className="shrink-0 text-[10px] text-[#94a3b8]">
                         {r.manager_name} · {new Date(r.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
                       </span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1 pl-[18px] text-[12px] text-[#64748b]">
-                      <MapPin size={11} className="shrink-0 text-[#cbd5e1]" />
+                    <div className="mt-0.5 flex items-center gap-1 pl-[14px] text-[11px] text-[#64748b]">
+                      <MapPin size={10} className="shrink-0 text-[#cbd5e1]" />
                       <span className="truncate">{r.address}</span>
-                      {r.lat == null && <span className="shrink-0 rounded bg-[#fef3c7] px-1 text-[10px] text-[#92400e]">지도 미표시</span>}
+                      {r.lat == null && <span className="shrink-0 rounded bg-[#fef3c7] px-1 text-[9.5px] text-[#92400e]">지도 미표시</span>}
                     </div>
-                    <div className="mt-2 flex items-center gap-1.5 pl-[18px]" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-1 flex items-center gap-1 pl-[14px]" onClick={(e) => e.stopPropagation()}>
                       <select
                         value={r.stage}
                         onChange={(e) => patchRow(r.id, { stage: e.target.value })}
-                        className="rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-1.5 py-1 text-[12px] font-medium text-[#334155]"
+                        className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1 py-0.5 text-[11px] font-medium text-[#334155]"
                         aria-label="진행 단계"
                       >
                         {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -515,7 +534,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
                       <select
                         value={r.potential}
                         onChange={(e) => patchRow(r.id, { potential: e.target.value })}
-                        className="rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-1.5 py-1 text-[12px] font-medium"
+                        className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1 py-0.5 text-[11px] font-medium"
                         style={{ color: POTENTIAL_COLOR[r.potential] }}
                         aria-label="개척 가능성"
                       >
@@ -523,16 +542,16 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
                       </select>
                       {confirmDelId === r.id ? (
                         <span className="ml-auto flex items-center gap-1">
-                          <button onClick={() => deleteRow(r.id)} className="rounded-md bg-red-500 px-2 py-1 text-[11px] font-semibold text-white">삭제</button>
-                          <button onClick={() => setConfirmDelId(null)} className="rounded-md bg-[#f1f5f9] px-2 py-1 text-[11px] text-[#64748b]">취소</button>
+                          <button onClick={() => deleteRow(r.id)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">삭제</button>
+                          <button onClick={() => setConfirmDelId(null)} className="rounded bg-[#f1f5f9] px-1.5 py-0.5 text-[10px] text-[#64748b]">취소</button>
                         </span>
                       ) : (
                         <button
                           onClick={() => setConfirmDelId(r.id)}
-                          className="ml-auto flex h-7 w-7 items-center justify-center rounded-md text-[#cbd5e1] hover:bg-red-50 hover:text-red-500"
+                          className="ml-auto flex h-6 w-6 items-center justify-center rounded text-[#cbd5e1] hover:bg-red-50 hover:text-red-500"
                           aria-label={`${r.name} 삭제`}
                         >
-                          <Trash2 size={14} />
+                          <Trash2 size={12} />
                         </button>
                       )}
                     </div>
@@ -542,46 +561,46 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
             )
           ) : (
             /* ── 통계 ── */
-            <div className="flex flex-col gap-4 pt-1">
-              <section className="rounded-xl bg-white p-3.5 ring-1 ring-black/5">
-                <h3 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-[#94a3b8]">담당자별 개척 ({campaign.title})</h3>
+            <div className="flex flex-col gap-2.5 pt-1">
+              <section className="rounded-lg bg-white p-2.5 ring-1 ring-black/5">
+                <h3 className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">담당자별 개척 ({campaign.title})</h3>
                 {stats.byManager.length === 0 ? (
                   <p className="text-xs text-[#94a3b8]">데이터 없음</p>
                 ) : stats.byManager.map(([m, v]) => (
-                  <div key={m} className="mb-2 last:mb-0">
-                    <div className="mb-0.5 flex justify-between text-[12.5px]">
+                  <div key={m} className="mb-1.5 last:mb-0">
+                    <div className="mb-0.5 flex justify-between text-[11.5px]">
                       <span className="font-medium text-[#334155]">{m}</span>
                       <span className="text-[#64748b]">{v.total}건{v.done > 0 && <span className="text-[#2563eb]"> · 완료 {v.done}</span>}</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[#f1f5f9]">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[#f1f5f9]">
                       <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(v.total / stats.max) * 100}%` }} />
                     </div>
                   </div>
                 ))}
               </section>
 
-              <section className="rounded-xl bg-white p-3.5 ring-1 ring-black/5">
-                <h3 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-[#94a3b8]">단계 퍼널</h3>
+              <section className="rounded-lg bg-white p-2.5 ring-1 ring-black/5">
+                <h3 className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">단계 퍼널</h3>
                 {stats.byStage.map(([s, n]) => (
-                  <div key={s} className="mb-2 last:mb-0">
-                    <div className="mb-0.5 flex justify-between text-[12.5px]">
+                  <div key={s} className="mb-1.5 last:mb-0">
+                    <div className="mb-0.5 flex justify-between text-[11.5px]">
                       <span className="font-medium text-[#334155]">{s}</span>
                       <span className="text-[#64748b]">{n}건</span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-[#f1f5f9]">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[#f1f5f9]">
                       <div className="h-full rounded-full bg-[#1B3F82]" style={{ width: `${(n / stats.stageMax) * 100}%` }} />
                     </div>
                   </div>
                 ))}
               </section>
 
-              <section className="rounded-xl bg-white p-3.5 ring-1 ring-black/5">
-                <h3 className="mb-2.5 text-[12px] font-semibold uppercase tracking-wide text-[#94a3b8]">개척 가능성 분포</h3>
+              <section className="rounded-lg bg-white p-2.5 ring-1 ring-black/5">
+                <h3 className="mb-2 text-[10.5px] font-semibold uppercase tracking-wide text-[#94a3b8]">개척 가능성 분포</h3>
                 <div className="flex gap-2">
                   {stats.byPotential.map(([p, n]) => (
-                    <div key={p} className="flex-1 rounded-lg bg-[#f8fafc] py-2.5 text-center">
-                      <div className="text-[17px] font-bold" style={{ color: POTENTIAL_COLOR[p] }}>{n}</div>
-                      <div className="mt-0.5 text-[11px] text-[#64748b]">{p}</div>
+                    <div key={p} className="flex-1 rounded-lg bg-[#f8fafc] py-1.5 text-center">
+                      <div className="text-[14px] font-bold" style={{ color: POTENTIAL_COLOR[p] }}>{n}</div>
+                      <div className="mt-0.5 text-[10px] text-[#64748b]">{p}</div>
                     </div>
                   ))}
                 </div>
