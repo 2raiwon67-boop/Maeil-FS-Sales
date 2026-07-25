@@ -399,10 +399,7 @@ export default function LicenseExportPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-5 pb-28">
-      <h1 className="mb-1 text-xl font-bold tracking-tight sm:text-2xl">인허가 추출</h1>
-      <p className="mb-4 text-[13px] leading-relaxed text-gray-500 sm:mb-5 sm:text-sm">
-        공공데이터(data.go.kr) 기준 신규 인허가 업소를 조회하고 엑셀(.xlsx)로 내려받습니다.
-      </p>
+      <h1 className="mb-4 text-xl font-bold tracking-tight sm:mb-5 sm:text-2xl">인허가 추출</h1>
 
       {/* 관리자 지점 선택 배너 */}
       {isAdmin && (
@@ -549,7 +546,7 @@ export default function LicenseExportPage() {
         {results === null && !searching && !searchError && (
           <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-sm text-gray-400">
             <ClipboardList className="h-9 w-9 text-gray-300" strokeWidth={1.5} />
-            <span>기간·업종·지역을 선택하고 조회하세요.</span>
+            <span>조회 결과 없음</span>
           </div>
         )}
 

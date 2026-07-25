@@ -24,15 +24,18 @@ export const ACCOUNT_COLORS: Record<string, string> = {
 // 장바구니 담김 마커 색상
 export const CART_COLOR = '#5856d6';
 
-// 우유사 분류
-export const MILK_BRANDS = ['매일', '서울', '남양', '연세'] as const;
+// 우유사 분류 — 매장 상세의 선택지(store-detail MILKS)와 반드시 같은 목록을 유지할 것.
+// 여기 없는 브랜드를 매장 상세에서 고르면 필터·차트에서 조용히 '기타'로 뭉친다.
+export const MILK_BRANDS = ['매일', '서울', '남양', '연세', '동원', '빙그레'] as const;
 
 // 우유사 차트 색상
 export const MILK_COLORS: Record<string, string> = {
   매일: '#007AFF',
   서울: '#FF3B30',
-  남양: '#34C759',
-  연세: '#FF9500',
+  남양: '#FF9500',
+  연세: '#34C759',
+  동원: '#5856D6',
+  빙그레: '#FF2D95',
   기타: '#8E8E93',
 };
 

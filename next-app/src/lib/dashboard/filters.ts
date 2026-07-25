@@ -41,6 +41,8 @@ export const MILK_ITEMS = [
   { key: '서울', color: '#ff3b30' },
   { key: '남양', color: '#ff9500' },
   { key: '연세', color: '#34c759' },
+  { key: '동원', color: '#5856d6' },
+  { key: '빙그레', color: '#ff2d95' },
   { key: '기타', color: '#8e8e93' },
 ] as const;
 
@@ -79,6 +81,38 @@ export function accountMarkerVisible(m: NaverMarker, f: FilterState): boolean {
   return true;
 }
 
+// ── 데이터 필터 (목록 패널용) ─────────────────────────────────────
+// 마커 가시성과 같은 규칙을 원본 데이터에 적용한다.
+// 단, DROP처럼 지도에 마커를 안 그리는 상태도 목록에는 나와야 하므로
+// '아이콘이 있는지'가 아니라 필터 조건만 본다.
+
+/** 현재 필터에 해당하는 인허가 */
+export function filterLicenses(licenses: License[], f: FilterState): License[] {
+  if (f.tab === 'account') return [];
+  return licenses.filter((d) => {
+    if (f.rank !== 'all' && (d.priority || '') !== f.rank) return false;
+    if (f.status.size > 0 && !f.status.has((d.trade_status || '').trim())) return false;
+    if (f.region.size > 0 && !f.region.has((d.address2 || '기타').trim())) return false;
+    if (f.manager.size > 0 && !f.manager.has((d.manager || '미지정').trim())) return false;
+    if (f.milk.size > 0) {
+      const milk = (d.milk_type || '').trim();
+      if (!(f.milk.has(milk) || (f.milk.has('기타') && isOtherMilk(milk)))) return false;
+    }
+    return true;
+  });
+}
+
+/** 현재 필터에 해당하는 주요거래처 */
+export function filterAccounts(accounts: Account[], f: FilterState): Account[] {
+  if (f.tab === 'license') return [];
+  return accounts.filter((a) => {
+    if (f.account.size > 0 && !f.account.has((a.trade_status || '').trim())) return false;
+    if (f.region.size > 0 && ![...f.region].some((r) => (a.address || '').includes(r))) return false;
+    if (f.manager.size > 0 && !f.manager.has((a.manager_name || '').trim())) return false;
+    return true;
+  });
+}
+
 // ── 사이드바 카운트 집계 ──────────────────────────────────────────
 
 /** 순위/지역/담당자 필터를 적용한 인허가 데이터 (드롭다운 카운트용) */
@@ -113,11 +147,11 @@ export function computeCounts(
     status[it.key] = fl.filter((d) => (d.trade_status || '').trim() === it.key).length;
   }
 
-  // 우유 카운트
+  // 우유 카운트 — 미입력은 '기타'로 집계한다.
+  // (필터의 isOtherMilk가 빈 값도 '기타'에 포함시키므로, 빼면 숫자와 실제 결과가 어긋난다)
   const milk: Record<string, number> = {};
   for (const d of fl) {
     const m = (d.milk_type || '').trim();
-    if (!m) continue;
     const key = isOtherMilk(m) ? '기타' : m;
     milk[key] = (milk[key] || 0) + 1;
   }

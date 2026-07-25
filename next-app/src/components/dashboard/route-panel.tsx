@@ -334,11 +334,6 @@ export function RoutePanel({
             </div>
           )}
 
-          {cart.length === 0 && (
-            <div className="mt-3 rounded-lg bg-gray-50 p-2.5 text-[11px] text-gray-500">
-              출발지 반경 3km 이내 인허가 1순위·공사중·주요거래처를 자동 포함합니다.
-            </div>
-          )}
 
           <button onClick={optimize} className="mt-3.5 w-full rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white">
             동선 최적화

@@ -2394,11 +2394,24 @@ export default function DiscoverPage() {
         )}
       </div>
 
+      {/* 모바일 KPI 스트립 — 인사이트 독이 접혀 있어도 핵심 4개 수치는 항상 보이게 (지도는 안 가림) */}
+      {viewMode === 'map' && (
+        <div className="flex shrink-0 items-center justify-between gap-1 border-b border-slate-200 bg-white px-3 py-1.5 md:hidden">
+          {([['신규', kpiNew, 'text-green-600'], ['폐업', kpiClosed, 'text-red-600'], ['순증', kpiNet, 'text-blue-600'], ['성장률', kpiRate, 'text-amber-600']] as [string, string | number, string][]).map(([label, value, tone]) => (
+            <div key={label} className="flex flex-1 flex-col items-center leading-tight">
+              <span className="text-[9px] font-semibold text-slate-400">{label}</span>
+              <span className={`text-[15px] font-extrabold tabular-nums ${tone}`}>{value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* ── MAP AREA ── */}
       <div className="relative flex-1 overflow-hidden">
 
       {/* ── MAP ── */}
-      <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+      {/* isolate — MapLibre 컨트롤(저작권·ⓘ)이 타임랩스 바 위로 올라오는 것 차단 */}
+      <div ref={mapContainerRef} className="isolate absolute inset-0 w-full h-full" />
       {mapError && (
         <div
           data-map-error={mapError}
@@ -2923,7 +2936,7 @@ export default function DiscoverPage() {
         <div className="absolute inset-0 z-[300] flex flex-col overflow-hidden bg-slate-50">
           {/* 슬림 툴바 — 캡션 + 엑셀 (우측 여백은 top-right 토글 오버레이 회피) */}
           <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2 pr-[345px] max-sm:pr-5 max-sm:pt-[52px]">
-            <div className="text-[12px] text-slate-500">지역 × 연도 신규·폐업·순증 — 머리글 클릭 정렬 · 지역 클릭 시 동별 상세 · 업종 필터 연동</div>
+            <div className="text-[12px] font-semibold text-slate-600">지역 × 연도 신규·폐업·순증</div>
             <button
               onClick={exportPlanXlsx}
               className="inline-flex h-[28px] cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-600 transition-colors hover:border-blue-400 hover:text-blue-600"
@@ -2957,7 +2970,7 @@ export default function DiscoverPage() {
                     <div className="rounded-xl border border-l-4 border-slate-200/70 border-l-amber-500 bg-white px-3.5 py-2.5 shadow-sm">
                       <div className="text-[13px] font-bold text-slate-900">⚠ 이탈 주의</div>
                       <div className="mt-0.5 text-[12px] text-slate-500 tabular-nums">
-                        {planRisk.map(r => `${r.sigungu} ${r.nets[3]}`).join(' · ')} — 기존 거래처 방문 주기 단축
+                        {planRisk.map(r => `${r.sigungu} ${r.nets[3]}`).join(' · ')}
                       </div>
                     </div>
                   )}

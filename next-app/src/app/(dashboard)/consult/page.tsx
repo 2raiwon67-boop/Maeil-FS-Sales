@@ -557,10 +557,7 @@ export default function ConsultPage() {
 
   // 준비목록 목록(PC 패널·모바일 시트 공용) — 탭하면 바구니로 불러오기
   const prepsBody = preps.length === 0 ? (
-    <p className="text-xs leading-relaxed text-[#94a3b8]">
-      아직 준비목록이 없습니다. 방문 전 메뉴를 담고 매장명을 적은 뒤
-      &quot;준비목록&quot;을 누르면 여기 저장됩니다.
-    </p>
+    <p className="text-xs text-[#94a3b8]">준비목록이 없습니다</p>
   ) : (
     <div className="flex flex-col gap-1.5">
       {preps.map((p) => (
@@ -679,12 +676,6 @@ export default function ConsultPage() {
                 </div>
               )}
 
-              {!analysis && !analyzing && (
-                <p className="mt-3 text-xs leading-relaxed text-[#94a3b8]">
-                  매장명을 검색하면 네이버 리뷰를 분석해 이 매장에 맞는
-                  레시피를 추천합니다. 우측에서 직접 골라 담을 수도 있습니다.
-                </p>
-              )}
             </div>
 
             {/* 바구니 패널 */}
@@ -693,7 +684,7 @@ export default function ConsultPage() {
                 <ShoppingBag size={16} className="text-[#2563eb]" />오늘 담은 제안
               </div>
               {basketRecipes.length === 0 ? (
-                <p className="text-xs text-[#94a3b8]">아직 담은 메뉴가 없습니다. 레시피에서 담기를 누르세요.</p>
+                <p className="text-xs text-[#94a3b8]">담은 메뉴가 없습니다</p>
               ) : basketBody}
             </div>
 

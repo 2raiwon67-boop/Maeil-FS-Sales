@@ -19,6 +19,8 @@ import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/dashboard/constants';
 import {
   emptyFilters,
   computeCounts,
+  filterLicenses,
+  filterAccounts,
   licenseMarkerVisible,
   accountMarkerVisible,
   toggleInSet,
@@ -136,6 +138,10 @@ export default function DashboardPage() {
     () => computeCounts(licenses, accounts, filters),
     [licenses, accounts, filters],
   );
+
+  // 목록 패널도 사이드바 필터를 따른다 (DROP처럼 지도에 안 그리는 상태도 목록에는 나옴)
+  const listedLicenses = useMemo(() => filterLicenses(licenses, filters), [licenses, filters]);
+  const listedAccounts = useMemo(() => filterAccounts(accounts, filters), [accounts, filters]);
 
   // 오늘 가볼 곳 추천 — 내 담당 미거래/미확인 거래처를 1순위 기준 20km·최대 3곳
   // (accountStops를 의존성에 둬 지오코딩 완료 후 좌표가 채워지면 재계산)
@@ -799,7 +805,9 @@ export default function DashboardPage() {
       )}
 
       <div className="relative flex-1">
-        <div ref={mapElRef} className="h-full w-full" />
+        {/* isolate: 네이버 SDK가 저작권·축척 컨트롤에 자체 z-index를 주기 때문에
+            스택 컨텍스트를 끊지 않으면 앱 패널(z-50) 위로 올라와 내용을 가린다 */}
+        <div ref={mapElRef} className="isolate h-full w-full" />
 
         {/* 통계 오버레이 */}
         {view === 'dashboard' && (
@@ -983,8 +991,8 @@ export default function DashboardPage() {
       <StoreListPanel
         open={listOpen}
         onClose={() => setListOpen(false)}
-        licenses={licenses}
-        accounts={accounts}
+        licenses={listedLicenses}
+        accounts={listedAccounts}
         onOpenStore={onOpenStore}
       />
 

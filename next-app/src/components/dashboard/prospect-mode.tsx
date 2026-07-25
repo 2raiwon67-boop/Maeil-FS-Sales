@@ -651,7 +651,8 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
 
       {/* ── 지도 — 모바일: 전체화면(시트 아래 깔림), PC: 우측 영역 ── */}
       <div className="relative max-md:absolute max-md:inset-0 md:order-2 md:h-auto md:flex-1">
-        <div ref={mapElRef} className="h-full w-full" />
+        {/* isolate — 네이버 지도 컨트롤이 패널 위로 올라오는 것 차단 (page.tsx와 동일) */}
+        <div ref={mapElRef} className="isolate h-full w-full" />
         {/* 범례 — 모바일은 시트에 가리지 않게 좌상단 */}
         <div className="absolute z-10 flex items-center gap-2.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] text-[#475569] shadow ring-1 ring-black/5 max-md:left-3 max-md:top-3 md:bottom-3 md:left-3">
           {POTENTIALS.map((p) => (

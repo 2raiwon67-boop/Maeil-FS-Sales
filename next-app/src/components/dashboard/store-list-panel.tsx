@@ -52,7 +52,7 @@ export function StoreListPanel({ open, onClose, licenses, accounts, onOpenStore 
     <>
       {open && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={onClose} />}
       <aside
-        className={`fixed left-0 top-12 z-50 flex h-[calc(100dvh-3rem)] w-[340px] max-w-[88vw] flex-col bg-white shadow-2xl transition-transform duration-300 md:top-[88px] md:h-[calc(100dvh-88px)] ${
+        className={`fixed left-0 top-12 z-50 flex h-[calc(100dvh-3rem)] w-full flex-col bg-white shadow-2xl transition-transform duration-300 md:top-[88px] md:h-[calc(100dvh-88px)] md:w-[340px] ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -97,7 +97,8 @@ export function StoreListPanel({ open, onClose, licenses, accounts, onOpenStore 
           </select>
         </div>
 
-        <div className="mt-2 flex-1 overflow-y-auto px-3 pb-4">
+        {/* 모바일 하단 탭바(약 55px)에 마지막 항목이 가리지 않도록 여유 */}
+        <div className="mt-2 flex-1 overflow-y-auto px-3 pb-20 md:pb-4">
           {items.length === 0 ? (
             <div className="py-8 text-center text-sm text-gray-400">목록이 없습니다</div>
           ) : (

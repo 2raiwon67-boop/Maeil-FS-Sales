@@ -462,7 +462,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
             onClick={() => { setActiveRegion(null); setActiveStatus(null); }}
             className="mb-1.5 min-h-[14px] text-left text-[11px] text-blue-600"
           >
-            {activeStatus ? `「${activeStatus}」 기준 필터 적용 중 · 클릭으로 해제` : '막대를 클릭하면 해당 지역의 거래상태 분포를 확인합니다'}
+            {activeStatus ? `「${activeStatus}」 기준 필터 적용 중 · 클릭으로 해제` : ''}
           </button>
           <div className="relative h-[270px] w-full">
             <canvas ref={regionCanvas} />
@@ -477,7 +477,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
             onClick={() => { setActiveRegion(null); setActiveStatus(null); }}
             className="mb-1.5 min-h-[14px] text-left text-[11px] text-blue-600"
           >
-            {activeRegion ? `「${activeRegion}」 기준 필터 적용 중 · 클릭으로 해제` : '막대를 클릭하면 해당 상태의 지역별 분포를 확인합니다'}
+            {activeRegion ? `「${activeRegion}」 기준 필터 적용 중 · 클릭으로 해제` : ''}
           </button>
           <div className="relative h-[270px] w-full">
             <canvas ref={statusCanvas} />
@@ -488,7 +488,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
           <div className="text-sm font-semibold text-gray-800">
             월별 인허가 유입 · 거래 전환 <span className="text-[11px] font-normal text-gray-400">(최근 12개월 · 영업 허가일 기준)</span>
           </div>
-          <div className="mb-1.5 text-[11px] text-gray-400">막대=신규 인허가 유입 · 선=그중 현재 거래 전환된 업장 (막대에 마우스를 올리면 전환율)</div>
+          <div className="mb-1.5 min-h-[14px]" />
           <div className="relative h-[240px] w-full">
             <canvas ref={monthlyCanvas} />
           </div>
@@ -498,7 +498,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
           <div className="text-sm font-semibold text-gray-800">
             담당자별 거래 현황 <span className="text-[11px] font-normal text-gray-400">(담당 물량 상위 10명)</span>
           </div>
-          <div className="mb-1.5 text-[11px] text-gray-400">막대에 마우스를 올리면 담당 규모·거래율</div>
+          <div className="mb-1.5 min-h-[14px]" />
           <div className="relative h-[270px] w-full">
             <canvas ref={managerCanvas} />
           </div>
@@ -508,7 +508,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
           <div className="text-sm font-semibold text-gray-800">
             업태별 분포 <span className="text-[11px] font-normal text-gray-400">(상위 8개 업태)</span>
           </div>
-          <div className="mb-1.5 text-[11px] text-gray-400">막대에 마우스를 올리면 거래·미거래·거래율</div>
+          <div className="mb-1.5 min-h-[14px]" />
           <div className="relative h-[270px] w-full">
             <canvas ref={typeCanvas} />
           </div>
