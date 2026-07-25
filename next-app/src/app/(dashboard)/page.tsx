@@ -27,7 +27,7 @@ import {
   type FilterState,
   type SidebarTab,
 } from '@/lib/dashboard/filters';
-import { cartKey, haversineKm, type CartStop, type Coord, type RouteStop } from '@/lib/dashboard/route';
+import { cartKey, type CartStop, type Coord, type RouteStop } from '@/lib/dashboard/route';
 import {
   updateLicenseStatus,
   updateLicenseMilk,
@@ -44,8 +44,7 @@ import {
 } from '@/components/dashboard/route-panel';
 import { VisitPlansModal, type PlanItem } from '@/components/dashboard/visit-plans-modal';
 import { StoreListPanel } from '@/components/dashboard/store-list-panel';
-import { RecommendPanel, type RecItem } from '@/components/dashboard/recommend-panel';
-import { Sparkles, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { getColorblind, onColorblindChange, setColorblind as setColorblindSetting } from '@/lib/settings';
 import type { License, Account } from '@/types';
 import { createClient } from '@/lib/supabase/client';
@@ -127,12 +126,12 @@ export default function DashboardPage() {
   const [routeOpen, setRouteOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
-  const [recOpen, setRecOpen] = useState(false);
-  const [todayHasPlan, setTodayHasPlan] = useState(false);
   const [routeStartCoord, setRouteStartCoord] = useState<Coord | null>(null);
   const [forcedFirstStop, setForcedFirstStop] = useState<RouteStop | null>(null);
   const [licenseStops, setLicenseStops] = useState<LicenseStop[]>([]);
   const [accountStops, setAccountStops] = useState<AccountStop[]>([]);
+  // 개척 모드 진입 시점의 지도 시점 — 스위치를 누른 순간 캡처(렌더 중 ref 접근 금지)
+  const [prospectView, setProspectView] = useState<{ lat: number; lng: number; zoom: number } | null>(null);
 
   const counts = useMemo(
     () => computeCounts(licenses, accounts, filters),
@@ -142,51 +141,6 @@ export default function DashboardPage() {
   // 목록 패널도 사이드바 필터를 따른다 (DROP처럼 지도에 안 그리는 상태도 목록에는 나옴)
   const listedLicenses = useMemo(() => filterLicenses(licenses, filters), [licenses, filters]);
   const listedAccounts = useMemo(() => filterAccounts(accounts, filters), [accounts, filters]);
-
-  // 오늘 가볼 곳 추천 — 내 담당 미거래/미확인 거래처를 1순위 기준 20km·최대 3곳
-  // (accountStops를 의존성에 둬 지오코딩 완료 후 좌표가 채워지면 재계산)
-  const recs = useMemo<RecItem[]>(() => {
-    if (!myManagerName) return [];
-    void accountStops;
-    const scored = accounts
-      .filter((a) => (a.manager_name || '').trim() === myManagerName && a.business_name)
-      .map((a) => {
-        const c = coordsByIdRef.current.get(a.id);
-        if (!c) return null;
-        const ds = a.trade_status || '';
-        let priority = 0;
-        let reason = '';
-        if (ds === '미거래') { priority = 2; reason = '미거래 거래처'; }
-        else if (!ds) { priority = 1; reason = '거래상태 미확인'; }
-        if (!priority) return null;
-        const item: RecItem = { id: a.id, name: a.business_name.trim(), dealStatus: ds, reason, lat: c.lat, lng: c.lng, address: a.address || '' };
-        return { item, priority };
-      })
-      .filter((r): r is { item: RecItem; priority: number } => !!r)
-      .sort((a, b) => b.priority - a.priority);
-    if (!scored.length) return [];
-    const anchor = scored[0].item;
-    return scored
-      .filter((s) => s.item === anchor || haversineKm(anchor.lat, anchor.lng, s.item.lat, s.item.lng) <= 20)
-      .slice(0, 3)
-      .map((s) => s.item);
-  }, [accounts, myManagerName, accountStops]);
-
-  // 오늘 이미 방문 일정이 있으면 추천 뱃지 숨김 (나만 보기 담당자 기준)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!myManagerName || !businessUnit) { if (!cancelled) setTodayHasPlan(false); return; }
-      const today = new Date().toISOString().split('T')[0];
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('visit_plans').select('id')
-        .eq('business_unit', businessUnit).eq('manager', myManagerName).eq('visit_date', today)
-        .maybeSingle();
-      if (!cancelled) setTodayHasPlan(!!data);
-    })();
-    return () => { cancelled = true; };
-  }, [myManagerName, businessUnit]);
 
   // 선택 강조 링: 선택 위치로 옮기고 표시 / 해제 시 숨김
   const showSelRing = useCallback((lat: number, lng: number) => {
@@ -561,14 +515,6 @@ export default function DashboardPage() {
     setCart([]);
   };
 
-  // 추천 항목을 동선 cart에 토글 (toggleCart가 최대 4곳·마커색·토스트 처리)
-  const toggleRec = (r: RecItem) => {
-    toggleCart({ lat: r.lat, lng: r.lng, name: r.name, address: r.address, type: 'account', _key: cartKey(r.lat, r.lng) });
-  };
-  const addAllRecs = () => {
-    recs.forEach((r) => { if (!cart.some((c) => c._key === cartKey(r.lat, r.lng))) toggleRec(r); });
-  };
-
   const loadPlanItemsToCart = (items: PlanItem[]) => {
     cart.forEach((c) => setMarkerCartColor(c._key, false));
     const next: CartStop[] = [];
@@ -766,10 +712,25 @@ export default function DashboardPage() {
     setRouteOpen(true);
   };
 
+  // 개척 모드 토글 — 진입 시 보던 지도 시점을 이 시점(이벤트 핸들러)에서 캡처해 state로 넘긴다.
+  const toggleProspect = () => {
+    if (view === 'prospect') { setView('map'); return; }
+    let captured: { lat: number; lng: number; zoom: number } | null = null;
+    const m = mapRef.current;
+    if (m) {
+      try {
+        const c = m.getCenter();
+        captured = { lat: c.lat(), lng: c.lng(), zoom: m.getZoom() };
+      } catch { captured = null; }
+    }
+    setProspectView(captured);
+    setView('prospect');
+  };
+
   // 개척 모드 스위치 — 네비바 슬롯(프로필 아래 행 우측)에 포털로 렌더. 거래처 페이지에서만 존재.
   const prospectSwitch = (
     <button
-      onClick={() => setView(view === 'prospect' ? 'map' : 'prospect')}
+      onClick={toggleProspect}
       aria-pressed={view === 'prospect'}
       className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-colors"
       style={{ color: view === 'prospect' ? '#1B3F82' : '#64748b' }}
@@ -823,14 +784,7 @@ export default function DashboardPage() {
             <ProspectMode
               businessUnit={businessUnit}
               myManagerName={myManagerName}
-              initialView={(() => {
-                const m = mapRef.current;
-                if (!m) return null;
-                try {
-                  const c = m.getCenter();
-                  return { lat: c.lat(), lng: c.lng(), zoom: m.getZoom() };
-                } catch { return null; }
-              })()}
+              initialView={prospectView}
             />
           </div>
         )}
@@ -910,15 +864,6 @@ export default function DashboardPage() {
             >
               ☰ 목록
             </button>
-            {recs.length > 0 && !todayHasPlan && !recOpen && (
-              <button
-                onClick={() => setRecOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2.5 text-sm font-bold text-[#ff9f0a] shadow-lg ring-1 ring-[#ff9f0a]/30"
-              >
-                <Sparkles size={15} />방문 추천
-                <span className="rounded-full bg-[#ff9f0a] px-1.5 text-xs text-white">{recs.length}</span>
-              </button>
-            )}
             {myManagerName && (
               <button
                 onClick={() => setPlansOpen(true)}
@@ -975,17 +920,6 @@ export default function DashboardPage() {
           onRouteFrom={onRouteFromDetail}
         />
 
-        {/* 오늘 가볼 곳 추천 패널 */}
-        {view === 'map' && (
-          <RecommendPanel
-            open={recOpen}
-            onClose={() => setRecOpen(false)}
-            recs={recs}
-            cartKeys={new Set(cart.map((c) => c._key))}
-            onToggle={toggleRec}
-            onAddAll={addAllRecs}
-          />
-        )}
       </div>
 
       <StoreListPanel

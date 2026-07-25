@@ -170,6 +170,18 @@ function sanitizeAnalysisHtml(input: string): string {
   });
 }
 
+// 상품명 → 이미지 경로. 매니페스트를 인자로 받는 순수 함수라 렌더 중에도 안전하게 호출된다
+// (ref에 담아 두면 매니페스트가 나중에 채워질 때 리렌더가 안 걸려 이미지가 조용히 사라짐).
+function resolveProductImage(name: string, files: string[]): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const manual = PRODUCT_IMAGE_MANUAL_MAP[trimmed];
+  if (manual) return PRODUCT_IMAGE_BASE + encodeURIComponent(manual);
+  const lower = trimmed.toLowerCase();
+  const match = files.find((f) => f.toLowerCase().startsWith(lower));
+  return match ? PRODUCT_IMAGE_BASE + encodeURIComponent(match) : null;
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 
 export default function ProposalPage() {
@@ -178,17 +190,12 @@ export default function ProposalPage() {
 
   // 제품 DB / 이미지
   const [productDB, setProductDB] = useState<Product[]>([]);
-  const imageFilesRef = useRef<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<string[]>([]);
 
-  const findProductImage = useCallback((name: string): string | null => {
-    const trimmed = name.trim();
-    if (!trimmed) return null;
-    const manual = PRODUCT_IMAGE_MANUAL_MAP[trimmed];
-    if (manual) return PRODUCT_IMAGE_BASE + encodeURIComponent(manual);
-    const lower = trimmed.toLowerCase();
-    const match = imageFilesRef.current.find((f) => f.toLowerCase().startsWith(lower));
-    return match ? PRODUCT_IMAGE_BASE + encodeURIComponent(match) : null;
-  }, []);
+  const findProductImage = useCallback(
+    (name: string): string | null => resolveProductImage(name, imageFiles),
+    [imageFiles],
+  );
 
   // 견적 항목
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -220,11 +227,13 @@ export default function ProposalPage() {
 
   useEffect(() => {
     (async () => {
-      // 이미지 매니페스트
+      // 이미지 매니페스트 — 아래 제품 DB 매핑은 state 반영을 기다리지 않고 로컬 files를 그대로 쓴다
+      let files: string[] = [];
       try {
         const res = await fetch('/assets/images/manifest.json?v=' + Date.now());
-        if (res.ok) imageFilesRef.current = await res.json();
+        if (res.ok) files = await res.json();
       } catch { /* ignore */ }
+      setImageFiles(files);
 
       // 제품 DB
       try {
@@ -239,7 +248,7 @@ export default function ProposalPage() {
             spec: r['내입량'] ? r['내입량'].trim() + '개입' : '',
             price: 0,
             taxFree: false,
-            imageUrl: findProductImage(name),
+            imageUrl: resolveProductImage(name, files),
             maxDc: 0,
             desc: (r['제품 상세 내용'] || '').trim(),
             usage: (r['사용용도'] || '').trim(),
@@ -252,7 +261,8 @@ export default function ProposalPage() {
         toast.error('제품 DB 로드 실패 — 추천상품이 표시되지 않을 수 있습니다.');
       }
     })();
-  }, [findProductImage]);
+    // 최초 1회만 — findProductImage를 의존성에 두면 setImageFiles가 이 effect를 재실행시켜 무한 재요청이 된다
+  }, []);
 
   function blankItem(data?: Partial<QuoteItem>): QuoteItem {
     return {
