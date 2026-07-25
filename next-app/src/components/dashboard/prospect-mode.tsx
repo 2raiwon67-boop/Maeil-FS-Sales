@@ -10,7 +10,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Plus, MapPin, Trash2, X, ChartBar, ListFilter, CalendarRange, FileSpreadsheet, ChevronDown, Search } from 'lucide-react';
+import { Plus, MapPin, Trash2, X, ChartBar, ListFilter, CalendarRange, FileSpreadsheet, ChevronDown, ChevronUp, Search, Navigation } from 'lucide-react';
+import { openNaverMapsRoute } from '@/lib/dashboard/route';
 import { createClient } from '@/lib/supabase/client';
 import {
   loadNaverMaps,
@@ -99,6 +100,8 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelId, setConfirmDelId] = useState<string | null>(null);
+  // 모바일: 지도 전체화면 + 목록은 바텀시트 (현장 이동 중 지도 시야 우선)
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // 활동 만들기 폼
   const [cTitle, setCTitle] = useState('');
@@ -208,8 +211,16 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
     if (r.lat != null && r.lng != null && mapRef.current) {
       const naver = window.naver;
       mapRef.current.panTo(new naver.maps.LatLng(r.lat, r.lng));
+      // 모바일: 행을 탭했다는 건 지도를 보겠다는 뜻 — 시트를 내려 시야 확보
+      if (window.innerWidth < 768) setSheetOpen(false);
     }
   }, []);
+
+  // 타겟으로 네이버 지도 내비 연결 (앱 스킴 + 웹 폴백 — 홈 지도의 길찾기와 동일 로직)
+  const navigateTo = (r: Prospect) => {
+    if (r.lat == null || r.lng == null) { toast.warning('좌표가 없는 타겟입니다.'); return; }
+    openNaverMapsRoute([{ lat: r.lat, lng: r.lng, name: r.name, address: r.address, type: 'primary' }]);
+  };
 
   // ── 활동 만들기 ──
   const saveCampaign = async () => {
@@ -390,15 +401,32 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
     s === '진행중' ? 'bg-[#dcfce7] text-[#15803d]' : s === '예정' ? 'bg-[#e0e7ff] text-[#4338ca]' : 'bg-[#f1f5f9] text-[#64748b]';
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#f6f7f9] md:flex-row">
-      {/* ── 패널 ── */}
-      <div className="order-2 flex min-h-0 flex-1 flex-col md:order-1 md:w-[300px] md:flex-none md:border-r md:border-[#e8ebf0]">
+    <div className="relative flex h-full w-full flex-col bg-[#f6f7f9] md:flex-row">
+      {/* ── 패널 — 모바일: 바텀시트(지도 전체화면 위), PC: 좌측 고정 ── */}
+      <div
+        className={`flex min-h-0 flex-col overflow-hidden max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:rounded-t-2xl max-md:bg-white max-md:shadow-[0_-8px_28px_rgba(15,23,42,0.18)] max-md:transition-all max-md:duration-300 md:w-[300px] md:flex-none md:border-r md:border-[#e8ebf0] ${
+          sheetOpen ? 'max-md:h-[62dvh]' : 'max-md:h-[58px]'
+        }`}
+      >
+        {/* 모바일 시트 핸들 — 접힌 상태에선 요약 한 줄 */}
+        <button
+          onClick={() => setSheetOpen((o) => !o)}
+          className="flex w-full shrink-0 flex-col items-center pb-1 pt-1.5 md:hidden"
+          aria-expanded={sheetOpen}
+          aria-label="개척 목록 열고 닫기"
+        >
+          <span className="h-1 w-9 rounded-full bg-[#e2e8f0]" />
+          <span className="mt-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#334155]">
+            {sheetOpen ? <ChevronDown size={14} className="text-[#94a3b8]" /> : <ChevronUp size={14} className="text-[#94a3b8]" />}
+            {campaign ? campaign.title : '개척 활동'} · 목록 {filtered.length}
+          </span>
+        </button>
 
         {/* 컨트롤 묶음 — 흰 블록 하나로 (요소가 흩어져 보이지 않게) */}
         <div className="border-b border-[#e8ebf0] bg-white pb-2 shadow-sm">
 
         {/* 활동 선택 줄 */}
-        <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-2">
+        <div className="flex items-center gap-1.5 px-2.5 pb-1 pt-2 max-md:pt-0.5">
           <div className="relative min-w-0 flex-1">
             <button
               onClick={() => setCampOpen((o) => !o)}
@@ -526,7 +554,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
                       <select
                         value={r.stage}
                         onChange={(e) => patchRow(r.id, { stage: e.target.value })}
-                        className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1 py-0.5 text-[11px] font-medium text-[#334155]"
+                        className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1 py-0.5 text-[11px] font-medium text-[#334155] max-md:py-1.5 max-md:text-[12px]"
                         aria-label="진행 단계"
                       >
                         {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -534,21 +562,32 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
                       <select
                         value={r.potential}
                         onChange={(e) => patchRow(r.id, { potential: e.target.value })}
-                        className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1 py-0.5 text-[11px] font-medium"
+                        className="rounded border border-[#e2e8f0] bg-[#f8fafc] px-1 py-0.5 text-[11px] font-medium max-md:py-1.5 max-md:text-[12px]"
                         style={{ color: POTENTIAL_COLOR[r.potential] }}
                         aria-label="개척 가능성"
                       >
                         {POTENTIALS.map((p) => <option key={p} value={p}>{p === '개척완료' ? '개척완료' : `가능성 ${p}`}</option>)}
                       </select>
+                      {r.lat != null && (
+                        <button
+                          onClick={() => navigateTo(r)}
+                          className="flex h-6 w-6 items-center justify-center rounded bg-[#eef3fb] text-[#1B3F82] max-md:h-8 max-md:w-8"
+                          aria-label={`${r.name} 네이버 지도 길찾기`}
+                          title="네이버 지도 길찾기"
+                        >
+                          <Navigation size={12} className="max-md:hidden" />
+                          <Navigation size={15} className="md:hidden" />
+                        </button>
+                      )}
                       {confirmDelId === r.id ? (
                         <span className="ml-auto flex items-center gap-1">
-                          <button onClick={() => deleteRow(r.id)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">삭제</button>
-                          <button onClick={() => setConfirmDelId(null)} className="rounded bg-[#f1f5f9] px-1.5 py-0.5 text-[10px] text-[#64748b]">취소</button>
+                          <button onClick={() => deleteRow(r.id)} className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-semibold text-white max-md:px-2.5 max-md:py-1.5 max-md:text-[11px]">삭제</button>
+                          <button onClick={() => setConfirmDelId(null)} className="rounded bg-[#f1f5f9] px-1.5 py-0.5 text-[10px] text-[#64748b] max-md:px-2.5 max-md:py-1.5 max-md:text-[11px]">취소</button>
                         </span>
                       ) : (
                         <button
                           onClick={() => setConfirmDelId(r.id)}
-                          className="ml-auto flex h-6 w-6 items-center justify-center rounded text-[#cbd5e1] hover:bg-red-50 hover:text-red-500"
+                          className="ml-auto flex h-6 w-6 items-center justify-center rounded text-[#cbd5e1] hover:bg-red-50 hover:text-red-500 max-md:h-8 max-md:w-8"
                           aria-label={`${r.name} 삭제`}
                         >
                           <Trash2 size={12} />
@@ -610,10 +649,11 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
         </div>
       </div>
 
-      {/* ── 지도 ── */}
-      <div className="relative order-1 h-[38dvh] shrink-0 md:order-2 md:h-auto md:flex-1">
+      {/* ── 지도 — 모바일: 전체화면(시트 아래 깔림), PC: 우측 영역 ── */}
+      <div className="relative max-md:absolute max-md:inset-0 md:order-2 md:h-auto md:flex-1">
         <div ref={mapElRef} className="h-full w-full" />
-        <div className="absolute bottom-3 left-3 z-10 flex items-center gap-2.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] text-[#475569] shadow ring-1 ring-black/5">
+        {/* 범례 — 모바일은 시트에 가리지 않게 좌상단 */}
+        <div className="absolute z-10 flex items-center gap-2.5 rounded-lg bg-white/95 px-2.5 py-1.5 text-[11px] text-[#475569] shadow ring-1 ring-black/5 max-md:left-3 max-md:top-3 md:bottom-3 md:left-3">
           {POTENTIALS.map((p) => (
             <span key={p} className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full" style={{ background: POTENTIAL_COLOR[p] }} />{p}

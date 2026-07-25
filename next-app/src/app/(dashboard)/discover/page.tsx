@@ -613,13 +613,29 @@ export default function DiscoverPage() {
       const key = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
       if (!key) console.warn('[discover] MAPTILER_KEY 없음 — 지도 타일이 안 보일 수 있습니다');
 
+      // 초기 시점: 마지막 안착 시점(지점 중심 안착 포함)을 기억해 재사용 — 첫 화면부터 전국 뷰가 아닌
+      // 내 지점 구역에서 시작. 저장값이 없을 때(최초 방문)만 광역 기본값.
+      let initView: { center: [number, number]; zoom: number } = { center: [127.1, 37.5], zoom: 8 };
+      try {
+        const saved = JSON.parse(localStorage.getItem('discover_last_view') || 'null');
+        if (saved && Number.isFinite(saved.lng) && Number.isFinite(saved.lat) && Number.isFinite(saved.zoom)) {
+          initView = { center: [saved.lng, saved.lat], zoom: saved.zoom };
+        }
+      } catch { /* ignore */ }
+
       const mapInstance = new maplibregl.Map({
         container: mapContainerRef.current,
         style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`,
-        center: [127.1, 37.5],
-        zoom: 8,
+        center: initView.center,
+        zoom: initView.zoom,
         attributionControl: false,
         localIdeographFontFamily: "'Pretendard','Apple SD Gothic Neo',sans-serif",
+      });
+      mapInstance.on('moveend', () => {
+        try {
+          const c = mapInstance.getCenter();
+          localStorage.setItem('discover_last_view', JSON.stringify({ lng: c.lng, lat: c.lat, zoom: mapInstance.getZoom() }));
+        } catch { /* ignore */ }
       });
 
       mapInstance.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
