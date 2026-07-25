@@ -185,6 +185,7 @@ export interface NaverPointerEvent {
 export interface NaverMap {
   setCenter: (latlng: NaverLatLng) => void;
   setZoom: (zoom: number) => void;
+  getZoom: () => number;
   panTo: (latlng: NaverLatLng) => void;
   fitBounds: (bounds: NaverLatLngBounds) => void;
   getCenter: () => NaverLatLng;

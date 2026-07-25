@@ -176,11 +176,11 @@ export function NavBar() {
           <div id="nav-right-slot-mobile" className="flex items-center" />
           {unit && (
             <span
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
+              className="inline-flex max-w-[108px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
               style={{ background: '#eef3fb', color: NAVY }}
             >
-              <MapPin className="h-3 w-3" />
-              {unit}
+              <MapPin className="h-3 w-3 shrink-0" />
+              <span className="truncate">{unit}</span>
             </span>
           )}
           <NotificationBell />

@@ -765,7 +765,7 @@ export default function DashboardPage() {
     <button
       onClick={() => setView(view === 'prospect' ? 'map' : 'prospect')}
       aria-pressed={view === 'prospect'}
-      className="flex items-center gap-2 text-[13px] font-medium transition-colors"
+      className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-colors"
       style={{ color: view === 'prospect' ? '#1B3F82' : '#64748b' }}
     >
       개척 모드
@@ -808,10 +808,22 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 개척 모드 오버레이 — 독립 화면(자체 지도·목록·통계), 기존 지도 로직 무접촉 */}
+        {/* 개척 모드 오버레이 — 독립 화면(자체 지도·목록·통계), 기존 지도 로직 무접촉.
+            보던 지도 시점(중심·줌)을 그대로 이어받는다. */}
         {view === 'prospect' && (
           <div className="absolute inset-0 z-20">
-            <ProspectMode businessUnit={businessUnit} myManagerName={myManagerName} />
+            <ProspectMode
+              businessUnit={businessUnit}
+              myManagerName={myManagerName}
+              initialView={(() => {
+                const m = mapRef.current;
+                if (!m) return null;
+                try {
+                  const c = m.getCenter();
+                  return { lat: c.lat(), lng: c.lng(), zoom: m.getZoom() };
+                } catch { return null; }
+              })()}
+            />
           </div>
         )}
 

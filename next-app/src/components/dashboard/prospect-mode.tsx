@@ -80,7 +80,12 @@ const XLS_KEYS = {
   manager: ['담당'],
 };
 
-export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: string | null; myManagerName: string | null }) {
+export function ProspectMode({ businessUnit, myManagerName, initialView }: {
+  businessUnit: string | null;
+  myManagerName: string | null;
+  /** 홈 지도에서 보던 시점 — 개척 지도가 그대로 이어받는다 (null이면 기본값) */
+  initialView?: { lat: number; lng: number; zoom: number } | null;
+}) {
   const supabase = createClient();
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -142,8 +147,8 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
         if (cancelled || !mapElRef.current) return;
         const naver = window.naver;
         mapRef.current = new naver.maps.Map(mapElRef.current, {
-          center: new naver.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
-          zoom: DEFAULT_ZOOM,
+          center: new naver.maps.LatLng(initialView?.lat ?? DEFAULT_CENTER.lat, initialView?.lng ?? DEFAULT_CENTER.lng),
+          zoom: initialView?.zoom ?? DEFAULT_ZOOM,
         });
         setSdkReady(true);
       })
@@ -172,14 +177,12 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
     if (!sdkReady || !mapRef.current) return;
     const naver = window.naver;
     const map = mapRef.current;
+    // 시점은 사용자가 보던 그대로 유지 — 자동 fitBounds로 화면을 옮기지 않는다 (행 탭 시에만 panTo)
     markersRef.current.forEach((m) => m.setMap(null));
-    const bounds = new naver.maps.LatLngBounds();
-    let n = 0;
     markersRef.current = filtered
       .filter((r) => r.lat != null && r.lng != null)
       .map((r) => {
         const pos = new naver.maps.LatLng(r.lat!, r.lng!);
-        bounds.extend(pos); n++;
         const marker = new naver.maps.Marker({
           position: pos,
           map,
@@ -195,7 +198,6 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
         });
         return marker;
       });
-    if (n > 0) map.fitBounds(bounds);
   }, [filtered, sdkReady]);
 
   const focusRow = useCallback((r: Prospect) => {
@@ -380,7 +382,7 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
 
   // ── 렌더 ──
   const chip = (active: boolean) =>
-    `shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${active ? 'bg-[#0f172a] text-white' : 'bg-white text-[#475569] ring-1 ring-black/5'}`;
+    `shrink-0 rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${active ? 'bg-[#0f172a] text-white' : 'bg-[#f1f5f9] text-[#475569]'}`;
   const statusBadge = (s: '진행중' | '예정' | '종료') =>
     s === '진행중' ? 'bg-[#dcfce7] text-[#15803d]' : s === '예정' ? 'bg-[#e0e7ff] text-[#4338ca]' : 'bg-[#f1f5f9] text-[#64748b]';
 
@@ -389,12 +391,15 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
       {/* ── 패널 ── */}
       <div className="order-2 flex min-h-0 flex-1 flex-col md:order-1 md:w-[380px] md:flex-none md:border-r md:border-[#e8ebf0]">
 
+        {/* 컨트롤 묶음 — 흰 블록 하나로 (요소가 흩어져 보이지 않게) */}
+        <div className="border-b border-[#e8ebf0] bg-white pb-2.5 shadow-sm">
+
         {/* 활동 선택 줄 */}
-        <div className="flex items-center gap-2 px-3 pb-1 pt-3">
+        <div className="flex items-center gap-2 px-3 pb-1 pt-2.5">
           <div className="relative min-w-0 flex-1">
             <button
               onClick={() => setCampOpen((o) => !o)}
-              className="flex w-full items-center gap-2 rounded-xl bg-white px-3 py-2 text-left ring-1 ring-black/5"
+              className="flex w-full items-center gap-2 rounded-xl bg-[#f8fafc] px-3 py-2 text-left ring-1 ring-black/5"
             >
               <CalendarRange size={15} className="shrink-0 text-[#2563eb]" />
               {campaign ? (
@@ -435,7 +440,7 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
           </div>
           <button
             onClick={() => { setCampFormOpen(true); setCampOpen(false); }}
-            className="flex h-9 shrink-0 items-center gap-1 rounded-xl bg-white px-2.5 text-[12px] font-semibold text-[#2563eb] ring-1 ring-black/5"
+            className="flex h-9 shrink-0 items-center gap-1 rounded-xl bg-[#f1f5f9] px-2.5 text-[12px] font-semibold text-[#2563eb]"
             title="새 개척 활동(기간) 만들기"
           >
             <Plus size={14} />활동
@@ -451,8 +456,8 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
         </div>
 
         {/* 목록/통계 탭 + 타겟 등록 */}
-        <div className="flex items-center gap-2 px-3 pb-2">
-          <div className="flex gap-1 rounded-lg bg-white p-0.5 ring-1 ring-black/5">
+        <div className="flex items-center gap-2 px-3">
+          <div className="flex gap-1 rounded-lg bg-[#f1f5f9] p-0.5">
             <button onClick={() => setTab('list')} className={`flex items-center gap-1 rounded-md px-3 py-1 text-[12.5px] font-medium ${tab === 'list' ? 'bg-[#2563eb] text-white' : 'text-[#64748b]'}`}>
               <ListFilter size={13} />목록 {filtered.length}
             </button>
@@ -467,9 +472,10 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
             <Plus size={14} />타겟 등록
           </button>
         </div>
+        </div>
 
         {/* 본문 */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4 pt-2.5">
           {loading ? (
             <div className="py-16 text-center text-sm text-[#94a3b8]">불러오는 중…</div>
           ) : !campaign ? (
