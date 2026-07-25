@@ -406,7 +406,7 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
                   <span className="shrink-0 text-[11px] text-[#94a3b8]">{fmtPeriod(campaign)}</span>
                 </>
               ) : (
-                <span className="flex-1 text-[13px] text-[#94a3b8]">활동 기간을 만들어 시작하세요</span>
+                <span className="flex-1 text-[13px] text-[#94a3b8]">활동 선택</span>
               )}
               <ChevronDown size={14} className="shrink-0 text-[#94a3b8]" />
             </button>
@@ -473,16 +473,10 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
           {loading ? (
             <div className="py-16 text-center text-sm text-[#94a3b8]">불러오는 중…</div>
           ) : !campaign ? (
-            <div className="py-16 text-center text-sm leading-relaxed text-[#94a3b8]">
-              개척은 <b>활동(기간)</b> 단위로 관리됩니다.<br />
-              &quot;+ 활동&quot;으로 첫 활동을 만들어주세요.<br />
-              <span className="text-[12px]">예: 8월 신도시 개척 (8/1~8/31)</span>
-            </div>
+            <div className="py-16 text-center text-sm text-[#94a3b8]">개척 활동이 없습니다</div>
           ) : tab === 'list' ? (
             filtered.length === 0 ? (
-              <div className="py-16 text-center text-sm leading-relaxed text-[#94a3b8]">
-                이 활동에 등록된 타겟이 없습니다.<br />&quot;타겟 등록&quot;으로 단건 또는 엑셀 일괄 등록하세요.
-              </div>
+              <div className="py-16 text-center text-sm text-[#94a3b8]">등록된 타겟이 없습니다</div>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {filtered.map((r) => (
@@ -616,13 +610,10 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
                 <X size={17} />
               </button>
             </div>
-            <p className="mb-3 text-[12.5px] leading-relaxed text-[#64748b]">
-              기간을 정해 활동을 진행합니다. 종료일이 지나면 자동으로 이력이 되어 활동별로 돌아볼 수 있습니다.
-            </p>
             <div className="flex flex-col gap-2.5">
               <input
                 value={cTitle} onChange={(e) => setCTitle(e.target.value)}
-                placeholder="활동명 (예: 8월 신도시 개척)"
+                placeholder="활동명"
                 className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
               />
               <div className="flex items-center gap-2">
@@ -679,7 +670,7 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
                 />
                 <input
                   value={fAddr} onChange={(e) => setFAddr(e.target.value)}
-                  placeholder="주소 (도로명 권장 — 지도에 자동 표시)"
+                  placeholder="주소"
                   className="rounded-xl border border-[#e2e8f0] px-3.5 py-3 text-[14.5px] outline-none focus:border-[#2563eb]"
                 />
                 <input
@@ -692,15 +683,11 @@ export function ProspectMode({ businessUnit, myManagerName }: { businessUnit: st
                   disabled={saving}
                   className="mt-1 rounded-xl bg-[#2563eb] py-3.5 text-[15px] font-semibold text-white disabled:opacity-60"
                 >
-                  {saving ? '등록 중…' : '타겟 등록 (단계: 타겟 · 가능성: 중)'}
+                  {saving ? '등록 중…' : '등록'}
                 </button>
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
-                <div className="rounded-xl bg-[#f8fafc] p-3 text-[12.5px] leading-relaxed text-[#64748b]">
-                  <b>거래처명 · 주소 · 담당자</b> 컬럼이 있는 엑셀(.xlsx)을 올리면 자동 인식해 일괄 등록합니다.
-                  담당자 컬럼이 없으면 내 이름으로 등록됩니다. 주소는 자동으로 지도에 표시됩니다.
-                </div>
                 <input
                   ref={fileRef}
                   type="file"

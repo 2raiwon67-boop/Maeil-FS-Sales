@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { useDashboardData } from '@/hooks/use-dashboard-data';
 import { useAuth } from '@/hooks/use-auth';
@@ -89,6 +90,16 @@ export default function DashboardPage() {
   const [collapsed, setCollapsed] = useState(false);
   const [view, setView] = useState<'map' | 'dashboard' | 'prospect'>('map');
   const [colorblind, setColorblind] = useState(false);
+
+  // '개척 모드' 스위치는 네비바의 페이지 슬롯에 포털로 렌더 (지도를 가리지 않도록)
+  const [navSlots, setNavSlots] = useState<{ pc: HTMLElement | null; mobile: HTMLElement | null }>({ pc: null, mobile: null });
+  useEffect(() => {
+    const t = setTimeout(() => setNavSlots({
+      pc: document.getElementById('nav-right-slot'),
+      mobile: document.getElementById('nav-right-slot-mobile'),
+    }), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   // 모바일(협폭)에선 300px 필터 사이드바가 지도를 대부분 가리므로 기본 접힘
   useEffect(() => {
@@ -749,8 +760,27 @@ export default function DashboardPage() {
     setRouteOpen(true);
   };
 
+  // 개척 모드 스위치 — 네비바 슬롯(프로필 아래 행 우측)에 포털로 렌더. 거래처 페이지에서만 존재.
+  const prospectSwitch = (
+    <button
+      onClick={() => setView(view === 'prospect' ? 'map' : 'prospect')}
+      aria-pressed={view === 'prospect'}
+      className="flex items-center gap-2 text-[13px] font-medium transition-colors"
+      style={{ color: view === 'prospect' ? '#1B3F82' : '#64748b' }}
+    >
+      개척 모드
+      <span className={`relative h-[18px] w-8 rounded-full transition-colors ${view === 'prospect' ? 'bg-[#1B3F82]' : 'bg-[#cbd5e1]'}`}>
+        <span className={`absolute top-0.5 h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${view === 'prospect' ? 'left-[16px]' : 'left-0.5'}`} />
+      </span>
+    </button>
+  );
+
   return (
     <div className="relative flex h-[calc(100dvh-3rem-4rem)] w-full md:h-[calc(100dvh-88px)]">
+      {navSlots.pc && createPortal(prospectSwitch, navSlots.pc)}
+      {navSlots.mobile && createPortal(prospectSwitch, navSlots.mobile)}
+
+      {view !== 'prospect' && (
       <DashboardSidebar
         filters={filters}
         counts={counts}
@@ -766,6 +796,7 @@ export default function DashboardPage() {
         colorblind={colorblind}
         onToggleColorblind={toggleColorblind}
       />
+      )}
 
       <div className="relative flex-1">
         <div ref={mapElRef} className="h-full w-full" />
@@ -821,22 +852,6 @@ export default function DashboardPage() {
             )}
           </div>
         )}
-
-        {/* 개척 모드 스위치 — 프로필 아래 우상단 공간 (거래처 탭 전용). 켜면 화면 전체가 개척 뷰로 전환 */}
-        <div className="absolute right-3 top-3 z-30">
-          <button
-            onClick={() => setView(view === 'prospect' ? 'map' : 'prospect')}
-            aria-pressed={view === 'prospect'}
-            className={`flex items-center gap-2 rounded-full py-1.5 pl-3.5 pr-2 text-[13px] font-semibold shadow-lg ring-1 ring-black/5 transition-colors ${
-              view === 'prospect' ? 'bg-[#0f172a] text-white' : 'bg-white/95 text-[#475569]'
-            }`}
-          >
-            개척 모드
-            <span className={`relative h-5 w-9 rounded-full transition-colors ${view === 'prospect' ? 'bg-[#2563eb]' : 'bg-[#cbd5e1]'}`}>
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${view === 'prospect' ? 'left-[18px]' : 'left-0.5'}`} />
-            </span>
-          </button>
-        </div>
 
         {/* 지도/통계 토글 (통계 오버레이 z-20 위에 떠야 다시 지도로 전환 가능) — 개척 모드에선 숨김 */}
         {view !== 'prospect' && (

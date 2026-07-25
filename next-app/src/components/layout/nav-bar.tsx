@@ -164,6 +164,8 @@ export function NavBar() {
               </Link>
             );
           })}
+          {/* 페이지 전용 컨트롤 슬롯 (예: 홈의 '개척 모드' 스위치) — 각 페이지가 포털로 채움 */}
+          <div id="nav-right-slot" className="ml-auto flex items-center" />
         </div>
       </nav>
 
@@ -171,6 +173,7 @@ export function NavBar() {
       <header className="sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-[#e8ebf0] bg-white px-4 md:hidden">
         <LogoLockup />
         <div className="ml-auto flex items-center gap-2">
+          <div id="nav-right-slot-mobile" className="flex items-center" />
           {unit && (
             <span
               className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
