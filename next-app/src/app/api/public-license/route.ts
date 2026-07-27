@@ -127,6 +127,7 @@ async function fetchPage(
   endDate: string,
   regionHint: string,
   pageNo: number,
+  attempt = 0,
 ): Promise<{ items: RawItem[]; totalCount: number; failed?: boolean; status?: number; error?: string }> {
   const qs = buildQS({
     serviceKey: apiKey,
@@ -139,12 +140,22 @@ async function fetchPage(
     ...(regionHint ? { 'cond[LOTNO_ADDR::LIKE]': regionHint } : {}),
   });
 
+  // 재시도 2회 — 공공API가 간헐적으로 페이지를 실패시킨다(같은 조회를 3회 반복하니 251/233/233건).
+  // 페이지 하나가 날아가면 그 조회 결과에서 최대 100건이 조용히 빠지고, 이 결과가 그대로
+  // licenses에 업로드된다. 시장분석 수집(market-stats)에 이미 있던 것을 옮겨온 것.
+  // 성공 시에는 추가 지연이 없다(실패했을 때만 0.8s·1.6s 백오프).
+  const retry = async (e?: Partial<{ status: number; error: string }>) => {
+    if (attempt >= 2) return { items: [], totalCount: 0, failed: true, ...e };
+    await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+    return fetchPage(typeCode, apiKey, startDate, endDate, regionHint, pageNo, attempt + 1);
+  };
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 7000);
   try {
     const res = await fetch(`${ENDPOINTS[typeCode]}?${qs}`, { signal: ctrl.signal });
     clearTimeout(timer);
-    if (!res.ok) return { items: [], totalCount: 0, failed: true, status: res.status };
+    if (!res.ok) return retry({ status: res.status });
 
     const json = await res.json();
     const body = json?.response?.body ?? json?.body ?? json ?? {};
@@ -157,7 +168,7 @@ async function fetchPage(
     return { items, totalCount };
   } catch (e) {
     clearTimeout(timer);
-    return { items: [], totalCount: 0, failed: true, error: (e as Error).message };
+    return retry({ error: (e as Error).message });
   }
 }
 
