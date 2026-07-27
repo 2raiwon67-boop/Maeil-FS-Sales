@@ -230,10 +230,10 @@ function passesFilters(
 }
 
 /** 매장 행 → (시도|시군구|월) SnapRow 집계. KPI·랭킹·면 채색·차트가 이걸 소비한다. */
-function aggregateSnaps(rows: StoreRow[], targetOnly: boolean): SnapRow[] {
+function aggregateSnaps(rows: StoreRow[], targetOnly: boolean, cat: Category): SnapRow[] {
   const agg = new Map<string, SnapRow>();
   for (const r of rows) {
-    if (targetOnly && !TARGET_CATS.has((r.category || '').trim())) continue;
+    if (!passesFilters(r, cat, targetOnly)) continue;
     const k = `${r.sido}|${r.sigungu}|${r.month}`;
     let o = agg.get(k);
     if (!o) { o = { sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: 0, closed_count: 0, updated_at: '' }; agg.set(k, o); }
@@ -1605,7 +1605,7 @@ export default function DiscoverPage() {
         sigunguSidoMapRef.current = updatedMap;
 
         // 매장 → SnapRow 집계 (다운스트림 KPI/랭킹/면/차트는 SnapRow를 그대로 소비)
-        const snaps = aggregateSnaps(storeRows, targetOnlyRef.current);
+        const snaps = aggregateSnaps(storeRows, targetOnlyRef.current, selectedCategoryRef.current);
         setCachedSnaps(snaps);
         // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
         applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
@@ -2446,17 +2446,27 @@ export default function DiscoverPage() {
   const categoryOptions: DropdownOption[] = (['all', 'cafe', 'bakery', 'restaurant'] as Category[])
     .map(c => ({ key: c, label: CAT_LABEL[c], active: selectedCategory === c }));
 
-  // '타겟만' 토글 — KPI/랭킹/면·동 채색은 SnapRow에서 나오므로 여기서 재집계해 즉시 반영한다
-  // (업종 칩과 달리 SnapRow 단계에 필터가 들어가야 화면 상단 숫자까지 같이 움직인다).
+  // 업종 칩·'타겟만' 변경 시 화면 전체를 같은 모수로 다시 그린다.
+  // KPI/랭킹/시군구 면/월별 차트는 SnapRow에서 나오므로 재집계가 필수 —
+  // 예전엔 업종 칩이 SnapRow를 안 건드려서 '카페'를 골라도 상단 숫자가 그대로였다.
+  // 매장 행이 아직 없으면(초기 RPC 빠른 경로 구간) 집계를 건너뛴다. 로드가 끝나면
+  // finishRows가 그때의 선택값으로 다시 집계하므로 결과는 같아진다.
+  const reapplyStoreFilters = () => {
+    const rows = cachedStoresRef.current;
+    if (rows.length) {
+      const snaps = aggregateSnaps(rows, targetOnlyRef.current, selectedCategoryRef.current);
+      setCachedSnaps(snaps);
+      applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, regionMode, regionSido, sidoSigunguMap);
+    }
+    updateStoreLayer();
+    updateDongFillState();
+  };
+
   const toggleTargetOnly = () => {
     const next = !targetOnly;
     setTargetOnly(next);
     targetOnlyRef.current = next;
-    const snaps = aggregateSnaps(cachedStoresRef.current, next);
-    setCachedSnaps(snaps);
-    applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, regionMode, regionSido, sidoSigunguMap);
-    updateStoreLayer();
-    updateDongFillState();
+    reapplyStoreFilters();
   };
 
 
@@ -2475,7 +2485,7 @@ export default function DiscoverPage() {
           icon={<Tag size={14} />}
           value={CAT_LABEL[selectedCategory]}
           options={categoryOptions}
-          onSelect={(k) => { setSelectedCategory(k as Category); selectedCategoryRef.current = k as Category; updateStoreLayer(); }}
+          onSelect={(k) => { setSelectedCategory(k as Category); selectedCategoryRef.current = k as Category; reapplyStoreFilters(); }}
         />
         <button
           onClick={toggleTargetOnly}
