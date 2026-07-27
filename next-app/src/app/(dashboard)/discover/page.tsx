@@ -412,6 +412,11 @@ function prevMonthStr(month: string): string {
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
 }
 
+/** 두 'YYYY-MM' 사이 개월 수 (b - a). 생존율의 관측 기간 판정용. */
+function monthDiff(a: string, b: string): number {
+  return (Number(b.slice(0, 4)) - Number(a.slice(0, 4))) * 12 + (Number(b.slice(5, 7)) - Number(a.slice(5, 7)));
+}
+
 function dedupeStoreEvents(rows: StoreRow[]): StoreRow[] {
   const byKey = new Map<string, Map<string, StoreRow>>(); // (이름|주소지문|상태) → month → 대표 행
   for (const r of rows) {
@@ -2220,8 +2225,65 @@ export default function DiscoverPage() {
     }
     return [...byRegion.values()].map(r => ({ ...r, nets: r.years.map(y => y.n - y.c) }));
   })();
+  // ─── 신규 매장 2년 생존율 ────────────────────────────────────────────────────
+  // "새로 생긴 가게가 2년을 버티는가" — 개척해도 반년 뒤 사라지는 지역을 걸러내는 지표.
+  // 코호트를 조회 창(36개월)의 가장 오래된 12개월 개업분으로 고정한다: 이 매장들만 전원
+  // 24개월 이상 관측이 끝나 있어서다. 최근 연도로 잡으면 아직 폐업할 시간이 없어 생존율이
+  // 무조건 높게 나온다(관측 절단) → 연도별 열이 아니라 고정 코호트 1열로 둔다.
+  // 폐업 판정: 같은 (상호|주소지문)이 개업 후 24개월 안에 폐업 명단에 등장. 지역은 개업 당시 시군구.
+  // ※ 폐업 행에는 원래 인허가일이 없고 폐업일이 들어 있어(수집기 특성) 개업·폐업 명단을 맞춰야 한다.
+  const survFrom = monthList[0];
+  const survTo = monthList[11];
+  const planSurvival = (() => {
+    // 폐업 최초 시점 — 업종 무관으로 모은다(재등록으로 업종이 바뀌어도 폐업은 폐업)
+    const closedAt = new Map<string, string>();
+    for (const s of cachedStores) {
+      if (s.status !== 'closed') continue;
+      const k = `${s.name}|${s.addrKey}`;
+      const prev = closedAt.get(k);
+      if (!prev || s.month < prev) closedAt.set(k, s.month);
+    }
+    // 코호트 = 창의 첫 12개월에 개업한 매장 (업종 칩 연동)
+    const opened = new Map<string, { month: string; region: string }>();
+    for (const s of cachedStores) {
+      if (s.status !== 'new' || !matchCategory(s, selectedCategory)) continue;
+      if (s.month < survFrom || s.month > survTo) continue;
+      const k = `${s.name}|${s.addrKey}`;
+      const prev = opened.get(k);
+      if (!prev || s.month < prev.month) opened.set(k, { month: s.month, region: `${s.sido}|${s.sigungu}` });
+    }
+    const out = new Map<string, { n: number; dead: number }>();
+    for (const [k, o] of opened) {
+      let r = out.get(o.region);
+      if (!r) { r = { n: 0, dead: 0 }; out.set(o.region, r); }
+      r.n++;
+      const cm = closedAt.get(k);
+      if (cm && cm >= o.month && monthDiff(o.month, cm) <= 24) r.dead++;
+    }
+    return out;
+  })();
+  const SURV_MIN_N = 30; // 표본이 이보다 적으면 비율 변동이 커서 숫자를 내지 않는다
+  const survOf = (r: PlanRegion): { pct: number; n: number } | null => {
+    const s = planSurvival.get(`${r.sido}|${r.sigungu}`);
+    if (!s || s.n < SURV_MIN_N) return null;
+    return { pct: Math.round((1 - s.dead / s.n) * 1000) / 10, n: s.n };
+  };
+  // 조회 범위 전체 평균 — 절대 기준선이 없는 지표라 '평균 대비'로 색을 준다
+  const survAvg = (() => {
+    let n = 0, dead = 0;
+    for (const s of planSurvival.values()) { n += s.n; dead += s.dead; }
+    return n ? Math.round((1 - dead / n) * 1000) / 10 : null;
+  })();
+  const survHeat = (pct: number): string | undefined => {
+    if (survAvg == null || Math.abs(pct - survAvg) < 2) return undefined;
+    const d = pct - survAvg;
+    const a = Math.min(Math.abs(d) / 25 + 0.06, 0.34).toFixed(2);
+    return `${d > 0 ? 'rgba(37,99,235,' : colorblind ? 'rgba(249,115,22,' : 'rgba(226,75,74,'}${a})`;
+  };
+
   const planVal = (r: PlanRegion, k: string): number => {
     if (k === 'big') return r.big;
+    if (k === 'surv') return survOf(r)?.pct ?? -1; // 미산출은 항상 끝으로
     const [yi, m] = k.split(':').map(Number);
     return m === 0 ? r.years[yi].n : m === 1 ? r.years[yi].c : r.nets[yi];
   };
@@ -2271,6 +2333,9 @@ export default function DiscoverPage() {
         o[`${planYearLabel(yi)} 순증`] = r.nets[yi];
       });
       o[`${planYearLabel(3)} 100평+`] = r.big;
+      const s = survOf(r);
+      o[`2년 생존율(%) ${survFrom}~${survTo} 개업`] = s ? s.pct : '';
+      o['생존율 표본(개업 수)'] = planSurvival.get(`${r.sido}|${r.sigungu}`)?.n ?? 0;
       return o;
     });
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -2936,7 +3001,7 @@ export default function DiscoverPage() {
         <div className="absolute inset-0 z-[300] flex flex-col overflow-hidden bg-slate-50">
           {/* 슬림 툴바 — 캡션 + 엑셀 (우측 여백은 top-right 토글 오버레이 회피) */}
           <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2 pr-[345px] max-sm:pr-5 max-sm:pt-[52px]">
-            <div className="text-[12px] font-semibold text-slate-600">지역 × 연도 신규·폐업·순증</div>
+            <div className="text-[12px] font-semibold text-slate-600">지역 × 연도 신규·폐업·순증 + 신규 2년 생존율</div>
             <button
               onClick={exportPlanXlsx}
               className="inline-flex h-[28px] cursor-pointer items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-[12px] font-medium text-slate-600 transition-colors hover:border-blue-400 hover:text-blue-600"
@@ -2978,7 +3043,7 @@ export default function DiscoverPage() {
 
                 {/* 지역×연도 표 — 아래 */}
                 <div className="overflow-x-auto rounded-xl border border-slate-200/70 bg-white shadow-sm">
-                  <table className="w-full min-w-[1040px] border-collapse text-right text-[12.5px] tabular-nums">
+                  <table className="w-full min-w-[1130px] border-collapse text-right text-[12.5px] tabular-nums">
                     <thead>
                       <tr className="text-[11.5px] text-slate-400">
                         <th rowSpan={2} className="cursor-pointer select-none px-3 py-1.5 text-left font-semibold hover:text-blue-600" onClick={() => planSortBy('region')}>지역{planArrow('region')}</th>
@@ -2986,6 +3051,15 @@ export default function DiscoverPage() {
                           <th key={yi} colSpan={3} className="border-l border-slate-100 px-2 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === 0 || yi === 3 ? '*' : ''}</th>
                         ))}
                         <th rowSpan={2} className="cursor-pointer select-none border-l border-slate-100 px-2 py-1.5 font-semibold hover:text-blue-600" onClick={() => planSortBy('big')}>100평+{planArrow('big')}</th>
+                        <th
+                          rowSpan={2}
+                          onClick={() => planSortBy('surv')}
+                          // 방법론 한계는 UI 본문이 아니라 이 툴팁에만 둔다(화면에 설명 문구 금지 규칙)
+                          title={`${survFrom}~${survTo} 개업 매장이 2년(24개월) 안에 폐업하지 않은 비율${survAvg != null ? ` · 조회 범위 평균 ${survAvg}%` : ''}\n상호+주소로 개업·폐업 명단을 맞춘 값 — 상호를 바꾼 뒤 폐업한 곳은 생존으로 잡힐 수 있음`}
+                          className="cursor-pointer select-none border-l border-slate-100 px-2 py-1.5 font-semibold hover:text-blue-600"
+                        >
+                          2년 생존율{planArrow('surv')}
+                        </th>
                         <th rowSpan={2} className="border-l border-slate-100 px-2 py-1.5 text-center font-semibold">페이스</th>
                         <th rowSpan={2} className="border-l border-slate-100 px-3 py-1.5 text-left font-semibold">순증 비교({planYearLabel(3)})</th>
                       </tr>
@@ -3007,6 +3081,7 @@ export default function DiscoverPage() {
                         const w = Math.max(Math.abs(net3) / (planMaxNeg + planMaxPos) * barSpan, 1.5);
                         const regionKey = `${r.sido}|${r.sigungu}`;
                         const opened = planOpenRegion === regionKey;
+                        const surv = survOf(r);
                         return (
                           <Fragment key={regionKey}>
                           <tr
@@ -3023,6 +3098,13 @@ export default function DiscoverPage() {
                               <td key={`t${yi}`} className="px-2 py-1 font-bold text-slate-900" style={{ background: planHeat(r.nets[yi]) }}>{r.nets[yi] > 0 ? `+${r.nets[yi]}` : r.nets[yi]}</td>,
                             ])}
                             <td className={`border-l border-slate-100 px-2 py-1 ${r.big ? 'font-semibold text-slate-700' : 'text-slate-300'}`}>{r.big}</td>
+                            <td
+                              className={`border-l border-slate-100 px-2 py-1 ${surv ? 'font-bold text-slate-900' : 'text-slate-300'}`}
+                              style={surv ? { background: survHeat(surv.pct) } : undefined}
+                              title={surv ? `${survFrom}~${survTo} 개업 ${surv.n}곳 중 ${surv.n - Math.round(surv.n * surv.pct / 100)}곳이 2년 내 폐업` : `개업 표본 ${SURV_MIN_N}곳 미만 — 비율이 불안정해 생략`}
+                            >
+                              {surv ? `${surv.pct}%` : '—'}
+                            </td>
                             <td className={`border-l border-slate-100 px-2 py-1 text-center text-[11.5px] font-bold ${pace === 'up' ? rankPosCls : pace === 'dn' ? rankNegCls : 'text-slate-400'}`}>
                               {pace === 'up' ? '▲ 성장' : pace === 'dn' ? '▼ 둔화' : '— 보합'}
                             </td>
@@ -3044,6 +3126,9 @@ export default function DiscoverPage() {
                 </div>
                 <div className="mt-2 px-1 text-[11px] leading-relaxed text-slate-400">
                   * {planYearLabel(0)}·{planYearLabel(3)}은 부분 집계(조회 창 최근 36개월) · 최근 월 폐업은 신고 지연으로 적게 잡힐 수 있음 · 100평+ = {planYearLabel(3)} 신규 중 대형 매장 수
+                  <br />
+                  * 2년 생존율 = {survFrom}~{survTo} 개업분이 24개월 내 폐업하지 않은 비율
+                  {survAvg != null && <> · 평균 {survAvg}%</>} · 표본 {SURV_MIN_N}곳 미만 —
                 </div>
               </div>
             )}
