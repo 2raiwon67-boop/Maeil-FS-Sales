@@ -11,7 +11,7 @@ import {
   Map as MapIcon, BarChart3, RefreshCw, X,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
   Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download, Info,
-  ClipboardList,
+  ClipboardList, Target,
 } from 'lucide-react';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -205,6 +205,41 @@ function matchCategory(store: { category?: string | null; name?: string | null }
   if (cat === 'all') return true;
   const haystack = ((store.category || '') + ' ' + (store.name || '')).toLowerCase();
   return CAT_KW[cat]?.some(kw => haystack.includes(kw)) ?? false;
+}
+
+// 인허가 추출/업로드(public-license)의 업태 화이트리스트와 동일한 목록.
+// 시장분석 수집은 블랙리스트 방식이라 일반조리판매·분식·패스트푸드·아이스크림·뷔페식이
+// 같이 들어온다(상권 규모용으로는 맞음) — '타겟만' 스위치는 이걸 화면에서만 걷어낸다.
+// 두 코드가 같은 필드(BZSTAT_SE_NM)를 보므로 매핑 없이 같은 목록을 그대로 쓸 수 있다.
+// ⚠️ public-license의 TARGET_CATEGORIES를 고치면 여기도 같이 고쳐야 한다.
+const TARGET_CATS = new Set([
+  '한식', '기타 휴게음식점', '기타', '레스토랑', '키즈카페', '경양식',
+  '커피숍', '까페', '다방', '전통찻집', '떡카페',
+  '제과점영업', '과자점',
+  '패밀리레스트랑',
+]);
+
+/** 업종 칩 + '타겟만' 스위치 통합 판정. 매장 필터는 전부 이걸 거쳐야 화면 간 숫자가 일치한다. */
+function passesFilters(
+  store: { category?: string | null; name?: string | null },
+  cat: Category,
+  targetOnly: boolean,
+): boolean {
+  if (targetOnly && !TARGET_CATS.has((store.category || '').trim())) return false;
+  return matchCategory(store, cat);
+}
+
+/** 매장 행 → (시도|시군구|월) SnapRow 집계. KPI·랭킹·면 채색·차트가 이걸 소비한다. */
+function aggregateSnaps(rows: StoreRow[], targetOnly: boolean): SnapRow[] {
+  const agg = new Map<string, SnapRow>();
+  for (const r of rows) {
+    if (targetOnly && !TARGET_CATS.has((r.category || '').trim())) continue;
+    const k = `${r.sido}|${r.sigungu}|${r.month}`;
+    let o = agg.get(k);
+    if (!o) { o = { sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: 0, closed_count: 0, updated_at: '' }; agg.set(k, o); }
+    if (r.status === 'new') o.new_count++; else o.closed_count++;
+  }
+  return [...agg.values()];
 }
 
 // 동/읍/면 추출은 DB 파생 컬럼 `dong`이 담당 (마이그레이션 add_dong_addr_key_generated_columns,
@@ -506,6 +541,8 @@ export default function DiscoverPage() {
   // 기간 조회 종료월 — null=단일 월(또는 전체). 설정 시 [selectedMonth..rangeTo] 범위로 집계.
   const [rangeTo, setRangeTo] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
+  // '타겟만' — 인허가 추출 기준 업태만 보기. 기본 OFF(기존 상권 규모 모수 유지)
+  const [targetOnly, setTargetOnly] = useState(false);
   const [rankSort, setRankSort] = useState<RankSort>('net');
   const [dedupInfoOpen, setDedupInfoOpen] = useState(false); // 중복 집계 제거 로직 설명 패널
   const [loading, setLoading] = useState(true);
@@ -539,6 +576,7 @@ export default function DiscoverPage() {
   const selectedMonthRef = useRef<string | null>(null);
   const rangeToRef = useRef<string | null>(null);
   const selectedCategoryRef = useRef<Category>('all');
+  const targetOnlyRef = useRef(false);
   const cachedStoresRef = useRef<StoreRow[]>([]);
   const geocodeRunRef = useRef(0);
   const selectedDongRef = useRef<string | null>(null);
@@ -1039,6 +1077,7 @@ export default function DiscoverPage() {
     const agg = new Map<string, { new: number; closed: number }>();
     for (const s of cachedStoresRef.current) {
       if (!monthInSel(s.month, month, monthTo)) continue;
+      if (!passesFilters(s, 'all', targetOnlyRef.current)) continue; // '타겟만' 반영 (동 채색도 면·KPI와 같은 모수)
       if (!sigunguBySido.has(s.sido)) sigunguBySido.set(s.sido, new Set());
       // 동 경계(geojson)는 옛 구명 기준 — 개편된 새 구명(검단구 등)은 옛 이름으로 정규화해 매칭
       const lsg = legacySigungu(s.sido, s.sigungu);
@@ -1203,7 +1242,7 @@ export default function DiscoverPage() {
     for (const s of stores) {
       if (s.lat == null || s.lng == null) continue;
       if (!monthInSel(s.month, month, monthTo)) continue;
-      if (!matchCategory(s, cat)) continue;
+      if (!passesFilters(s, cat, targetOnlyRef.current)) continue;
       if (dongFilter && (!sigunguMatches(s.sido, s.sigungu, dongFilter.sigungu) || s.dong !== dongFilter.dong)) continue;
       const big = (s.pyeong || 0) >= 100 ? 1 : 0;
       feats.push({
@@ -1566,14 +1605,7 @@ export default function DiscoverPage() {
         sigunguSidoMapRef.current = updatedMap;
 
         // 매장 → SnapRow 집계 (다운스트림 KPI/랭킹/면/차트는 SnapRow를 그대로 소비)
-        const snapAgg = new Map<string, SnapRow>();
-        for (const r of storeRows) {
-          const k = `${r.sido}|${r.sigungu}|${r.month}`;
-          let o = snapAgg.get(k);
-          if (!o) { o = { sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: 0, closed_count: 0, updated_at: '' }; snapAgg.set(k, o); }
-          if (r.status === 'new') o.new_count++; else o.closed_count++;
-        }
-        const snaps = [...snapAgg.values()];
+        const snaps = aggregateSnaps(storeRows, targetOnlyRef.current);
         setCachedSnaps(snaps);
         // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
         applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
@@ -2209,7 +2241,7 @@ export default function DiscoverPage() {
   const planRows: PlanRegion[] = (() => {
     const byRegion = new Map<string, { sido: string; sigungu: string; years: { n: number; c: number }[]; big: number }>();
     for (const s of cachedStores) {
-      if (!matchCategory(s, selectedCategory)) continue;
+      if (!passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > 3) continue;
       const key = `${s.sido}|${s.sigungu}`;
@@ -2246,7 +2278,7 @@ export default function DiscoverPage() {
     // 코호트 = 창의 첫 12개월에 개업한 매장 (업종 칩 연동)
     const opened = new Map<string, { month: string; region: string }>();
     for (const s of cachedStores) {
-      if (s.status !== 'new' || !matchCategory(s, selectedCategory)) continue;
+      if (s.status !== 'new' || !passesFilters(s, selectedCategory, targetOnly)) continue;
       if (s.month < survFrom || s.month > survTo) continue;
       const k = `${s.name}|${s.addrKey}`;
       const prev = opened.get(k);
@@ -2311,7 +2343,7 @@ export default function DiscoverPage() {
     const [sd, sgg] = planOpenRegion.split('|');
     const byDong = new Map<string, { n: number; c: number }[]>();
     for (const s of cachedStores) {
-      if (s.sido !== sd || s.sigungu !== sgg || !matchCategory(s, selectedCategory)) continue;
+      if (s.sido !== sd || s.sigungu !== sgg || !passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > 3) continue;
       const key = s.dong || '기타';
@@ -2348,7 +2380,7 @@ export default function DiscoverPage() {
   // 드릴다운 라이브 집계 (선택 월·업종 즉시 반영)
   const drillScoped = drillStores
     .filter(s => monthInSel(s.month, selectedMonth, rangeTo))
-    .filter(s => matchCategory(s, selectedCategory));
+    .filter(s => passesFilters(s, selectedCategory, targetOnly));
   const drillSummary: DrillSummary | null = drillStores.length
     ? { new: drillScoped.filter(s => s.status === 'new').length, closed: drillScoped.filter(s => s.status === 'closed').length }
     : null;
@@ -2394,7 +2426,7 @@ export default function DiscoverPage() {
   const DRILL_CAT_LABEL: Record<'cafe' | 'bakery' | 'restaurant', string> = { cafe: '카페', bakery: '베이커리', restaurant: '음식점' };
   const drillTopCategory = (() => {
     const counts: Record<'cafe' | 'bakery' | 'restaurant', number> = { cafe: 0, bakery: 0, restaurant: 0 };
-    drillScoped.forEach(s => { (['cafe', 'bakery', 'restaurant'] as const).forEach(c => { if (matchCategory(s, c)) counts[c]++; }); });
+    drillScoped.forEach(s => { (['cafe', 'bakery', 'restaurant'] as const).forEach(c => { if (matchCategory(s, c)) counts[c]++; }); }); // drillScoped가 이미 타겟만 필터를 통과한 집합
     const top = (['cafe', 'bakery', 'restaurant'] as const).reduce((a, b) => counts[b] > counts[a] ? b : a);
     return counts[top] > 0 ? { cat: top, count: counts[top] } : null;
   })();
@@ -2414,6 +2446,19 @@ export default function DiscoverPage() {
   const categoryOptions: DropdownOption[] = (['all', 'cafe', 'bakery', 'restaurant'] as Category[])
     .map(c => ({ key: c, label: CAT_LABEL[c], active: selectedCategory === c }));
 
+  // '타겟만' 토글 — KPI/랭킹/면·동 채색은 SnapRow에서 나오므로 여기서 재집계해 즉시 반영한다
+  // (업종 칩과 달리 SnapRow 단계에 필터가 들어가야 화면 상단 숫자까지 같이 움직인다).
+  const toggleTargetOnly = () => {
+    const next = !targetOnly;
+    setTargetOnly(next);
+    targetOnlyRef.current = next;
+    const snaps = aggregateSnaps(cachedStoresRef.current, next);
+    setCachedSnaps(snaps);
+    applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, regionMode, regionSido, sidoSigunguMap);
+    updateStoreLayer();
+    updateDongFillState();
+  };
+
 
   return (
     <div className="flex h-[calc(100dvh-3rem-4rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
@@ -2432,6 +2477,17 @@ export default function DiscoverPage() {
           options={categoryOptions}
           onSelect={(k) => { setSelectedCategory(k as Category); selectedCategoryRef.current = k as Category; updateStoreLayer(); }}
         />
+        <button
+          onClick={toggleTargetOnly}
+          title="인허가 추출 기준 업태만 — 일반조리판매·분식·패스트푸드·아이스크림·뷔페식 제외"
+          className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all max-md:h-7 max-md:px-2.5 max-md:text-[11px] ${
+            targetOnly
+              ? 'border-blue-600 bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]'
+              : 'border-slate-200 bg-white text-slate-500 hover:border-blue-400 hover:text-blue-600'
+          }`}
+        >
+          <Target size={13} />타겟만
+        </button>
         <MonthRangeDropdown
           monthList={monthList}
           selectedMonth={selectedMonth}
