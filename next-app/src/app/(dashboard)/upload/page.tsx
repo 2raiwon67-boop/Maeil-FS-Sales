@@ -844,6 +844,14 @@ export default function UploadPage() {
       if (data.failedRegions?.length) {
         toast.warning(`일부 지역 조회 실패: ${data.failedRegions.join(', ')}`);
       }
+      // 2,000건 상한으로 잘린 조회 — 이 화면은 결과를 DB에 그대로 올리므로 반드시 알려야 한다
+      // (모바일 인허가 추출엔 있고 여기만 빠져 있어, 누락된 데이터가 조용히 업로드됐다)
+      if (data.truncated?.length) {
+        const msg = (data.truncated as Array<{ sido: string; total: number }>)
+          .map((t) => `${t.sido}(${t.total.toLocaleString()}건)`)
+          .join(', ');
+        toast.warning(`데이터 누락 가능성: ${msg} — 2,000건 상한 초과. 조회 기간을 나눠서 재조회하세요.`, { duration: 8000 });
+      }
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
