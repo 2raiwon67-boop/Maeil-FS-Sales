@@ -743,7 +743,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="relative flex h-[calc(100dvh-3rem-4rem)] w-full md:h-[calc(100dvh-88px)]">
+    <div className="relative flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] w-full md:h-[calc(100dvh-88px)]">
       {navSlots.pc && createPortal(prospectSwitch, navSlots.pc)}
       {navSlots.mobile && createPortal(prospectSwitch, navSlots.mobile)}
 

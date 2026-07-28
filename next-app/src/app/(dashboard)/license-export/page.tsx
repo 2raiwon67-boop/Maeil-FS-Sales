@@ -500,7 +500,9 @@ export default function LicenseExportPage() {
                 const on = activeRegions.has(chip.filterRegion);
                 return (
                   <button
-                    key={chip.filterRegion}
+                    // 고양시 3개 구처럼 여러 칩이 같은 filterRegion을 공유하므로 label까지 붙여야 고유해진다
+                    // (단독 사용 시 React "two children with the same key" — 칩이 누락·중복 렌더될 수 있음). upload 화면과 동일.
+                    key={chip.filterRegion + chip.label}
                     onClick={() => toggleRegion(chip.filterRegion)}
                     title={chip.label}
                     className={`truncate rounded-lg border px-1.5 py-2 text-[13px] transition-colors active:scale-95 ${

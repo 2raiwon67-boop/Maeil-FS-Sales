@@ -50,6 +50,17 @@
 }
 
 :root {
+  /* ── 모바일 앱 크롬 높이 (PWA standalone 안전영역 포함) ──────────────────
+     iOS는 viewport-fit=cover가 있어야 env(safe-area-inset-*)이 0이 아닌 값을 준다
+     (layout.tsx의 viewport.viewportFit). 노치·홈 인디케이터가 없는 기기·브라우저에선
+     inset이 0이라 예전 값과 동일하게 동작한다.
+     하드코딩(3rem/4rem)을 쓰면 안 되는 이유: 탭바 실측 높이는 55px이고, 안전영역이
+     붙으면 89px까지 늘어난다 — 하단 콘텐츠가 탭바에 가려진다. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --app-header-h: calc(3rem + var(--safe-top));    /* 모바일 상단 로고바 h-12 + 상태바 */
+  --app-tabbar-h: calc(3.5rem + var(--safe-bottom)); /* 하단 탭바(실측 55px) + 홈 인디케이터 */
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

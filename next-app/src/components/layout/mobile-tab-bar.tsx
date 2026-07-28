@@ -32,7 +32,7 @@ export function MobileTabBar() {
         <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setProfileOpen(false)} />
       )}
       {profileOpen && (
-        <div className="fixed bottom-16 left-4 right-4 z-50 rounded-2xl bg-white p-4 shadow-xl md:hidden">
+        <div className="fixed bottom-[calc(var(--app-tabbar-h)+0.5rem)] left-4 right-4 z-50 rounded-2xl bg-white p-4 shadow-xl md:hidden">
           <p className="mb-3 text-center font-semibold">
             {metadata?.full_name
               ? metadata.business_unit
@@ -56,7 +56,8 @@ export function MobileTabBar() {
         </div>
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+      {/* 안전영역은 --safe-bottom 한 곳에서만 정의한다(globals.css) — main의 pb-[--app-tabbar-h]와 같은 값을 써야 어긋나지 않는다 */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-white pb-[var(--safe-bottom)] md:hidden">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = pathname === tab.href;

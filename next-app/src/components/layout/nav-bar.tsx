@@ -170,20 +170,23 @@ export function NavBar() {
       </nav>
 
       {/* 모바일 — 슬림 로고 바 (네비게이션은 하단 탭바가 담당) */}
-      <header className="sticky top-0 z-40 flex h-12 items-center gap-2 border-b border-[#e8ebf0] bg-white px-4 md:hidden">
-        <LogoLockup />
-        <div className="ml-auto flex items-center gap-2">
-          <div id="nav-right-slot-mobile" className="flex items-center" />
-          {unit && (
-            <span
-              className="inline-flex max-w-[108px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
-              style={{ background: '#eef3fb', color: NAVY }}
-            >
-              <MapPin className="h-3 w-3 shrink-0" />
-              <span className="truncate">{unit}</span>
-            </span>
-          )}
-          <NotificationBell />
+      {/* PWA standalone은 상태바 아래로 콘텐츠가 파고든다(black-translucent) → 상단 안전영역만큼 밀어준다 */}
+      <header className="sticky top-0 z-40 border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
+        <div className="flex h-12 items-center gap-2 px-4">
+          <LogoLockup />
+          <div className="ml-auto flex items-center gap-2">
+            <div id="nav-right-slot-mobile" className="flex items-center" />
+            {unit && (
+              <span
+                className="inline-flex max-w-[108px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
+                style={{ background: '#eef3fb', color: NAVY }}
+              >
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="truncate">{unit}</span>
+              </span>
+            )}
+            <NotificationBell />
+          </div>
         </div>
       </header>
 

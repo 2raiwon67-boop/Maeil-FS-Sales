@@ -95,7 +95,8 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative rounded-md p-1.5 text-[#475569] transition-colors hover:bg-gray-100"
+        // 모바일 터치 타깃 확보(44px) — p-1.5만으론 30×30이라 손가락으로 놓치기 쉬웠다. 데스크톱은 기존 크기 유지
+        className="relative inline-flex h-11 w-11 items-center justify-center rounded-md text-[#475569] transition-colors hover:bg-gray-100 md:h-auto md:w-auto md:p-1.5"
         aria-label="알림"
       >
         <Bell className="h-[18px] w-[18px]" />

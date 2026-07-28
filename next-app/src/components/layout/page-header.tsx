@@ -33,9 +33,10 @@ export function PageHeader({
 }
 
 // 공통 버튼 스타일 (헤더·툴바용)
+// 모바일은 min-h-11(44px)로 — py-1.5만으론 30px이라 걷거나 차 안에서 누르면 잘 빗나간다.
 export const headerBtn = {
   outline:
-    'inline-flex items-center gap-1.5 rounded-lg border border-[#d6dbe3] bg-white px-3 py-1.5 text-xs font-medium text-[#334155] transition-colors hover:bg-gray-50 disabled:opacity-60',
+    'inline-flex items-center gap-1.5 rounded-lg border border-[#d6dbe3] bg-white px-3 py-1.5 text-xs font-medium text-[#334155] transition-colors hover:bg-gray-50 disabled:opacity-60 max-md:min-h-11 max-md:text-[13px]',
   primary:
-    'inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#1d4fd0] disabled:opacity-60',
+    'inline-flex items-center gap-1.5 rounded-lg bg-[#2563eb] px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#1d4fd0] disabled:opacity-60 max-md:min-h-11 max-md:text-[13px]',
 };

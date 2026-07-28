@@ -28,6 +28,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  // iOS에서 env(safe-area-inset-*)이 실제 값을 갖게 하는 유일한 스위치.
+  // 이게 없으면 탭바의 pb-[env(safe-area-inset-bottom)]이 항상 0으로 계산돼 죽은 코드가 된다.
+  // statusBarStyle이 'black-translucent'라 콘텐츠가 상태바 아래로 파고드는데(위 metadata),
+  // cover + safe-area 패딩이 짝을 이뤄야 헤더가 노치에 가려지지 않는다.
+  viewportFit: 'cover',
   themeColor: '#1d1d1f',
 };
 

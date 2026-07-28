@@ -620,31 +620,34 @@ export default function ProposalPage() {
                     <div key={it.id} className="rounded-xl border border-[#eef1f5] p-3">
                       <div className="mb-2 flex items-center gap-1.5">
                         <span className="w-3 shrink-0 text-center text-[11px] text-[#cbd5e1]">{idx + 1}</span>
-                        <input value={it.name} onChange={(e) => updateItem(it.id, { name: e.target.value })} list="proposal-products" placeholder="품명" className="h-7 min-w-0 flex-1 rounded-md border border-[#e2e8f0] px-2 text-[13px] outline-none focus:border-[#2563eb]" />
-                        <input value={it.spec} onChange={(e) => updateItem(it.id, { spec: e.target.value })} placeholder="내입수" className="h-7 w-16 shrink-0 rounded-md border border-[#e2e8f0] px-1.5 text-xs outline-none focus:border-[#2563eb]" />
-                        <button onClick={() => removeItem(it.id)} className="shrink-0 text-[#cbd5e1] hover:text-red-500"><X size={15} /></button>
+                        {/* 모바일: 입력 높이 44px·글자 16px — 현장에서 폰으로 금액을 넣는 화면이라 데스크톱 밀도(h-7/12px)로는 오타가 난다.
+                            16px 미만이면 iOS가 포커스 시 화면을 확대해 버리는 문제도 같이 막는다. 데스크톱은 기존 그대로. */}
+                        <input value={it.name} onChange={(e) => updateItem(it.id, { name: e.target.value })} list="proposal-products" placeholder="품명" className="h-7 min-w-0 flex-1 rounded-md border border-[#e2e8f0] px-2 text-[13px] outline-none focus:border-[#2563eb] max-md:h-11 max-md:text-[16px]" />
+                        <input value={it.spec} onChange={(e) => updateItem(it.id, { spec: e.target.value })} placeholder="내입수" className="h-7 w-16 shrink-0 rounded-md border border-[#e2e8f0] px-1.5 text-xs outline-none focus:border-[#2563eb] max-md:h-11 max-md:w-[76px] max-md:text-[16px]" />
+                        {/* 음수 마진+패딩 = 보이는 크기는 그대로 두고 터치 영역만 넓힌다(15×15 → 39×39) */}
+                        <button onClick={() => removeItem(it.id)} aria-label="품목 삭제" className="shrink-0 text-[#cbd5e1] hover:text-red-500 max-md:-m-3 max-md:p-3"><X size={15} /></button>
                       </div>
                       <div className="flex items-end gap-2">
                         <label className="flex-1">
                           <div className="mb-1 text-[9px] text-[#94a3b8]">출고가</div>
-                          <input type="number" value={it.factoryPrice} onChange={(e) => updateItem(it.id, { factoryPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#e2e8f0] px-1.5 text-[12px] font-medium tabular-nums outline-none focus:border-[#2563eb]" />
+                          <input type="number" value={it.factoryPrice} onChange={(e) => updateItem(it.id, { factoryPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#e2e8f0] px-1.5 text-[12px] font-medium tabular-nums outline-none focus:border-[#2563eb] max-md:h-11 max-md:text-[16px]" />
                         </label>
                         <label className="flex-1">
                           <div className="mb-1 text-[9px] text-[#94a3b8]">DC %</div>
-                          <input type="number" value={it.dcRate} onChange={(e) => updateItem(it.id, { dcRate: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#bcd3f5] bg-[#f5f9ff] px-1.5 text-[12px] font-medium tabular-nums text-[#2563eb] outline-none focus:border-[#2563eb]" />
+                          <input type="number" value={it.dcRate} onChange={(e) => updateItem(it.id, { dcRate: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#bcd3f5] bg-[#f5f9ff] px-1.5 text-[12px] font-medium tabular-nums text-[#2563eb] outline-none focus:border-[#2563eb] max-md:h-11 max-md:text-[16px]" />
                         </label>
                         <label className="flex-1">
                           <div className="mb-1 text-[9px] text-[#94a3b8]">판매가</div>
-                          <input type="number" value={it.salesPrice} onChange={(e) => updateItem(it.id, { salesPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#e2e8f0] px-1.5 text-[12px] font-medium tabular-nums outline-none focus:border-[#2563eb]" />
+                          <input type="number" value={it.salesPrice} onChange={(e) => updateItem(it.id, { salesPrice: parseFloat(e.target.value) || 0 })} className="h-7 w-full rounded-md border border-[#e2e8f0] px-1.5 text-[12px] font-medium tabular-nums outline-none focus:border-[#2563eb] max-md:h-11 max-md:text-[16px]" />
                         </label>
                         <div className="w-[52px] shrink-0 pb-1 text-right">
                           <div className="mb-1 text-[9px] text-[#94a3b8]">마진</div>
                           <div className="text-[12px] font-medium tabular-nums" style={{ color: mColor }}>{margin.toFixed(1)}%</div>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-[#b6c0cc]">
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-[#b6c0cc] max-md:text-[12px]">
                         <label className="flex cursor-pointer items-center gap-1">
-                          <input type="checkbox" checked={it.taxFree} onChange={(e) => updateItem(it.id, { taxFree: e.target.checked })} className="h-3 w-3" /> 면세
+                          <input type="checkbox" checked={it.taxFree} onChange={(e) => updateItem(it.id, { taxFree: e.target.checked })} className="h-3 w-3 max-md:h-5 max-md:w-5" /> 면세
                         </label>
                         <span>공급가 <span className="tabular-nums text-[#94a3b8]">{Math.floor(rowCost(it)).toLocaleString()}원</span></span>
                       </div>

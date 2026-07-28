@@ -2471,7 +2471,7 @@ export default function DiscoverPage() {
 
 
   return (
-    <div className="flex h-[calc(100dvh-3rem-4rem)] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
+    <div className="flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
 
       {/* ── HEADS-UP FILTER BAR ── 모바일은 한 줄 가로 스크롤(줄바꿈 시 좌우 불균형 방지) */}
       <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none] md:flex-wrap">
