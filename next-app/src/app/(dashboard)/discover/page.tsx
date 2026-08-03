@@ -268,7 +268,7 @@ function FilterDropdown({
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors max-md:h-10 ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
       >
         <span className="text-slate-400">{icon}</span>
         {value}
@@ -335,7 +335,7 @@ function MonthRangeDropdown({
     <div className="relative">
       <button
         onClick={() => (open ? setOpen(false) : openPanel())}
-        className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+        className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors max-md:h-10 ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
       >
         <span className="text-slate-400"><CalendarDays size={14} /></span>
         {label}
@@ -2490,7 +2490,7 @@ export default function DiscoverPage() {
         <button
           onClick={toggleTargetOnly}
           title="인허가 추출 기준 업태만 — 일반조리판매·분식·패스트푸드·아이스크림·뷔페식 제외"
-          className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all max-md:h-7 max-md:px-2.5 max-md:text-[11px] ${
+          className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all max-md:h-10 max-md:px-3 max-md:text-[12px] ${
             targetOnly
               ? 'border-blue-600 bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]'
               : 'border-slate-200 bg-white text-slate-500 hover:border-blue-400 hover:text-blue-600'
@@ -2515,7 +2515,7 @@ export default function DiscoverPage() {
                 <button
                   key={m}
                   onClick={() => handleSetDisplayMode(m)}
-                  className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                  className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors max-md:h-10 max-md:px-3 max-md:text-[12px] ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
                 >
                   {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{m === 'd3' && <Box size={12} />}{label}
                 </button>
@@ -2557,19 +2557,19 @@ export default function DiscoverPage() {
         <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
           <button
             onClick={() => handleSetViewMode('map')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-7 max-md:gap-1 max-md:px-2.5 max-md:text-[11px] ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <MapIcon size={14} />지도
           </button>
           <button
             onClick={() => handleSetViewMode('rank')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-7 max-md:gap-1 max-md:px-2.5 max-md:text-[11px] ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <BarChart3 size={14} />랭킹
           </button>
           <button
             onClick={() => handleSetViewMode('plan')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-7 max-md:gap-1 max-md:px-2.5 max-md:text-[11px] ${viewMode === 'plan' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'plan' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <ClipboardList size={14} />운영계획
           </button>
@@ -2916,7 +2916,7 @@ export default function DiscoverPage() {
                   <button
                     key={sort}
                     onClick={() => setRankSort(sort)}
-                    className={`h-[30px] cursor-pointer rounded-md px-3 text-[13px] transition-all ${rankSort === sort ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`h-[30px] cursor-pointer rounded-md px-3 text-[13px] transition-all max-md:h-10 ${rankSort === sort ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     {sort === 'net' ? '순증' : sort === 'mom' ? '모멘텀' : sort === 'new' ? '신규' : sort === 'closed' ? '폐업' : '성장률'}
                   </button>
@@ -2959,15 +2959,18 @@ export default function DiscoverPage() {
                   ))}
                 </div>
 
-                {/* 컬럼 헤더 + 행 — 좁은 화면에선 가로 스크롤 (컬럼 붕괴 방지) */}
+                {/* 컬럼 헤더 + 행 — 데스크톱은 6열(가로 스크롤로 붕괴 방지).
+                    모바일은 620px 강제 시 순증 막대가 화면 밖으로 나가므로(뷰포트 390px)
+                    신규·폐업/추이 열을 숨겨 순위·지역·순증·성장률 4열이 한 화면에 들어오게 한다
+                    — 숨긴 수치는 행 탭 → 드릴다운에서 그대로 보인다. */}
                 <div className="overflow-x-auto">
-                <div className="min-w-[620px]">
-                <div className="grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 px-3 pb-1.5 text-[12px] font-medium text-slate-400">
+                <div className="md:min-w-[620px]">
+                <div className="grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 px-3 pb-1.5 text-[12px] font-medium text-slate-400 max-md:grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,7rem)_3.4rem]">
                   <span>순위</span>
                   <span>지역</span>
                   <span>순증</span>
-                  <span className="text-right">신규·폐업</span>
-                  <span className="text-center">6개월 추이</span>
+                  <span className="text-right max-md:hidden">신규·폐업</span>
+                  <span className="text-center max-md:hidden">6개월 추이</span>
                   <span className="text-right">성장률</span>
                 </div>
                 <div className="flex flex-col gap-1">
@@ -2984,7 +2987,7 @@ export default function DiscoverPage() {
                       <div
                         key={r.sido + r.region}
                         onClick={() => openDrilldown(r.region, r.sido)}
-                        className={`grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 cursor-pointer rounded-xl border bg-white px-3 py-3 shadow-sm transition-all hover:bg-blue-50/40 ${i === 0 ? 'border-blue-400 ring-1 ring-blue-400/50 hover:border-blue-400' : 'border-slate-200/70 hover:border-blue-300'}`}
+                        className={`grid grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,8rem)_4.4rem_4rem_3.4rem] items-center gap-2 cursor-pointer rounded-xl border bg-white px-3 py-3 shadow-sm transition-all hover:bg-blue-50/40 max-md:grid-cols-[3.4rem_minmax(0,1fr)_minmax(3.5rem,7rem)_3.4rem] ${i === 0 ? 'border-blue-400 ring-1 ring-blue-400/50 hover:border-blue-400' : 'border-slate-200/70 hover:border-blue-300'}`}
                       >
                         <span className="flex items-baseline gap-1">
                           <span className="w-5 text-[15px] font-bold tabular-nums text-slate-800">{i + 1}</span>
@@ -3004,12 +3007,12 @@ export default function DiscoverPage() {
                             />
                           </span>
                         </span>
-                        <span className="text-right text-[13px] tabular-nums">
+                        <span className="text-right text-[13px] tabular-nums max-md:hidden">
                           <span className={`font-semibold ${rankPosCls}`}>{r.new}</span>
                           <span className="text-slate-300"> · </span>
                           <span className={`font-semibold ${rankNegCls}`}>{r.closed}</span>
                         </span>
-                        <span className="flex justify-center" title={momStr}>
+                        <span className="flex justify-center max-md:hidden" title={momStr}>
                           <Sparkline values={r.trend} colorblind={colorblind} />
                         </span>
                         <span className="text-right">
@@ -3112,7 +3115,9 @@ export default function DiscoverPage() {
                   <table className="w-full min-w-[1130px] border-collapse text-right text-[12.5px] tabular-nums">
                     <thead>
                       <tr className="text-[11.5px] text-slate-400">
-                        <th rowSpan={2} className="cursor-pointer select-none px-3 py-1.5 text-left font-semibold hover:text-blue-600" onClick={() => planSortBy('region')}>지역{planArrow('region')}</th>
+                        {/* 지역 열 고정 — 표(1130px)를 가로 스크롤하면 어느 행이 어느 지역인지 알 수 없게 되므로.
+                            sticky 셀은 배경이 없으면 밑의 숫자가 비쳐 보여 bg-inherit로 행 배경(홀짝/선택/hover)을 물려받는다. */}
+                        <th rowSpan={2} className="sticky left-0 z-[1] cursor-pointer select-none bg-white px-3 py-1.5 text-left font-semibold hover:text-blue-600" onClick={() => planSortBy('region')}>지역{planArrow('region')}</th>
                         {[0, 1, 2, 3].map(yi => (
                           <th key={yi} colSpan={3} className="border-l border-slate-100 px-2 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === 0 || yi === 3 ? '*' : ''}</th>
                         ))}
@@ -3152,9 +3157,11 @@ export default function DiscoverPage() {
                           <Fragment key={regionKey}>
                           <tr
                             onClick={() => setPlanOpenRegion(p => (p === regionKey ? null : regionKey))}
-                            className={`cursor-pointer border-t border-slate-100 transition-colors hover:bg-blue-50/60 ${opened ? 'bg-blue-50/60' : 'odd:bg-white even:bg-slate-50/60'}`}
+                            className={`group cursor-pointer border-t border-slate-100 transition-colors hover:bg-blue-50/60 ${opened ? 'bg-blue-50/60' : 'odd:bg-white even:bg-slate-50/60'}`}
                           >
-                            <td className="whitespace-nowrap px-3 py-1 text-left text-[13px] font-bold text-slate-900">
+                            {/* bg-inherit 금지: 행 배경이 60% 반투명이라 sticky 셀 밑으로 지나가는 숫자가 비친다
+                                → 행 색(홀짝·선택·hover)과 같아 보이는 '불투명' 등가색을 셀에 직접 준다 */}
+                            <td className={`sticky left-0 z-[1] whitespace-nowrap px-3 py-1 text-left text-[13px] font-bold text-slate-900 group-hover:bg-[#f5faff] ${opened ? 'bg-[#f5faff]' : 'bg-white group-even:bg-[#fbfcfd]'}`}>
                               <ChevronRight size={12} className={`mr-1 inline-block ${opened ? 'text-blue-600' : 'text-slate-300'}`} />
                               <span className="mr-1 text-[11px] font-medium text-slate-400">{sidoShort(r.sido)}</span>{r.sigungu}
                             </td>
