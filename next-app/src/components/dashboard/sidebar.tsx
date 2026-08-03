@@ -256,7 +256,8 @@ export function DashboardSidebar({
       <button
         onClick={onToggleCollapse}
         title="사이드바 접기/펼치기"
-        className="absolute top-1/2 z-40 -translate-y-1/2 rounded-r-lg border border-l-0 border-gray-200 bg-white px-1 py-4 text-gray-500 shadow transition-all hover:bg-gray-50"
+        // 모바일은 손잡이를 넓힌다 — px-1(폭 14px)로는 엄지로 집기 어렵다
+        className="absolute top-1/2 z-40 -translate-y-1/2 rounded-r-lg border border-l-0 border-gray-200 bg-white px-1 py-4 text-gray-500 shadow transition-all hover:bg-gray-50 max-md:px-2.5 max-md:py-6"
         style={{ left: collapsed ? 0 : 300 }}
       >
         {collapsed ? '›' : '‹'}

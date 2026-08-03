@@ -732,7 +732,8 @@ export default function DashboardPage() {
     <button
       onClick={toggleProspect}
       aria-pressed={view === 'prospect'}
-      className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-colors"
+      // 모바일 헤더에서 실측 86×20 — 세로 패딩으로 터치 영역만 44px로 넓힌다(보이는 크기 동일)
+      className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-colors max-md:-my-3 max-md:py-3"
       style={{ color: view === 'prospect' ? '#1B3F82' : '#64748b' }}
     >
       개척 모드
@@ -834,7 +835,7 @@ export default function DashboardPage() {
             <button
               onClick={() => setMobileSearchOpen((o) => !o)}
               aria-label="매장 검색"
-              className={`flex items-center justify-center rounded-lg px-2.5 transition-colors md:hidden ${
+              className={`flex min-h-10 items-center justify-center rounded-lg px-3 transition-colors md:hidden ${
                 mobileSearchOpen || search ? 'bg-blue-600 text-white' : 'text-gray-600'
               }`}
             >
@@ -845,7 +846,7 @@ export default function DashboardPage() {
             <button
               key={v}
               onClick={() => setView(v)}
-              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              className={`whitespace-nowrap rounded-lg px-4 py-1.5 text-sm font-medium transition-colors max-md:min-h-10 ${
                 view === v ? 'bg-blue-600 text-white' : 'text-gray-600'
               }`}
             >
