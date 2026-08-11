@@ -154,7 +154,8 @@ async function fetchPage(
   };
 
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 7000);
+  // 20s — 개편 후 게이트웨이가 느려져 페이지당 2~5초(부하 시 그 이상). 7s로는 정상 응답도 잘랐다.
+  const timer = setTimeout(() => ctrl.abort(), 20000);
   try {
     const res = await fetch(`${ENDPOINTS[typeCode]}?${qs}`, { signal: ctrl.signal });
     clearTimeout(timer);
@@ -197,10 +198,10 @@ async function fetchAllForType(
   );
 
   const all: RawItem[] = [];
-  const followUps: Promise<{ items: RawItem[]; totalCount: number; failed?: boolean; _sido?: string }>[] = [];
   const failedSido: string[] = [];
   const truncatedSido: { sido: string; total: number }[] = [];
 
+  const pageTasks: { sido: string; page: number }[] = [];
   firstPages.forEach((page, idx) => {
     if (page.failed) {
       failedSido.push(sidoList[idx]);
@@ -210,20 +211,24 @@ async function fetchAllForType(
     const realPages = Math.ceil((page.totalCount || 0) / 100);
     const cappedPages = Math.min(realPages, 20);
     if (realPages > 20) truncatedSido.push({ sido: sidoList[idx], total: page.totalCount });
-    for (let p = 2; p <= cappedPages; p++) {
-      // 페이지에 시도를 태깅 — 후속 페이지 실패도 failedRegions로 노출하기 위함
-      followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, sidoList[idx], p).then((r) => ({ ...r, _sido: sidoList[idx] })));
-    }
+    for (let p = 2; p <= cappedPages; p++) pageTasks.push({ sido: sidoList[idx], page: p });
   });
 
-  if (followUps.length) {
-    const more = await Promise.all(followUps);
-    // 후속 페이지(2p~) 실패도 실패 지역으로 집계 — 1페이지만 추적하던 탓에
-    // 조회할 때마다 건수가 57~82처럼 출렁여도 화면엔 아무 경고가 없었다(2026-08-11 실측).
-    more.forEach((r) => {
-      all.push(...r.items);
-      if (r.failed && r._sido && !failedSido.includes(r._sido)) failedSido.push(r._sido);
-    });
+  if (pageTasks.length) {
+    // 후속 페이지는 동시 2개로 제한 — 2026-08 개편 후 게이트웨이가 같은 키의 동시 호출을
+    // 줄 세워 처리해서(순차 2~5초, 동시 8개면 12~14초 실측) 전부 병렬로 쏘면 타임아웃이
+    // 무더기로 난다. 업종 3개가 이 함수를 병렬로 타므로 전체 동시성은 최대 ~6.
+    // 실패는 시도 단위로 failedRegions에 집계 — 1페이지만 추적하던 탓에 건수가
+    // 57~82처럼 출렁여도 화면엔 아무 경고가 없었다(2026-08-11 실측).
+    const queue = [...pageTasks];
+    const worker = async () => {
+      for (let t = queue.shift(); t; t = queue.shift()) {
+        const r = await fetchPage(typeCode, apiKey, startDate, endDate, t.sido, t.page);
+        all.push(...r.items);
+        if (r.failed && !failedSido.includes(t.sido)) failedSido.push(t.sido);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(2, queue.length) }, worker));
   }
 
   return { items: all, failedRegions: failedSido, truncatedSido };

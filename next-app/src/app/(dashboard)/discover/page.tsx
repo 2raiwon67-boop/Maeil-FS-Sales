@@ -442,6 +442,14 @@ function Sparkline({ values, colorblind = false }: { values: number[]; colorblin
 // 체인이 끊긴 뒤(1개월+ 공백) 재등장하면 별개 이벤트(재개업 후 재폐업 등)로 인정.
 // 한계: 조회 창(36개월) 이전에 시작된 체인은 창 안의 첫 달이 발생 월로 기록된다.
 // 반복 노출 행에만 좌표가 있으면 대표 행에 이식해 지도 점 손실을 막는다.
+// 그 화면 지점에 매장 점(store-point)이 렌더돼 있는가 — 점 툴팁과 시군구·동 hover 배너가
+// 동시에 뜨는 겹침 방지용. 점이 숨겨진 표시모드(면/히트맵/입체)에선 항상 false라 무영향.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function storePointAt(map: any, point: any): boolean {
+  if (!map || !map.getLayer || !map.getLayer('store-point')) return false;
+  try { return map.queryRenderedFeatures(point, { layers: ['store-point'] }).length > 0; } catch { return false; }
+}
+
 function prevMonthStr(month: string): string {
   const [y, m] = month.split('-').map(Number);
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`;
@@ -812,6 +820,8 @@ export default function DiscoverPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onMuniMove = (e: any) => {
         const f = e.features[0]; if (!f) return;
+        // 커서가 매장 점 위면 지역 배너를 양보 — 점·면 팝업이 겹쳐 뜨던 문제(2026-08-11 사용자 제보)
+        if (storePointAt(mapInstance, e.point)) { if (mapPopupRef.current) mapPopupRef.current.remove(); return; }
         const st = muniInfo(f);
         if (st.tone == null || st.tone === 'none') {
           mapInstance.getCanvas().style.cursor = '';
@@ -966,6 +976,8 @@ export default function DiscoverPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const onDongMove = (e: any) => {
       const f = e.features[0]; if (!f) return;
+      // 커서가 매장 점 위면 동 배너를 양보 (muni hover와 동일 규칙)
+      if (storePointAt(mapInstance, e.point)) { if (dongHoverPopupRef.current) dongHoverPopupRef.current.remove(); return; }
       const st = f.state || {};
       if (st.tone == null || st.tone === 'none') {
         mapInstance.getCanvas().style.cursor = '';
