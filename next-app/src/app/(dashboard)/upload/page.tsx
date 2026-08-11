@@ -841,6 +841,11 @@ export default function UploadPage() {
         return { ...item, manager };
       });
       setSrchResults(results);
+      // 0건도 반드시 알린다 — 게이트웨이 개편(2026-08) 때 "성공인데 0건"이 6일간 조용히 지나갔다.
+      // 모바일 추출엔 빈 상태 UI가 있지만 이 화면은 결과 영역이 접혀 있어 무반응처럼 보인다.
+      if (results.length === 0 && !data.failedRegions?.length) {
+        toast('조회 결과가 없습니다.');
+      }
       if (data.failedRegions?.length) {
         toast.warning(`일부 지역 조회 실패: ${data.failedRegions.join(', ')}`);
       }

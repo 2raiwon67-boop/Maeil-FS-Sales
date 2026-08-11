@@ -61,7 +61,8 @@ function toShort(sido: string | null | undefined): string {
 function buildQS(params: Record<string, string | undefined | null>): string {
   return Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
-    .map(([k, v]) => `${k}=${encodeURIComponent(v!)}`)
+    // 키도 인코딩(public-license와 동일 사유) — 게이트웨이 개편 후 원문 대괄호는 조용히 0건
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v!)}`)
     .join('&');
 }
 

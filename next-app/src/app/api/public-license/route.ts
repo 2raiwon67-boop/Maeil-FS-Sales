@@ -115,7 +115,10 @@ function buildQS(params: Record<string, string | undefined>): string {
   const parts: string[] = [];
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === null || v === '') continue;
-    parts.push(`${k}=${encodeURIComponent(v)}`);
+    // 키도 반드시 인코딩 — 2026-08 초 공공데이터 게이트웨이 개편 후 cond[...] 대괄호를
+    // 원문으로 보내면 에러 없이 totalCount=0이 온다(같은 조회 %5B 인코딩 시 1,067건 실측).
+    // HTTP 200·정상 JSON이라 실패 감지에 안 걸려 조회·크론이 6일간 조용히 빈손이었다.
+    parts.push(`${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
   }
   return parts.join('&');
 }
