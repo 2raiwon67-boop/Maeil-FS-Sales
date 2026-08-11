@@ -197,7 +197,7 @@ async function fetchAllForType(
   );
 
   const all: RawItem[] = [];
-  const followUps: Promise<{ items: RawItem[]; totalCount: number }>[] = [];
+  const followUps: Promise<{ items: RawItem[]; totalCount: number; failed?: boolean; _sido?: string }>[] = [];
   const failedSido: string[] = [];
   const truncatedSido: { sido: string; total: number }[] = [];
 
@@ -211,13 +211,19 @@ async function fetchAllForType(
     const cappedPages = Math.min(realPages, 20);
     if (realPages > 20) truncatedSido.push({ sido: sidoList[idx], total: page.totalCount });
     for (let p = 2; p <= cappedPages; p++) {
-      followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, sidoList[idx], p));
+      // 페이지에 시도를 태깅 — 후속 페이지 실패도 failedRegions로 노출하기 위함
+      followUps.push(fetchPage(typeCode, apiKey, startDate, endDate, sidoList[idx], p).then((r) => ({ ...r, _sido: sidoList[idx] })));
     }
   });
 
   if (followUps.length) {
     const more = await Promise.all(followUps);
-    more.forEach(({ items }) => all.push(...items));
+    // 후속 페이지(2p~) 실패도 실패 지역으로 집계 — 1페이지만 추적하던 탓에
+    // 조회할 때마다 건수가 57~82처럼 출렁여도 화면엔 아무 경고가 없었다(2026-08-11 실측).
+    more.forEach((r) => {
+      all.push(...r.items);
+      if (r.failed && r._sido && !failedSido.includes(r._sido)) failedSido.push(r._sido);
+    });
   }
 
   return { items: all, failedRegions: failedSido, truncatedSido };
