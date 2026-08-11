@@ -501,6 +501,7 @@ export default function DiscoverPage() {
   const mapReadyRef = useRef(false);
   const geoDataRef = useRef<object | null>(null);
   const geoLayerReadyRef = useRef(false);
+  const anchoredRef = useRef(false); // 지점 자동 안착은 최초 렌더 1회만 (세션 저장 시점이 있으면 생략)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapPopupRef = useRef<any>(null);
   const hoveredMuniIdRef = useRef<string | number | null>(null);
@@ -568,6 +569,7 @@ export default function DiscoverPage() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [drillTitle, setDrillTitle] = useState('—');
   const [drillStores, setDrillStores] = useState<StoreRow[]>([]); // 클릭한 시군구의 전체 매장(전월·전업종)
+  const drillStoresRef = useRef<StoreRow[]>([]); // finishRows(비리액트 경로)에서 빈 패널 판정용
   const [selectedDong, setSelectedDong] = useState<string | null>(null);
   const [drillTab, setDrillTab] = useState<DrillTab>('all');
   const [drillSort, setDrillSort] = useState<DrillSort>('default');
@@ -615,6 +617,7 @@ export default function DiscoverPage() {
   useEffect(() => { rangeToRef.current = rangeTo; }, [rangeTo]);
   useEffect(() => { selectedCategoryRef.current = selectedCategory; }, [selectedCategory]);
   useEffect(() => { cachedStoresRef.current = cachedStores; }, [cachedStores]);
+  useEffect(() => { drillStoresRef.current = drillStores; }, [drillStores]);
 
   // 선택된 매장이 바뀌면 리스트에서 해당 행을 화면 안으로 스크롤 (점 클릭 → 리스트 동기화)
   useEffect(() => {
@@ -664,11 +667,12 @@ export default function DiscoverPage() {
       const key = process.env.NEXT_PUBLIC_MAPTILER_KEY || '';
       if (!key) console.warn('[discover] MAPTILER_KEY 없음 — 지도 타일이 안 보일 수 있습니다');
 
-      // 초기 시점: 마지막 안착 시점(지점 중심 안착 포함)을 기억해 재사용 — 첫 화면부터 전국 뷰가 아닌
-      // 내 지점 구역에서 시작. 저장값이 없을 때(최초 방문)만 광역 기본값.
+      // 초기 시점: 같은 세션 안에서만 마지막 시점을 기억(sessionStorage) — 탭 이동 후 돌아오면 보던 곳.
+      // 새로 열면 항상 담당 시군구 폴리곤에 자동 안착한다(renderGeoMap의 anchor, 지점 무관 자동).
+      // localStorage였을 때는 스치듯 본 엉뚱한 시점(전국 팬 등)이 영구 저장돼 다음 방문이 거기서 시작됐다.
       let initView: { center: [number, number]; zoom: number } = { center: [127.1, 37.5], zoom: 8 };
       try {
-        const saved = JSON.parse(localStorage.getItem('discover_last_view') || 'null');
+        const saved = JSON.parse(sessionStorage.getItem('discover_last_view') || 'null');
         if (saved && Number.isFinite(saved.lng) && Number.isFinite(saved.lat) && Number.isFinite(saved.zoom)) {
           initView = { center: [saved.lng, saved.lat], zoom: saved.zoom };
         }
@@ -685,7 +689,7 @@ export default function DiscoverPage() {
       mapInstance.on('moveend', () => {
         try {
           const c = mapInstance.getCenter();
-          localStorage.setItem('discover_last_view', JSON.stringify({ lng: c.lng, lat: c.lat, zoom: mapInstance.getZoom() }));
+          sessionStorage.setItem('discover_last_view', JSON.stringify({ lng: c.lng, lat: c.lat, zoom: mapInstance.getZoom() }));
         } catch { /* ignore */ }
       });
 
@@ -883,6 +887,21 @@ export default function DiscoverPage() {
     mapInstance.removeFeatureState({ source: 'munis' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d3feats: any[] = [];
+    // 데이터가 매칭된 폴리곤들의 경계상자 — 최초 1회 지점 자동 안착용
+    const bbox = { minLng: Infinity, minLat: Infinity, maxLng: -Infinity, maxLat: -Infinity };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const extendBbox = (geom: any) => {
+      const walk = (c: unknown): void => {
+        if (Array.isArray(c) && typeof c[0] === 'number') {
+          const [lng, lat] = c as number[];
+          if (lng < bbox.minLng) bbox.minLng = lng;
+          if (lng > bbox.maxLng) bbox.maxLng = lng;
+          if (lat < bbox.minLat) bbox.minLat = lat;
+          if (lat > bbox.maxLat) bbox.maxLat = lat;
+        } else if (Array.isArray(c)) c.forEach(walk);
+      };
+      walk(geom?.coordinates);
+    };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     geoData.features.forEach((f: any) => {
       const name = f.properties.name;
@@ -905,6 +924,7 @@ export default function DiscoverPage() {
         if (parentKey) d = regionMap[parentKey];
       }
       if (!d) return; // 데이터 없는 시도의 동명 폴리곤(서울 중구 등)엔 안 칠해짐
+      extendBbox(f.geometry);
       let toneVal = 'zero';
       let tVal = 0;
       if (d.net > 0)      { toneVal = 'pos'; tVal = Math.min(d.net / 25, 1); }
@@ -926,6 +946,20 @@ export default function DiscoverPage() {
     });
     const s3 = mapInstance.getSource('muni3d');
     if (s3) s3.setData({ type: 'FeatureCollection', features: d3feats });
+
+    // 지점 자동 안착 — 새로 연 화면(세션 저장 시점 없음)에서 최초 1회, 담당 구역 전체가 들어오게.
+    // 담당 시군구 목록에서 계산하므로 지점(경기북부/남부/서울/…)마다 별도 좌표표가 필요 없다.
+    if (!anchoredRef.current && Number.isFinite(bbox.minLng)) {
+      anchoredRef.current = true;
+      let hasSaved = false;
+      try { hasSaved = !!sessionStorage.getItem('discover_last_view'); } catch { /* ignore */ }
+      if (!hasSaved) {
+        mapInstance.fitBounds(
+          [[bbox.minLng, bbox.minLat], [bbox.maxLng, bbox.maxLat]],
+          { padding: { top: 60, bottom: 90, left: 60, right: 60 }, maxZoom: 10.4, duration: 700 },
+        );
+      }
+    }
 
     // 면 갱신 때마다 점/히트맵도 동기화
     updateStoreLayer();
@@ -1621,6 +1655,9 @@ export default function DiscoverPage() {
         setCachedSnaps(snaps);
         // 선택 월 존중 (예전엔 null 고정 → 칩은 특정 월인데 KPI/랭킹은 3년 누적으로 어긋났음)
         applyFiltersInternal(snaps, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
+        // 행 도착 전에 연 드릴다운은 빈 스냅샷("불러오는 중")으로 남는다 — 도착 시점에 재집계.
+        // 이미 내용이 있는 패널은 건드리지 않는다(2단계 병합 때 탭·동 선택이 리셋되면 안 됨).
+        if (drillRegionRef.current && drillStoresRef.current.length === 0) openDrilldown(drillRegionRef.current);
       };
 
       if (cachedRows) {
@@ -2846,7 +2883,10 @@ export default function DiscoverPage() {
           {filteredDrillStores.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2.5 py-16 text-slate-400 text-[13px] text-center leading-relaxed">
               <span className="opacity-60">{drillSummary ? <Inbox size={28} /> : <Clock size={28} />}</span>
-              {drillSummary ? '해당 데이터 없음' : (
+              {/* 매장 행이 아직 다운로드 중이면 "데이터 없음"이 아니라 로딩 상태 — 진입 직후 클릭 시 오해 방지 */}
+              {drillSummary ? '해당 데이터 없음' : cachedStores.length === 0 ? (
+                <span>데이터 불러오는 중...</span>
+              ) : (
                 <span>데이터 없음<br /><span className="text-xs">상권 통계 저장 후 이용 가능합니다</span></span>
               )}
             </div>
