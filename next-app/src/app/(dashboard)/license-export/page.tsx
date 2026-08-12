@@ -195,7 +195,7 @@ export default function LicenseExportPage() {
         const { data: { session } } = await supabase.auth.getSession();
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
         const token = session?.access_token ?? anonKey;
-        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`;
+        const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=not.is.true&select=region1,region2,region3&order=region2`;
         const res = await fetch(url, {
           headers: { apikey: anonKey, Authorization: `Bearer ${token}` },
         });

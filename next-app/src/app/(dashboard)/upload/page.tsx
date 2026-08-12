@@ -418,7 +418,7 @@ export default function UploadPage() {
         const { data: { session } } = await supabase.auth.getSession();
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
         const token = session?.access_token ?? anonKey;
-        const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=eq.false&select=region1,region2,region3&order=region2`,
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/managers?business_unit=eq.${encodeURIComponent(bu)}&is_branch_manager=not.is.true&select=region1,region2,region3&order=region2`,
           { headers: { apikey: anonKey, Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error('조회 실패');
         rows = await res.json();
@@ -759,7 +759,9 @@ export default function UploadPage() {
       const BATCH = 500;
       const newIds: string[] = [];
       for (let i = 0; i < rows.length; i += BATCH) {
-        const { data: ins, error } = await supabase.from(c.table).insert(rows.slice(i, i + BATCH)).select('id');
+        // defaultToNull:false — 편집 그리드의 새 행은 is_branch_manager 같은 숨은 컬럼이 없어서
+        // 기존 행과 섞인 일괄 insert 시 null로 저장됨(기본값 false가 무시됨) → DB 기본값을 쓰게 강제
+        const { data: ins, error } = await supabase.from(c.table).insert(rows.slice(i, i + BATCH), { defaultToNull: false }).select('id');
         if (error) {
           // 이번 저장에서 새로 넣은 행만 되돌리고 기존 데이터는 보존 → 유실 0
           if (newIds.length) await supabase.from(c.table).delete().in('id', newIds);
