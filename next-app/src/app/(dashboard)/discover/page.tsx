@@ -88,7 +88,7 @@ interface DongAgg {
 
 type ViewMode = 'map' | 'rank' | 'plan';
 
-// 운영계획 뷰 — (시도|시군구)×연도 집계 행. years/nets 인덱스 0~3 = 최근 4개 연도(오래된 순)
+// 운영계획 뷰 — (시도|시군구)×연도 집계 행. years/nets 인덱스 0~N-1 = 데이터 바닥 연도(2022)~현재(오래된 순)
 interface PlanRegion {
   sido: string;
   sigungu: string;
@@ -177,6 +177,10 @@ const CAT_KW: Record<string, string[]> = {
 // 데이터 바닥 월 — 2026-08-13 전 기간 백필 완료로 2022-01부터 존재. 로드 창=전체 수집분.
 // (데이터가 해마다 ~4.5만행씩 늘어나 전송량이 커지면 이 값을 롤링으로 되돌리는 것 고려)
 const DATA_MIN_MONTH = '2022-01';
+// 운영계획 표 연도 범위 — 데이터 바닥 연도부터 현재 연도까지 전부 표시(2026 기준 22~26년 5개).
+// 트렌드 판정(페이스·중점·반등)은 항상 마지막 3개 연도만 사용 — 연도가 늘어도 최근 3개년 기준 유지.
+const PLAN_YEAR0 = Number(DATA_MIN_MONTH.slice(0, 4));
+const PLAN_YEAR_N = new Date().getFullYear() - PLAN_YEAR0 + 1;
 
 function getMonthList(): string[] {
   const list: string[] = [];
@@ -534,7 +538,7 @@ export default function DiscoverPage() {
   // UI state
   const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
-  const [planSort, setPlanSort] = useState<{ k: string; d: 1 | -1 }>({ k: '3:2', d: -1 }); // 운영계획 표 정렬 — 기본: 최근년 순증 내림차순
+  const [planSort, setPlanSort] = useState<{ k: string; d: 1 | -1 }>({ k: `${PLAN_YEAR_N - 1}:2`, d: -1 }); // 운영계획 표 정렬 — 기본: 최근년 순증 내림차순
   const [planOpenRegion, setPlanOpenRegion] = useState<string | null>(null); // 운영계획 표에서 펼친 지역(`시도|시군구`) — 동별 상세 아코디언
   const [displayMode, setDisplayMode] = useState<DisplayMode>('points');
   const [colorblind, setColorblind] = useState(false); // 색각보정 (홈/설정모달과 fs_colorblind 공유)
@@ -2289,23 +2293,25 @@ export default function DiscoverPage() {
   // ─── 운영계획 뷰 — 지역×연도 트렌드 표 (연말 중점 지역 선정용) ────────────────
   // cachedStores 단일 소스를 (시도|시군구)×연도로 집계. 업종 칩(selectedCategory) 연동.
   // 진행 중인 현재 연도만 부분 집계(과거 연도는 2022-01 백필로 전체 커버) — 표 하단 각주로 안내.
-  const planYear0 = new Date().getFullYear() - 3;
+  const planYear0 = PLAN_YEAR0;
+  const planLast = PLAN_YEAR_N - 1; // 마지막(현재) 연도 인덱스
+  const planYearIdx = Array.from({ length: PLAN_YEAR_N }, (_, yi) => yi);
   const planYearLabel = (yi: number) => `${(planYear0 + yi) % 100}년`;
   const planRows: PlanRegion[] = (() => {
     const byRegion = new Map<string, { sido: string; sigungu: string; years: { n: number; c: number }[]; big: number }>();
     for (const s of cachedStores) {
       if (!passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
-      if (yi < 0 || yi > 3) continue;
+      if (yi < 0 || yi > planLast) continue;
       const key = `${s.sido}|${s.sigungu}`;
       let r = byRegion.get(key);
       if (!r) {
-        r = { sido: s.sido, sigungu: s.sigungu, years: [{ n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }], big: 0 };
+        r = { sido: s.sido, sigungu: s.sigungu, years: planYearIdx.map(() => ({ n: 0, c: 0 })), big: 0 };
         byRegion.set(key, r);
       }
       if (s.status === 'new') {
         r.years[yi].n++;
-        if (yi === 3 && (s.pyeong || 0) >= 100) r.big++;
+        if (yi === planLast && (s.pyeong || 0) >= 100) r.big++;
       } else r.years[yi].c++;
     }
     return [...byRegion.values()].map(r => ({ ...r, nets: r.years.map(y => y.n - y.c) }));
@@ -2378,13 +2384,14 @@ export default function DiscoverPage() {
   const planArrow = (k: string) => planSort.k === k ? (planSort.d === 1 ? ' ↑' : ' ↓') : '';
   const planSortBy = (k: string) => setPlanSort(p => ({ k, d: p.k === k ? (p.d === 1 ? -1 : 1) : k === 'region' ? 1 : -1 }));
   // 요약 카드 — 최근년 순증 상위(공략)·하위 음수(주의) 자동 도출
-  const planFocus = planRows.filter(r => r.nets[3] > 0).sort((a, b) => b.nets[3] - a.nets[3]).slice(0, 3);
-  const planRisk = planRows.filter(r => r.nets[3] < 0).sort((a, b) => a.nets[3] - b.nets[3]).slice(0, 3);
+  // 중점·위험·페이스 판정은 마지막 3개 연도(planLast-2 ~ planLast)만 본다 — "최근 3개년 트렌드" 계약
+  const planFocus = planRows.filter(r => r.nets[planLast] > 0).sort((a, b) => b.nets[planLast] - a.nets[planLast]).slice(0, 3);
+  const planRisk = planRows.filter(r => r.nets[planLast] < 0).sort((a, b) => a.nets[planLast] - b.nets[planLast]).slice(0, 3);
   const planReason = (r: PlanRegion) =>
-    r.nets[1] > 0 && r.nets[2] > 0 ? '순증 플러스 지속' : r.nets[2] < 0 ? `전년 ${r.nets[2]}에서 반등` : '전년 대비 성장';
+    r.nets[planLast - 2] > 0 && r.nets[planLast - 1] > 0 ? '순증 플러스 지속' : r.nets[planLast - 1] < 0 ? `전년 ${r.nets[planLast - 1]}에서 반등` : '전년 대비 성장';
   // 순증 비교 가로 막대 — 전 행이 같은 0 기준선 공유 (스케일은 최근년 순증 최대값 기준)
-  const planMaxPos = Math.max(1, ...planRows.map(r => r.nets[3]));
-  const planMaxNeg = Math.max(1, ...planRows.map(r => -r.nets[3]));
+  const planMaxPos = Math.max(1, ...planRows.map(r => r.nets[planLast]));
+  const planMaxNeg = Math.max(1, ...planRows.map(r => -r.nets[planLast]));
   const planNegBar = colorblind ? '#f97316' : '#e24b4a';
   const planHeat = (v: number): string | undefined => v === 0 ? undefined
     : `${v > 0 ? 'rgba(37,99,235,' : colorblind ? 'rgba(249,115,22,' : 'rgba(226,75,74,'}${Math.min(Math.abs(v) / 170 + 0.05, 0.4).toFixed(2)})`;
@@ -2398,15 +2405,15 @@ export default function DiscoverPage() {
     for (const s of cachedStores) {
       if (s.sido !== sd || s.sigungu !== sgg || !passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
-      if (yi < 0 || yi > 3) continue;
+      if (yi < 0 || yi > planLast) continue;
       const key = s.dong || '기타';
       let d = byDong.get(key);
-      if (!d) { d = [{ n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }, { n: 0, c: 0 }]; byDong.set(key, d); }
+      if (!d) { d = planYearIdx.map(() => ({ n: 0, c: 0 })); byDong.set(key, d); }
       if (s.status === 'new') d[yi].n++; else d[yi].c++;
     }
     return [...byDong.entries()]
       .map(([dong, years]) => ({ dong, years, nets: years.map(y => y.n - y.c) }))
-      .sort((a, b) => b.nets[3] - a.nets[3]);
+      .sort((a, b) => b.nets[planLast] - a.nets[planLast]);
   })();
   const exportPlanXlsx = async () => {
     const XLSX = await import('xlsx');
@@ -2417,7 +2424,7 @@ export default function DiscoverPage() {
         o[`${planYearLabel(yi)} 폐업`] = y.c;
         o[`${planYearLabel(yi)} 순증`] = r.nets[yi];
       });
-      o[`${planYearLabel(3)} 100평+`] = r.big;
+      o[`${planYearLabel(planLast)} 100평+`] = r.big;
       const s = survOf(r);
       o[`2년 생존율(%) ${survFrom}~${survTo} 개업`] = s ? s.pct : '';
       o['생존율 표본(개업 수)'] = planSurvival.get(`${r.sido}|${r.sigungu}`)?.n ?? 0;
@@ -2426,7 +2433,7 @@ export default function DiscoverPage() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, '운영계획');
-    XLSX.writeFile(wb, `운영계획_지역트렌드_${planYear0 + 3}.xlsx`);
+    XLSX.writeFile(wb, `운영계획_지역트렌드_${planYear0 + planLast}.xlsx`);
     toast.success('엑셀 파일을 내려받았습니다');
   };
 
@@ -3152,7 +3159,7 @@ export default function DiscoverPage() {
                         🎯 {sidoShort(r.sido)} {r.sigungu} <span className="font-medium text-slate-400">{i + 1}순위 공략</span>
                       </div>
                       <div className="mt-0.5 text-[12px] text-slate-500">
-                        {planYearLabel(3)} 순증 <b className="text-blue-600 tabular-nums">+{r.nets[3]}</b> · {planReason(r)}
+                        {planYearLabel(planLast)} 순증 <b className="text-blue-600 tabular-nums">+{r.nets[planLast]}</b> · {planReason(r)}
                       </div>
                     </div>
                   ))}
@@ -3160,7 +3167,7 @@ export default function DiscoverPage() {
                     <div className="rounded-xl border border-l-4 border-slate-200/70 border-l-amber-500 bg-white px-3.5 py-2.5 shadow-sm">
                       <div className="text-[13px] font-bold text-slate-900">⚠ 이탈 주의</div>
                       <div className="mt-0.5 text-[12px] text-slate-500 tabular-nums">
-                        {planRisk.map(r => `${r.sigungu} ${r.nets[3]}`).join(' · ')}
+                        {planRisk.map(r => `${r.sigungu} ${r.nets[planLast]}`).join(' · ')}
                       </div>
                     </div>
                   )}
@@ -3168,14 +3175,14 @@ export default function DiscoverPage() {
 
                 {/* 지역×연도 표 — 아래 */}
                 <div className="overflow-x-auto rounded-xl border border-slate-200/70 bg-white shadow-sm">
-                  <table className="w-full min-w-[1130px] border-collapse text-right text-[12.5px] tabular-nums">
+                  <table className="w-full min-w-[1290px] border-collapse text-right text-[12.5px] tabular-nums">
                     <thead>
                       <tr className="text-[11.5px] text-slate-400">
                         {/* 지역 열 고정 — 표(1130px)를 가로 스크롤하면 어느 행이 어느 지역인지 알 수 없게 되므로.
                             sticky 셀은 배경이 없으면 밑의 숫자가 비쳐 보여 bg-inherit로 행 배경(홀짝/선택/hover)을 물려받는다. */}
                         <th rowSpan={2} className="sticky left-0 z-[1] cursor-pointer select-none bg-white px-3 py-1.5 text-left font-semibold hover:text-blue-600" onClick={() => planSortBy('region')}>지역{planArrow('region')}</th>
-                        {[0, 1, 2, 3].map(yi => (
-                          <th key={yi} colSpan={3} className="border-l border-slate-100 px-2 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === 0 || yi === 3 ? '*' : ''}</th>
+                        {planYearIdx.map(yi => (
+                          <th key={yi} colSpan={3} className="border-l border-slate-100 px-2 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === planLast ? '*' : ''}</th>
                         ))}
                         <th rowSpan={2} className="cursor-pointer select-none border-l border-slate-100 px-2 py-1.5 font-semibold hover:text-blue-600" onClick={() => planSortBy('big')}>100평+{planArrow('big')}</th>
                         <th
@@ -3188,10 +3195,10 @@ export default function DiscoverPage() {
                           2년 생존율{planArrow('surv')}
                         </th>
                         <th rowSpan={2} className="border-l border-slate-100 px-2 py-1.5 text-center font-semibold">페이스</th>
-                        <th rowSpan={2} className="border-l border-slate-100 px-3 py-1.5 text-left font-semibold">순증 비교({planYearLabel(3)})</th>
+                        <th rowSpan={2} className="border-l border-slate-100 px-3 py-1.5 text-left font-semibold">순증 비교({planYearLabel(planLast)})</th>
                       </tr>
                       <tr className="text-[11.5px] text-slate-400">
-                        {[0, 1, 2, 3].flatMap(yi => ['신규', '폐업', '순증'].map((lb, mi) => (
+                        {planYearIdx.flatMap(yi => ['신규', '폐업', '순증'].map((lb, mi) => (
                           <th key={`${yi}-${mi}`} className={`${mi === 0 ? 'border-l border-slate-100 ' : ''}cursor-pointer select-none px-2 pb-1.5 font-semibold hover:text-blue-600`} onClick={() => planSortBy(`${yi}:${mi}`)}>
                             {lb}{planArrow(`${yi}:${mi}`)}
                           </th>
@@ -3200,8 +3207,8 @@ export default function DiscoverPage() {
                     </thead>
                     <tbody>
                       {planSorted.map(r => {
-                        const net3 = r.nets[3];
-                        const pace = net3 > 5 && net3 > r.nets[2] ? 'up' : net3 < -5 ? 'dn' : 'fl';
+                        const net3 = r.nets[planLast];
+                        const pace = net3 > 5 && net3 > r.nets[planLast - 1] ? 'up' : net3 < -5 ? 'dn' : 'fl';
                         // 가로 막대 — 전 행 공통 0 기준선, 왼쪽 34px는 음수 라벨 여백
                         const barSpan = 150;
                         const xZero = 34 + barSpan * planMaxNeg / (planMaxNeg + planMaxPos);
@@ -3254,7 +3261,7 @@ export default function DiscoverPage() {
                   </table>
                 </div>
                 <div className="mt-2 px-1 text-[11px] leading-relaxed text-slate-400">
-                  * {planYearLabel(3)}은 진행 중 연도라 부분 집계 · 최근 월 폐업은 신고 지연으로 적게 잡힐 수 있음 · 100평+ = {planYearLabel(3)} 신규 중 대형 매장 수
+                  * {planYearLabel(planLast)}은 진행 중 연도라 부분 집계 · 최근 월 폐업은 신고 지연으로 적게 잡힐 수 있음 · 100평+ = {planYearLabel(planLast)} 신규 중 대형 매장 수 · 페이스·중점 판정은 최근 3개년 기준
                   <br />
                   * 2년 생존율 = {survFrom}~{survTo} 개업분이 24개월 내 폐업하지 않은 비율
                   {survAvg != null && <> · 평균 {survAvg}%</>} · 표본 {SURV_MIN_N}곳 미만 —
@@ -3278,7 +3285,7 @@ export default function DiscoverPage() {
                     <span className="mr-1 text-[11.5px] font-medium text-slate-400">{sidoShort(planOpenRegion.split('|')[0])}</span>
                     {planOpenRegion.split('|')[1]} 동별 상세
                   </div>
-                  <div className="text-[11px] text-slate-500">{planDongRows.length}개 동 · {planYearLabel(3)} 순증 순</div>
+                  <div className="text-[11px] text-slate-500">{planDongRows.length}개 동 · {planYearLabel(planLast)} 순증 순</div>
                 </div>
               </div>
               <div className="flex-1 overflow-auto [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
@@ -3286,13 +3293,13 @@ export default function DiscoverPage() {
                   <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_rgba(226,232,240,1)]">
                     <tr className="text-[11px] text-slate-400">
                       <th className="px-2.5 pt-1.5 text-left font-semibold">동</th>
-                      {[0, 1, 2, 3].map(yi => (
-                        <th key={yi} colSpan={3} className="border-l border-slate-100 px-1 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === 0 || yi === 3 ? '*' : ''}</th>
+                      {planYearIdx.map(yi => (
+                        <th key={yi} colSpan={3} className="border-l border-slate-100 px-1 pt-1.5 text-center font-semibold">{planYearLabel(yi)}{yi === planLast ? '*' : ''}</th>
                       ))}
                     </tr>
                     <tr className="text-[10.5px] text-slate-400">
                       <th></th>
-                      {[0, 1, 2, 3].flatMap(yi => ['신규', '폐업', '순증'].map((lb, mi) => (
+                      {planYearIdx.flatMap(yi => ['신규', '폐업', '순증'].map((lb, mi) => (
                         <th key={`${yi}-${mi}`} className={`${mi === 0 ? 'border-l border-slate-100 ' : ''}px-1.5 pb-1.5 font-medium`}>{lb}</th>
                       )))}
                     </tr>
