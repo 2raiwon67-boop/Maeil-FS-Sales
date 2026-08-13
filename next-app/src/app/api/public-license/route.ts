@@ -297,6 +297,8 @@ function applyBusinessLogic(items: NormItem[], regionList: string[]): NormItem[]
   return items.filter((it) => {
     if (!TARGET_CATEGORIES.includes(it._rawCategory)) return false;
     if (EXCLUDE_KEYWORDS.some((kw) => it.business_name.includes(kw))) return false;
+    // '국수'는 '한국수출입은행/한국수력…' 기관명 구내카페 오탐이 있어 예외를 두고 차단 (시장분석과 동일)
+    if (it.business_name.includes('국수') && !it.business_name.includes('한국수')) return false;
     if (it._rawCategory === '한식' && it._pyeong < 100) return false;
     const addrStr = (it.road_address || '') + ' ' + (it.address1 || '') + ' ' + (it.address2 || '');
     if (!regionVariants.some((variants) => variants.some((v) => addrStr.includes(v)))) return false;
