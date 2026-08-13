@@ -174,10 +174,14 @@ const CAT_KW: Record<string, string[]> = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 
+// 데이터 바닥 월 — 2026-08-13 전 기간 백필 완료로 2022-01부터 존재. 로드 창=전체 수집분.
+// (데이터가 해마다 ~4.5만행씩 늘어나 전송량이 커지면 이 값을 롤링으로 되돌리는 것 고려)
+const DATA_MIN_MONTH = '2022-01';
+
 function getMonthList(): string[] {
   const list: string[] = [];
   const now = new Date();
-  const cur = new Date(now.getFullYear(), now.getMonth() - 35, 1); // 최근 36개월(3년) — 로드 윈도우와 일치
+  const cur = new Date(Number(DATA_MIN_MONTH.slice(0, 4)), Number(DATA_MIN_MONTH.slice(5, 7)) - 1, 1);
   while (cur <= now) {
     list.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`);
     cur.setMonth(cur.getMonth() + 1);
@@ -440,7 +444,7 @@ function Sparkline({ values, colorblind = false }: { values: number[]; colorblin
 // 규칙: (이름|주소|상태)별 month 집합에서 "직전 달에도 같은 상태로 존재"하는 행은 같은
 // 이벤트의 반복 노출로 보고 제외 — 연속 체인의 시작 달 1건만 실제 발생으로 남긴다.
 // 체인이 끊긴 뒤(1개월+ 공백) 재등장하면 별개 이벤트(재개업 후 재폐업 등)로 인정.
-// 한계: 조회 창(36개월) 이전에 시작된 체인은 창 안의 첫 달이 발생 월로 기록된다.
+// 한계: 조회 창(2022-01~) 이전에 시작된 체인은 창 안의 첫 달이 발생 월로 기록된다.
 // 반복 노출 행에만 좌표가 있으면 대표 행에 이식해 지도 점 손실을 막는다.
 // 그 화면 지점에 매장 점(store-point)이 렌더돼 있는가 — 점 툴팁과 시군구·동 hover 배너가
 // 동시에 뜨는 겹침 방지용. 점이 숨겨진 표시모드(면/히트맵/입체)에선 항상 false라 무영향.
@@ -1508,8 +1512,8 @@ export default function DiscoverPage() {
       // 컬럼 다이어트: 지도·집계에 필요한 최소 컬럼만 (주소·인허가일은 드릴다운 열 때 지연 로드)
       const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,dong,addr_key';
       const PAGE = 1000;
-      // 최근 36개월(3년) 롤링 윈도우 — 백필된 과거치까지 노출
-      const minMonth = monthsAgoStr(35);
+      // 전체 수집분(2022-01~) 로드 — 지도 마커·집계에 과거치 노출 + 3년 관측 확보(2026-08-13)
+      const minMonth = DATA_MIN_MONTH;
       const recentMin = monthsAgoStr(11); // 우선 로딩 창(최근 12개월) — 첫 지도를 ⅓ 용량으로
 
       // 세션 캐시 조회 — 이번 세션에 이미 받아본 지역이면 다운로드·RPC 없이 즉시 표시
@@ -2284,7 +2288,7 @@ export default function DiscoverPage() {
 
   // ─── 운영계획 뷰 — 지역×연도 트렌드 표 (연말 중점 지역 선정용) ────────────────
   // cachedStores 단일 소스를 (시도|시군구)×연도로 집계. 업종 칩(selectedCategory) 연동.
-  // 양끝 연도는 부분 집계(조회 창이 최근 36개월) — 표 하단 각주로 안내.
+  // 진행 중인 현재 연도만 부분 집계(과거 연도는 2022-01 백필로 전체 커버) — 표 하단 각주로 안내.
   const planYear0 = new Date().getFullYear() - 3;
   const planYearLabel = (yi: number) => `${(planYear0 + yi) % 100}년`;
   const planRows: PlanRegion[] = (() => {
@@ -2308,7 +2312,7 @@ export default function DiscoverPage() {
   })();
   // ─── 신규 매장 2년 생존율 ────────────────────────────────────────────────────
   // "새로 생긴 가게가 2년을 버티는가" — 개척해도 반년 뒤 사라지는 지역을 걸러내는 지표.
-  // 코호트를 조회 창(36개월)의 가장 오래된 12개월 개업분으로 고정한다: 이 매장들만 전원
+  // 코호트를 조회 창(2022-01~)의 가장 오래된 12개월 개업분으로 고정한다: 이 매장들만 전원
   // 24개월 이상 관측이 끝나 있어서다. 최근 연도로 잡으면 아직 폐업할 시간이 없어 생존율이
   // 무조건 높게 나온다(관측 절단) → 연도별 열이 아니라 고정 코호트 1열로 둔다.
   // 폐업 판정: 같은 (상호|주소지문)이 개업 후 24개월 안에 폐업 명단에 등장. 지역은 개업 당시 시군구.
@@ -2960,7 +2964,7 @@ export default function DiscoverPage() {
           <div className={`px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 max-sm:pt-[52px] ${panelOpen ? 'pr-[455px]' : 'pr-[345px]'}`}>
             <div>
               <div className="text-[16px] font-bold tracking-[-0.01em] text-slate-900">시군구 상권 랭킹</div>
-              <div className="mt-0.5 text-[12px] text-slate-500">{monthFilterLabel ? `${monthFilterLabel} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '최근 3년 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
+              <div className="mt-0.5 text-[12px] text-slate-500">{monthFilterLabel ? `${monthFilterLabel} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '전체 기간(2022-01~) 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="inline-flex rounded-lg bg-slate-100 p-0.5">
@@ -3082,7 +3086,7 @@ export default function DiscoverPage() {
                 {/* 푸터 — 데이터 신뢰성 표기 + 중복 집계 제거 로직 설명(토글) */}
                 <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2.5 text-[12px] text-slate-400">
                   <span className="inline-flex items-center gap-1.5">
-                    <RefreshCw size={12} />데이터 기준 {monthFilterLabel || '최근 3년'} · {lastSync} ·
+                    <RefreshCw size={12} />데이터 기준 {monthFilterLabel || '전체 기간(2022-01~)'} · {lastSync} ·
                     <button
                       onClick={() => setDedupInfoOpen((o) => !o)}
                       className={`inline-flex items-center gap-1 underline decoration-dotted underline-offset-2 transition-colors ${dedupInfoOpen ? 'text-blue-600' : 'hover:text-blue-600'}`}
@@ -3250,7 +3254,7 @@ export default function DiscoverPage() {
                   </table>
                 </div>
                 <div className="mt-2 px-1 text-[11px] leading-relaxed text-slate-400">
-                  * {planYearLabel(0)}·{planYearLabel(3)}은 부분 집계(조회 창 최근 36개월) · 최근 월 폐업은 신고 지연으로 적게 잡힐 수 있음 · 100평+ = {planYearLabel(3)} 신규 중 대형 매장 수
+                  * {planYearLabel(3)}은 진행 중 연도라 부분 집계 · 최근 월 폐업은 신고 지연으로 적게 잡힐 수 있음 · 100평+ = {planYearLabel(3)} 신규 중 대형 매장 수
                   <br />
                   * 2년 생존율 = {survFrom}~{survTo} 개업분이 24개월 내 폐업하지 않은 비율
                   {survAvg != null && <> · 평균 {survAvg}%</>} · 표본 {SURV_MIN_N}곳 미만 —
