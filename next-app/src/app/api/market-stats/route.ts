@@ -230,7 +230,9 @@ async function saveToSupabase(sidoShort: string, detail: Record<string, Record<s
 
   const storeMap = new Map<string, any>();
   for (const s of storeRecords) {
-    const k = `${s.sido}|${s.sigungu}|${s.month}|${s.name}|${s.status}`;
+    // 주소 포함 — 같은 달 같은 시군구의 동명 매장(지점명 없는 프랜차이즈 등)이 병합 유실되지 않게.
+    // DB 유니크 키는 addr_key(주소 md5 지문)라 주소 원문이 같으면 같은 행으로 정확히 대응된다.
+    const k = `${s.sido}|${s.sigungu}|${s.month}|${s.name}|${s.address}|${s.status}`;
     const prev = storeMap.get(k);
     if (!prev || (s.lat != null && prev.lat == null)) storeMap.set(k, s);
   }
@@ -238,7 +240,7 @@ async function saveToSupabase(sidoShort: string, detail: Record<string, Record<s
 
   let storesSaved = 0;
   for (let i = 0; i < uniqueStores.length; i += 100) {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/market_store_records?on_conflict=sido,sigungu,month,name,status`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/market_store_records?on_conflict=sido,sigungu,month,name,addr_key,status`, {
       method: 'POST',
       headers: commonHeaders,
       body: JSON.stringify(uniqueStores.slice(i, i + 100)),
