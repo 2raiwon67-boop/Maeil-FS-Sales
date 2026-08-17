@@ -553,10 +553,23 @@ export async function GET(req: NextRequest) {
 
     // ── 100평+ 대형 신규 발송 (담당자 개별 + 지점장 다이제스트) ──
     if (hasBig) {
-      const mapUrlFor = (it: BigStoreItem): string | null => {
+      const buildMapUrl = (it: BigStoreItem): string | null => {
         if (it.lat == null || it.lng == null || !cronSecret) return null;
         return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${staticMapSig(it.lat, it.lng, cronSecret)}`;
       };
+      // 지도 소스 헬스체크 — 정적 지도 키(NCP_MAPS_KEY 등)가 아직 없으면 프록시가 404를 내고
+      // 메일에 깨진 이미지가 박힌다. 첫 후보로 1회 프로브해서 성공할 때만 이미지를 포함
+      // (키가 등록되는 날부터 코드 변경 없이 자동으로 지도가 켜짐).
+      let mapsAvailable = false;
+      const probe = [...bigByManager.values()].flatMap((g) => g.items).map(buildMapUrl).find(Boolean);
+      if (probe) {
+        try {
+          mapsAvailable = (await fetch(probe)).ok;
+        } catch {
+          /* 지도 없이 발송 */
+        }
+      }
+      const mapUrlFor = (it: BigStoreItem): string | null => (mapsAvailable ? buildMapUrl(it) : null);
 
       for (const [email, g] of bigByManager) {
         const html = buildBigStoreEmailHtml(g.name, g.items, mapUrlFor);
