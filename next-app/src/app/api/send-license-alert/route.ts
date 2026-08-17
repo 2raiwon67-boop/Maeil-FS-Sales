@@ -383,7 +383,10 @@ function normRegion1(s: string): string {
 function bigStoreContent(items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) => string | null): string {
   const MAX_MAPS = 8; // 지도 이미지는 상위 N건만 (메일 용량·로딩 보호), 나머지는 표만
 
-  const cards = items
+  // 주변 분석이 붙은 매장(카페·베이커리)을 맨 위로 — 그룹 안에서는 인허가일 순 유지 (사용자 확정)
+  const ordered = [...items].sort((a, b) => (b.enrich ? 1 : 0) - (a.enrich ? 1 : 0));
+
+  const cards = ordered
     .map((t, i) => {
       const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(`${t.address || t.name}`)}`;
       const mapUrl = i < MAX_MAPS ? mapUrlFor(t) : null;
@@ -399,7 +402,7 @@ ${neighborList}`;
       // 제안·레시피는 지도 아래 전체 폭 — 줄이 길어져 카드 높이가 줄어듦 (사용자 확정 레이아웃)
       const analysisRow =
         en && (en.gapSummary || en.menuIdeas.length || en.recipes.length)
-          ? `<tr><td colspan="2" style="padding:12px 16px; border:1px solid #e9ecef; border-top:none; background-color:#fffaf5;">
+          ? `<tr><td colspan="2" style="padding:12px 16px; border:1px solid #e9ecef; border-top:none;">
 ${en.gapSummary ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50;">💡 ${escHtml(en.gapSummary)}</p>` : ''}
 ${en.menuIdeas.length ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50;">🎯 타겟 메뉴: ${en.menuIdeas.map((m) => `<strong>${escHtml(m.menu)}</strong> (${escHtml(m.reason)})`).join(' · ')}</p>` : ''}
 ${en.recipes.length ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50;">📖 추천 레시피: ${en.recipes.map((r) => `<strong>${escHtml(r.name)}</strong> — ${escHtml(r.products)}`).join(' / ')}</p>` : ''}
@@ -410,9 +413,9 @@ ${en.recipes.length ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50
       const bodyRow = mapUrl
         ? `<tr>
 <td width="50%" style="padding:0; border:1px solid #e9ecef; border-top:none; vertical-align:top;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; height:auto;"/></a></td>
-<td width="50%" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; border-left:none; vertical-align:top;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td>
+<td width="50%" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; border-left:none; vertical-align:middle;">${infoCell}</td>
 </tr>${analysisRow}`
-        : `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td></tr>${analysisRow}`;
+        : `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none;">${infoCell}</td></tr>${analysisRow}`;
       return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 18px 0; font-size:13px;">
 <tr>
 <td style="${TD} font-weight:bold; color:#2c3e50; font-size:14px; background-color:#f8f9fa;">${escHtml(t.name)} <span style="background-color:#fff4e6; color:#d9480f; padding:2px 8px; font-size:11px; font-weight:bold; margin-left:6px;">${escHtml(String(Math.round(t.pyeong)))}평</span> <span style="color:#868e96; font-weight:normal; font-size:12px; margin-left:6px;">${escHtml(t.category || '-')}</span></td>
