@@ -3,6 +3,7 @@ export const BUSINESS_UNITS = [
   '경기북부FS/특수지점',
   '서울FS/특수지점',
   '경기남부FS/특수지점',
+  '강원지점',
 ] as const;
 
 export type BusinessUnit = (typeof BUSINESS_UNITS)[number];

@@ -65,6 +65,14 @@ function toShort(sido: string | null | undefined): string {
   return SIDO_SHORT[sido?.trim() ?? ''] || sido?.trim() || '';
 }
 
+// 공공 API LOTNO_ADDR::LIKE용 검색어 — 특별자치도 개명(강원 2023-06, 전북 2024-01)으로
+// 주소가 '강원특별자치도…'라 '강원도' LIKE는 0건. 개명 전후 주소를 모두 substring으로 잡는
+// 짧은 형태를 쓴다. 타 시도 주소에 우연히 포함돼도 extract()의 expectedSido 검증이 걸러냄.
+const SIDO_LIKE: Record<string, string> = { 강원도: '강원', 전라북도: '전북' };
+function toLike(sidoShort: string): string {
+  return SIDO_LIKE[sidoShort] || sidoShort;
+}
+
 function buildQS(params: Record<string, string | undefined | null>): string {
   return Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
@@ -116,7 +124,7 @@ async function fetchPage(type: string, apiKey: string, sido: string, pageNo: num
       : mode === 'new_closed'
         ? { 'cond[LCPMT_YMD::GTE]': start, 'cond[LCPMT_YMD::LTE]': end, 'cond[SALS_STTS_CD::EQ]': '03' }
         : { 'cond[CLSBIZ_YMD::GTE]': dashYmd(start), 'cond[CLSBIZ_YMD::LTE]': dashYmd(end), 'cond[SALS_STTS_CD::EQ]': '03' }),
-    'cond[LOTNO_ADDR::LIKE]': sido,
+    'cond[LOTNO_ADDR::LIKE]': toLike(sido),
   });
 
   const ctrl = new AbortController();

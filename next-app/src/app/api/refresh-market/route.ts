@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export const maxDuration = 300;
 
 // 시장 분석(상권) 데이터 야간 갱신 Cron — 매일 03:00 KST(vercel.json `0 18 * * *`).
-// 경기도·서울·인천의 market-stats를 최근 2개월치 save=true로 호출해
+// 경기도·서울·인천·강원도의 market-stats를 최근 2개월치 save=true로 호출해
 // market_snapshots(집계)·market_store_records(개별 매장)를 새로고침한다.
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       : `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'maeilfs-sales.vercel.app'}`;
 
     await Promise.all(
-      ['경기도', '서울', '인천'].map(async (sido) => {
+      ['경기도', '서울', '인천', '강원도'].map(async (sido) => {
         try {
           const url = `${base}/api/market-stats?sido=${encodeURIComponent(sido)}&months=2&save=true`;
           const r = await fetch(url, { headers: { Authorization: authHeader || '' } });

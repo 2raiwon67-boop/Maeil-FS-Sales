@@ -126,8 +126,8 @@ const SIDO_NORM: Record<string, string> = {
 // 지역 드롭다운 — 전국 17개 시도 (수도권=데이터 보유 우선, 나머지는 UI만/선택 시 데이터 없음)
 const ALL_SIDOS = ['서울', '경기도', '인천', '부산', '대구', '광주', '대전', '울산', '세종', '강원도', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 // 줌인 시 표시할 행정동 경계 파일 (데이터 있는 시도만, public/geojson/dong/)
-const DONG_FILE: Record<string, string> = { 서울: 'seoul', 경기도: 'gyeonggi', 인천: 'incheon' };
-const DONG_FILE_SIDO: Record<string, string> = { seoul: '서울', gyeonggi: '경기도', incheon: '인천' };
+const DONG_FILE: Record<string, string> = { 서울: 'seoul', 경기도: 'gyeonggi', 인천: 'incheon', 강원도: 'gangwon' };
+const DONG_FILE_SIDO: Record<string, string> = { seoul: '서울', gyeonggi: '경기도', incheon: '인천', gangwon: '강원도' };
 // geojson code 앞2자리 → 시도 (중복 시군구명 구분용 — southkorea-maps 코드 체계)
 const CODE_SIDO: Record<string, string> = {
   '11': '서울', '21': '부산', '22': '대구', '23': '인천', '24': '광주', '25': '대전', '26': '울산', '29': '세종',

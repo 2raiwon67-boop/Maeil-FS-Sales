@@ -66,7 +66,13 @@ const SIDO_SHORT: Record<string, string> = {
   울산광역시: '울산', 울산시: '울산', 울산: '울산',
   세종특별자치시: '세종', 세종시: '세종', 세종: '세종',
   제주특별자치도: '제주', 제주도: '제주', 제주: '제주',
+  // 특별자치도 개명 시도 — 주소는 '강원특별자치도…'인데 managers 지역은 '강원도'일 수 있어 variants로 흡수
+  강원특별자치도: '강원도', 강원도: '강원도', 강원: '강원도',
+  전북특별자치도: '전라북도', 전라북도: '전라북도', 전북: '전라북도',
 };
+
+// 공공 API LOTNO_ADDR::LIKE용 — 특별자치도 개명 시도는 짧은 substring으로 검색
+const SIDO_LIKE: Record<string, string> = { 강원도: '강원', 전라북도: '전북' };
 
 const SIDO_FULLNAME_VARIANTS: Record<string, string[]> = {
   서울: ['서울특별시', '서울시', '서울'],
@@ -78,6 +84,8 @@ const SIDO_FULLNAME_VARIANTS: Record<string, string[]> = {
   울산: ['울산광역시', '울산시', '울산'],
   세종: ['세종특별자치시', '세종시', '세종'],
   제주: ['제주특별자치도', '제주도', '제주'],
+  강원도: ['강원특별자치도', '강원도'],
+  전라북도: ['전북특별자치도', '전라북도'],
 };
 
 const METRO_GU_SIDO: Record<string, string> = {
@@ -145,7 +153,9 @@ async function fetchPage(
     'cond[LCPMT_YMD::GTE]': startDate,
     'cond[LCPMT_YMD::LTE]': endDate,
     'cond[SALS_STTS_CD::EQ]': '01',
-    ...(regionHint ? { 'cond[LOTNO_ADDR::LIKE]': regionHint } : {}),
+    // 특별자치도 개명(강원 2023-06, 전북 2024-01): 주소가 '강원특별자치도…'라 '강원도' LIKE는 0건
+    // → 개명 전후를 모두 잡는 짧은 형태로 변환. 타 시도 오탐은 이후 주소 기반 지역 매칭이 걸러냄.
+    ...(regionHint ? { 'cond[LOTNO_ADDR::LIKE]': SIDO_LIKE[regionHint] || regionHint } : {}),
   });
 
   // 재시도 2회 — 공공API가 간헐적으로 페이지를 실패시킨다(같은 조회를 3회 반복하니 251/233/233건).

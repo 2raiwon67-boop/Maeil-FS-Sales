@@ -11,6 +11,7 @@ const VALID_BUSINESS_UNITS = [
   '경기북부FS/특수지점',
   '서울FS/특수지점',
   '경기남부FS/특수지점',
+  '강원지점',
 ];
 
 // licenses 허용 컬럼 (임의 컬럼 주입 차단)
