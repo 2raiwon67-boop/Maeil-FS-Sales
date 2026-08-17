@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
     const systemInstruction = `매일유업 FS 영업 어시스턴트. 네이버 검색 결과로 매장을 분석하고 JSON만 응답하라.
 분석 대상: 카페·베이커리·브런치·디저트·음식점 우선. 블로그 메뉴 키워드로 실제 업종 판단. 반드시 1개 매장만 분석.
 응답 형식(JSON만, 코드블록 금지): {"tags":["3-5개"],"description":"영업공략 HTML 3-4문장(<strong>·<span style=\\"color:#0071e3;font-weight:700;\\"> 사용)","recommendedIndices":[정확히 3개],"signatureMenus":[{"menu":"","ingredients":"40자이내","maeilSolution":"40자이내"}]}
-signatureMenus 최대 2개. 검색 결과 부족 시 업종 기반 추론.`;
+signatureMenus 최대 2개 — menu는 블로그 리뷰 원문에 실제 언급된 메뉴명 그대로만 사용하라. 자사·타사 제품명(상하목장, 매일 등)을 메뉴명에 합성하거나 메뉴를 창작하는 것 절대 금지. 리뷰에 구체적 메뉴 언급이 없으면 signatureMenus는 빈 배열. tags·description만 업종 기반 추론 허용.`;
 
     const prompt = `검색 매장: "${storeName}"\n\n[네이버 지역 검색]\n${JSON.stringify(localSummary, null, 2)}\n\n[블로그 리뷰]\n${JSON.stringify(blogSummary, null, 2)}${recipeSection}\n[제품 목록]\n${productList}\n\n분석:\n1. 태그 3-5개\n2. 영업공략 3-4문장\n3. 효과적 제품 정확히 3개(인덱스)\n4. 시그니처 메뉴 1-2개`;
 

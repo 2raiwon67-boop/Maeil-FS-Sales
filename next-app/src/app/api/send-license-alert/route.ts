@@ -313,7 +313,7 @@ async function enrichBigStore(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `신규 오픈 대형 매장: ${s.name} (${s.category}, ${Math.round(s.pyeong)}평, ${s.address})\n주변 유사 대형매장 리뷰 분석:\n${nbText}\n\n매일유업 FS(우유·크림·연유·음료베이스·소스) 영업 관점에서 답하라.\n1) gapSummary: 주변 매장들의 메뉴 지형에서 공통 강점과 비어 있는 영역을 2문장으로.\n2) menuIdeas: 신규 매장에 제안할 타겟 메뉴 2~3개(유제품 활용 메뉴 위주), 이유는 30자 이내.` }] }],
+        contents: [{ parts: [{ text: `신규 오픈 대형 매장: ${s.name} (${s.category}, ${Math.round(s.pyeong)}평, ${s.address})\n주변 유사 대형매장 리뷰 분석:\n${nbText}\n\n매일유업 FS(우유·크림·연유·음료베이스·소스) 영업 관점에서 답하라.\n1) gapSummary: 주변 매장들의 메뉴 지형에서 공통 강점과 비어 있는 영역을 2문장으로.\n2) menuIdeas: 신규 매장에 제안할 타겟 메뉴 2~3개(유제품 활용 메뉴 위주), 이유는 30자 이내.\n주의: menuIdeas.menu는 일반적인 메뉴명만 사용(예: 말차 크림라떼, 딸기 밀크쉐이크) — 브랜드명·자사 제품명을 메뉴명에 합성하지 말 것. gapSummary는 위에 제공된 분석 내용만 근거로 하고 없는 사실을 지어내지 말 것.` }] }],
         generationConfig: {
           responseMimeType: 'application/json',
           responseSchema: {
@@ -394,7 +394,7 @@ function bigStoreContent(items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) =>
       // 지도 옆(우측)에는 주소 + 이웃 목록만 — 지도 높이와 비슷하게. 이웃 번호는 지도 빨간 마커와 대응.
       const neighborList = en
         ? `<p style="margin:10px 0 6px 0; font-size:12px; font-weight:bold; color:#9a3412;">📊 주변 유사 매장 (반경 2km)</p>
-${en.neighbors.map((n, ni) => `<p style="margin:0 0 6px 0; font-size:12px; color:#495057;"><span style="display:inline-block; background-color:#e03131; color:#ffffff; border-radius:50%; width:15px; height:15px; line-height:15px; text-align:center; font-size:10px; font-weight:bold;">${ni + 1}</span> <strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}`
+${en.neighbors.map((n, ni) => `<p style="margin:0 0 6px 0; font-size:12px; color:#495057;"><span style="display:inline-block; background-color:#e03131; color:#ffffff; border-radius:50%; width:15px; height:15px; line-height:15px; text-align:center; font-size:10px; font-weight:bold;">${ni + 1}</span> <strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">리뷰 언급 메뉴: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}`
         : '';
       const infoCell = `<p style="margin:0 0 4px 0; font-size:13px; color:#212529;">${escHtml(t.address || '-')}</p>
 <p style="margin:0; font-size:11px; color:#868e96;">${escHtml(t.sigungu)} · 인허가 ${escHtml(t.license_date || '-')}</p>

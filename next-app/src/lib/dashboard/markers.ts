@@ -40,17 +40,18 @@ export function buildMarkerIcon(
     glow = isNewPermit(license.permit_date);
   }
   const glowClass = glow ? 'marker-glow' : '';
+  // 테두리 없는 미니 도트 (2026-08-17 사용자 확정: 현행 모양 유지 + 흰 테두리 제거 + 크기 축소)
   return {
-    content: `<div class="${glowClass}" style="width:15px;height:15px;background:${color};border:2px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
-    anchor: new window.naver.maps.Point(7, 7),
+    content: `<div class="${glowClass}" style="width:12px;height:12px;background:${color};border-radius:50%;box-shadow:0 2px 5px rgba(0,0,0,0.4);"></div>`,
+    anchor: new window.naver.maps.Point(6, 6),
   };
 }
 
-/** 장바구니 담김 마커 (보라색) */
+/** 장바구니 담김 마커 (보라색) — 일반 도트와 동일 스타일, 한 단계 큼 */
 export function buildCartMarkerIcon(): NaverIcon {
   return {
-    content: `<div style="width:19px;height:19px;background:${CART_COLOR};border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(88,86,214,0.6);"></div>`,
-    anchor: new window.naver.maps.Point(9, 9),
+    content: `<div style="width:16px;height:16px;background:${CART_COLOR};border-radius:50%;box-shadow:0 2px 7px rgba(88,86,214,0.6);"></div>`,
+    anchor: new window.naver.maps.Point(8, 8),
   };
 }
 
