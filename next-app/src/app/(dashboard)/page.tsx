@@ -31,6 +31,7 @@ import { cartKey, type CartStop, type Coord, type RouteStop } from '@/lib/dashbo
 import {
   updateLicenseStatus,
   updateLicenseMilk,
+  updateLicenseExpectedRevenue,
   updateAccountStatus,
 } from '@/lib/dashboard/mutations';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
@@ -630,6 +631,22 @@ export default function DashboardPage() {
     }
   };
 
+  const onExpectedRevenueChange = async (value: number | null): Promise<boolean> => {
+    if (!selected || selected.type !== 'license' || !businessUnit) return false;
+    try {
+      const lic = selected.item as License;
+      await updateLicenseExpectedRevenue(businessUnit, lic.business_name, lic.road_address, value);
+      const updated = { ...lic, expected_revenue: value };
+      setLicenses((ls) => ls.map((l) => (l.id === lic.id ? updated : l)));
+      setSelected((s) => (s ? { ...s, item: updated } : s));
+      toast.success('예상매출이 저장되었습니다');
+      return true;
+    } catch (e) {
+      toast.error(`예상매출 저장 실패: ${(e as Error).message}`);
+      return false;
+    }
+  };
+
   // 목록 패널에서 항목 클릭 → 상세 열기 + 지도 이동
   const onOpenStore = (item: License | Account, type: 'license' | 'account') => {
     const c = coordsByIdRef.current.get(item.id);
@@ -860,7 +877,7 @@ export default function DashboardPage() {
         {view === 'map' && (
           <div className="absolute bottom-6 right-4 z-10 flex flex-col items-end gap-2">
             <button
-              onClick={() => setListOpen(true)}
+              onClick={() => setListOpen((o) => !o)}
               className="rounded-full bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-lg ring-1 ring-black/5"
             >
               ☰ 목록
@@ -916,6 +933,7 @@ export default function DashboardPage() {
           onClose={() => { hideSelRing(); setSelected(null); }}
           onStatusChange={onStatusChange}
           onMilkChange={onMilkChange}
+          onExpectedRevenueChange={onExpectedRevenueChange}
           onToggleCart={onToggleCartFromDetail}
           onRouteFrom={onRouteFromDetail}
         />

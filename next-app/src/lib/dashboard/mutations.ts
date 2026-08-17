@@ -29,6 +29,25 @@ export async function updateLicenseStatus(
   invalidateCache(businessUnit, 'licenses');
 }
 
+/** 인허가 예상매출(월·만원) 변경 — null이면 미입력으로 초기화 */
+export async function updateLicenseExpectedRevenue(
+  businessUnit: string,
+  businessName: string,
+  roadAddress: string | undefined,
+  value: number | null,
+): Promise<void> {
+  const supabase = createClient();
+  let q = supabase
+    .from('licenses')
+    .update({ expected_revenue: value })
+    .eq('business_name', businessName)
+    .eq('business_unit', businessUnit);
+  if (roadAddress) q = q.eq('road_address', roadAddress);
+  const { error } = await q;
+  if (error) throw new Error(error.message);
+  invalidateCache(businessUnit, 'licenses');
+}
+
 /** 인허가 사용우유 변경 */
 export async function updateLicenseMilk(
   businessUnit: string,

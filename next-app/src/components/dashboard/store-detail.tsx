@@ -26,6 +26,7 @@ interface Props {
   onClose: () => void;
   onStatusChange: (newStatus: string) => Promise<boolean>;
   onMilkChange: (newMilk: string) => Promise<boolean>;
+  onExpectedRevenueChange: (value: number | null) => Promise<boolean>;
   onToggleCart: () => void;
   onRouteFrom: () => void;
 }
@@ -37,6 +38,7 @@ export function StoreDetail({
   onClose,
   onStatusChange,
   onMilkChange,
+  onExpectedRevenueChange,
   onToggleCart,
   onRouteFrom,
 }: Props) {
@@ -51,10 +53,13 @@ export function StoreDetail({
     ? acc?.trade_status || '미거래'
     : lic?.trade_status || '인허가';
   const initialMilk = isAccount ? '' : lic?.milk_type || '';
+  const initialRevenue = !isAccount && lic?.expected_revenue != null ? String(lic.expected_revenue) : '';
 
   // 부모가 selected 변경 시 key를 바꿔 remount하므로 초기값은 props에서 직접 산출
   const [status, setStatus] = useState(initialStatus);
   const [milk, setMilk] = useState(initialMilk);
+  const [revenue, setRevenue] = useState(initialRevenue);
+  const [savedRevenue, setSavedRevenue] = useState(initialRevenue);
   const [saving, setSaving] = useState(false);
 
   if (!selected) return null;
@@ -75,6 +80,19 @@ export function StoreDetail({
     const ok = await onMilkChange(v);
     setSaving(false);
     if (!ok) setMilk(prev);
+  };
+
+  // 예상매출 저장 — blur/Enter 시. 값이 그대로면 요청 생략, 실패 시 마지막 저장값으로 복원
+  const handleRevenueSave = async () => {
+    const trimmed = revenue.trim();
+    if (trimmed === savedRevenue) return;
+    const num = trimmed === '' ? null : Math.max(0, Math.round(Number(trimmed)));
+    if (num !== null && !Number.isFinite(num)) { setRevenue(savedRevenue); return; }
+    setSaving(true);
+    const ok = await onExpectedRevenueChange(num);
+    setSaving(false);
+    if (ok) { setSavedRevenue(num === null ? '' : String(num)); setRevenue(num === null ? '' : String(num)); }
+    else setRevenue(savedRevenue);
   };
 
   const statusColor = STATUS_COLORS[status] || '#8e8e93';
@@ -168,6 +186,26 @@ export function StoreDetail({
           </div>
         )}
 
+      {!isAccount && (
+        <label className="block">
+          <span className="mb-1.5 block text-[11px] font-semibold text-gray-500">예상매출 (월)</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={revenue}
+              disabled={saving}
+              placeholder="미입력"
+              onChange={(e) => setRevenue(e.target.value)}
+              onBlur={handleRevenueSave}
+              onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+              className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-sm font-semibold text-gray-900 focus:border-blue-400 focus:outline-none"
+            />
+            <span className="shrink-0 text-xs font-semibold text-gray-500">만원</span>
+          </div>
+        </label>
+      )}
     </div>
   );
 

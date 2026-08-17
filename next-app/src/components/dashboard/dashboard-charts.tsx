@@ -429,18 +429,28 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
   const sc = cross.statusCount;
   const cm = cross.statusColorMap; // 거래상태 차트와 동일 색
   const total = Object.values(sc).reduce((a, b) => a + b, 0);
+  // 예상매출(월·만원) — 마커 상세에서 입력한 값의 합계 (미입력은 제외)
+  const revSum = licenses.reduce((sum, l) => sum + (Number(l.expected_revenue) || 0), 0);
+  const revCount = licenses.filter((l) => (Number(l.expected_revenue) || 0) > 0).length;
+
   const kpis: { label: string; value: string; color: string; title?: string }[] = [
     { label: '총 거래처', value: total.toLocaleString(), color: '#111827' },
     { label: '거래', value: (sc['거래'] || 0).toLocaleString(), color: cm['거래'] || '#8E8E93' },
     { label: '인허가', value: (sc['인허가'] || 0).toLocaleString(), color: cm['인허가'] || '#8E8E93' },
     { label: '공사중', value: (sc['공사중'] || 0).toLocaleString(), color: cm['공사중'] || '#8E8E93' },
     { label: '거래율', value: `${cross.successRate}%`, color: cm['거래'] || '#007AFF', title: '거래 / (거래 + 미거래) 비율' },
+    {
+      label: '예상매출 합계(월)',
+      value: revSum >= 10000 ? `${(revSum / 10000).toFixed(1)}억` : `${revSum.toLocaleString()}만`,
+      color: '#5856d6',
+      title: `마커 상세에서 입력한 예상매출(월)의 합계 · 입력 ${revCount}건`,
+    },
   ];
 
   return (
     <div className="h-full w-full overflow-y-auto bg-gray-50 p-4 pt-16">
       {/* KPI 요약 스트립 */}
-      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
         {kpis.map((k) => (
           <div
             key={k.label}

@@ -116,12 +116,13 @@ export function DashboardSidebar({
 
   return (
     <>
+      {/* 지도 위 오버레이 — 접어도 지도는 리사이즈되지 않는다 (시장분석 패널과 동일 패턴) */}
       <aside
-        className={`relative z-10 flex h-full shrink-0 flex-col border-r border-gray-200 bg-gray-50 transition-all duration-200 max-md:absolute max-md:inset-y-0 max-md:left-0 max-md:z-30 max-md:shadow-xl ${
-          collapsed ? 'w-0 overflow-hidden max-md:shadow-none' : 'w-[300px]'
+        className={`absolute inset-y-0 left-0 z-30 flex flex-col border-r border-gray-200 bg-gray-50 shadow-xl transition-all duration-200 ${
+          collapsed ? 'w-0 overflow-hidden shadow-none' : 'w-[300px]'
         }`}
       >
-        <div className="flex flex-col gap-3 overflow-y-auto p-3">
+        <div className="min-h-0 flex-1 overflow-y-auto p-3 flex flex-col gap-3">
           {/* 탭 */}
           <div className="flex gap-1 rounded-xl bg-gray-200/70 p-1">
             {TABS.map(([key, label]) => (
