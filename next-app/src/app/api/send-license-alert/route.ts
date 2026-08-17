@@ -184,6 +184,19 @@ interface BigStoreItem {
   enrich?: BigStoreEnrich; // 주변 매장 분석 (실패 시 없음 — 메일은 기본 카드만)
 }
 
+// AI 정밀분석(주변매장 분석)은 카페·베이커리 계열만 — 한식·뷔페 등 대형매장은 기본 알림 카드만
+// (2026-08-17 사용자 확정). 업종(category)이 '기타'로 뭉뚱그려진 베이커리카페가 많아 이름도 함께 본다.
+const CAFE_CATEGORY_KW = ['커피', '카페', '다방', '제과', '떡카페'];
+const CAFE_NAME_KW = [
+  '카페', '커피', 'cafe', 'coffee', '베이커리', 'bakery', '제과', '베이글', '도넛', '도나쓰', '브런치',
+  '디저트', '빵', '케이크', '케익', '와플', '크로플', '티하우스', '로스터', '에스프레소', '브레드', 'bread',
+];
+function isCafeLike(name: string, category: string): boolean {
+  const c = (category || '').toLowerCase();
+  const n = (name || '').toLowerCase();
+  return CAFE_CATEGORY_KW.some((k) => c.includes(k)) || CAFE_NAME_KW.some((k) => n.includes(k));
+}
+
 // ── 주변 유사 대형매장 분석 (거래 여부 무관, 우리 거래처면 표시 — 2026-08-17 사용자 확정) ──
 interface NeighborInfo {
   name: string;
@@ -222,19 +235,21 @@ async function enrichBigStore(
   ctx: { SUPABASE_URL: string; sbHeaders: Record<string, string>; baseUrl: string; GEMINI_API_KEY?: string },
 ): Promise<BigStoreEnrich | null> {
   if (s.lat == null || s.lng == null || !ctx.GEMINI_API_KEY) return null;
+  if (!isCafeLike(s.name, s.category)) return null; // 정밀분석은 카페·베이커리만
 
-  // 1) 주변 후보: ±2km 박스(수집분은 전부 타겟 업종) → 거리순, 동일명 중복(재개업 행) 제거
+  // 1) 주변 후보: ±2km 박스 → 카페·베이커리 계열만, 거리순, 동일명 중복(재개업 행) 제거
   const dLat = 0.02, dLng = 0.025;
   const rows: any[] =
     (await fetchJson(
       `${ctx.SUPABASE_URL}/rest/v1/market_store_records?status=eq.new&pyeong=gte.100` +
         `&lat=gte.${s.lat - dLat}&lat=lte.${s.lat + dLat}&lng=gte.${s.lng - dLng}&lng=lte.${s.lng + dLng}` +
-        `&name=neq.${encodeURIComponent(s.name)}&select=name,pyeong,lat,lng,sigungu&limit=60`,
+        `&name=neq.${encodeURIComponent(s.name)}&select=name,category,pyeong,lat,lng,sigungu&limit=60`,
       { headers: ctx.sbHeaders },
       8000,
     )) || [];
   const seen = new Set<string>();
   const cands = rows
+    .filter((r) => isCafeLike(r.name, r.category)) // 이웃도 같은 계열이어야 메뉴 비교가 성립
     .map((r) => ({ ...r, distM: Math.round(Math.hypot((r.lat - s.lat!) * 111320, (r.lng - s.lng!) * 88800)) }))
     .filter((r) => r.distM <= 2000)
     .sort((a, b) => a.distM - b.distM)
@@ -368,28 +383,32 @@ function bigStoreContent(items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) =>
     .map((t, i) => {
       const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(`${t.address || t.name}`)}`;
       const mapUrl = i < MAX_MAPS ? mapUrlFor(t) : null;
-      const mapBlock = mapUrl
-        ? `<tr><td colspan="2" style="padding:0; border:1px solid #e9ecef; border-top:none;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; max-width:840px; height:auto;"/></a></td></tr>`
-        : '';
       const en = t.enrich;
-      const enrichBlock = en
-        ? `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; background-color:#fffaf5;">
-<p style="margin:0 0 6px 0; font-size:12px; font-weight:bold; color:#9a3412;">📊 주변 유사 대형매장 (반경 2km)</p>
+      // 정밀분석 내용(카페·베이커리만 존재) — 지도 오른쪽 설명 칸에 들어감
+      const enrichInner = en
+        ? `<p style="margin:10px 0 6px 0; font-size:12px; font-weight:bold; color:#9a3412;">📊 주변 유사 매장 (반경 2km)</p>
 ${en.neighbors.map((n) => `<p style="margin:0 0 5px 0; font-size:12px; color:#495057;"><strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}
 ${en.gapSummary ? `<p style="margin:8px 0 4px 0; font-size:12px; color:#2c3e50;">💡 ${escHtml(en.gapSummary)}</p>` : ''}
 ${en.menuIdeas.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">🎯 타겟 메뉴: ${en.menuIdeas.map((m) => `<strong>${escHtml(m.menu)}</strong> (${escHtml(m.reason)})`).join(' · ')}</p>` : ''}
 ${en.recipes.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">📖 추천 레시피: ${en.recipes.map((r) => `<strong>${escHtml(r.name)}</strong> — ${escHtml(r.products)}`).join(' / ')}</p>` : ''}
-<p style="margin:6px 0 0 0; font-size:10px; color:#adb5bd;">※ 주변 매장 리뷰 기반 추정입니다</p>
-</td></tr>`
+<p style="margin:6px 0 0 0; font-size:10px; color:#adb5bd;">※ 주변 매장 리뷰 기반 추정입니다</p>`
         : '';
-      return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 22px 0; font-size:13px;">
+      const infoCell = `<p style="margin:0 0 4px 0; font-size:13px; color:#212529;">${escHtml(t.address || '-')}</p>
+<p style="margin:0; font-size:11px; color:#868e96;">${escHtml(t.sigungu)} · 인허가 ${escHtml(t.license_date || '-')}</p>
+${enrichInner}`;
+      // 지도 왼쪽 · 설명 오른쪽 2컬럼 — 상하 스크롤 축소 (지도 없으면 설명이 전체 폭)
+      const bodyRow = mapUrl
+        ? `<tr>
+<td width="46%" style="padding:0; border:1px solid #e9ecef; border-top:none; vertical-align:top;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; height:auto;"/></a></td>
+<td width="54%" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; border-left:none; vertical-align:top;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td>
+</tr>`
+        : `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td></tr>`;
+      return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 18px 0; font-size:13px;">
 <tr>
 <td style="${TD} font-weight:bold; color:#2c3e50; font-size:14px; background-color:#f8f9fa;">${escHtml(t.name)} <span style="background-color:#fff4e6; color:#d9480f; padding:2px 8px; font-size:11px; font-weight:bold; margin-left:6px;">${escHtml(String(Math.round(t.pyeong)))}평</span> <span style="color:#868e96; font-weight:normal; font-size:12px; margin-left:6px;">${escHtml(t.category || '-')}</span></td>
 <td style="${TD} text-align:right; white-space:nowrap; background-color:#f8f9fa;" align="right"><a href="${escHtml(naverUrl)}" style="background-color:#03C75A; color:#ffffff; padding:5px 12px; text-decoration:none; font-size:11px; font-weight:bold;">N 지도</a></td>
 </tr>
-<tr><td colspan="2" style="${TD} border-top:none;">${escHtml(t.address || '-')} <span style="color:#868e96; font-size:12px;">· ${escHtml(t.sigungu)} · 인허가 ${escHtml(t.license_date || '-')}</span></td></tr>
-${mapBlock}
-${enrichBlock}
+${bodyRow}
 </table>`;
     })
     .join('');
