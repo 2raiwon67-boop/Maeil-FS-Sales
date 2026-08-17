@@ -456,6 +456,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const dryRun = searchParams.get('dryRun') === 'true';
+  // 테스트 발송: 대형거래처 메일을 실제 파이프라인(주변분석·지도)으로 만들어 이 주소 한 곳에만 발송.
+  // 담당자 발송·이력 기록 없음 — CRON_SECRET 인증을 통과한 호출만 가능(라우트 상단 검사).
+  const testTo = searchParams.get('testTo') || '';
 
   const nowKST = new Date(Date.now() + 9 * 60 * 60 * 1000);
   const isMonday = nowKST.getUTCDay() === 1;
@@ -661,7 +664,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (!hasMonday && !hasDailyOpen && !hasBig) {
+    if (!hasMonday && !hasDailyOpen && !hasBig && !testTo) {
       return NextResponse.json({ success: true, message: '발송 대상 없음' });
     }
 
@@ -698,6 +701,51 @@ export async function GET(req: NextRequest) {
       results.push({ ...meta, email, status: sendRes.ok ? 'sent' : 'failed', id: sendData.messageId || sendData.error || 'unknown' });
       await sleep(200);
     };
+
+    // ── 테스트 발송: 실제 파이프라인(주변분석·지도)으로 만든 대형거래처 메일을 지정 주소 1곳에만 ──
+    if (testTo) {
+      const items = bigStores.slice(0, 5); // 예시는 상위 5건이면 충분
+      if (!items.length) {
+        return NextResponse.json({ success: true, test: true, message: '대형 후보 없음' });
+      }
+      const buildMapUrl = (it: BigStoreItem): string | null => {
+        if (it.lat == null || it.lng == null || !cronSecret) return null;
+        return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${staticMapSig(it.lat, it.lng, cronSecret)}`;
+      };
+      let mapsAvailable = false;
+      const probe = items.map(buildMapUrl).find(Boolean);
+      if (probe) {
+        try {
+          mapsAvailable = (await fetch(probe)).ok;
+        } catch {
+          /* 지도 생략 */
+        }
+      }
+      const mapUrlFor = (it: BigStoreItem): string | null => (mapsAvailable ? buildMapUrl(it) : null);
+      const enrichCtx = { SUPABASE_URL, sbHeaders, baseUrl, GEMINI_API_KEY: process.env.GEMINI_API_KEY };
+      let enriched = 0;
+      const tEnrich = Date.now();
+      for (const it of items) {
+        if (enriched >= 3 || Date.now() - tEnrich > 150000) break;
+        try {
+          const en = await enrichBigStore(it, enrichCtx);
+          if (en) {
+            it.enrich = en;
+            enriched++;
+          }
+        } catch {
+          /* 기본 카드 */
+        }
+      }
+      const html = buildBigStoreEmailHtml('테스트', items, mapUrlFor);
+      await sendBrevo(
+        { type: 'big-store-test', manager: '테스트', bu: '-' },
+        testTo,
+        `[테스트] 대형거래처 발견 — 100평+ 신규 인허가 ${items.length}건`,
+        html,
+      );
+      return NextResponse.json({ success: true, test: true, items: items.length, enriched, mapsAvailable, results });
+    }
 
     if (hasMonday) {
       const allUnits = [...new Set([...newTargets.map((t) => t.business_unit), ...revisitTargets.map((t) => t.business_unit)])].filter(Boolean);
