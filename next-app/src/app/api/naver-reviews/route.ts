@@ -183,7 +183,7 @@ signatureMenus 최대 2개. 검색 결과 부족 시 업종 기반 추론.`;
     const prompt = `검색 매장: "${storeName}"\n\n[네이버 지역 검색]\n${JSON.stringify(localSummary, null, 2)}\n\n[블로그 리뷰]\n${JSON.stringify(blogSummary, null, 2)}${recipeSection}\n[제품 목록]\n${productList}\n\n분석:\n1. 태그 3-5개\n2. 영업공략 3-4문장\n3. 효과적 제품 정확히 3개(인덱스)\n4. 시그니처 메뉴 1-2개`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

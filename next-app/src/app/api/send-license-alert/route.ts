@@ -3,7 +3,7 @@ import { computeVisitTargets, type LicenseRow } from '@/lib/license-targets';
 import { sigunguMatches } from '@/lib/regions';
 import { staticMapSig } from '@/lib/staticmap';
 
-export const maxDuration = 60;
+export const maxDuration = 300; // 대형 신규 주변매장 분석(리뷰 수집+Gemini)이 순차로 붙어 여유 확보
 
 const TH_CENTER =
   'background-color:#f1f3f5; color:#495057; font-weight:bold; padding:10px 12px; text-align:center; border:1px solid #dee2e6; white-space:nowrap;';
@@ -126,9 +126,8 @@ function buildAlertEmailHtml(managerName: string, targets: { newObj: AlertItem[]
   });
 }
 
-function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): string {
-  const today = new Date().toLocaleDateString('ko-KR');
-
+// 오픈감지 본문(표) — 단독 메일과 통합 메일이 공유
+function openDetectedContent(items: AlertItem[]): string {
   const rows = items
     .map((t) => {
       const btnUrl = t.naverLink || `https://map.naver.com/v5/search/${encodeURIComponent(t.name)}`;
@@ -142,7 +141,7 @@ function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): st
     })
     .join('');
 
-  const content = `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:8px 0 24px 0; font-size:13px;">
+  return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:8px 0 24px 0; font-size:13px;">
 <thead><tr>
 <th style="${TH_LEFT}">사업장명</th>
 <th style="${TH_CENTER}">평형</th>
@@ -153,14 +152,17 @@ function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): st
 <tbody>${rows}</tbody>
 </table>
 <p style="font-size:12px; color:#868e96; margin:0;">※ 네이버 검색 기반 추정이므로 직접 방문 확인을 권장합니다.</p>`;
+}
 
+function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): string {
+  const today = new Date().toLocaleDateString('ko-KR');
   return emailShell({
     headerBg: '#2b8a3e',
     headerBorder: '#1e6e2e',
     title: '🏭 공사중 거래처 오픈 감지',
     subtitle: `${today} 기준 네이버에 등록된 공사중 거래처입니다.`,
     greeting: `${escHtml(managerName)}님, 안녕하십니까,<br>담당 공사중 거래처 중 네이버 지도에 등록된 곳이 있습니다.<br>방문 후 업데이트 부탁드립니다.`,
-    content,
+    content: openDetectedContent(items),
   });
 }
 
@@ -179,6 +181,173 @@ interface BigStoreItem {
   license_date: string;
   lat: number | null;
   lng: number | null;
+  enrich?: BigStoreEnrich; // 주변 매장 분석 (실패 시 없음 — 메일은 기본 카드만)
+}
+
+// ── 주변 유사 대형매장 분석 (거래 여부 무관, 우리 거래처면 표시 — 2026-08-17 사용자 확정) ──
+interface NeighborInfo {
+  name: string;
+  pyeong: number;
+  distM: number;
+  isCustomer: boolean;
+  tags: string[];
+  signatureMenus: { menu?: string; ingredients?: string }[];
+}
+interface BigStoreEnrich {
+  neighbors: NeighborInfo[];
+  gapSummary: string;
+  menuIdeas: { menu: string; reason: string }[];
+  recipes: { name: string; products: string; reason?: string }[];
+}
+
+async function fetchJson(url: string, init: RequestInit, timeoutMs: number): Promise<any | null> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { ...init, signal: ctrl.signal });
+    clearTimeout(t);
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    clearTimeout(t);
+    return null;
+  }
+}
+
+// 신규 대형매장 주변 2km의 유사 대형매장 2곳을 골라 리뷰 분석(naver-reviews 재사용) →
+// 메뉴 공백 요약·타겟 메뉴 제안(Gemini) → 자사 레시피 추천(recipe-recommend 재사용).
+// 어느 단계가 실패해도 null/부분 결과 — 발송 자체는 절대 막지 않는다.
+async function enrichBigStore(
+  s: BigStoreItem,
+  ctx: { SUPABASE_URL: string; sbHeaders: Record<string, string>; baseUrl: string; GEMINI_API_KEY?: string },
+): Promise<BigStoreEnrich | null> {
+  if (s.lat == null || s.lng == null || !ctx.GEMINI_API_KEY) return null;
+
+  // 1) 주변 후보: ±2km 박스(수집분은 전부 타겟 업종) → 거리순, 동일명 중복(재개업 행) 제거
+  const dLat = 0.02, dLng = 0.025;
+  const rows: any[] =
+    (await fetchJson(
+      `${ctx.SUPABASE_URL}/rest/v1/market_store_records?status=eq.new&pyeong=gte.100` +
+        `&lat=gte.${s.lat - dLat}&lat=lte.${s.lat + dLat}&lng=gte.${s.lng - dLng}&lng=lte.${s.lng + dLng}` +
+        `&name=neq.${encodeURIComponent(s.name)}&select=name,pyeong,lat,lng,sigungu&limit=60`,
+      { headers: ctx.sbHeaders },
+      8000,
+    )) || [];
+  const seen = new Set<string>();
+  const cands = rows
+    .map((r) => ({ ...r, distM: Math.round(Math.hypot((r.lat - s.lat!) * 111320, (r.lng - s.lng!) * 88800)) }))
+    .filter((r) => r.distM <= 2000)
+    .sort((a, b) => a.distM - b.distM)
+    .filter((r) => (seen.has(r.name) ? false : (seen.add(r.name), true)))
+    .slice(0, 8);
+  if (!cands.length) return null;
+
+  // 이후 폐업 기록이 있는 매장 제외 (폐업 매장을 벤치마크로 추천하면 안 됨)
+  const inList = cands.map((c) => `"${String(c.name).replace(/"/g, '')}"`).join(',');
+  const closedRows: any[] =
+    (await fetchJson(
+      `${ctx.SUPABASE_URL}/rest/v1/market_store_records?status=eq.closed&sigungu=eq.${encodeURIComponent(s.sigungu)}` +
+        `&name=in.(${encodeURIComponent(inList)})&select=name`,
+      { headers: ctx.sbHeaders },
+      8000,
+    )) || [];
+  const closed = new Set(closedRows.map((r) => r.name));
+  const picked = cands.filter((c) => !closed.has(c.name)).slice(0, 2);
+
+  // 2) 이웃별 리뷰 분석 (naver-reviews 내부 호출 — 캐시 있으면 즉시) + 거래처 여부
+  const neighbors: NeighborInfo[] = [];
+  for (const c of picked) {
+    const acct = await fetchJson(
+      `${ctx.SUPABASE_URL}/rest/v1/accounts?business_name=eq.${encodeURIComponent(c.name)}&select=id&limit=1`,
+      { headers: ctx.sbHeaders },
+      6000,
+    );
+    const analysis = await fetchJson(
+      `${ctx.baseUrl}/api/naver-reviews`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ storeName: c.name }) },
+      45000,
+    );
+    if (!analysis?.success) continue;
+    const tags: string[] = Array.isArray(analysis.tags) ? analysis.tags.slice(0, 5) : [];
+    const sigs = Array.isArray(analysis.signatureMenus) ? analysis.signatureMenus.slice(0, 2) : [];
+    if (!tags.length && !sigs.length) continue;
+    neighbors.push({
+      name: c.name,
+      pyeong: c.pyeong,
+      distM: c.distM,
+      isCustomer: Array.isArray(acct) && acct.length > 0,
+      tags,
+      signatureMenus: sigs,
+    });
+  }
+  if (!neighbors.length) return null;
+
+  // 3) 메뉴 공백 요약 + 타겟 메뉴 제안 (JSON 강제)
+  let gapSummary = '';
+  let menuIdeas: { menu: string; reason: string }[] = [];
+  const nbText = neighbors
+    .map((n) => `- ${n.name}(${Math.round(n.pyeong)}평, ${n.distM}m): 태그[${n.tags.join(', ')}] 시그니처[${n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', ')}]`)
+    .join('\n');
+  const synth = await fetchJson(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${ctx.GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `신규 오픈 대형 매장: ${s.name} (${s.category}, ${Math.round(s.pyeong)}평, ${s.address})\n주변 유사 대형매장 리뷰 분석:\n${nbText}\n\n매일유업 FS(우유·크림·연유·음료베이스·소스) 영업 관점에서 답하라.\n1) gapSummary: 주변 매장들의 메뉴 지형에서 공통 강점과 비어 있는 영역을 2문장으로.\n2) menuIdeas: 신규 매장에 제안할 타겟 메뉴 2~3개(유제품 활용 메뉴 위주), 이유는 30자 이내.` }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: 'OBJECT',
+            properties: {
+              gapSummary: { type: 'STRING' },
+              menuIdeas: {
+                type: 'ARRAY',
+                items: { type: 'OBJECT', properties: { menu: { type: 'STRING' }, reason: { type: 'STRING' } }, required: ['menu', 'reason'] },
+              },
+            },
+            required: ['gapSummary', 'menuIdeas'],
+          },
+        },
+      }),
+    },
+    25000,
+  );
+  try {
+    const parts = synth?.candidates?.[0]?.content?.parts || [];
+    const rawText = (parts.find((p: any) => !p.thought) || parts[0])?.text;
+    const parsed = JSON.parse(rawText);
+    gapSummary = String(parsed.gapSummary || '');
+    menuIdeas = (parsed.menuIdeas || []).slice(0, 3);
+  } catch {
+    /* 제안 실패 → 주변 분석만 노출 */
+  }
+
+  // 4) 자사 레시피 추천 (recipes RAG 재사용)
+  let recipes: BigStoreEnrich['recipes'] = [];
+  if (menuIdeas.length) {
+    const rec = await fetchJson(
+      `${ctx.baseUrl}/api/recipe-recommend`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storeName: s.name,
+          tags: [...new Set([...neighbors.flatMap((n) => n.tags), ...menuIdeas.map((m) => m.menu)])].slice(0, 10),
+          signatureMenus: [],
+          productNames: [],
+        }),
+      },
+      30000,
+    );
+    recipes = (rec?.recipes || []).slice(0, 2).map((r: any) => ({
+      name: r.name,
+      products: (r.main_products || []).join(', '),
+      reason: r.reason,
+    }));
+  }
+
+  return { neighbors, gapSummary, menuIdeas, recipes };
 }
 
 // managers.region1(시도 표기 자유) → market_store_records.sido 표기 정규화
@@ -191,8 +360,8 @@ function normRegion1(s: string): string {
   return t;
 }
 
-function buildBigStoreEmailHtml(recipientName: string, items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) => string | null): string {
-  const today = new Date().toLocaleDateString('ko-KR');
+// 대형거래처 본문(카드 + 지도 + 주변 분석) — 단독 메일과 통합 메일이 공유
+function bigStoreContent(items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) => string | null): string {
   const MAX_MAPS = 8; // 지도 이미지는 상위 N건만 (메일 용량·로딩 보호), 나머지는 표만
 
   const cards = items
@@ -202,6 +371,17 @@ function buildBigStoreEmailHtml(recipientName: string, items: BigStoreItem[], ma
       const mapBlock = mapUrl
         ? `<tr><td colspan="2" style="padding:0; border:1px solid #e9ecef; border-top:none;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; max-width:840px; height:auto;"/></a></td></tr>`
         : '';
+      const en = t.enrich;
+      const enrichBlock = en
+        ? `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; background-color:#fffaf5;">
+<p style="margin:0 0 6px 0; font-size:12px; font-weight:bold; color:#9a3412;">📊 주변 유사 대형매장 (반경 2km)</p>
+${en.neighbors.map((n) => `<p style="margin:0 0 5px 0; font-size:12px; color:#495057;"><strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}
+${en.gapSummary ? `<p style="margin:8px 0 4px 0; font-size:12px; color:#2c3e50;">💡 ${escHtml(en.gapSummary)}</p>` : ''}
+${en.menuIdeas.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">🎯 타겟 메뉴: ${en.menuIdeas.map((m) => `<strong>${escHtml(m.menu)}</strong> (${escHtml(m.reason)})`).join(' · ')}</p>` : ''}
+${en.recipes.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">📖 추천 레시피: ${en.recipes.map((r) => `<strong>${escHtml(r.name)}</strong> — ${escHtml(r.products)}`).join(' / ')}</p>` : ''}
+<p style="margin:6px 0 0 0; font-size:10px; color:#adb5bd;">※ 주변 매장 리뷰 기반 추정입니다</p>
+</td></tr>`
+        : '';
       return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 22px 0; font-size:13px;">
 <tr>
 <td style="${TD} font-weight:bold; color:#2c3e50; font-size:14px; background-color:#f8f9fa;">${escHtml(t.name)} <span style="background-color:#fff4e6; color:#d9480f; padding:2px 8px; font-size:11px; font-weight:bold; margin-left:6px;">${escHtml(String(Math.round(t.pyeong)))}평</span> <span style="color:#868e96; font-weight:normal; font-size:12px; margin-left:6px;">${escHtml(t.category || '-')}</span></td>
@@ -209,17 +389,47 @@ function buildBigStoreEmailHtml(recipientName: string, items: BigStoreItem[], ma
 </tr>
 <tr><td colspan="2" style="${TD} border-top:none;">${escHtml(t.address || '-')} <span style="color:#868e96; font-size:12px;">· ${escHtml(t.sigungu)} · 인허가 ${escHtml(t.license_date || '-')}</span></td></tr>
 ${mapBlock}
+${enrichBlock}
 </table>`;
     })
     .join('');
 
+  return cards + '<p style="font-size:12px; color:#868e96; margin:0;">※ 시장 수집 데이터 기반 자동 감지 — 좌표 미확보 매장은 지도 없이 주소로 안내됩니다.</p>';
+}
+
+function buildBigStoreEmailHtml(recipientName: string, items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) => string | null): string {
+  const today = new Date().toLocaleDateString('ko-KR');
   return emailShell({
     headerBg: '#c2410c',
     headerBorder: '#9a3412',
     title: '🏢 대형거래처 발견 — 100평 이상 신규 인허가',
     subtitle: `${today} 기준 담당 지역에 새로 확인된 대형 매장입니다.`,
     greeting: `${escHtml(recipientName)}님, 안녕하십니까,<br>담당 지역에 100평 이상 대형 신규 인허가 ${items.length}건이 확인되었습니다.<br>지도에서 위치를 확인하시고 우선 방문을 검토해 주세요.`,
-    content: cards + '<p style="font-size:12px; color:#868e96; margin:0;">※ 시장 수집 데이터 기반 자동 감지 — 좌표 미확보 매장은 지도 없이 주소로 안내됩니다.</p>',
+    content: bigStoreContent(items, mapUrlFor),
+  });
+}
+
+// 오픈감지 + 대형거래처가 같은 날 같은 담당자에게 걸리면 한 통으로 합쳐 발송
+function buildCombinedEmailHtml(
+  managerName: string,
+  openItems: AlertItem[],
+  bigItems: BigStoreItem[],
+  mapUrlFor: (it: BigStoreItem) => string | null,
+): string {
+  const today = new Date().toLocaleDateString('ko-KR');
+  const sec = (color: string, text: string) =>
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0 8px 0; border-bottom:2px solid ${color};"><tr><td style="padding-bottom:6px; font-size:15px; font-weight:bold; color:${color};">${text}</td></tr></table>`;
+  return emailShell({
+    headerBg: '#2c3e50',
+    headerBorder: '#34495e',
+    title: '📌 금일 영업 알림 — 오픈 감지 · 대형거래처',
+    subtitle: `${today} 기준 오픈 추정 ${openItems.length}건, 대형 신규 인허가 ${bigItems.length}건입니다.`,
+    greeting: `${escHtml(managerName)}님, 안녕하십니까,<br>금일 오픈 추정 거래처와 대형 신규 인허가를 한 번에 정리해 드립니다.`,
+    content:
+      sec('#2b8a3e', `🏭 1. 공사중 거래처 오픈 감지 (${openItems.length}건)`) +
+      openDetectedContent(openItems) +
+      sec('#c2410c', `🏢 2. 대형거래처 발견 — 100평+ (${bigItems.length}건)`) +
+      bigStoreContent(bigItems, mapUrlFor),
   });
 }
 
@@ -526,60 +736,95 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (hasDailyOpen) {
-      const revisitIds = new Set(revisitTargets.map((t) => t.id));
-      const toNotify = isMonday ? newlyDetected.filter((item) => !revisitIds.has(item.id)) : newlyDetected;
-
-      const openUnits = [...new Set(toNotify.map((t) => t.business_unit))].filter(Boolean);
-      for (const bu of openUnits) {
-        const unitItems = toNotify.filter((t) => t.business_unit === bu);
-        const { emailMap = {} } = unitManagers[bu] || {};
-        const activeManagers = new Set(unitItems.map((t) => t.manager));
-        for (const managerName of activeManagers) {
-          if (!managerName || managerName === '미지정') continue;
-          const email = emailMap[managerName];
-          if (!email) continue;
-          const managerItems = unitItems.filter((t) => t.manager === managerName);
-          const html = buildOpenDetectedEmailHtml(managerName, managerItems);
-          await sendBrevo(
-            { type: 'open-detected', manager: managerName, bu },
-            email,
-            `[오픈 감지] 공사중 거래처 ${managerItems.length}건 오픈 추정`,
-            html,
-          );
-        }
-      }
-    }
-
-    // ── 100평+ 대형 신규 발송 (담당자 개별 + 지점장 다이제스트) ──
-    if (hasBig) {
+    // ── 일일 통합 발송: 담당자별로 오픈감지 + 대형거래처를 하루 한 통에 (2026-08-17 사용자 확정) ──
+    if (hasDailyOpen || hasBig) {
       const buildMapUrl = (it: BigStoreItem): string | null => {
         if (it.lat == null || it.lng == null || !cronSecret) return null;
         return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${staticMapSig(it.lat, it.lng, cronSecret)}`;
       };
-      // 지도 소스 헬스체크 — 정적 지도 키(NCP_MAPS_KEY 등)가 아직 없으면 프록시가 404를 내고
-      // 메일에 깨진 이미지가 박힌다. 첫 후보로 1회 프로브해서 성공할 때만 이미지를 포함
-      // (키가 등록되는 날부터 코드 변경 없이 자동으로 지도가 켜짐).
+      // 지도 소스 헬스체크 — 정적 지도가 죽어 있으면 깨진 이미지 대신 이미지 생략
       let mapsAvailable = false;
-      const probe = [...bigByManager.values()].flatMap((g) => g.items).map(buildMapUrl).find(Boolean);
-      if (probe) {
-        try {
-          mapsAvailable = (await fetch(probe)).ok;
-        } catch {
-          /* 지도 없이 발송 */
+      if (hasBig) {
+        const probe = [...bigByManager.values()].flatMap((g) => g.items).map(buildMapUrl).find(Boolean);
+        if (probe) {
+          try {
+            mapsAvailable = (await fetch(probe)).ok;
+          } catch {
+            /* 지도 없이 발송 */
+          }
         }
       }
       const mapUrlFor = (it: BigStoreItem): string | null => (mapsAvailable ? buildMapUrl(it) : null);
 
-      for (const [email, g] of bigByManager) {
-        const html = buildBigStoreEmailHtml(g.name, g.items, mapUrlFor);
-        await sendBrevo(
-          { type: 'big-store', manager: g.name, bu: g.bu },
-          email,
-          `[대형거래처 발견] 100평+ 신규 인허가 ${g.items.length}건`,
-          html,
-        );
+      // 대형매장 주변 분석 — 매장 단위로 1회(담당자·지점장 메일이 같은 객체를 공유). 예산 초과분은 기본 카드.
+      if (hasBig) {
+        const enrichCtx = { SUPABASE_URL, sbHeaders, baseUrl, GEMINI_API_KEY: process.env.GEMINI_API_KEY };
+        const uniq = new Map<number, BigStoreItem>();
+        bigByManager.forEach((g) => g.items.forEach((it) => uniq.set(it.id, it)));
+        const tEnrich = Date.now();
+        let enrichedCount = 0;
+        for (const it of uniq.values()) {
+          if (enrichedCount >= 5 || Date.now() - tEnrich > 180000) break;
+          try {
+            const en = await enrichBigStore(it, enrichCtx);
+            if (en) {
+              it.enrich = en;
+              enrichedCount++;
+            }
+          } catch {
+            /* 개별 실패는 무시 — 기본 카드로 발송 */
+          }
+        }
       }
+
+      // 담당자별 병합
+      const perManager = new Map<string, { name: string; bu: string; open: AlertItem[]; big: BigStoreItem[] }>();
+      if (hasDailyOpen) {
+        const revisitIds = new Set(revisitTargets.map((t) => t.id));
+        const toNotify = isMonday ? newlyDetected.filter((item) => !revisitIds.has(item.id)) : newlyDetected;
+        for (const item of toNotify) {
+          const bu = item.business_unit;
+          const managerName = item.manager;
+          if (!bu || !managerName || managerName === '미지정') continue;
+          const email = (unitManagers[bu]?.emailMap || {})[managerName];
+          if (!email) continue;
+          const cur = perManager.get(email) || { name: managerName, bu, open: [], big: [] };
+          cur.open.push(item);
+          perManager.set(email, cur);
+        }
+      }
+      for (const [email, g] of bigByManager) {
+        const cur = perManager.get(email) || { name: g.name, bu: g.bu, open: [], big: [] };
+        cur.big = g.items;
+        perManager.set(email, cur);
+      }
+
+      for (const [email, g] of perManager) {
+        if (g.open.length && g.big.length) {
+          await sendBrevo(
+            { type: 'daily-combined', manager: g.name, bu: g.bu },
+            email,
+            `[오픈 감지 ${g.open.length}건 · 대형거래처 ${g.big.length}건] 금일 영업 알림`,
+            buildCombinedEmailHtml(g.name, g.open, g.big, mapUrlFor),
+          );
+        } else if (g.open.length) {
+          await sendBrevo(
+            { type: 'open-detected', manager: g.name, bu: g.bu },
+            email,
+            `[오픈 감지] 공사중 거래처 ${g.open.length}건 오픈 추정`,
+            buildOpenDetectedEmailHtml(g.name, g.open),
+          );
+        } else {
+          await sendBrevo(
+            { type: 'big-store', manager: g.name, bu: g.bu },
+            email,
+            `[대형거래처 발견] 100평+ 신규 인허가 ${g.big.length}건`,
+            buildBigStoreEmailHtml(g.name, g.big, mapUrlFor),
+          );
+        }
+      }
+
+      // 지점장 다이제스트 (대형거래처만 — 오픈감지는 기존대로 담당자 전용)
       for (const [bu, items] of bigByUnit) {
         const { branchEmails = [] } = unitManagers[bu] || {};
         for (const email of branchEmails) {
@@ -593,8 +838,8 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // 발송 이력 기록 — 한 건이라도 발송에 성공했을 때만 (전면 실패 시 다음날 재시도)
-      const bigSentOk = results.some((r) => r.type === 'big-store' && r.status === 'sent');
+      // 발송 이력 기록 — 대형 포함 메일이 한 건이라도 성공했을 때만 (전면 실패 시 다음날 재시도)
+      const bigSentOk = hasBig && results.some((r) => (r.type === 'big-store' || r.type === 'daily-combined') && r.status === 'sent');
       if (bigSentOk) {
         try {
           const merged = [...new Set([...(bigSentRow?.ids ?? []), ...bigMatchedIds])].slice(-BIG_SENT_CAP);
