@@ -429,7 +429,7 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
   const sc = cross.statusCount;
   const cm = cross.statusColorMap; // 거래상태 차트와 동일 색
   const total = Object.values(sc).reduce((a, b) => a + b, 0);
-  // 예상매출(월·만원) — 마커 상세에서 입력한 값의 합계 (미입력은 제외)
+  // 예상매출(월·천원) — 마커 상세에서 입력한 값의 합계 (미입력은 제외)
   const revSum = licenses.reduce((sum, l) => sum + (Number(l.expected_revenue) || 0), 0);
   const revCount = licenses.filter((l) => (Number(l.expected_revenue) || 0) > 0).length;
 
@@ -441,9 +441,10 @@ export function DashboardCharts({ licenses }: { licenses: License[] }) {
     { label: '거래율', value: `${cross.successRate}%`, color: cm['거래'] || '#007AFF', title: '거래 / (거래 + 미거래) 비율' },
     {
       label: '예상매출 합계(월)',
-      value: revSum >= 10000 ? `${(revSum / 10000).toFixed(1)}억` : `${revSum.toLocaleString()}만`,
+      // 천원 단위 입력 — 1억(100,000천원) 이상은 억, 그 밑은 만원으로 환산 표시
+      value: revSum >= 100000 ? `${(revSum / 100000).toFixed(1)}억` : `${Math.round(revSum / 10).toLocaleString()}만`,
       color: '#5856d6',
-      title: `마커 상세에서 입력한 예상매출(월)의 합계 · 입력 ${revCount}건`,
+      title: `마커 상세에서 입력한 예상매출(월·천원)의 합계 · 입력 ${revCount}건`,
     },
   ];
 

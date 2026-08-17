@@ -29,7 +29,7 @@ export async function updateLicenseStatus(
   invalidateCache(businessUnit, 'licenses');
 }
 
-/** 인허가 예상매출(월·만원) 변경 — null이면 미입력으로 초기화 */
+/** 인허가 예상매출(월·천원) 변경 — null이면 미입력으로 초기화 */
 export async function updateLicenseExpectedRevenue(
   businessUnit: string,
   businessName: string,

@@ -27,7 +27,7 @@ export interface License {
   lat?: number | string;
   lng?: number | string;
   milk_type?: string; // 사용우유
-  expected_revenue?: number | null; // 예상매출(월·만원) — 마커 상세에서 입력
+  expected_revenue?: number | null; // 예상매출(월·천원) — 마커 상세에서 입력
   ai_tags?: string;
   open_detected_at?: string;
 }

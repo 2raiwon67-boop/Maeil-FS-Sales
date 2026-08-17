@@ -202,7 +202,7 @@ export function StoreDetail({
               onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
               className="w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-sm font-semibold text-gray-900 focus:border-blue-400 focus:outline-none"
             />
-            <span className="shrink-0 text-xs font-semibold text-gray-500">만원</span>
+            <span className="shrink-0 text-xs font-semibold text-gray-500">천원</span>
           </div>
         </label>
       )}
