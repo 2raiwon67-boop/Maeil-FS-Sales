@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { toast } from 'sonner';
 import {
   Store,
   FileText,
@@ -65,14 +64,8 @@ export function NavBar() {
         <div className="flex h-12 items-center gap-4 px-5">
           <LogoLockup />
 
-          <button
-            type="button"
-            onClick={() => toast('전역 검색은 곧 제공됩니다')}
-            className="flex max-w-[320px] flex-1 items-center gap-2 rounded-lg bg-[#f3f5f8] px-3 py-2 text-left text-xs text-[#94a3b8] transition-colors hover:bg-[#eceff4]"
-          >
-            <Search className="h-4 w-4 shrink-0" />
-            <span className="truncate">거래처·인허가·매장 검색</span>
-          </button>
+          {/* 전역 검색 슬롯 — 거래처(홈) 지도 뷰가 검색 UI를 포털로 주입. 다른 페이지·뷰에선 비어서 숨겨짐 */}
+          <div id="nav-search-slot" className="relative max-w-[320px] flex-1" />
 
           <div className="flex-1" />
 

@@ -94,11 +94,12 @@ export default function DashboardPage() {
   const [colorblind, setColorblind] = useState(false);
 
   // '개척 모드' 스위치는 네비바의 페이지 슬롯에 포털로 렌더 (지도를 가리지 않도록)
-  const [navSlots, setNavSlots] = useState<{ pc: HTMLElement | null; mobile: HTMLElement | null }>({ pc: null, mobile: null });
+  const [navSlots, setNavSlots] = useState<{ pc: HTMLElement | null; mobile: HTMLElement | null; search: HTMLElement | null }>({ pc: null, mobile: null, search: null });
   useEffect(() => {
     const t = setTimeout(() => setNavSlots({
       pc: document.getElementById('nav-right-slot'),
       mobile: document.getElementById('nav-right-slot-mobile'),
+      search: document.getElementById('nav-search-slot'),
     }), 0);
     return () => clearTimeout(t);
   }, []);
@@ -807,8 +808,40 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* 지도 검색창 */}
-        {view === 'map' && (
+        {/* 지도 검색 — 데스크톱은 상단 네비 검색 슬롯으로 포털(플로팅 제거, 2026-08-17 사용자 확정),
+            모바일은 기존 돋보기 토글 플로팅 유지. 홈 지도 뷰가 아닐 땐 슬롯이 비어 자동 숨김 */}
+        {view === 'map' && !mobile && navSlots.search && createPortal(
+          <div className="relative w-full">
+            <div className="flex items-center gap-2 rounded-lg bg-[#f3f5f8] px-3 py-2 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-blue-300">
+              <Search size={14} className="shrink-0 text-[#94a3b8]" />
+              <input
+                value={search}
+                onChange={(e) => onSearch(e.target.value)}
+                placeholder="거래처·인허가·매장 검색"
+                className="w-full bg-transparent text-xs outline-none placeholder:text-[#94a3b8]"
+              />
+              {search && (
+                <button onClick={() => onSearch('')} className="text-gray-400 hover:text-gray-600">✕</button>
+              )}
+            </div>
+            {hits.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
+                {hits.map((h, i) => (
+                  <button
+                    key={i}
+                    onClick={() => goToHit(h)}
+                    className="flex w-full flex-col items-start gap-0.5 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50"
+                  >
+                    <span className="text-sm font-medium text-gray-800">{h.name}</span>
+                    {h.sub && <span className="text-xs text-gray-400">{h.sub}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>,
+          navSlots.search,
+        )}
+        {view === 'map' && mobile && (
           <div className={`absolute left-3 top-3 z-10 w-[min(320px,calc(100%-1.5rem))] max-md:top-[3.6rem] ${mobileSearchOpen || search ? '' : 'max-md:hidden'}`}>
             <div className="flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 shadow-lg ring-1 ring-black/5">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#86868b" strokeWidth="2.5" strokeLinecap="round">
