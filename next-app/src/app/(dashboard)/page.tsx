@@ -913,7 +913,6 @@ export default function DashboardPage() {
           selected={selected}
           mobile={mobile}
           inCart={selectedInCart}
-          businessUnit={businessUnit}
           onClose={() => { hideSelRing(); setSelected(null); }}
           onStatusChange={onStatusChange}
           onMilkChange={onMilkChange}

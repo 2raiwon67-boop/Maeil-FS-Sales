@@ -5,7 +5,6 @@
 import { useState } from 'react';
 import type { License, Account } from '@/types';
 import { openNaverMapApp } from '@/lib/dashboard/route';
-import { VisitCoachPanel } from '@/components/dashboard/visit-coach-panel';
 
 const STATUS_COLORS: Record<string, string> = {
   인허가: '#34C759', 공사중: '#FF9500', 거래: '#007AFF', 미거래: '#FF9595', DROP: '#8E8E93',
@@ -24,7 +23,6 @@ interface Props {
   selected: SelectedStore | null;
   mobile: boolean;
   inCart: boolean;
-  businessUnit: string | null;
   onClose: () => void;
   onStatusChange: (newStatus: string) => Promise<boolean>;
   onMilkChange: (newMilk: string) => Promise<boolean>;
@@ -36,7 +34,6 @@ export function StoreDetail({
   selected,
   mobile,
   inCart,
-  businessUnit,
   onClose,
   onStatusChange,
   onMilkChange,
@@ -171,13 +168,6 @@ export function StoreDetail({
           </div>
         )}
 
-      {/* 방문 코칭 · 기록 */}
-      <VisitCoachPanel
-        businessName={name}
-        businessType={lic?.business_type}
-        tradeStatus={status}
-        businessUnit={businessUnit}
-      />
     </div>
   );
 

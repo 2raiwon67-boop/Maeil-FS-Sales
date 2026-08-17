@@ -22,13 +22,22 @@ export async function GET(req: NextRequest) {
   const lat = parseFloat(searchParams.get('lat') || '');
   const lng = parseFloat(searchParams.get('lng') || '');
   const sig = searchParams.get('sig') || '';
+  const nb = searchParams.get('nb') || ''; // 이웃 마커 "lng,lat|lng,lat" (최대 3, 서명에 포함)
+
+  const inKorea = (la: number, ln: number) => Number.isFinite(la) && Number.isFinite(ln) && la >= 33 && la <= 39 && ln >= 124 && ln <= 132;
 
   // 한국 범위 밖·비정상 좌표 거부 (지오코딩 파이프라인과 동일 검증 범위)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 33 || lat > 39 || lng < 124 || lng > 132) {
+  if (!inKorea(lat, lng)) {
     return NextResponse.json({ error: '잘못된 좌표' }, { status: 400 });
   }
+  const nbPairs = nb
+    ? nb.split('|').slice(0, 3).map((p) => p.split(',').map(Number) as [number, number])
+    : [];
+  if (nbPairs.some(([ln, la]) => !inKorea(la, ln))) {
+    return NextResponse.json({ error: '잘못된 이웃 좌표' }, { status: 400 });
+  }
   const secret = process.env.CRON_SECRET;
-  if (!secret || sig !== staticMapSig(lat, lng, secret)) {
+  if (!secret || sig !== staticMapSig(lat, lng, secret, nb)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -39,9 +48,15 @@ export async function GET(req: NextRequest) {
   });
 
   const ncpKeyId = process.env.NCP_MAPS_KEY_ID || 'uipaxmujrl';
+  // 이웃 마커가 있으면 반경 2km가 다 보이도록 한 단계 줌아웃. 이웃은 파란 숫자 라벨(메일 본문 번호와 대응)
+  const level = nbPairs.length ? 14 : 15;
+  const nbMarkers = nbPairs
+    .map(([ln, la], i) => `&markers=${encodeURIComponent(`type:n|size:small|color:blue|pos:${ln} ${la}|label:${i + 1}`)}`)
+    .join('');
   const mapsQS =
-    `w=${W}&h=${H}&scale=2&center=${lng},${lat}&level=15` +
-    `&markers=${encodeURIComponent(`type:d|size:mid|pos:${lng} ${lat}`)}`;
+    `w=${W}&h=${H}&scale=2&center=${lng},${lat}&level=${level}` +
+    `&markers=${encodeURIComponent(`type:d|size:mid|pos:${lng} ${lat}`)}` +
+    nbMarkers;
 
   // 1) Naver Static Map raster-cors — 시크릿 불필요: 공개 키ID + 화이트리스트 도메인 Referer 검증.
   //    Referer는 트레일링 슬래시까지 정확해야 통과함(실측: 슬래시 없으면 401). NCP 콘솔에서

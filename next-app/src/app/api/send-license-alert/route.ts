@@ -202,6 +202,8 @@ interface NeighborInfo {
   name: string;
   pyeong: number;
   distM: number;
+  lat: number;  // 지도 마커용 — market_store_records 저장 좌표 그대로 (지오코딩 불필요)
+  lng: number;
   isCustomer: boolean;
   tags: string[];
   signatureMenus: { menu?: string; ingredients?: string }[];
@@ -290,6 +292,8 @@ async function enrichBigStore(
       name: c.name,
       pyeong: c.pyeong,
       distM: c.distM,
+      lat: c.lat,
+      lng: c.lng,
       isCustomer: Array.isArray(acct) && acct.length > 0,
       tags,
       signatureMenus: sigs,
@@ -387,7 +391,7 @@ function bigStoreContent(items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) =>
       // 정밀분석 내용(카페·베이커리만 존재) — 지도 오른쪽 설명 칸에 들어감
       const enrichInner = en
         ? `<p style="margin:10px 0 6px 0; font-size:12px; font-weight:bold; color:#9a3412;">📊 주변 유사 매장 (반경 2km)</p>
-${en.neighbors.map((n) => `<p style="margin:0 0 5px 0; font-size:12px; color:#495057;"><strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}
+${en.neighbors.map((n, ni) => `<p style="margin:0 0 5px 0; font-size:12px; color:#495057;"><span style="display:inline-block; background-color:#1a56db; color:#ffffff; border-radius:50%; width:15px; height:15px; line-height:15px; text-align:center; font-size:10px; font-weight:bold;">${ni + 1}</span> <strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}
 ${en.gapSummary ? `<p style="margin:8px 0 4px 0; font-size:12px; color:#2c3e50;">💡 ${escHtml(en.gapSummary)}</p>` : ''}
 ${en.menuIdeas.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">🎯 타겟 메뉴: ${en.menuIdeas.map((m) => `<strong>${escHtml(m.menu)}</strong> (${escHtml(m.reason)})`).join(' · ')}</p>` : ''}
 ${en.recipes.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">📖 추천 레시피: ${en.recipes.map((r) => `<strong>${escHtml(r.name)}</strong> — ${escHtml(r.products)}`).join(' / ')}</p>` : ''}
@@ -729,7 +733,10 @@ export async function GET(req: NextRequest) {
       }
       const buildMapUrl = (it: BigStoreItem): string | null => {
         if (it.lat == null || it.lng == null || !cronSecret) return null;
-        return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${staticMapSig(it.lat, it.lng, cronSecret)}`;
+        // 이웃 매장도 같은 지도에 파란 숫자 마커로 — 좌표는 DB 저장분이라 지오코딩·추가 비용 없음
+        const nb = (it.enrich?.neighbors || []).slice(0, 3).map((n) => `${n.lng},${n.lat}`).join('|');
+        const sig = staticMapSig(it.lat, it.lng, cronSecret, nb);
+        return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${sig}${nb ? `&nb=${encodeURIComponent(nb)}` : ''}`;
       };
       let mapsAvailable = false;
       const probe = items.map(buildMapUrl).find(Boolean);
@@ -807,7 +814,10 @@ export async function GET(req: NextRequest) {
     if (hasDailyOpen || hasBig) {
       const buildMapUrl = (it: BigStoreItem): string | null => {
         if (it.lat == null || it.lng == null || !cronSecret) return null;
-        return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${staticMapSig(it.lat, it.lng, cronSecret)}`;
+        // 이웃 매장도 같은 지도에 파란 숫자 마커로 — 좌표는 DB 저장분이라 지오코딩·추가 비용 없음
+        const nb = (it.enrich?.neighbors || []).slice(0, 3).map((n) => `${n.lng},${n.lat}`).join('|');
+        const sig = staticMapSig(it.lat, it.lng, cronSecret, nb);
+        return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${sig}${nb ? `&nb=${encodeURIComponent(nb)}` : ''}`;
       };
       // 지도 소스 헬스체크 — 정적 지도가 죽어 있으면 깨진 이미지 대신 이미지 생략
       let mapsAvailable = false;
