@@ -55,11 +55,12 @@ export function buildCartMarkerIcon(): NaverIcon {
   };
 }
 
-/** 선택된 마커 강조 링 (파란 펄스, 중앙 투명 → 아래 마커가 비침) */
+/** 선택 표시 — 마커 위에 통통 떠 있는 검은 핀 (2026-08-17 사용자 확정 D안, 구 파란 펄스 링 대체) */
 export function buildSelectionRingIcon(): NaverIcon {
   return {
-    content: `<div class="marker-sel-ring"></div>`,
-    anchor: new window.naver.maps.Point(15, 15),
+    // 핀 꼬리가 마커 바로 위 4px 지점을 가리키도록 anchor를 아이콘 아래(10,30)에 둔다
+    content: `<svg class="marker-sel-pin" width="20" height="26" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><path d="M10 0C5 0 1 4 1 9c0 6.5 9 17 9 17s9-10.5 9-17c0-5-4-9-9-9z" fill="#1d1d1f"/><circle cx="10" cy="9" r="3.4" fill="#fff"/></svg>`,
+    anchor: new window.naver.maps.Point(10, 30),
   };
 }
 

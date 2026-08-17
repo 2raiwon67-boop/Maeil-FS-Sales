@@ -164,17 +164,15 @@
   animation: marker-glow-pulse 1.6s ease-in-out infinite;
 }
 
-/* 거래처 대시보드 — 선택된 마커 강조 링 (파란 펄스) */
-@keyframes marker-sel-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.45); }
-  50% { box-shadow: 0 0 0 7px rgba(37,99,235,0); }
+/* 거래처 대시보드 — 선택 표시: 마커 위 바운스 핀 (구 파란 펄스 링 대체) */
+@keyframes marker-sel-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
 }
-.marker-sel-ring {
-  width: 30px; height: 30px;
-  border: 3px solid #2563eb;
-  border-radius: 50%;
-  background: rgba(37,99,235,0.08);
-  animation: marker-sel-pulse 1.4s ease-in-out infinite;
+.marker-sel-pin {
+  display: block;
+  animation: marker-sel-bounce 1s ease-in-out infinite;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.35));
 }
 
 /* 시장 분석 지도 팝업 — 흰 래퍼·꼬리 제거하고 내부 반투명 검정 카드만 보이게 */
