@@ -36,12 +36,12 @@ function emailShell(o: { headerBg: string; headerBorder: string; title: string; 
 <head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0; padding:0; background-color:#f8f9fa; font-family:'Malgun Gothic','맑은 고딕',Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f8f9fa"><tr><td align="center" style="padding:20px 10px;">
-<table width="900" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border:1px solid #dee2e6;">
+<table width="1120" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border:1px solid #dee2e6;">
 <tr><td bgcolor="${o.headerBg}" style="background-color:${o.headerBg}; padding:25px 30px; border-bottom:3px solid ${o.headerBorder};">
 <p style="margin:0 0 6px 0; font-size:20px; font-weight:bold; color:#ffffff;">${o.title}</p>
 <p style="margin:0; font-size:13px; color:#bdc3c7;">${o.subtitle}</p>
 </td></tr>
-<tr><td style="padding:30px; background-color:#ffffff;">
+<tr><td style="padding:24px 26px; background-color:#ffffff;">
 <p style="font-size:14px; color:#2c3e50; margin:0 0 20px 0;">${o.greeting}</p>
 ${o.content}
 </td></tr>
@@ -388,25 +388,31 @@ function bigStoreContent(items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) =>
       const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(`${t.address || t.name}`)}`;
       const mapUrl = i < MAX_MAPS ? mapUrlFor(t) : null;
       const en = t.enrich;
-      // 정밀분석 내용(카페·베이커리만 존재) — 지도 오른쪽 설명 칸에 들어감
-      const enrichInner = en
+      // 지도 옆(우측)에는 주소 + 이웃 목록만 — 지도 높이와 비슷하게. 이웃 번호는 지도 빨간 마커와 대응.
+      const neighborList = en
         ? `<p style="margin:10px 0 6px 0; font-size:12px; font-weight:bold; color:#9a3412;">📊 주변 유사 매장 (반경 2km)</p>
-${en.neighbors.map((n, ni) => `<p style="margin:0 0 5px 0; font-size:12px; color:#495057;"><span style="display:inline-block; background-color:#1a56db; color:#ffffff; border-radius:50%; width:15px; height:15px; line-height:15px; text-align:center; font-size:10px; font-weight:bold;">${ni + 1}</span> <strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}
-${en.gapSummary ? `<p style="margin:8px 0 4px 0; font-size:12px; color:#2c3e50;">💡 ${escHtml(en.gapSummary)}</p>` : ''}
-${en.menuIdeas.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">🎯 타겟 메뉴: ${en.menuIdeas.map((m) => `<strong>${escHtml(m.menu)}</strong> (${escHtml(m.reason)})`).join(' · ')}</p>` : ''}
-${en.recipes.length ? `<p style="margin:0 0 4px 0; font-size:12px; color:#2c3e50;">📖 추천 레시피: ${en.recipes.map((r) => `<strong>${escHtml(r.name)}</strong> — ${escHtml(r.products)}`).join(' / ')}</p>` : ''}
-<p style="margin:6px 0 0 0; font-size:10px; color:#adb5bd;">※ 주변 매장 리뷰 기반 추정입니다</p>`
+${en.neighbors.map((n, ni) => `<p style="margin:0 0 6px 0; font-size:12px; color:#495057;"><span style="display:inline-block; background-color:#e03131; color:#ffffff; border-radius:50%; width:15px; height:15px; line-height:15px; text-align:center; font-size:10px; font-weight:bold;">${ni + 1}</span> <strong>${escHtml(n.name)}</strong> · ${Math.round(n.pyeong)}평 · ${n.distM}m${n.isCustomer ? ' <span style="background-color:#d3f9d8; color:#2b8a3e; padding:1px 6px; font-size:10px; font-weight:bold;">거래중</span>' : ''}${n.tags.length ? `<br><span style="color:#868e96;">${escHtml(n.tags.join(' · '))}</span>` : ''}${n.signatureMenus.length ? `<br><span style="color:#868e96;">시그니처: ${escHtml(n.signatureMenus.map((m) => m.menu).filter(Boolean).join(', '))}</span>` : ''}</p>`).join('')}`
         : '';
       const infoCell = `<p style="margin:0 0 4px 0; font-size:13px; color:#212529;">${escHtml(t.address || '-')}</p>
 <p style="margin:0; font-size:11px; color:#868e96;">${escHtml(t.sigungu)} · 인허가 ${escHtml(t.license_date || '-')}</p>
-${enrichInner}`;
-      // 지도 왼쪽 · 설명 오른쪽 2컬럼 — 상하 스크롤 축소 (지도 없으면 설명이 전체 폭)
+${neighborList}`;
+      // 제안·레시피는 지도 아래 전체 폭 — 줄이 길어져 카드 높이가 줄어듦 (사용자 확정 레이아웃)
+      const analysisRow =
+        en && (en.gapSummary || en.menuIdeas.length || en.recipes.length)
+          ? `<tr><td colspan="2" style="padding:12px 16px; border:1px solid #e9ecef; border-top:none; background-color:#fffaf5;">
+${en.gapSummary ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50;">💡 ${escHtml(en.gapSummary)}</p>` : ''}
+${en.menuIdeas.length ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50;">🎯 타겟 메뉴: ${en.menuIdeas.map((m) => `<strong>${escHtml(m.menu)}</strong> (${escHtml(m.reason)})`).join(' · ')}</p>` : ''}
+${en.recipes.length ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50;">📖 추천 레시피: ${en.recipes.map((r) => `<strong>${escHtml(r.name)}</strong> — ${escHtml(r.products)}`).join(' / ')}</p>` : ''}
+<p style="margin:4px 0 0 0; font-size:10px; color:#adb5bd;">※ 주변 매장 리뷰 기반 추정입니다</p>
+</td></tr>`
+          : '';
+      // 지도 왼쪽 50% · 정보 오른쪽 50%
       const bodyRow = mapUrl
         ? `<tr>
-<td width="46%" style="padding:0; border:1px solid #e9ecef; border-top:none; vertical-align:top;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; height:auto;"/></a></td>
-<td width="54%" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; border-left:none; vertical-align:top;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td>
-</tr>`
-        : `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td></tr>`;
+<td width="50%" style="padding:0; border:1px solid #e9ecef; border-top:none; vertical-align:top;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; height:auto;"/></a></td>
+<td width="50%" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; border-left:none; vertical-align:top;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td>
+</tr>${analysisRow}`
+        : `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none;${en ? ' background-color:#fffaf5;' : ''}">${infoCell}</td></tr>${analysisRow}`;
       return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 18px 0; font-size:13px;">
 <tr>
 <td style="${TD} font-weight:bold; color:#2c3e50; font-size:14px; background-color:#f8f9fa;">${escHtml(t.name)} <span style="background-color:#fff4e6; color:#d9480f; padding:2px 8px; font-size:11px; font-weight:bold; margin-left:6px;">${escHtml(String(Math.round(t.pyeong)))}평</span> <span style="color:#868e96; font-weight:normal; font-size:12px; margin-left:6px;">${escHtml(t.category || '-')}</span></td>

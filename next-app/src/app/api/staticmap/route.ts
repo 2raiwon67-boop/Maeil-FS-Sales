@@ -48,13 +48,21 @@ export async function GET(req: NextRequest) {
   });
 
   const ncpKeyId = process.env.NCP_MAPS_KEY_ID || 'uipaxmujrl';
-  // 이웃 마커가 있으면 반경 2km가 다 보이도록 한 단계 줌아웃. 이웃은 파란 숫자 라벨(메일 본문 번호와 대응)
-  const level = nbPairs.length ? 14 : 15;
+  // 모든 마커(메인+이웃)가 프레임 안에 들어오게 — bbox 중심으로 잡고 스팬에 따라 레벨 결정.
+  // level 14 기준 640×400px ≈ 가로 4.8km × 세로 3.0km — 여유를 두고 넘치면 13으로.
+  const lngsAll = [lng, ...nbPairs.map((p) => p[0])];
+  const latsAll = [lat, ...nbPairs.map((p) => p[1])];
+  const cLng = (Math.min(...lngsAll) + Math.max(...lngsAll)) / 2;
+  const cLat = (Math.min(...latsAll) + Math.max(...latsAll)) / 2;
+  const spanWm = (Math.max(...lngsAll) - Math.min(...lngsAll)) * 88800;
+  const spanHm = (Math.max(...latsAll) - Math.min(...latsAll)) * 111320;
+  const level = !nbPairs.length ? 15 : spanWm > 3600 || spanHm > 2200 ? 13 : 14;
+  // 이웃은 빨간 숫자 라벨(메일 본문 번호와 대응 — 눈에 잘 띄는 색으로 사용자 확정)
   const nbMarkers = nbPairs
-    .map(([ln, la], i) => `&markers=${encodeURIComponent(`type:n|size:small|color:blue|pos:${ln} ${la}|label:${i + 1}`)}`)
+    .map(([ln, la], i) => `&markers=${encodeURIComponent(`type:n|size:small|color:red|pos:${ln} ${la}|label:${i + 1}`)}`)
     .join('');
   const mapsQS =
-    `w=${W}&h=${H}&scale=2&center=${lng},${lat}&level=${level}` +
+    `w=${W}&h=${H}&scale=2&center=${cLng},${cLat}&level=${level}` +
     `&markers=${encodeURIComponent(`type:d|size:mid|pos:${lng} ${lat}`)}` +
     nbMarkers;
 
