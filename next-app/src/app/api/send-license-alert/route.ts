@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { computeVisitTargets, type LicenseRow } from '@/lib/license-targets';
+import { sigunguMatches } from '@/lib/regions';
+import { staticMapSig } from '@/lib/staticmap';
 
 export const maxDuration = 60;
 
@@ -162,6 +164,65 @@ function buildOpenDetectedEmailHtml(managerName: string, items: AlertItem[]): st
   });
 }
 
+// ── 100평+ 대형 신규 인허가 (시장 수집분 기반) ─────────────────────────────
+// 데이터 소스는 refresh-market이 매일 새벽 채우는 market_store_records(수집 시점에 이미
+// 타겟 업종 필터 적용됨) — 인허가 업로드와 무관하게 완전 자동으로 아침에 감지된다.
+
+interface BigStoreItem {
+  id: number;
+  name: string;
+  category: string;
+  pyeong: number;
+  address: string;
+  sido: string;
+  sigungu: string;
+  license_date: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+// managers.region1(시도 표기 자유) → market_store_records.sido 표기 정규화
+function normRegion1(s: string): string {
+  const t = (s || '').trim();
+  if (t.startsWith('서울')) return '서울';
+  if (t.startsWith('인천')) return '인천';
+  if (t.startsWith('경기')) return '경기도';
+  if (t.startsWith('강원')) return '강원도';
+  return t;
+}
+
+function buildBigStoreEmailHtml(recipientName: string, items: BigStoreItem[], mapUrlFor: (it: BigStoreItem) => string | null): string {
+  const today = new Date().toLocaleDateString('ko-KR');
+  const MAX_MAPS = 8; // 지도 이미지는 상위 N건만 (메일 용량·로딩 보호), 나머지는 표만
+
+  const cards = items
+    .map((t, i) => {
+      const naverUrl = `https://map.naver.com/v5/search/${encodeURIComponent(`${t.address || t.name}`)}`;
+      const mapUrl = i < MAX_MAPS ? mapUrlFor(t) : null;
+      const mapBlock = mapUrl
+        ? `<tr><td colspan="2" style="padding:0; border:1px solid #e9ecef; border-top:none;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; max-width:840px; height:auto;"/></a></td></tr>`
+        : '';
+      return `<table width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse; margin:0 0 22px 0; font-size:13px;">
+<tr>
+<td style="${TD} font-weight:bold; color:#2c3e50; font-size:14px; background-color:#f8f9fa;">${escHtml(t.name)} <span style="background-color:#fff4e6; color:#d9480f; padding:2px 8px; font-size:11px; font-weight:bold; margin-left:6px;">${escHtml(String(Math.round(t.pyeong)))}평</span> <span style="color:#868e96; font-weight:normal; font-size:12px; margin-left:6px;">${escHtml(t.category || '-')}</span></td>
+<td style="${TD} text-align:right; white-space:nowrap; background-color:#f8f9fa;" align="right"><a href="${escHtml(naverUrl)}" style="background-color:#03C75A; color:#ffffff; padding:5px 12px; text-decoration:none; font-size:11px; font-weight:bold;">N 지도</a></td>
+</tr>
+<tr><td colspan="2" style="${TD} border-top:none;">${escHtml(t.address || '-')} <span style="color:#868e96; font-size:12px;">· ${escHtml(t.sigungu)} · 인허가 ${escHtml(t.license_date || '-')}</span></td></tr>
+${mapBlock}
+</table>`;
+    })
+    .join('');
+
+  return emailShell({
+    headerBg: '#c2410c',
+    headerBorder: '#9a3412',
+    title: '🏢 100평 이상 대형 신규 인허가',
+    subtitle: `${today} 기준 담당 지역에 새로 확인된 대형 매장입니다.`,
+    greeting: `${escHtml(recipientName)}님, 안녕하십니까,<br>담당 지역에 100평 이상 대형 신규 인허가 ${items.length}건이 확인되었습니다.<br>지도에서 위치를 확인하시고 우선 방문을 검토해 주세요.`,
+    content: cards + '<p style="font-size:12px; color:#868e96; margin:0;">※ 시장 수집 데이터 기반 자동 감지 — 좌표 미확보 매장은 지도 없이 주소로 안내됩니다.</p>',
+  });
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function GET(req: NextRequest) {
@@ -306,6 +367,61 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── 100평+ 대형 신규 인허가 감지 (매일, market_store_records 기반) ──
+    const BIG_SENT_STORE = '__big_alert_sent__'; // naver_cache 특수 행 — 발송 이력 (DDL 없이 기존 테이블 재활용)
+    const BIG_SENT_CAP = 8000;   // 이력 상한 (jsonb 비대 방지 — 14일 창이라 실사용은 수백 건)
+    const BIG_WINDOW_DAYS = 14;  // 인허가일 기준 감지 창 — 창을 벗어나면 이력 없이도 자연 만료
+    const baseUrl = `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'maeilfs-sales.vercel.app'}`;
+
+    let bigStores: BigStoreItem[] = [];
+    let bigSentRow: { id: string; ids: string[] } | null = null;
+    try {
+      const since = new Date(Date.now() - BIG_WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/market_store_records?status=eq.new&pyeong=gte.100&license_date=gte.${since}` +
+          `&select=id,name,category,pyeong,address,sido,sigungu,license_date,lat,lng&order=license_date.desc&limit=200`,
+        { headers: sbHeaders, cache: 'no-store' },
+      );
+      const rows = r.ok ? await r.json() : [];
+      const sr = await fetch(
+        `${SUPABASE_URL}/rest/v1/naver_cache?store_name=eq.${encodeURIComponent(BIG_SENT_STORE)}&select=id,local_data&limit=1`,
+        { headers: sbHeaders, cache: 'no-store' },
+      );
+      const srRows = sr.ok ? await sr.json() : [];
+      const sentIds: string[] = Array.isArray(srRows[0]?.local_data?.ids) ? srRows[0].local_data.ids : [];
+      if (srRows.length) bigSentRow = { id: srRows[0].id, ids: sentIds };
+      const sentSet = new Set(sentIds);
+      bigStores = (rows as BigStoreItem[]).filter((s) => !sentSet.has(String(s.id)));
+    } catch {
+      /* 대형 감지 실패는 다른 알림을 막지 않음 */
+    }
+
+    // 수신자 매칭: 매장 시군구를 맡은 담당자 + 그 지점의 지점장(unit 다이제스트).
+    // 담당자가 없는 지역(예: 강원 인원 미등록)은 발송·이력 기록 없이 넘어감 — 14일 창이 지나며
+    // 자연 소멸하고, 담당자가 등록되면 창 안의 매장부터 발송이 시작된다.
+    const bigByManager = new Map<string, { name: string; bu: string; items: BigStoreItem[] }>();
+    const bigByUnit = new Map<string, BigStoreItem[]>();
+    const bigMatchedIds = new Set<string>();
+    for (const s of bigStores) {
+      for (const m of allManagers as Array<Record<string, unknown>>) {
+        const email = String(m.email || '').trim();
+        const region2 = String(m.region2 || '').trim();
+        const bu = String(m.business_unit || '').trim();
+        if (!email || !bu || !region2) continue;
+        if (m.is_branch_manager || region2 === '지점장' || region2 === '전체') continue;
+        if (normRegion1(String(m.region1 || '')) !== s.sido) continue;
+        if (!sigunguMatches(s.sido, s.sigungu, region2)) continue;
+        bigMatchedIds.add(String(s.id));
+        const cur = bigByManager.get(email) || { name: String(m.manager_name || '').trim() || '담당자', bu, items: [] };
+        cur.items.push(s);
+        bigByManager.set(email, cur);
+        if (!bigByUnit.has(bu)) bigByUnit.set(bu, []);
+        const unitList = bigByUnit.get(bu)!;
+        if (!unitList.some((x) => x.id === s.id)) unitList.push(s);
+      }
+    }
+    const hasBig = bigMatchedIds.size > 0;
+
     const hasMonday = isMonday && (newTargets.length > 0 || revisitTargets.length > 0);
     const hasDailyOpen = newlyDetected.length > 0;
 
@@ -328,11 +444,14 @@ export async function GET(req: NextRequest) {
         revisitTargets: revisitTargets.length,
         constructionAll: constructionAll.length,
         newlyDetected: newlyDetected.length,
+        bigCandidates: bigStores.length,
+        bigNotifiable: bigMatchedIds.size,
+        bigManagers: bigByManager.size,
         diagByUnit,
       });
     }
 
-    if (!hasMonday && !hasDailyOpen) {
+    if (!hasMonday && !hasDailyOpen && !hasBig) {
       return NextResponse.json({ success: true, message: '발송 대상 없음' });
     }
 
@@ -432,12 +551,64 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── 100평+ 대형 신규 발송 (담당자 개별 + 지점장 다이제스트) ──
+    if (hasBig) {
+      const mapUrlFor = (it: BigStoreItem): string | null => {
+        if (it.lat == null || it.lng == null || !cronSecret) return null;
+        return `${baseUrl}/api/staticmap?lat=${it.lat}&lng=${it.lng}&sig=${staticMapSig(it.lat, it.lng, cronSecret)}`;
+      };
+
+      for (const [email, g] of bigByManager) {
+        const html = buildBigStoreEmailHtml(g.name, g.items, mapUrlFor);
+        await sendBrevo(
+          { type: 'big-store', manager: g.name, bu: g.bu },
+          email,
+          `[대형 신규] 100평+ 인허가 ${g.items.length}건 — 위치 확인`,
+          html,
+        );
+      }
+      for (const [bu, items] of bigByUnit) {
+        const { branchEmails = [] } = unitManagers[bu] || {};
+        for (const email of branchEmails) {
+          const html = buildBigStoreEmailHtml('전체', items, mapUrlFor);
+          await sendBrevo(
+            { type: 'big-store', manager: '지점장', bu },
+            email,
+            `[대형 신규] 100평+ 인허가 ${items.length}건 (${bu} 전체)`,
+            html,
+          );
+        }
+      }
+
+      // 발송 이력 기록 — 한 건이라도 발송에 성공했을 때만 (전면 실패 시 다음날 재시도)
+      const bigSentOk = results.some((r) => r.type === 'big-store' && r.status === 'sent');
+      if (bigSentOk) {
+        try {
+          const merged = [...new Set([...(bigSentRow?.ids ?? []), ...bigMatchedIds])].slice(-BIG_SENT_CAP);
+          const payload = { local_data: { ids: merged }, cached_at: new Date().toISOString() };
+          if (bigSentRow) {
+            await fetch(`${SUPABASE_URL}/rest/v1/naver_cache?id=eq.${bigSentRow.id}`, {
+              method: 'PATCH', headers: { ...sbHeaders, Prefer: 'return=minimal' }, body: JSON.stringify(payload),
+            });
+          } else {
+            await fetch(`${SUPABASE_URL}/rest/v1/naver_cache`, {
+              method: 'POST', headers: { ...sbHeaders, Prefer: 'return=minimal' },
+              body: JSON.stringify({ store_name: BIG_SENT_STORE, ...payload }),
+            });
+          }
+        } catch {
+          /* 이력 기록 실패 → 다음날 중복 발송 가능성 — 치명적이지 않아 무시 */
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       isMonday,
       newTargets: newTargets.length,
       revisitTargets: revisitTargets.length,
       newlyDetected: newlyDetected.length,
+      bigNotified: bigMatchedIds.size,
       sent: results.filter((r) => r.status === 'sent').length,
       failed: results.filter((r) => r.status === 'failed').length,
       results,
