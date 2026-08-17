@@ -216,7 +216,7 @@ ${mapBlock}
   return emailShell({
     headerBg: '#c2410c',
     headerBorder: '#9a3412',
-    title: '🏢 100평 이상 대형 신규 인허가',
+    title: '🏢 대형거래처 발견 — 100평 이상 신규 인허가',
     subtitle: `${today} 기준 담당 지역에 새로 확인된 대형 매장입니다.`,
     greeting: `${escHtml(recipientName)}님, 안녕하십니까,<br>담당 지역에 100평 이상 대형 신규 인허가 ${items.length}건이 확인되었습니다.<br>지도에서 위치를 확인하시고 우선 방문을 검토해 주세요.`,
     content: cards + '<p style="font-size:12px; color:#868e96; margin:0;">※ 시장 수집 데이터 기반 자동 감지 — 좌표 미확보 매장은 지도 없이 주소로 안내됩니다.</p>',
@@ -576,7 +576,7 @@ export async function GET(req: NextRequest) {
         await sendBrevo(
           { type: 'big-store', manager: g.name, bu: g.bu },
           email,
-          `[대형 신규] 100평+ 인허가 ${g.items.length}건 — 위치 확인`,
+          `[대형거래처 발견] 100평+ 신규 인허가 ${g.items.length}건`,
           html,
         );
       }
@@ -587,7 +587,7 @@ export async function GET(req: NextRequest) {
           await sendBrevo(
             { type: 'big-store', manager: '지점장', bu },
             email,
-            `[대형 신규] 100평+ 인허가 ${items.length}건 (${bu} 전체)`,
+            `[대형거래처 발견] 100평+ 신규 인허가 ${items.length}건 (${bu} 전체)`,
             html,
           );
         }
