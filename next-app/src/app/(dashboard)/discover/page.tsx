@@ -2605,8 +2605,19 @@ export default function DiscoverPage() {
               <button onClick={() => onStoreSearch('')} className="text-gray-400 hover:text-gray-600">✕</button>
             )}
           </div>
-          {storeHits.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
+        </div>,
+        navSearchSlot,
+      )}
+
+      {/* 검색 드롭다운 — 네비(z-50) 안에 두면 필터 바(z-630)에 가려지므로 body에 fixed로 띄움 */}
+      {storeHits.length > 0 && navSearchSlot && createPortal(
+        (() => {
+          const r = navSearchSlot.getBoundingClientRect();
+          return (
+            <div
+              style={{ position: 'fixed', top: r.bottom + 6, left: r.left, width: r.width, zIndex: 900 }}
+              className="max-h-72 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5"
+            >
               {storeHits.map((s) => (
                 <button
                   key={`${s.name}|${s.addrKey}|${s.status}`}
@@ -2625,9 +2636,9 @@ export default function DiscoverPage() {
                 </button>
               ))}
             </div>
-          )}
-        </div>,
-        navSearchSlot,
+          );
+        })(),
+        document.body,
       )}
 
       {/* ── HEADS-UP FILTER BAR ── 모바일은 한 줄 가로 스크롤(줄바꿈 시 좌우 불균형 방지) */}
