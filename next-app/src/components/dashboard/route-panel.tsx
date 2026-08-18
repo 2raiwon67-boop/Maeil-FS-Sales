@@ -1,6 +1,6 @@
 'use client';
 
-// 영업동선 패널 — 장바구니 경유지 + 반경 3km 자동수집 + TSP + OSRM 경로
+// 영업동선 패널 — 장바구니 경유지 + 반경 3km 자동수집 + TSP(NN+2opt) + Naver Directions 경로
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { NaverMap, NaverMarker, NaverPolyline } from '@/lib/naver/loader';
