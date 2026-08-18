@@ -16,7 +16,7 @@ import { PageHeader, headerBtn } from '@/components/layout/page-header';
 const PRODUCT_DB_SHEETS_URL =
   'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=1802773439';
 // 상품 이미지는 구 GitHub Pages가 아니라 배포 도메인의 로컬 public에서 서빙(도메인 비종속).
-// 78개 이미지는 next-app/public/assets/images에 존재 — Pages 비활성화·주소 변경에도 안전.
+// 상품 이미지 76장(640px WebP)은 next-app/public/assets/images에 존재 — Pages 비활성화·주소 변경에도 안전.
 const PRODUCT_IMAGE_BASE = '/assets/images/';
 
 const PRODUCT_IMAGE_MANUAL_MAP: Record<string, string> = {
