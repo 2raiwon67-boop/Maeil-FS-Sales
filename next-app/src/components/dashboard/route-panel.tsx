@@ -115,9 +115,10 @@ export function RoutePanel({
     });
   }
 
+  // forcedFirstStop은 여기서 지우지 않음 — 원클릭 자동 위치 취득 시 '여기서 동선' 지정이
+  // 소리 없이 풀리면 같은 버튼 두 번에 다른 결과가 나옴. 해제는 명시적 '현재 위치' 버튼에서만.
   function applyStartCoord(c: Coord) {
     setRouteStartCoord(c);
-    setForcedFirstStop(null);
     setStartInfo('현재 위치 설정됨');
     showLocMarker(c.lat, c.lng);
   }
@@ -133,6 +134,7 @@ export function RoutePanel({
       setStartInfo(denied ? '위치 권한 거부됨 (직접 입력 이용)' : '위치 확인 실패 (직접 입력 이용)');
       return;
     }
+    setForcedFirstStop(null);
     applyStartCoord(coord);
     if (map) {
       map.setCenter(new window.naver.maps.LatLng(coord.lat, coord.lng));
