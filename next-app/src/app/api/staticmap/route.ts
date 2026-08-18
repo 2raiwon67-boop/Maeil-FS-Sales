@@ -42,7 +42,10 @@ export async function GET(req: NextRequest) {
   }
 
   const imgHeaders = (contentType: string) => ({
-    'Content-Type': contentType,
+    // Naver가 'image/jpeg;charset=UTF-8' 같은 비표준 파라미터를 붙여 보냄 — Outlook(Word 엔진) 등
+    // 일부 클라이언트가 거부할 수 있어 베이스 타입만 전달
+    'Content-Type': contentType.split(';')[0].trim() || 'image/jpeg',
+    'Content-Disposition': 'inline',
     // 좌표별 고정 이미지 — 수신자가 메일을 다시 열어도 재호출 없이 CDN/브라우저 캐시로 처리
     'Cache-Control': 'public, max-age=604800, immutable',
   });

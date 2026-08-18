@@ -412,7 +412,7 @@ ${en.recipes.length ? `<p style="margin:0 0 5px 0; font-size:12px; color:#2c3e50
       // 지도 왼쪽 50% · 정보 오른쪽 50%
       const bodyRow = mapUrl
         ? `<tr>
-<td width="50%" style="padding:0; border:1px solid #e9ecef; border-top:none; vertical-align:top;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="100%" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; height:auto;"/></a></td>
+<td width="50%" style="padding:0; border:1px solid #e9ecef; border-top:none; vertical-align:top;"><a href="${escHtml(naverUrl)}"><img src="${escHtml(mapUrl)}" width="534" height="334" alt="${escHtml(t.name)} 위치 지도" style="display:block; width:100%; max-width:640px; height:auto;"/></a></td>
 <td width="50%" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none; border-left:none; vertical-align:middle;">${infoCell}</td>
 </tr>${analysisRow}`
         : `<tr><td colspan="2" style="padding:12px 14px; border:1px solid #e9ecef; border-top:none;">${infoCell}</td></tr>${analysisRow}`;

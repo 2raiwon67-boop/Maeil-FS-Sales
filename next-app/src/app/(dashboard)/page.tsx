@@ -50,10 +50,22 @@ import { getColorblind, onColorblindChange, setColorblind as setColorblindSettin
 import type { License, Account } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 
+// 시장분석 수집 매장(market_store_records) 검색 결과 — 마커는 안 그리고 검색으로만 접근 (2026-08-18 사용자 확정)
+interface MarketHit {
+  name: string;
+  category: string;
+  pyeong: number;
+  address: string;
+  lat: number;
+  lng: number;
+  license_date: string;
+}
+
 interface SearchHit {
   name: string;
   sub: string;
-  marker: NaverMarker;
+  marker?: NaverMarker;
+  market?: MarketHit;
 }
 
 function useIsMobile() {
@@ -129,6 +141,10 @@ export default function DashboardPage() {
   const [plansOpen, setPlansOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [routeStartCoord, setRouteStartCoord] = useState<Coord | null>(null);
+  // 시장 매장 검색 결과 포커스 (미니 카드) — 마커 없이 바운스 핀 + 카드만
+  const [marketFocus, setMarketFocus] = useState<MarketHit | null>(null);
+  const marketSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const marketTermRef = useRef('');
   const [forcedFirstStop, setForcedFirstStop] = useState<RouteStop | null>(null);
   const [licenseStops, setLicenseStops] = useState<LicenseStop[]>([]);
   const [accountStops, setAccountStops] = useState<AccountStop[]>([]);
@@ -450,6 +466,8 @@ export default function DashboardPage() {
   const onSearch = (q: string) => {
     setSearch(q);
     const term = q.trim().toLowerCase();
+    marketTermRef.current = term;
+    if (marketSearchTimerRef.current) clearTimeout(marketSearchTimerRef.current);
     if (!term) {
       setHits([]);
       return;
@@ -466,16 +484,63 @@ export default function DashboardPage() {
       }
     }
     setHits(result);
+
+    // 시장분석 수집 매장도 함께 검색 (2자+, 디바운스) — 등록 안 된 매장의 위치 확인·동선용
+    if (term.length >= 2) {
+      marketSearchTimerRef.current = setTimeout(async () => {
+        try {
+          const supabase = createClient();
+          const { data } = await supabase
+            .from('market_store_records')
+            .select('name,category,pyeong,address,lat,lng,license_date')
+            .eq('status', 'new')
+            .ilike('name', `%${term}%`)
+            .not('lat', 'is', null)
+            .order('license_date', { ascending: false })
+            .limit(30);
+          if (marketTermRef.current !== term) return; // 입력이 바뀌었으면 폐기
+          const localNames = new Set(
+            [...licMarkersRef.current, ...accMarkersRef.current].map((m) => (m._name || '').trim()),
+          );
+          const seen = new Set<string>();
+          const marketHits: SearchHit[] = [];
+          for (const r of data || []) {
+            const nm = (r.name || '').trim();
+            if (!nm || seen.has(nm) || localNames.has(nm)) continue; // 이미 등록된 거래처는 로컬 결과가 우선
+            seen.add(nm);
+            marketHits.push({
+              name: nm,
+              sub: `${r.category || '-'} · ${Math.round(Number(r.pyeong) || 0)}평 · ${r.address || ''}`,
+              market: r as MarketHit,
+            });
+            if (marketHits.length >= 8) break;
+          }
+          if (marketHits.length) setHits((prev) => [...prev.filter((h) => !h.market), ...marketHits]);
+        } catch {
+          /* 시장 검색 실패는 무시 — 로컬 결과만 표시 */
+        }
+      }, 300);
+    }
   };
 
   const goToHit = (hit: SearchHit) => {
     const map = mapRef.current;
     if (!map) return;
-    map.setCenter(hit.marker.getPosition());
-    map.setZoom(16);
     setHits([]);
     setSearch(hit.name);
-    onMarkerClickRef.current(hit.marker);
+    if (hit.marker) {
+      setMarketFocus(null);
+      map.setCenter(hit.marker.getPosition());
+      map.setZoom(16);
+      onMarkerClickRef.current(hit.marker);
+    } else if (hit.market) {
+      hideSelRing();
+      setSelected(null);
+      map.setCenter(new window.naver.maps.LatLng(hit.market.lat, hit.market.lng));
+      map.setZoom(16);
+      showSelRing(hit.market.lat, hit.market.lng);
+      setMarketFocus(hit.market);
+    }
   };
 
   // ── 장바구니 ──
@@ -827,14 +892,23 @@ export default function DashboardPage() {
             {hits.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
                 {hits.map((h, i) => (
-                  <button
-                    key={i}
-                    onClick={() => goToHit(h)}
-                    className="flex w-full flex-col items-start gap-0.5 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50"
-                  >
-                    <span className="text-sm font-medium text-gray-800">{h.name}</span>
-                    {h.sub && <span className="text-xs text-gray-400">{h.sub}</span>}
-                  </button>
+                  <div key={i}>
+                    {h.market && (i === 0 || !hits[i - 1].market) && (
+                      <div className="border-b border-gray-50 bg-gray-50/70 px-3 py-1 text-[10px] font-semibold text-gray-400">
+                        시장 수집 매장 (미등록)
+                      </div>
+                    )}
+                    <button
+                      onClick={() => goToHit(h)}
+                      className="flex w-full flex-col items-start gap-0.5 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50"
+                    >
+                      <span className="text-sm font-medium text-gray-800">
+                        {h.name}
+                        {h.market && <span className="ml-1.5 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-orange-600">시장</span>}
+                      </span>
+                      {h.sub && <span className="text-xs text-gray-400">{h.sub}</span>}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -864,14 +938,23 @@ export default function DashboardPage() {
             {hits.length > 0 && (
               <div className="mt-1 max-h-72 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
                 {hits.map((h, i) => (
-                  <button
-                    key={i}
-                    onClick={() => goToHit(h)}
-                    className="flex w-full flex-col items-start gap-0.5 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50"
-                  >
-                    <span className="text-sm font-medium text-gray-800">{h.name}</span>
-                    {h.sub && <span className="text-xs text-gray-400">{h.sub}</span>}
-                  </button>
+                  <div key={i}>
+                    {h.market && (i === 0 || !hits[i - 1].market) && (
+                      <div className="border-b border-gray-50 bg-gray-50/70 px-3 py-1 text-[10px] font-semibold text-gray-400">
+                        시장 수집 매장 (미등록)
+                      </div>
+                    )}
+                    <button
+                      onClick={() => goToHit(h)}
+                      className="flex w-full flex-col items-start gap-0.5 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50"
+                    >
+                      <span className="text-sm font-medium text-gray-800">
+                        {h.name}
+                        {h.market && <span className="ml-1.5 rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-orange-600">시장</span>}
+                      </span>
+                      {h.sub && <span className="text-xs text-gray-400">{h.sub}</span>}
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -904,6 +987,58 @@ export default function DashboardPage() {
             </button>
           ))}
         </div>
+        )}
+
+        {/* 시장 매장 검색 포커스 카드 — 마커 없이 핀+카드만, 담아두기로 동선 합류 가능 */}
+        {view === 'map' && marketFocus && (
+          <div className="absolute bottom-6 left-1/2 z-20 w-[min(420px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                  <span className="rounded bg-orange-50 px-1.5 py-0.5 text-[10px] font-bold text-orange-600">시장 수집 매장</span>
+                  {Number(marketFocus.pyeong) >= 100 && (
+                    <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-500">100평+</span>
+                  )}
+                </div>
+                <h3 className="text-sm font-bold leading-snug text-gray-900">{marketFocus.name}</h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {marketFocus.category || '-'} · {Math.round(Number(marketFocus.pyeong) || 0)}평 · 인허가 {marketFocus.license_date || '-'}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-400">{marketFocus.address}</p>
+              </div>
+              <button
+                onClick={() => { setMarketFocus(null); hideSelRing(); }}
+                aria-label="닫기"
+                className="-mr-1 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-3 flex gap-1.5">
+              <button
+                onClick={() => window.open(`https://map.naver.com/v5/search/${encodeURIComponent(marketFocus.address || marketFocus.name)}`, '_blank')}
+                className="flex-1 rounded-lg bg-[#03C75A] py-2 text-xs font-bold text-white"
+              >
+                네이버
+              </button>
+              <button
+                onClick={() =>
+                  toggleCart({
+                    lat: marketFocus.lat,
+                    lng: marketFocus.lng,
+                    name: marketFocus.name,
+                    address: marketFocus.address || '',
+                    type: 'license',
+                    _key: cartKey(marketFocus.lat, marketFocus.lng),
+                  })
+                }
+                className="flex-1 rounded-lg py-2 text-xs font-bold text-white"
+                style={{ background: cartHas(cartKey(marketFocus.lat, marketFocus.lng)) ? '#34C759' : '#5856d6' }}
+              >
+                {cartHas(cartKey(marketFocus.lat, marketFocus.lng)) ? '✓ 담겼음' : '담아두기'}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* 플로팅 액션 버튼 (목록 / 영업동선 / 내 일정) */}
