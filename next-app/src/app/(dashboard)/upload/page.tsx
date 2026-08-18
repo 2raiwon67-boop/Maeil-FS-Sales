@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   FileText, Store, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
-  UploadCloud, Plus, ChevronLeft, ChevronRight, Search, AlertTriangle, ClipboardList,
+  UploadCloud, Plus, ChevronLeft, ChevronRight, Search, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -34,7 +34,6 @@ interface UploadTypeCfg {
   numericFields?: string[];
   mode?: string;
   deduplicateField?: string;
-  noUploadMeta?: boolean; // uploaded_by/uploaded_at 컬럼이 없는 테이블(visit_logs)
   transformRow?: (obj: Row, rawByHeader: Record<string, string>) => void; // 매핑 후 행 가공(접두 제거·business_unit 조합 등)
 }
 
@@ -152,35 +151,6 @@ const UPLOAD_TYPES: Record<string, UploadTypeCfg> = {
       '지역1': 'region1', '지역2': 'region2', '지역3': 'region3', '담당자': 'manager_name', '이메일': 'email',
     },
     requiredCol: 'manager_name', dateFields: [], numericFields: [],
-  },
-  visit_logs: {
-    label: '방문일지', table: 'visit_logs', editable: false, scrollAll: true, noUploadMeta: true,
-    previewColumns: [
-      { key: 'visit_date', label: '방문일' },
-      { key: 'business_name', label: '거래처' },
-      { key: 'manager', label: '작성자' },
-      { key: 'content', label: '내용' },
-    ],
-    columns: [
-      { key: 'visit_date', label: '방문일' },
-      { key: 'business_name', label: '거래처' },
-      { key: 'manager', label: '작성자' },
-      { key: 'content', label: '내용' },
-    ],
-    templateHeaders: ['NO', '사업부', '사업장', '지점', '방문처(거래처)', '거래상태', '작성일', '작성자', '내용'],
-    sampleRow: ['1', '수도권지역사업부', '경기북부', 'FS/특수지점', '[남양주시] 가람카페', '정상', '2025-03-19', '홍길동', '바리스타 우유 사용중 / 테너 신제품 샘플 전달, 추후 재방문'],
-    columnMap: {
-      '방문처(거래처)': 'business_name', '작성일': 'visit_date', '작성자': 'manager', '내용': 'content',
-    },
-    requiredCol: 'business_name', dateFields: ['visit_date'], numericFields: [],
-    mode: 'add_new_only', // 중복은 DB 복합 유니크(business_unit,visit_date,manager,business_name)가 차단
-    transformRow: (obj, raw) => {
-      // 방문처 "[시군구] 매장명" → "매장명" (거래처 홈 이름과 정확일치)
-      if (typeof obj.business_name === 'string') obj.business_name = obj.business_name.replace(/^\[[^\]]+\]\s*/, '').trim();
-      // business_unit = 사업장 + 지점 (활동노트 그대로). RLS INSERT는 본인 소속만 허용.
-      const bu = ((raw['사업장'] || '') + (raw['지점'] || '')).trim();
-      if (bu) obj.business_unit = bu;
-    },
   },
 };
 
@@ -648,7 +618,7 @@ export default function UploadPage() {
           const batch = toInsert.slice(i, i + BATCH).map((row) => ({
             ...row,
             business_unit: (row.business_unit as string) || bu, // 활동노트가 사업장+지점을 지정하면 그 값, 아니면 업로더 소속
-            ...(c.noUploadMeta ? {} : { uploaded_by: user.id, uploaded_at: now }),
+            uploaded_by: user.id, uploaded_at: now,
           }));
           const { error } = await supabase.from(c.table).insert(batch);
           if (error && error.code === '23505') {
@@ -910,7 +880,7 @@ export default function UploadPage() {
 
         {/* 유형 탭 — 모바일은 2열 균등 그리드 (불규칙 줄바꿈 방지) */}
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef1f5] p-1 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&>*]:justify-center">
-          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['visit_logs', ClipboardList, '방문일지'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
+          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
             <button key={t} onClick={() => selectType(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${selectedType === t ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}>
               <Icon size={15} />{label}
             </button>
