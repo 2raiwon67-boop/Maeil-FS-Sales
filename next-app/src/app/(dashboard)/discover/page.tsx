@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
@@ -8,7 +9,7 @@ import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket } from '@/l
 import { loadNaverMaps, cachedGeocodeDetailed, cleanGeocodeQuery } from '@/lib/naver/loader';
 import { toast } from 'sonner';
 import {
-  Map as MapIcon, BarChart3, RefreshCw, X,
+  Map as MapIcon, BarChart3, RefreshCw, X, Search,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
   Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download, Info,
   ClipboardList, Target,
@@ -538,6 +539,11 @@ export default function DiscoverPage() {
   // UI state
   const [mapError, setMapError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('map');
+  // 상단 네비 전역 검색 슬롯(#nav-search-slot, 홈 지도 뷰와 동일 패턴) — 시장 매장 이름 검색.
+  // cachedStores가 이미 메모리에 있어 DB 질의 없이 타이핑 즉시 필터 (홈의 시장 검색과 달리 지연 0)
+  const [navSearchSlot, setNavSearchSlot] = useState<HTMLElement | null>(null);
+  const [storeSearch, setStoreSearch] = useState('');
+  const [storeHits, setStoreHits] = useState<StoreRow[]>([]);
   const [planSort, setPlanSort] = useState<{ k: string; d: 1 | -1 }>({ k: `${PLAN_YEAR_N - 1}:2`, d: -1 }); // 운영계획 표 정렬 — 기본: 최근년 순증 내림차순
   const [planOpenRegion, setPlanOpenRegion] = useState<string | null>(null); // 운영계획 표에서 펼친 지역(`시도|시군구`) — 동별 상세 아코디언
   const [displayMode, setDisplayMode] = useState<DisplayMode>('points');
@@ -549,6 +555,10 @@ export default function DiscoverPage() {
   // 모바일(협폭)에선 인사이트 독이 지도 절반을 가리므로 기본 접힘 (핸들로 언제든 펼침)
   useEffect(() => {
     const t = setTimeout(() => { if (window.innerWidth < 768) setDockOpen(false); }, 0);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setNavSearchSlot(document.getElementById('nav-search-slot')), 0);
     return () => clearTimeout(t);
   }, []);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
@@ -2133,6 +2143,53 @@ export default function DiscoverPage() {
     }
   }
 
+  // ─── 매장 이름 검색 (상단 네비 슬롯) ────────────────────────────────────────
+  // 메모리 필터 — 22만 행이어도 includes 전수 순회는 수 ms. 같은 매장의 개업·폐업 이벤트는
+  // 최신 month 하나만 노출(이름|addrKey 중복제거).
+  function onStoreSearch(q: string) {
+    setStoreSearch(q);
+    const term = q.trim().toLowerCase();
+    if (term.length < 2) {
+      setStoreHits([]);
+      return;
+    }
+    const matched: StoreRow[] = [];
+    for (const s of cachedStores) {
+      if (s.name && s.name.toLowerCase().includes(term)) matched.push(s);
+    }
+    matched.sort((a, b) => (b.month || '').localeCompare(a.month || ''));
+    const seen = new Set<string>();
+    const out: StoreRow[] = [];
+    for (const s of matched) {
+      const k = `${s.name}|${s.addrKey}`;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(s);
+      if (out.length >= 30) break;
+    }
+    setStoreHits(out);
+  }
+
+  function goToStoreHit(s: StoreRow) {
+    setStoreHits([]);
+    setStoreSearch(s.name);
+    if (s.lat == null || s.lng == null) {
+      toast('좌표가 아직 수집되지 않은 매장입니다.');
+      return;
+    }
+    const wasOffMap = viewMode !== 'map';
+    if (wasOffMap) handleSetViewMode('map');
+    // 점이 보이도록 점 모드로 전환 (동별 행 클릭과 동일 패턴)
+    if (displayModeRef.current !== 'points') {
+      setDisplayMode('points');
+      displayModeRef.current = 'points';
+      if (mapRef.current && mapRef.current.getPitch() > 0) mapRef.current.easeTo({ pitch: 0, bearing: 0, duration: 500 });
+      updateStoreLayer();
+    }
+    // 랭킹/운영계획에서 넘어온 경우 지도 resize 후 이동해야 중심이 정확함
+    setTimeout(() => selectStore(storeKey(s.name, s.lat, s.lng), s.lat, s.lng, true), wasOffMap ? 200 : 0);
+  }
+
   // 동별 순증 행 클릭 — 토글: 리스트·지도 점을 해당 동만, 지도도 그 동으로 확대
   function handleSelectDong(dong: string) {
     const next = selectedDong === dong ? null : dong;
@@ -2532,6 +2589,46 @@ export default function DiscoverPage() {
 
   return (
     <div className="flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
+
+      {/* 상단 네비 검색 슬롯 — 시장 매장 즉시 검색 (슬롯 자체가 모바일에선 숨김) */}
+      {navSearchSlot && createPortal(
+        <div className="relative w-full">
+          <div className="flex items-center gap-2 rounded-lg bg-[#f3f5f8] px-3 py-2 transition-colors focus-within:bg-white focus-within:ring-1 focus-within:ring-blue-300">
+            <Search size={14} className="shrink-0 text-[#94a3b8]" />
+            <input
+              value={storeSearch}
+              onChange={(e) => onStoreSearch(e.target.value)}
+              placeholder="시장 매장 검색"
+              className="w-full bg-transparent text-xs outline-none placeholder:text-[#94a3b8]"
+            />
+            {storeSearch && (
+              <button onClick={() => onStoreSearch('')} className="text-gray-400 hover:text-gray-600">✕</button>
+            )}
+          </div>
+          {storeHits.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-72 overflow-y-auto rounded-xl bg-white shadow-lg ring-1 ring-black/5">
+              {storeHits.map((s) => (
+                <button
+                  key={`${s.name}|${s.addrKey}|${s.status}`}
+                  onClick={() => goToStoreHit(s)}
+                  className="flex w-full flex-col items-start gap-0.5 border-b border-gray-50 px-3 py-2 text-left last:border-0 hover:bg-gray-50"
+                >
+                  <span className="text-sm font-medium text-gray-800">
+                    {s.name}
+                    <span className={`ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold ${s.status === 'new' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                      {s.status === 'new' ? '개업' : '폐업'}
+                    </span>
+                  </span>
+                  <span className="text-[11px] text-gray-400">
+                    {s.sigungu} · {s.category || '-'} · {s.pyeong ? `${Math.round(s.pyeong)}평` : '평수 미상'} · {s.month}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>,
+        navSearchSlot,
+      )}
 
       {/* ── HEADS-UP FILTER BAR ── 모바일은 한 줄 가로 스크롤(줄바꿈 시 좌우 불균형 방지) */}
       <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none] md:flex-wrap">
