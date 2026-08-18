@@ -991,7 +991,14 @@ export default function DashboardPage() {
 
         {/* 시장 매장 검색 포커스 카드 — 마커 없이 핀+카드만, 담아두기로 동선 합류 가능 */}
         {view === 'map' && marketFocus && (
-          <div className="absolute bottom-6 left-1/2 z-20 w-[min(420px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10">
+          <div
+            className={
+              mobile
+                ? 'absolute bottom-6 left-1/2 z-20 w-[min(420px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10'
+                // 데스크탑은 거래처 마커 상세와 동일 위치(우측 상단 340px 카드) — 2026-08-18 사용자 확정
+                : 'absolute right-3 top-3 z-30 w-[340px] rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/5'
+            }
+          >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="mb-1 flex flex-wrap items-center gap-1.5">
