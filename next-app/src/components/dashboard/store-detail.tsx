@@ -255,8 +255,9 @@ export function StoreDetail({
     );
   }
 
+  // z-[60]: 영업동선 패널(z-50)보다 위 — 패널 열린 채 마커 클릭 시 카드가 가려져 '담아두기'가 눌리지 않던 문제
   return (
-    <div className="absolute right-3 top-3 z-30 flex max-h-[calc(100%-1.5rem)] w-[340px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+    <div className="absolute right-3 top-3 z-[60] flex max-h-[calc(100%-1.5rem)] w-[340px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
       <div className="min-h-0 flex-1 overflow-y-auto">
         {header}
         {content}

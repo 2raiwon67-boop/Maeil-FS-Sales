@@ -259,6 +259,8 @@ export function RoutePanel({
       else stops = [myLocationStop, first, ...nearestNeighborTSP(additional, first)];
     } else {
       if (additional.length === 0) {
+        // 이전 최적화 결과가 남아 있으면 새 출발지와 불일치한 채 보이므로 함께 정리
+        clearRoute();
         toast.error('출발지 반경 3km 이내에 방문 대상이 없습니다.');
         return;
       }
