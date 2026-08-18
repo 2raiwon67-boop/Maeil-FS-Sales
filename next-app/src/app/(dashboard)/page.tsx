@@ -34,17 +34,19 @@ import {
   updateLicenseExpectedRevenue,
   updateAccountStatus,
 } from '@/lib/dashboard/mutations';
+import dynamic from 'next/dynamic';
 import { DashboardSidebar } from '@/components/dashboard/sidebar';
-import { DashboardCharts } from '@/components/dashboard/dashboard-charts';
-import { ProspectMode } from '@/components/dashboard/prospect-mode';
 import { StoreDetail, type SelectedStore } from '@/components/dashboard/store-detail';
-import {
-  RoutePanel,
-  type LicenseStop,
-  type AccountStop,
-} from '@/components/dashboard/route-panel';
-import { VisitPlansModal, type PlanItem } from '@/components/dashboard/visit-plans-modal';
-import { StoreListPanel } from '@/components/dashboard/store-list-panel';
+import type { LicenseStop, AccountStop } from '@/components/dashboard/route-panel';
+import type { PlanItem } from '@/components/dashboard/visit-plans-modal';
+
+// 무거운 부가 화면은 열 때 로드 — 통계(chart.js)·개척 모드·동선·목록·방문일정은
+// 첫 페인트에 필요 없으므로 초기 번들에서 제외한다.
+const DashboardCharts = dynamic(() => import('@/components/dashboard/dashboard-charts').then((m) => m.DashboardCharts), { ssr: false });
+const ProspectMode = dynamic(() => import('@/components/dashboard/prospect-mode').then((m) => m.ProspectMode), { ssr: false });
+const RoutePanel = dynamic(() => import('@/components/dashboard/route-panel').then((m) => m.RoutePanel), { ssr: false });
+const VisitPlansModal = dynamic(() => import('@/components/dashboard/visit-plans-modal').then((m) => m.VisitPlansModal), { ssr: false });
+const StoreListPanel = dynamic(() => import('@/components/dashboard/store-list-panel').then((m) => m.StoreListPanel), { ssr: false });
 import { Search } from 'lucide-react';
 import { getColorblind, onColorblindChange, setColorblind as setColorblindSetting } from '@/lib/settings';
 import type { License, Account } from '@/types';
