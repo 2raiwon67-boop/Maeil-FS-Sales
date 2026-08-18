@@ -513,6 +513,10 @@ export default function DiscoverPage() {
   const anchoredRef = useRef(false); // 지점 자동 안착은 최초 렌더 1회만 (세션 저장 시점이 있으면 생략)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapPopupRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mlModuleRef = useRef<any>(null); // maplibre-gl 모듈 — 선택 핀 DOM 마커 생성용
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const selPinRef = useRef<any>(null); // 선택 매장 바운스 핀 (maplibregl.Marker)
   const hoveredMuniIdRef = useRef<string | number | null>(null);
   const hoveredDongIdRef = useRef<string | number | null>(null);
   const pendingMapRenderRef = useRef<(() => void) | null>(null);
@@ -677,6 +681,7 @@ export default function DiscoverPage() {
 
     async function initMap() {
       const maplibregl = (await import('maplibre-gl')).default;
+      mlModuleRef.current = maplibregl;
       // Popup 생성 시 참조 (muni hover · store click 팝업 공용)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).maplibregl = maplibregl;
@@ -1235,24 +1240,7 @@ export default function DiscoverPage() {
       },
     });
 
-    // 선택된 매장 강조 — 흰 헤일로(뒤) + 파란 링(앞). 표시모드 무관 항상 표시.
-    mapInstance.addSource('store-sel', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
-    mapInstance.addLayer({
-      id: 'store-sel-halo', type: 'circle', source: 'store-sel',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 11, 12, 17, 15, 24, 17, 32],
-        'circle-color': 'rgba(0,0,0,0)',
-        'circle-stroke-width': 7, 'circle-stroke-color': '#ffffff', 'circle-stroke-opacity': 0.9,
-      },
-    });
-    mapInstance.addLayer({
-      id: 'store-sel-ring', type: 'circle', source: 'store-sel',
-      paint: {
-        'circle-radius': ['interpolate', ['linear'], ['zoom'], 8, 11, 12, 17, 15, 24, 17, 32],
-        'circle-color': 'rgba(0,0,0,0)',
-        'circle-stroke-width': 3, 'circle-stroke-color': '#2563eb', 'circle-stroke-opacity': 1,
-      },
-    });
+    // 선택된 매장 강조는 DOM 바운스 핀(updateSelectedMarker)으로 표시 — 홈 지도의 D안과 동일 (구 파란 링 레이어 제거, 2026-08-18)
 
     // 매장 점 — hover 시 거의 불투명한 다크 카드 툴팁 (블러로 인한 배경 겹침 방지)
     const POP = 'background:rgba(15,23,42,0.96);color:#fff;border-radius:10px;padding:9px 12px;font-size:12px;max-width:240px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 20px rgba(0,0,0,0.28)';
@@ -2121,14 +2109,20 @@ export default function DiscoverPage() {
     nudgePaint();
   }
 
-  // 선택 매장 강조 마커 갱신 (좌표 없으면 비움)
+  // 선택 매장 강조 마커 갱신 (좌표 없으면 비움) — 홈 지도와 동일한 바운스 검은 핀(D안, 사용자 확정)
   function updateSelectedMarker(lat?: number | null, lng?: number | null) {
+    selPinRef.current?.remove();
+    selPinRef.current = null;
     const map = mapRef.current;
-    const src = map?.getSource('store-sel');
-    if (!src) return;
-    src.setData(lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)
-      ? { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: {} }] }
-      : { type: 'FeatureCollection', features: [] });
+    const ML = mlModuleRef.current;
+    if (!map || !ML) return;
+    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    const el = document.createElement('div');
+    el.style.pointerEvents = 'none'; // 핀이 점 hover/click을 가로채지 않게
+    el.innerHTML = '<svg class="marker-sel-pin" width="20" height="26" viewBox="0 0 20 26" xmlns="http://www.w3.org/2000/svg"><path d="M10 0C5 0 1 4 1 9c0 6.5 9 17 9 17s9-10.5 9-17c0-5-4-9-9-9z" fill="#1d1d1f"/><circle cx="10" cy="9" r="3.4" fill="#fff"/></svg>';
+    selPinRef.current = new ML.Marker({ element: el, anchor: 'bottom', offset: [0, -10] })
+      .setLngLat([lng, lat])
+      .addTo(map);
   }
 
   // 매장 선택 — 리스트 행 하이라이트 + 지도 강조 링 + (옵션) 해당 위치로 이동
