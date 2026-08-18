@@ -100,31 +100,44 @@ export function RoutePanel({
     }) as NaverMarker;
   }
 
-  function useCurrentLocation() {
+  // GPS 1회 조회 프라미스 — 버튼(useCurrentLocation)과 원클릭 최적화(optimize)가 공유
+  function getPosition(): Promise<{ coord: Coord | null; denied: boolean }> {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve({ coord: null, denied: false });
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ coord: { lat: pos.coords.latitude, lng: pos.coords.longitude }, denied: false }),
+        (err) => resolve({ coord: null, denied: err.code === 1 }),
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
+      );
+    });
+  }
+
+  function applyStartCoord(c: Coord) {
+    setRouteStartCoord(c);
+    setForcedFirstStop(null);
+    setStartInfo('현재 위치 설정됨');
+    showLocMarker(c.lat, c.lng);
+  }
+
+  async function useCurrentLocation() {
     if (!navigator.geolocation) {
       toast.error('위치 서비스를 지원하지 않는 브라우저입니다.');
       return;
     }
     setStartInfo('위치 확인 중...');
-    const apply = (pos: GeolocationPosition) => {
-      const c = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setRouteStartCoord(c);
-      setForcedFirstStop(null);
-      setStartInfo('현재 위치 설정됨');
-      showLocMarker(c.lat, c.lng);
-      if (map) {
-        map.setCenter(new window.naver.maps.LatLng(c.lat, c.lng));
-        map.setZoom(14);
-      }
-    };
-    navigator.geolocation.getCurrentPosition(
-      apply,
-      (err) => {
-        if (err.code === 1) setStartInfo('위치 권한 거부됨 (직접 입력 이용)');
-        else setStartInfo('위치 확인 실패 (직접 입력 이용)');
-      },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 },
-    );
+    const { coord, denied } = await getPosition();
+    if (!coord) {
+      setStartInfo(denied ? '위치 권한 거부됨 (직접 입력 이용)' : '위치 확인 실패 (직접 입력 이용)');
+      return;
+    }
+    applyStartCoord(coord);
+    if (map) {
+      map.setCenter(new window.naver.maps.LatLng(coord.lat, coord.lng));
+      map.setZoom(14);
+    }
   }
 
   async function geocodeStart() {
@@ -144,13 +157,22 @@ export function RoutePanel({
 
   async function optimize() {
     if (!map) return;
-    if (!routeStartCoord) {
-      toast.error('출발지를 먼저 설정해 주세요.');
-      return;
+    // 원클릭: 출발지 미설정이면 자동으로 현재 위치를 잡고 이어서 진행
+    let start = routeStartCoord;
+    if (!start) {
+      setStartInfo('위치 확인 중...');
+      const { coord, denied } = await getPosition();
+      if (!coord) {
+        setStartInfo(denied ? '위치 권한 거부됨 (직접 입력 이용)' : '위치 확인 실패 (직접 입력 이용)');
+        toast.error(denied ? '위치 권한이 거부되어 있어요. 출발지를 직접 입력해 주세요.' : '현재 위치를 확인하지 못했어요. 출발지를 직접 입력해 주세요.');
+        return;
+      }
+      applyStartCoord(coord);
+      start = coord;
     }
     const myLocationStop: RouteStop = {
       name: '내 위치', address: '현재 출발지',
-      lat: routeStartCoord.lat, lng: routeStartCoord.lng, type: 'primary', _dist: 0,
+      lat: start.lat, lng: start.lng, type: 'primary', _dist: 0,
     };
 
     // 장바구니 모드: 담긴 곳만
@@ -159,14 +181,14 @@ export function RoutePanel({
         name: c.name, address: c.address, lat: c.lat, lng: c.lng,
         type: c.type === 'account' ? 'account' : 'primary',
       }));
-      const ordered = nearestNeighborTSP(stops, routeStartCoord);
+      const ordered = nearestNeighborTSP(stops, start);
       await finishRoute([myLocationStop, ...ordered]);
       return;
     }
 
     const searchCenter = forcedFirstStop
       ? { lat: forcedFirstStop.lat, lng: forcedFirstStop.lng }
-      : routeStartCoord;
+      : start;
 
     // 1순위 인허가 + 공사중, 반경 3km
     const primaryStops: RouteStop[] = licenseStops
@@ -230,7 +252,7 @@ export function RoutePanel({
     let stops: RouteStop[];
     if (forcedFirstStop) {
       const first = { ...forcedFirstStop };
-      first._dist = haversineKm(routeStartCoord.lat, routeStartCoord.lng, first.lat, first.lng);
+      first._dist = haversineKm(start.lat, start.lng, first.lat, first.lng);
       if (additional.length === 0) stops = [myLocationStop, first];
       else stops = [myLocationStop, first, ...nearestNeighborTSP(additional, first)];
     } else {
@@ -238,7 +260,7 @@ export function RoutePanel({
         toast.error('출발지 반경 3km 이내에 방문 대상이 없습니다.');
         return;
       }
-      stops = [myLocationStop, ...nearestNeighborTSP(additional, routeStartCoord)];
+      stops = [myLocationStop, ...nearestNeighborTSP(additional, start)];
     }
     await finishRoute(stops);
   }
@@ -255,15 +277,13 @@ export function RoutePanel({
     setShowResult(true);
   }
 
+  // 결과(경로선·번호 마커·목록)만 지우고 출발지는 유지 — 초기화 직후 바로 재최적화 가능.
+  // 이전엔 출발지까지 지웠는데 주소 입력창 텍스트는 남아 "설정된 것처럼 보이는데 에러" 어긋남이 있었음.
   function clearRoute() {
     clearDrawn();
-    locMarkerRef.current?.setMap(null);
-    locMarkerRef.current = null;
     setRouteStops([]);
     setForcedFirstStop(null);
-    setRouteStartCoord(null);
     setShowResult(false);
-    setStartInfo('');
   }
 
   const totalDist = routeStops.reduce((s, r) => s + (r._dist || 0), 0);
