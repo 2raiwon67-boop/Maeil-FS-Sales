@@ -475,7 +475,7 @@ export function ReportView({ scope, stores }: Props) {
   const sel = metrics.units.find((x) => x.name === effectiveUnit);
 
   return (
-    <div className="mx-auto max-w-[1440px] px-5 pb-10 pt-3">
+    <div className="w-full px-4 pb-10 pt-3">
       <div className="mb-3 flex items-baseline justify-between gap-3 flex-wrap">
         <div className="text-[13px] font-semibold text-slate-600">
           관할 시군구 기획보고서 <span className="font-normal text-slate-400">· 인구 {metrics.firstM}~{metrics.lastM} · 신규 개업 최근 12개월</span>
