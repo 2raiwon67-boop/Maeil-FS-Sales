@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Sparkles, MapPin, RefreshCw, Target } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { sigunguMatches } from '@/lib/regions';
+import { sigunguMatches, LEGACY_TO_CURRENT } from '@/lib/regions';
 
 export interface ReportStore {
   name: string;
@@ -73,10 +73,16 @@ export function ReportView({ scope, stores }: Props) {
   const quadRef = useRef<HTMLCanvasElement>(null);
   const lineRef = useRef<HTMLCanvasElement>(null);
 
-  const units = useMemo(
-    () => Object.entries(scope).flatMap(([sido, list]) => list.map((u) => ({ sido, unit: u }))),
-    [scope],
-  );
+  const units = useMemo(() => {
+    const all = Object.entries(scope).flatMap(([sido, list]) => list.map((u) => ({ sido, unit: u })));
+    // 인천 행정구역 개편: managers에 옛 구명(중·동·서구)과 새 구명이 함께 있으면 옛 구명 제외.
+    // sigunguMatches가 양쪽 모두에 같은 매장을 매칭시켜 이중 카운트되는 것 방지 (실측: 옛 서구 283 = 검단 117 + 서해 166).
+    return all.filter(({ sido, unit }) => {
+      const cur = LEGACY_TO_CURRENT[`${sido}|${unit}`];
+      if (!cur) return true;
+      return !all.some((o) => o.unit !== unit && cur.includes(o.unit));
+    });
+  }, [scope]);
 
   // ── 인구 로드 (관할 시군구 prefix, 페이지네이션) ──────────────────────────
   useEffect(() => {
@@ -162,12 +168,12 @@ export function ReportView({ scope, stores }: Props) {
       }
       const perCapita = +((new12m / pop) * 10000).toFixed(1);
 
-      // 동 주석 — 인구 3천+ 동의 증감 상·하위 (신설 동은 chg null)
+      // 동 주석 — 인구 3천+ 동의 증감 상·하위. 분모(첫 관측월)가 1천 미만이면 %가 폭발(편입·분동 왜곡)하므로 '신설' 처리
       const dongDetail = [...dongLast.entries()]
         .filter(([, p]) => p >= 3000)
         .map(([d, p]) => {
           const f = dongFirst.get(d);
-          return { dong: d, pop: p, chg: f ? +(((p - f) / f) * 100).toFixed(1) : null, newCnt: dongNew.get(d) || 0 };
+          return { dong: d, pop: p, chg: f && f >= 1000 ? +(((p - f) / f) * 100).toFixed(1) : null, newCnt: dongNew.get(d) || 0 };
         })
         .sort((a, b) => (b.chg ?? 999) - (a.chg ?? 999));
       const ups = dongDetail.filter((d) => d.chg === null || d.chg >= 5).slice(0, 3);
@@ -438,7 +444,7 @@ export function ReportView({ scope, stores }: Props) {
               <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${VERDICT_STYLE[u.verdict].badge}`}>{u.verdict}</span>
               <span className="text-sm font-semibold text-slate-800">{u.name}</span>
               <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">
-                인구 {u.popChg > 0 ? '+' : ''}{u.popChg}% · 신규 {u.new12m}곳 · 운영 {u.operating}곳 · 1만명당 {u.perCapita}곳
+                인구 {u.popChg > 0 ? '+' : ''}{u.popChg}%{u.popSeries.length < 40 ? ` (관측 ${u.popSeries.length}개월)` : ''} · 신규 {u.new12m}곳 · 운영 {u.operating}곳 · 1만명당 {u.perCapita}곳
               </span>
               {(u.verdict === '선점' || u.verdict === '공략') && (
                 <button
