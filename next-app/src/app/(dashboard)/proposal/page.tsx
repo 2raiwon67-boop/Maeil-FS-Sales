@@ -37,9 +37,10 @@ const PRODUCT_IMAGE_MANUAL_MAP: Record<string, string> = {
 };
 
 // A4 미리보기 페이지당 품목 수 — 1페이지는 상단 헤더(로고·수신)가 자리를 차지해 적게 싣는다.
-// 인쇄도 이 분할 그대로 나가므로(페이지=chunk) 좁은 화면·인쇄폭 기준으로 보수적으로 잡음.
-const PAGE1_CAP = 6;
-const PAGE_CAP = 8;
+// 인쇄도 이 분할 그대로 나가므로(페이지=chunk) 인쇄폭(210mm-패딩) 기준으로 잡음.
+// 카드 높이를 예측 가능하게 하려고 설명은 2줄 클램프 — 늘릴 땐 인쇄 넘침을 실물로 확인할 것.
+const PAGE1_CAP = 7;
+const PAGE_CAP = 9;
 
 const PICKER_CATS: [string, string][] = [
   ['all', '전체'],
@@ -504,7 +505,11 @@ export default function ProposalPage() {
   // ── PDF 출력 ──────────────────────────────────────────────────────────────
 
   const generatePDF = () => {
+    // 문서 제목이 PDF 저장 파일명이 된다(브라우저 머리글은 @page margin:0으로 이미 숨김)
+    const prev = document.title;
+    document.title = `견적서_${customerName || '매일유업FS'}_${new Date().toISOString().slice(0, 10)}`;
     window.print();
+    document.title = prev;
   };
 
   // ── 카탈로그 피커 ─────────────────────────────────────────────────────────
@@ -749,7 +754,7 @@ export default function ProposalPage() {
                               <div className="mt-1 text-[11px] text-[#64748b]">
                                 {it.spec}{it.spec && it.expiryDate ? ' · ' : ''}{it.expiryDate && <span className="text-[#1B3F82]">소비기한 {it.expiryDate}</span>}
                               </div>
-                              {it.desc && <div className="mt-1 text-[11px] leading-relaxed text-[#94a3b8]">{it.desc}</div>}
+                              {it.desc && <div className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-[#94a3b8]">{it.desc}</div>}
                             </div>
                           </div>
                         );

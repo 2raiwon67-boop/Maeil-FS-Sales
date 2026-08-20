@@ -142,7 +142,9 @@
 }
 /* ── 인쇄 (견적서 PDF 출력) ──────────────────────────────── */
 @media print {
-  @page { size: A4 portrait; margin: 10mm; }
+  /* margin 0 = 브라우저 머리글/바닥글(FS MISO·URL·날짜)이 그려질 여백 자체를 없앰.
+     실제 여백은 .proposal-page 패딩(8mm/10mm)으로 종이 안쪽에서 확보. */
+  @page { size: A4 portrait; margin: 0; }
   body * { visibility: hidden; }
   #proposal-print-root, #proposal-print-root * { visibility: visible; }
   #proposal-print-root {
@@ -159,8 +161,8 @@
     overflow: visible !important;
     border: 0 !important;
     border-radius: 0 !important;
-    padding: 0 0 8mm !important;
-    min-height: 250mm; /* 페이지 번호(mt-auto)가 종이 하단 근처에 오도록 — 277mm(인쇄가능높이)보다 넉넉히 작게 */
+    padding: 8mm 10mm !important;
+    min-height: 265mm; /* 페이지 번호(mt-auto)가 종이 하단 근처에 오도록 — 281mm(297-패딩)보다 넉넉히 작게 */
     break-after: page;
   }
   .proposal-page:last-child { break-after: auto; }
