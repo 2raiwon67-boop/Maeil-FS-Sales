@@ -162,7 +162,6 @@
     border: 0 !important;
     border-radius: 0 !important;
     padding: 8mm 10mm !important;
-    min-height: 265mm; /* 페이지 번호(mt-auto)가 종이 하단 근처에 오도록 — 281mm(297-패딩)보다 넉넉히 작게 */
     break-after: page;
   }
   .proposal-page:last-child { break-after: auto; }

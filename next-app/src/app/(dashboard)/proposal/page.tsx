@@ -39,7 +39,7 @@ const PRODUCT_IMAGE_MANUAL_MAP: Record<string, string> = {
 // A4 미리보기 페이지당 품목 수 — 1페이지는 상단 헤더(로고·수신)가 자리를 차지해 적게 싣는다.
 // 인쇄도 이 분할 그대로 나가므로(페이지=chunk) 인쇄폭(210mm-패딩) 기준으로 잡음.
 // 카드 높이를 예측 가능하게 하려고 설명은 2줄 클램프 — 늘릴 땐 인쇄 넘침을 실물로 확인할 것.
-const PAGE1_CAP = 7;
+const PAGE1_CAP = 8;
 const PAGE_CAP = 9;
 
 const PICKER_CATS: [string, string][] = [
@@ -762,9 +762,6 @@ export default function ProposalPage() {
                     </div>
                   )}
 
-                  {pageCount > 1 && (
-                    <div className="mt-auto pt-3 text-center text-[10px] tabular-nums text-[#b6c0cc]">{pi + 1} / {pageCount}</div>
-                  )}
                 </div>
               ))}
             </div>
