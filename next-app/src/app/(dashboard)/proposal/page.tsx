@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import {
   FolderOpen, Save, Printer, Search, Sparkles, Plus, LayoutGrid, Store,
-  ChevronDown, X, Trash2, Copy, MessageSquareText,
+  ChevronDown, ChevronLeft, ChevronRight, X, Trash2, Copy, MessageSquareText,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -35,6 +35,11 @@ const PRODUCT_IMAGE_MANUAL_MAP: Record<string, string> = {
   '상하목장 초콜릿믹스 1L': '상하목장 초콜릿 믹스 1L*10 .webp',
   '테너 베이스 과육플러스 청포도 1kg': '테너베이스 과육 플러스 청포도 1kg.webp',
 };
+
+// A4 미리보기 페이지당 품목 수 — 1페이지는 상단 헤더(로고·수신)가 자리를 차지해 적게 싣는다.
+// 인쇄도 이 분할 그대로 나가므로(페이지=chunk) 좁은 화면·인쇄폭 기준으로 보수적으로 잡음.
+const PAGE1_CAP = 6;
+const PAGE_CAP = 8;
 
 const PICKER_CATS: [string, string][] = [
   ['all', '전체'],
@@ -205,6 +210,8 @@ export default function ProposalPage() {
   const [managerPhone, setManagerPhone] = useState('');
   const [quoteMemo, setQuoteMemo] = useState('');
   const [loadedQuoteId, setLoadedQuoteId] = useState<string | null>(null);
+  const [previewPage, setPreviewPage] = useState(0);
+  const itemListRef = useRef<HTMLDivElement>(null);
 
   // 분석
   const [storeInput, setStoreInput] = useState('');
@@ -293,6 +300,16 @@ export default function ProposalPage() {
 
   const addItem = (data?: Partial<QuoteItem>) => {
     setItems((prev) => [...prev, blankItem(data)]);
+    // 리스트가 4개 높이에서 스크롤되므로, 새 행이 접혀 안 보이는 일이 없게 맨 아래로
+    setTimeout(() => {
+      const el = itemListRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    }, 0);
+    // 품명이 있는 항목(카탈로그·추천 담기)은 미리보기 마지막 페이지에 실린다 — 그 페이지로 이동
+    if (data?.name) {
+      const nextNamed = items.filter((it) => it.name).length + 1;
+      setPreviewPage(nextNamed <= PAGE1_CAP ? 0 : Math.ceil((nextNamed - PAGE1_CAP) / PAGE_CAP));
+    }
   };
 
   const addProduct = (p: Product, salesPrice?: number) => {
@@ -498,6 +515,15 @@ export default function ProposalPage() {
 
   const showRecipient = quoteMode !== 'general';
 
+  // ── A4 미리보기 페이지 분할 ───────────────────────────────────────────────
+  const namedItems = items.filter((it) => it.name);
+  const pageChunks: QuoteItem[][] = namedItems.length
+    ? [namedItems.slice(0, PAGE1_CAP)]
+    : [[]];
+  for (let i = PAGE1_CAP; i < namedItems.length; i += PAGE_CAP) pageChunks.push(namedItems.slice(i, i + PAGE_CAP));
+  const pageCount = pageChunks.length;
+  const curPage = Math.min(previewPage, pageCount - 1); // 품목 삭제·불러오기로 페이지가 줄면 범위 안으로
+
   // ── 렌더 ──────────────────────────────────────────────────────────────────
 
   return (
@@ -611,8 +637,12 @@ export default function ProposalPage() {
 
             {/* 품목 단가 · 마진 */}
             <div className="rounded-2xl border border-[#e8ebf0] bg-white p-4">
-              <div className="mb-3 text-[10px] uppercase tracking-wider text-[#94a3b8]">품목 단가 · 마진</div>
-              <div className="flex flex-col gap-2">
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-wider text-[#94a3b8]">품목 단가 · 마진</span>
+                {items.length > 4 && <span className="text-[10px] text-[#b6c0cc]">{items.length}개 · 스크롤</span>}
+              </div>
+              {/* 4개 높이(≈530px)까지만 펼치고 그 밑은 스크롤 — 품목이 늘어도 페이지가 아래로 자라지 않게 */}
+              <div ref={itemListRef} className="flex max-h-[530px] flex-col gap-2 overflow-y-auto pr-0.5">
                 {items.map((it, idx) => {
                   const margin = rowMargin(it);
                   const mColor = margin >= 20 ? '#0f8a5f' : margin >= 10 ? '#d97706' : '#dc2626';
@@ -668,53 +698,70 @@ export default function ProposalPage() {
             </div>
           </div>
 
-          {/* ── 우측: 카탈로그 (인쇄 대상) ── */}
+          {/* ── 우측: 카탈로그 (인쇄 대상) — A4 비율 페이지, 화면엔 현재 페이지만·인쇄엔 전부 ── */}
           <div>
-            <div id="proposal-paper" className="rounded-2xl border border-[#e8ebf0] bg-white p-5 print:rounded-none print:border-0 md:p-7">
-              <div className="mb-4 border-b-2 border-[#1B3F82] pb-3.5 text-center">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/assets/images/logo.png" alt="매일유업" className="mx-auto mb-2 h-9 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                <div className="text-lg font-semibold tracking-wide text-[#1B3F82]">매일유업 푸드서비스</div>
-                <div className="text-xs font-medium tracking-wide text-[#1B3F82]">Maeil Food Service</div>
-                {showRecipient && (
-                  <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 border-t border-[#eef1f5] pt-2 text-[11px] text-[#64748b]">
-                    <span>수신 <strong className="font-medium text-[#1B3F82]">{customerName || '—'}</strong></span>
-                    <span>담당 <strong className="font-medium text-[#1B3F82]">{managerName || '—'}</strong></span>
-                    <span>연락처 <strong className="font-medium text-[#1B3F82]">{managerPhone || '—'}</strong></span>
-                  </div>
-                )}
+            {pageCount > 1 && (
+              <div className="no-print mb-2 flex items-center justify-center gap-2">
+                <button onClick={() => setPreviewPage(Math.max(0, curPage - 1))} disabled={curPage === 0} aria-label="이전 페이지" className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-30"><ChevronLeft size={15} /></button>
+                <span className="min-w-[52px] text-center text-xs tabular-nums text-[#64748b]">{curPage + 1} / {pageCount}</span>
+                <button onClick={() => setPreviewPage(Math.min(pageCount - 1, curPage + 1))} disabled={curPage === pageCount - 1} aria-label="다음 페이지" className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#e2e8f0] bg-white text-[#475569] disabled:opacity-30"><ChevronRight size={15} /></button>
               </div>
+            )}
+            <div id="proposal-print-root">
+              {pageChunks.map((chunk, pi) => (
+                <div key={pi} className={`proposal-page aspect-[210/297] flex-col overflow-hidden rounded-2xl border border-[#e8ebf0] bg-white p-5 md:p-7 ${pi === curPage ? 'flex' : 'hidden'}`}>
+                  {pi === 0 && (
+                    <div className="mb-4 border-b-2 border-[#1B3F82] pb-3.5 text-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/images/logo.png" alt="매일유업" className="mx-auto mb-2 h-9 w-auto object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <div className="text-lg font-semibold tracking-wide text-[#1B3F82]">매일유업 푸드서비스</div>
+                      <div className="text-xs font-medium tracking-wide text-[#1B3F82]">Maeil Food Service</div>
+                      {showRecipient && (
+                        <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 border-t border-[#eef1f5] pt-2 text-[11px] text-[#64748b]">
+                          <span>수신 <strong className="font-medium text-[#1B3F82]">{customerName || '—'}</strong></span>
+                          <span>담당 <strong className="font-medium text-[#1B3F82]">{managerName || '—'}</strong></span>
+                          <span>연락처 <strong className="font-medium text-[#1B3F82]">{managerPhone || '—'}</strong></span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              {items.filter((it) => it.name).length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-20 text-center text-[#a7b4c4]">
-                  <LayoutGrid size={26} />
-                  <span className="text-sm">왼쪽에서 품목을 추가하면<br />여기에 카탈로그가 만들어집니다</span>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {items.filter((it) => it.name).map((it) => {
-                    const img = findProductImage(it.name);
-                    return (
-                      <div key={it.id} className="flex break-inside-avoid gap-3.5 rounded-xl border border-[#e8ebf0] p-3">
-                        <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f4f6fa]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          {img ? <img src={img} alt={it.name} className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <LayoutGrid size={26} className="text-[#9aa7b6]" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="text-[13px] font-medium text-[#0f172a]">{it.name}</span>
-                            <span className="shrink-0 text-[13px] font-semibold tabular-nums text-[#1B3F82]">{Math.floor(it.salesPrice).toLocaleString()}원</span>
+                  {chunk.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center text-[#a7b4c4]">
+                      <LayoutGrid size={26} />
+                      <span className="text-sm">왼쪽에서 품목을 추가하면<br />여기에 카탈로그가 만들어집니다</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      {chunk.map((it) => {
+                        const img = findProductImage(it.name);
+                        return (
+                          <div key={it.id} className="flex break-inside-avoid gap-3.5 rounded-xl border border-[#e8ebf0] p-3">
+                            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f4f6fa]">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              {img ? <img src={img} alt={it.name} className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <LayoutGrid size={26} className="text-[#9aa7b6]" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="text-[13px] font-medium text-[#0f172a]">{it.name}</span>
+                                <span className="shrink-0 text-[13px] font-semibold tabular-nums text-[#1B3F82]">{Math.floor(it.salesPrice).toLocaleString()}원</span>
+                              </div>
+                              <div className="mt-1 text-[11px] text-[#64748b]">
+                                {it.spec}{it.spec && it.expiryDate ? ' · ' : ''}{it.expiryDate && <span className="text-[#1B3F82]">소비기한 {it.expiryDate}</span>}
+                              </div>
+                              {it.desc && <div className="mt-1 text-[11px] leading-relaxed text-[#94a3b8]">{it.desc}</div>}
+                            </div>
                           </div>
-                          <div className="mt-1 text-[11px] text-[#64748b]">
-                            {it.spec}{it.spec && it.expiryDate ? ' · ' : ''}{it.expiryDate && <span className="text-[#1B3F82]">소비기한 {it.expiryDate}</span>}
-                          </div>
-                          {it.desc && <div className="mt-1 text-[11px] leading-relaxed text-[#94a3b8]">{it.desc}</div>}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {pageCount > 1 && (
+                    <div className="mt-auto pt-3 text-center text-[10px] tabular-nums text-[#b6c0cc]">{pi + 1} / {pageCount}</div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           </div>
 
