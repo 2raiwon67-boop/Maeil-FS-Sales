@@ -514,7 +514,7 @@ export default function ProposalPage() {
         }
       />
 
-      <div className="mx-auto max-w-[1500px] px-4 pb-16 pt-5 md:px-6">
+      <div className="w-full px-4 pb-16 pt-5">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
 
           {/* ── 좌측: 작업 패널 ── */}
