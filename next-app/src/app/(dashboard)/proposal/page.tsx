@@ -713,9 +713,9 @@ export default function ProposalPage() {
               </div>
             )}
             <div id="proposal-print-root">
+              {/* aspect-ratio는 최소 높이 역할 — overflow-hidden을 걸면 좁은 화면에서 8번째 품목이 잘리므로
+                  내용이 넘칠 땐 종이가 아래로 자라게 둔다(인쇄는 실제 A4 폭이라 넘치지 않음) */}
               {pageChunks.map((chunk, pi) => (
-                {/* aspect-ratio는 최소 높이 역할 — overflow-hidden을 걸면 좁은 화면에서 8번째 품목이 잘리므로
-                    내용이 넘칠 땐 종이가 아래로 자라게 둔다(인쇄는 실제 A4 폭이라 넘치지 않음) */}
                 <div key={pi} className={`proposal-page aspect-[210/297] flex-col rounded-2xl border border-[#e8ebf0] bg-white p-5 md:p-7 ${pi === curPage ? 'flex' : 'hidden'}`}>
                   {pi === 0 && (
                     <div className="mb-4 border-b-2 border-[#1B3F82] pb-3.5 text-center">
