@@ -12,8 +12,9 @@ import {
   Map as MapIcon, BarChart3, RefreshCw, X, Search,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
   Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download, Info,
-  ClipboardList, Target,
+  ClipboardList, Target, FileText,
 } from 'lucide-react';
+import { ReportView } from '@/components/discover/report-view';
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -87,7 +88,7 @@ interface DongAgg {
   net: number;
 }
 
-type ViewMode = 'map' | 'rank' | 'plan';
+type ViewMode = 'map' | 'rank' | 'plan' | 'report';
 
 // 운영계획 뷰 — (시도|시군구)×연도 집계 행. years/nets 인덱스 0~N-1 = 데이터 바닥 연도(2022)~현재(오래된 순)
 interface PlanRegion {
@@ -1853,7 +1854,7 @@ export default function DiscoverPage() {
   function handleSetViewMode(mode: ViewMode) {
     setViewMode(mode);
     if (mode !== 'map') stopPlay();
-    if (mode === 'plan' && panelOpen) closePanel(); // 랭킹 드릴다운 패널이 운영계획 화면을 덮은 채 남지 않게
+    if ((mode === 'plan' || mode === 'report') && panelOpen) closePanel(); // 랭킹 드릴다운 패널이 전체 화면 뷰를 덮은 채 남지 않게
     if (mode === 'map') {
       setTimeout(() => { mapRef.current?.resize(); }, 100);
       setTimeout(() => { mapRef.current?.resize(); }, 350);
@@ -2735,6 +2736,12 @@ export default function DiscoverPage() {
           >
             <ClipboardList size={14} />운영계획
           </button>
+          <button
+            onClick={() => handleSetViewMode('report')}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'report' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <FileText size={14} />보고작성
+          </button>
         </div>
         <button
           disabled={refreshing}
@@ -3423,6 +3430,13 @@ export default function DiscoverPage() {
             </aside>
           )}
           </div>
+        </div>
+      )}
+
+      {/* ── 보고작성 뷰 — 시군구 기회 보고서 (인구×개업 사분면 + 동 주석 + AI 분석) ── */}
+      {viewMode === 'report' && (
+        <div className="absolute inset-0 z-[300] overflow-y-auto bg-slate-50 pt-12 max-md:pt-2">
+          <ReportView scope={sidoSigunguMap} stores={cachedStores} />
         </div>
       )}
       </div>
