@@ -1854,7 +1854,7 @@ export default function DiscoverPage() {
   function handleSetViewMode(mode: ViewMode) {
     setViewMode(mode);
     if (mode !== 'map') stopPlay();
-    if ((mode === 'plan' || mode === 'report') && panelOpen) closePanel(); // 랭킹 드릴다운 패널이 전체 화면 뷰를 덮은 채 남지 않게
+    if (mode === 'plan' || mode === 'report') closePanel(); // 랭킹 드릴다운 패널이 전체 화면 뷰를 덮은 채 남지 않게 (멱등 — 무조건 호출)
     if (mode === 'map') {
       setTimeout(() => { mapRef.current?.resize(); }, 100);
       setTimeout(() => { mapRef.current?.resize(); }, 350);
@@ -3433,9 +3433,10 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* ── 보고작성 뷰 — 시군구 기회 보고서 (인구×개업 사분면 + 동 주석 + AI 분석) ── */}
+      {/* ── 보고작성 뷰 — 시군구 기회 보고서 (인구×개업 사분면 + 동 주석 + AI 분석) ──
+          z-[510]: 드릴다운 패널(z-500)보다 위 — 잔존 패널이 보고서를 덮지 않게. 상단 토글(z-600)보다는 아래. */}
       {viewMode === 'report' && (
-        <div className="absolute inset-0 z-[300] overflow-y-auto bg-slate-50 pt-12 max-md:pt-2">
+        <div className="absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-12 max-md:pt-2">
           <ReportView scope={sidoSigunguMap} stores={cachedStores} />
         </div>
       )}
