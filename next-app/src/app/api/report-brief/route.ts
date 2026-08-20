@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
@@ -34,6 +35,14 @@ export async function POST(req: NextRequest) {
   if (!scopeKey || !month || !Array.isArray(units) || units.length === 0 || units.length > 40) {
     return NextResponse.json({ error: '잘못된 요청' }, { status: 400 });
   }
+  // 입력 캡 — 자유 텍스트가 프롬프트로 직결되므로 길이 제한 (주입 여지 축소)
+  for (const u of units) {
+    if (typeof u.name !== 'string' || u.name.length > 40 || String(u.label).length > 8
+      || typeof u.dongNotes !== 'string' || u.dongNotes.length > 250
+      || ![u.popChg, u.pop, u.new12m, u.operating, u.perCapita].every(Number.isFinite)) {
+      return NextResponse.json({ error: '잘못된 지표 형식' }, { status: 400 });
+    }
+  }
 
   const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -42,8 +51,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '환경변수 누락' }, { status: 500 });
   }
 
-  // 캐시 키 — 범위+월 (한글 스코프는 hex로 안전 인코딩, 컬럼 길이 보호를 위해 64자 캡)
-  const cacheKey = `__report_brief_${Buffer.from(`${scopeKey}|${month}`).toString('hex').slice(0, 64)}`;
+  // 캐시 키 — sha256(지점|정렬된 스코프|월) 전체 해시(64자 고정).
+  // ⚠️이전 hex 절단 방식은 한글 3개 시군구만 넘어도 월이 잘려 "영원히 캐시 적중" + 지점 간 충돌 가능(치명) — 해시로 교체.
+  // 스코프는 정렬 후 조인: 클라가 popChg 순으로 보내와 월마다 순서가 바뀌어도 같은 범위면 같은 키.
+  const bu = String(user.user_metadata?.business_unit || '');
+  const scopeSorted = String(scopeKey).split(',').map((s) => s.trim()).sort().join(',');
+  const cacheKey = `__report_brief_${createHash('sha256').update(`${bu}|${scopeSorted}|${month}`).digest('hex')}`;
   const sb = createServiceClient(SUPABASE_URL, SERVICE_KEY);
   const { data: cached } = await sb.from('naver_cache').select('local_data').eq('store_name', cacheKey).maybeSingle();
   if (cached?.local_data?.text) {

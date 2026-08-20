@@ -95,7 +95,13 @@ export function ReportView({ scope, stores }: Props) {
         for (const [sido, list] of Object.entries(scope)) {
           const popSido = POP_SIDO[sido];
           if (!popSido || !list.length) continue;
-          const orExpr = list.map((u) => `sigungu.like.${u}%`).join(',');
+          // 옛 구명만 관할에 있는 경우에도 새 구명 인구 행을 가져오게 현재명 패턴 추가 (인천 개편)
+          const patterns = new Set<string>();
+          for (const u of list) {
+            patterns.add(u);
+            for (const cur of LEGACY_TO_CURRENT[`${sido}|${u}`] || []) patterns.add(cur);
+          }
+          const orExpr = [...patterns].map((u) => `sigungu.like.${u}%`).join(',');
           for (let from = 0; ; from += 1000) {
             const { data, error } = await supabase
               .from('population_stats')
@@ -135,26 +141,29 @@ export function ReportView({ scope, stores }: Props) {
       const uPop = popRows.filter((r) => matchUnit(sido, r.sigungu, unit));
       if (!uPop.length) continue;
       const byMonth = new Map<string, number>();
+      for (const r of uPop) byMonth.set(r.month, (byMonth.get(r.month) || 0) + r.population);
+      const popSeries = allMonths.filter((m) => byMonth.has(m)).map((m) => ({ month: m, pop: byMonth.get(m)! }));
+      // 동 증감 기준월 = 이 시군구의 첫 관측월 (전역 firstM을 쓰면 관측이 늦게 시작된 시군구의 모든 동이 '신설' 처리됨)
+      const unitFirstM = popSeries[0]?.month || firstM;
       const dongFirst = new Map<string, number>();
       const dongLast = new Map<string, number>();
       for (const r of uPop) {
-        byMonth.set(r.month, (byMonth.get(r.month) || 0) + r.population);
-        if (r.month === firstM) dongFirst.set(r.dong, r.population);
+        if (r.month === unitFirstM) dongFirst.set(r.dong, r.population);
         if (r.month === lastM) dongLast.set(r.dong, r.population);
       }
-      const popSeries = allMonths.filter((m) => byMonth.has(m)).map((m) => ({ month: m, pop: byMonth.get(m)! }));
       const popFirst = popSeries[0]?.pop || 0;
       const pop = popSeries[popSeries.length - 1]?.pop || 0;
       if (!popFirst || !pop) continue;
       const popChg = +(((pop - popFirst) / popFirst) * 100).toFixed(1);
 
       const uStores = stores.filter((s) => matchUnit(s.sido, s.sigungu, unit) || s.sigungu === unit);
-      const byKey = new Map<string, { hasNew: boolean; hasClosed: boolean; newMonth: string; dong: string }>();
+      // 운영 중 판정: 마지막 이벤트 기준 — 폐업 후 재개업(closed월 < new월)은 운영 중으로 본다
+      const byKey = new Map<string, { hasNew: boolean; newMonth: string; closedMonth: string; dong: string }>();
       for (const s of uStores) {
         const k = `${s.name}|${s.addrKey}`;
-        const e = byKey.get(k) || { hasNew: false, hasClosed: false, newMonth: '', dong: s.dong };
+        const e = byKey.get(k) || { hasNew: false, newMonth: '', closedMonth: '', dong: s.dong };
         if (s.status === 'new') { e.hasNew = true; if (s.month > e.newMonth) e.newMonth = s.month; }
-        if (s.status === 'closed') e.hasClosed = true;
+        if (s.status === 'closed' && s.month > e.closedMonth) e.closedMonth = s.month;
         byKey.set(k, e);
       }
       let new12m = 0, operating = 0;
@@ -164,7 +173,7 @@ export function ReportView({ scope, stores }: Props) {
           new12m++;
           dongNew.set(e.dong, (dongNew.get(e.dong) || 0) + 1);
         }
-        if (e.hasNew && !e.hasClosed) operating++;
+        if (e.hasNew && e.newMonth >= e.closedMonth) operating++;
       }
       const perCapita = +((new12m / pop) * 10000).toFixed(1);
 
@@ -331,19 +340,21 @@ export function ReportView({ scope, stores }: Props) {
       const bu = user?.user_metadata?.business_unit;
       if (!user || !bu) throw new Error('로그인 정보를 확인할 수 없습니다');
 
-      // 타겟: 12개월 신규 & 운영 중 & 좌표 보유, 최대 60곳
-      const byKey = new Map<string, ReportStore & { hasClosed: boolean }>();
+      // 타겟: 12개월 신규 & 운영 중(마지막 이벤트가 개업 — 재개업 포함, metrics와 동일 규칙) & 좌표 보유, 최대 60곳
+      const byKey = new Map<string, { store: ReportStore; newMonth: string; closedMonth: string }>();
       for (const s of stores) {
         if (!(matchUnit(s.sido, s.sigungu, u.name) || s.sigungu === u.name)) continue;
         const k = `${s.name}|${s.addrKey}`;
-        const e = byKey.get(k);
-        if (s.status === 'new') byKey.set(k, { ...s, hasClosed: e?.hasClosed || false });
-        else if (s.status === 'closed') { if (e) e.hasClosed = true; else byKey.set(k, { ...s, hasClosed: true }); }
+        const e = byKey.get(k) || { store: s, newMonth: '', closedMonth: '' };
+        if (s.status === 'new' && s.month > e.newMonth) { e.newMonth = s.month; e.store = s; }
+        if (s.status === 'closed' && s.month > e.closedMonth) e.closedMonth = s.month;
+        byKey.set(k, e);
       }
       const targets = [...byKey.values()]
-        .filter((s) => s.status === 'new' && !s.hasClosed && s.month >= (metrics?.cut12 || '') && s.lat != null && s.lng != null)
-        .sort((a, b) => b.month.localeCompare(a.month))
-        .slice(0, 60);
+        .filter((e) => e.newMonth && e.newMonth >= e.closedMonth && e.newMonth >= (metrics?.cut12 || '') && e.store.lat != null && e.store.lng != null)
+        .sort((a, b) => b.newMonth.localeCompare(a.newMonth))
+        .slice(0, 60)
+        .map((e) => e.store);
       if (!targets.length) { toast.error('등록할 운영 중 신규 매장이 없습니다.'); return; }
 
       // 주소는 지연 로드 컬럼 — 타겟분만 조회해 채움
@@ -364,7 +375,8 @@ export function ReportView({ scope, stores }: Props) {
         .select('id').single();
       if (campErr || !camp) throw new Error(campErr?.message || '활동 생성 실패');
 
-      const managerName = user.user_metadata?.full_name || user.email || '미지정';
+      // 이메일 폴백 금지 — prospects는 유닛 구성원 전체가 보므로 이메일 노출 안 함 (개척 모드 '미지정' 관행 준수)
+      const managerName = user.user_metadata?.full_name || '미지정';
       const rows = targets.map((t) => ({
         business_unit: bu, campaign_id: camp.id, name: t.name,
         address: addrMap.get(`${t.name}|${t.addrKey}`) || null,
@@ -394,10 +406,19 @@ export function ReportView({ scope, stores }: Props) {
   // ── 렌더 ─────────────────────────────────────────────────────────────────
   if (popError) return <div className="p-8 text-center text-sm text-red-500">인구 데이터 로드 실패: {popError}</div>;
   if (!metrics) {
+    // popRows 로드가 끝났는데 지표가 없으면 관할 매칭 실패 — 스피너를 영원히 돌리지 않고 안내
+    if (popRows !== null && stores.length > 0) {
+      return (
+        <div className="p-10 text-center text-sm text-slate-400">
+          관할 시군구의 인구 데이터가 없습니다.<br />
+          <span className="text-xs">담당자관리의 지역명과 인구 통계 지역명이 일치하는지 확인해 주세요.</span>
+        </div>
+      );
+    }
     return (
       <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-400">
         <RefreshCw size={15} className="animate-spin" />
-        {popRows === null ? '인구 데이터 불러오는 중…' : '지표 계산 중…'}
+        {popRows === null ? '인구 데이터 불러오는 중…' : '시장 데이터 대기 중…'}
       </div>
     );
   }

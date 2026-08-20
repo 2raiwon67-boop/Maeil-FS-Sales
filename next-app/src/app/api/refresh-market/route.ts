@@ -38,8 +38,8 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
   const ym = month.replace('-', '');
 
   const sb = createClient(supabaseUrl, serviceKey);
-  const { count } = await sb.from('population_stats').select('id', { count: 'exact', head: true }).eq('month', month);
-  if (count && count > 0) return { month, skipped: '이미 수집됨' };
+  // ⚠️전체 스킵 가드 금지: 일부 시군구만 성공한 날이 있으면 count>0으로 영구 스킵되어
+  // 실패분이 영원히 결손됨(체커 지적) — 시군구 단위로 존재 여부를 검사해 빠진 곳만 수집.
 
   // 시군구 leaf 목록 (구가 있는 시는 본청 제외) — DB 의존 없이 매회 API에서 재수집
   const sggs: { cd: string; name: string }[] = [];
@@ -53,10 +53,16 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
   if (sggs.length === 0) return { month, saved: 0, note: '미공표(빈 응답) — 익일 재시도' };
 
   let saved = 0;
+  let skipped = 0;
   const errors: string[] = [];
   for (let i = 0; i < sggs.length; i += 8) {
     await Promise.all(sggs.slice(i, i + 8).map(async (sgg) => {
       try {
+        // 이 시군구의 해당 월 데이터가 이미 있으면 스킵 (멱등 — 시군구 단위)
+        const { count } = await sb.from('population_stats')
+          .select('id', { count: 'exact', head: true })
+          .eq('month', month).eq('sigungu', sgg.name);
+        if (count && count > 0) { skipped++; return; }
         const rows = await moisCall(apiKey, { lv: '3', stdgCd: sgg.cd, srchFrYm: ym, srchToYm: ym });
         const recs = rows.filter((r) => r.stdgNm && r.totNmprCnt).map((r) => ({
           stdg_cd: r.stdgCd, sido: r.ctpvNm, sigungu: r.sggNm, dong: r.stdgNm,
@@ -72,7 +78,7 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
       }
     }));
   }
-  return { month, sigungu: sggs.length, saved, errors: errors.length ? errors.slice(0, 5) : undefined };
+  return { month, sigungu: sggs.length, skipped, saved, errors: errors.length ? errors.slice(0, 5) : undefined };
 }
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
