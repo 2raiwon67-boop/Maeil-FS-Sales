@@ -2582,6 +2582,31 @@ export default function DiscoverPage() {
   };
 
 
+  // 뷰 토글 + 새로고침 — 지도 모드에선 지도 위 플로팅, 그 외 뷰에선 필터 바 라인에 배치(세로 공간 확보, 사용자 확정)
+  const viewToggle = (
+    <>
+      <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
+        {([['map', MapIcon, '지도'], ['rank', BarChart3, '랭킹'], ['plan', ClipboardList, '운영계획'], ['report', FileText, '지역보고']] as [ViewMode, typeof MapIcon, string][]).map(([m, Icon, label]) => (
+          <button
+            key={m}
+            onClick={() => handleSetViewMode(m)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === m ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <Icon size={14} />{label}
+          </button>
+        ))}
+      </div>
+      <button
+        disabled={refreshing}
+        onClick={() => loadDashboardData(regionMode, regionSido)}
+        title={lastSync}
+        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm max-md:h-[30px] max-md:w-[30px] transition-all hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
+      >
+        <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+      </button>
+    </>
+  );
+
   return (
     <div className="flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
 
@@ -2686,6 +2711,13 @@ export default function DiscoverPage() {
             </div>
           </div>
         )}
+
+        {/* 랭킹·운영계획·지역보고에선 뷰 토글이 이 라인으로 — 본문 위 플로팅 제거로 세로 공간 확보 */}
+        {viewMode !== 'map' && (
+          <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">
+            {viewToggle}
+          </div>
+        )}
       </div>
 
       {/* 모바일 KPI 스트립 — 인사이트 독이 접혀 있어도 핵심 4개 수치는 항상 보이게 (지도는 안 가림) */}
@@ -2715,43 +2747,12 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* ── TOP-RIGHT CONTROLS (지도/랭킹 + 새로고침) ── */}
-      <div className="absolute top-3 right-3 z-[600] flex items-center gap-1.5">
-        <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
-          <button
-            onClick={() => handleSetViewMode('map')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'map' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
-          >
-            <MapIcon size={14} />지도
-          </button>
-          <button
-            onClick={() => handleSetViewMode('rank')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'rank' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
-          >
-            <BarChart3 size={14} />랭킹
-          </button>
-          <button
-            onClick={() => handleSetViewMode('plan')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'plan' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
-          >
-            <ClipboardList size={14} />운영계획
-          </button>
-          <button
-            onClick={() => handleSetViewMode('report')}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'report' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
-          >
-            <FileText size={14} />지역보고
-          </button>
+      {/* ── TOP-RIGHT CONTROLS — 지도 모드에서만 플로팅 (다른 뷰에선 필터 바 라인에 있음) ── */}
+      {viewMode === 'map' && (
+        <div className="absolute top-3 right-3 z-[600] flex items-center gap-1.5">
+          {viewToggle}
         </div>
-        <button
-          disabled={refreshing}
-          onClick={() => loadDashboardData(regionMode, regionSido)}
-          title={lastSync}
-          className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm max-md:h-[30px] max-md:w-[30px] transition-all hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-        </button>
-      </div>
+      )}
 
       {/* ── LEFT INSIGHT DOCK (overlay · 지도 모드 전용) ── */}
       {viewMode === 'map' && (
@@ -3077,7 +3078,7 @@ export default function DiscoverPage() {
       {viewMode === 'rank' && (
         <div className="absolute inset-0 bg-slate-50 z-[300] flex flex-col overflow-hidden">
           {/* Header — 제목·기준월 + 정렬 세그먼트 + 엑셀 (우측 여백은 top-right 지도/랭킹 토글 오버레이 회피) */}
-          <div className={`px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 max-sm:pt-[52px] ${panelOpen ? 'pr-[455px]' : 'pr-[345px]'}`}>
+          <div className={`px-5 py-3 border-b border-slate-200 bg-white flex-shrink-0 flex flex-wrap items-center justify-between gap-3 max-sm:pr-5 ${panelOpen ? 'pr-[455px]' : 'pr-5'}`}>
             <div>
               <div className="text-[16px] font-bold tracking-[-0.01em] text-slate-900">시군구 상권 랭킹</div>
               <div className="mt-0.5 text-[12px] text-slate-500">{monthFilterLabel ? `${monthFilterLabel} 기준${rankPartialMonth ? '(집계 중)' : ''}` : '전체 기간(2022-01~) 누적'} · {sortedRegions.length}개 시군구 · 매장 수 집계</div>
@@ -3241,7 +3242,7 @@ export default function DiscoverPage() {
       {viewMode === 'plan' && (
         <div className="absolute inset-0 z-[300] flex flex-col overflow-hidden bg-slate-50">
           {/* 슬림 툴바 — 캡션 + 엑셀 (우측 여백은 top-right 토글 오버레이 회피) */}
-          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2 pr-[345px] max-sm:pr-5 max-sm:pt-[52px]">
+          <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2">
             <div className="text-[12px] font-semibold text-slate-600">지역 × 연도 신규·폐업·순증 + 신규 2년 생존율</div>
             <button
               onClick={exportPlanXlsx}
@@ -3436,7 +3437,7 @@ export default function DiscoverPage() {
       {/* ── 보고작성 뷰 — 시군구 기회 보고서 (인구×개업 사분면 + 동 주석 + AI 분석) ──
           z-[510]: 드릴다운 패널(z-500)보다 위 — 잔존 패널이 보고서를 덮지 않게. 상단 토글(z-600)보다는 아래. */}
       {viewMode === 'report' && (
-        <div className="absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-12 max-md:pt-2">
+        <div className="absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-1">
           <ReportView scope={sidoSigunguMap} stores={cachedStores} />
         </div>
       )}
