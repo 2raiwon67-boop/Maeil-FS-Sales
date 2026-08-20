@@ -54,6 +54,7 @@ interface UnitMetric {
   operating: number;
   perCapita: number; // 1만명당 신규(12개월)
   popSeries: { month: string; pop: number }[];
+  netSeries: { month: string; net: number }[]; // 월별 인허가 순증(신규-폐업) — 우측 추이 차트용
   dongNotes: string;
   dongDetail: { dong: string; chg: number | null; pop: number; newCnt: number }[];
 }
@@ -72,6 +73,7 @@ export function ReportView({ scope, stores }: Props) {
   const [creating, setCreating] = useState<string | null>(null);
   const quadRef = useRef<HTMLCanvasElement>(null);
   const lineRef = useRef<HTMLCanvasElement>(null);
+  const netRef = useRef<HTMLCanvasElement>(null);
 
   const units = useMemo(() => {
     const all = Object.entries(scope).flatMap(([sido, list]) => list.map((u) => ({ sido, unit: u })));
@@ -177,6 +179,13 @@ export function ReportView({ scope, stores }: Props) {
       }
       const perCapita = +((new12m / pop) * 10000).toFixed(1);
 
+      // 월별 인허가 순증(신규-폐업) — 이벤트 월 기준
+      const netByMonth = new Map<string, number>();
+      for (const s of uStores) {
+        netByMonth.set(s.month, (netByMonth.get(s.month) || 0) + (s.status === 'new' ? 1 : -1));
+      }
+      const netSeries = [...netByMonth.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([m, net]) => ({ month: m, net }));
+
       // 동 주석 — 인구 3천+ 동의 증감 상·하위. 분모(첫 관측월)가 1천 미만이면 %가 폭발(편입·분동 왜곡)하므로 '신설' 처리
       const dongDetail = [...dongLast.entries()]
         .filter(([, p]) => p >= 3000)
@@ -190,7 +199,7 @@ export function ReportView({ scope, stores }: Props) {
       const fmt = (d: { dong: string; chg: number | null }) => (d.chg === null ? `${d.dong} 신설` : `${d.dong} ${d.chg > 0 ? '+' : ''}${d.chg}%`);
       const dongNotes = [...ups.map(fmt), ...downs.map(fmt)].join(' · ');
 
-      out.push({ name: unit, sido, verdict: '관찰', pop, popChg, new12m, operating, perCapita, popSeries, dongNotes, dongDetail });
+      out.push({ name: unit, sido, verdict: '관찰', pop, popChg, new12m, operating, perCapita, popSeries, netSeries, dongNotes, dongDetail });
     }
     if (!out.length) return null;
 
@@ -292,6 +301,40 @@ export function ReportView({ scope, stores }: Props) {
           scales: {
             x: { ticks: { color: '#94a3b8', font: { size: 11 }, autoSkip: false, maxRotation: 0, callback: (_v, i) => lbls[i] || null }, grid: { display: false } },
             y: { ticks: { color: '#94a3b8', font: { size: 11 }, callback: (v) => (Number(v) / 10000).toFixed(0) + '만' }, grid: { color: 'rgba(148,163,184,0.15)' } },
+          },
+        },
+      });
+    })();
+    return () => { dead = true; chart?.destroy(); };
+  }, [metrics, effectiveUnit]);
+
+  // 선택 시군구 인허가 순증 추이 (막대 — 양수 초록, 음수 빨강)
+  useEffect(() => {
+    if (!metrics || !effectiveUnit || !netRef.current) return;
+    const u = metrics.units.find((x) => x.name === effectiveUnit);
+    if (!u) return;
+    let chart: { destroy: () => void } | null = null;
+    let dead = false;
+    (async () => {
+      const { Chart } = await import('chart.js/auto');
+      if (dead || !netRef.current) return;
+      const lbls = u.netSeries.map((p, i) => (p.month.endsWith('-01') || i === 0 ? p.month.slice(2).replace('-', '.') : ''));
+      chart = new Chart(netRef.current, {
+        type: 'bar',
+        data: {
+          labels: lbls,
+          datasets: [{
+            data: u.netSeries.map((p) => p.net),
+            backgroundColor: u.netSeries.map((p) => (p.net >= 0 ? 'rgba(22,163,74,0.75)' : 'rgba(220,38,38,0.7)')),
+            borderWidth: 0,
+          }],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { title: (t) => u.netSeries[t[0].dataIndex].month, label: (t) => `순증 ${(t.parsed.y ?? 0) > 0 ? '+' : ''}${t.parsed.y}` } } },
+          scales: {
+            x: { ticks: { color: '#94a3b8', font: { size: 10 }, autoSkip: false, maxRotation: 0, callback: (_v, i) => lbls[i] || null }, grid: { display: false } },
+            y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(148,163,184,0.15)' } },
           },
         },
       });
@@ -429,44 +472,49 @@ export function ReportView({ scope, stores }: Props) {
   const sel = metrics.units.find((x) => x.name === effectiveUnit);
 
   return (
-    <div className="mx-auto max-w-[980px] px-5 pb-16 pt-4 max-sm:pt-[52px]">
+    <div className="mx-auto max-w-[1440px] px-5 pb-10 pt-4 max-sm:pt-[52px]">
       <div className="mb-3 flex items-baseline justify-between gap-3 flex-wrap">
         <div className="text-[13px] font-semibold text-slate-600">
-          관할 시군구 기회 보고서 <span className="font-normal text-slate-400">· 인구 {metrics.firstM}~{metrics.lastM} · 신규 개업 최근 12개월</span>
+          관할 시군구 기획보고서 <span className="font-normal text-slate-400">· 인구 {metrics.firstM}~{metrics.lastM} · 신규 개업 최근 12개월</span>
         </div>
       </div>
 
+      {/* 한눈에 보이는 2컬럼(사용자 확정): 좌 = 요약·사분면·판정(스크롤) / 우 = 인구·순증 추이 + AI 분석 */}
+      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="flex min-w-0 flex-col">
+
       <div className="mb-4 grid grid-cols-3 gap-3 max-sm:grid-cols-1">
-        <div className="rounded-xl bg-white p-4 ring-1 ring-slate-100">
+        <div className="rounded-xl bg-white p-3.5 ring-1 ring-slate-100">
           <div className="text-[11px] font-semibold text-slate-400">관할 인구 ({metrics.units.length}개 시군구)</div>
           <div className="mt-1 text-xl font-bold text-slate-800 tabular-nums">{(totalPop / 10000).toFixed(1)}만</div>
         </div>
-        <div className="rounded-xl bg-white p-4 ring-1 ring-slate-100">
+        <div className="rounded-xl bg-white p-3.5 ring-1 ring-slate-100">
           <div className="text-[11px] font-semibold text-slate-400">신규 개업 (12개월)</div>
           <div className="mt-1 text-xl font-bold text-slate-800 tabular-nums">{totalNew.toLocaleString()}곳</div>
         </div>
-        <div className="rounded-xl bg-white p-4 ring-1 ring-slate-100">
+        <div className="rounded-xl bg-white p-3.5 ring-1 ring-slate-100">
           <div className="text-[11px] font-semibold text-slate-400">판정</div>
           <div className="mt-1 text-xl font-bold text-slate-800">선점 {cnt('선점')} · 공략 {cnt('공략')} · 방어 {cnt('방어')}</div>
         </div>
       </div>
 
-      <div className="mb-1 text-[13px] font-semibold text-slate-700">
-        시군구 기회 사분면 <span className="font-normal text-slate-400">— 가로: 1만명당 신규 · 세로: 인구 증감 · 크기: 운영 매장 · 점 클릭 시 아래 추이 전환</span>
+      <div className="mb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-[13px] font-semibold text-slate-700">시군구 기회 사분면</span>
+        <span className="text-[11px] text-slate-400">가로: 1만명당 신규 · 세로: 인구 증감 · 크기: 운영 매장</span>
+        <span className="flex gap-2.5 text-[12px] text-slate-500">
+          {(['선점', '공략', '방어', '관찰'] as Verdict[]).map((v) => (
+            <span key={v} className="inline-flex items-center gap-1">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: VERDICT_STYLE[v].dot }} />{v}
+            </span>
+          ))}
+        </span>
       </div>
-      <div className="mb-2 flex flex-wrap gap-3 text-[12px] text-slate-500">
-        {(['선점', '공략', '방어', '관찰'] as Verdict[]).map((v) => (
-          <span key={v} className="inline-flex items-center gap-1">
-            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: VERDICT_STYLE[v].dot }} />{v}
-          </span>
-        ))}
-      </div>
-      <div className="relative mb-5 h-[320px] rounded-xl bg-white p-3 ring-1 ring-slate-100">
+      <div className="relative mb-4 h-[300px] rounded-xl bg-white p-3 ring-1 ring-slate-100">
         <canvas ref={quadRef} />
       </div>
 
-      <div className="mb-1 text-[13px] font-semibold text-slate-700">시군구별 판정 <span className="font-normal text-slate-400">— 행 클릭: 동 상세</span></div>
-      <div className="mb-5 flex flex-col gap-1.5">
+      <div className="mb-1 text-[13px] font-semibold text-slate-700">시군구별 판정 <span className="font-normal text-slate-400">— 행 클릭: 동 상세 + 우측 추이 전환</span></div>
+      <div className="flex max-h-[340px] flex-col gap-1.5 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
         {metrics.units.map((u) => (
           <div key={u.name} className="rounded-xl bg-white ring-1 ring-slate-100">
             <div className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5" onClick={() => { setOpenDong(openDong === u.name ? null : u.name); setSelectedUnit(u.name); }}>
@@ -511,13 +559,24 @@ export function ReportView({ scope, stores }: Props) {
         ))}
       </div>
 
+      </div>{/* 좌측 끝 */}
+
+      <div className="flex min-w-0 flex-col">
+
       {sel && (
         <>
           <div className="mb-1 text-[13px] font-semibold text-slate-700">
             인구 추이 <span className="font-normal text-slate-400">— {sel.name} ({sel.popChg > 0 ? '+' : ''}{sel.popChg}%)</span>
           </div>
-          <div className="relative mb-5 h-[200px] rounded-xl bg-white p-3 ring-1 ring-slate-100">
+          <div className="relative mb-4 h-[200px] rounded-xl bg-white p-3 ring-1 ring-slate-100">
             <canvas ref={lineRef} />
+          </div>
+
+          <div className="mb-1 text-[13px] font-semibold text-slate-700">
+            인허가 순증 추이 <span className="font-normal text-slate-400">— {sel.name} · 월별 신규-폐업</span>
+          </div>
+          <div className="relative mb-4 h-[200px] rounded-xl bg-white p-3 ring-1 ring-slate-100">
+            <canvas ref={netRef} />
           </div>
         </>
       )}
@@ -532,6 +591,9 @@ export function ReportView({ scope, stores }: Props) {
           <div className="whitespace-pre-wrap text-[13px] leading-relaxed text-slate-600">{brief}</div>
         )}
       </div>
+
+      </div>{/* 우측 끝 */}
+      </div>{/* 2컬럼 끝 */}
     </div>
   );
 }

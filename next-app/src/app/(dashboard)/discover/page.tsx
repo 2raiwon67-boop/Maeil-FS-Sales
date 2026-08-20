@@ -2740,7 +2740,7 @@ export default function DiscoverPage() {
             onClick={() => handleSetViewMode('report')}
             className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === 'report' ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
-            <FileText size={14} />보고작성
+            <FileText size={14} />지역보고
           </button>
         </div>
         <button
