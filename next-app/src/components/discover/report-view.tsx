@@ -320,13 +320,15 @@ export function ReportView({ scope, stores }: Props) {
       if (dead || !netRef.current) return;
       const lbls = u.netSeries.map((p, i) => (p.month.endsWith('-01') || i === 0 ? p.month.slice(2).replace('-', '.') : ''));
       chart = new Chart(netRef.current, {
-        type: 'bar',
+        type: 'line',
         data: {
           labels: lbls,
           datasets: [{
             data: u.netSeries.map((p) => p.net),
-            backgroundColor: u.netSeries.map((p) => (p.net >= 0 ? 'rgba(22,163,74,0.75)' : 'rgba(220,38,38,0.7)')),
-            borderWidth: 0,
+            borderColor: '#6366f1',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.3,
           }],
         },
         options: {
@@ -334,7 +336,8 @@ export function ReportView({ scope, stores }: Props) {
           plugins: { legend: { display: false }, tooltip: { callbacks: { title: (t) => u.netSeries[t[0].dataIndex].month, label: (t) => `순증 ${(t.parsed.y ?? 0) > 0 ? '+' : ''}${t.parsed.y}` } } },
           scales: {
             x: { ticks: { color: '#94a3b8', font: { size: 10 }, autoSkip: false, maxRotation: 0, callback: (_v, i) => lbls[i] || null }, grid: { display: false } },
-            y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: 'rgba(148,163,184,0.15)' } },
+            // 0선을 진하게 — 선형에서 순증(+)/순감(-) 경계가 한눈에 보이게
+            y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { color: (c) => (c.tick.value === 0 ? 'rgba(100,116,139,0.55)' : 'rgba(148,163,184,0.15)') } },
           },
         },
       });
