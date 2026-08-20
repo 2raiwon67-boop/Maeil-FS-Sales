@@ -364,16 +364,24 @@ export function ReportView({ scope, stores }: Props) {
         .select('id').single();
       if (campErr || !camp) throw new Error(campErr?.message || '활동 생성 실패');
 
+      const managerName = user.user_metadata?.full_name || user.email || '미지정';
       const rows = targets.map((t) => ({
         business_unit: bu, campaign_id: camp.id, name: t.name,
         address: addrMap.get(`${t.name}|${t.addrKey}`) || null,
+        manager_name: managerName,
         lat: t.lat, lng: t.lng, stage: '타겟', potential: '중',
         memo: `보고작성 자동 등록 · ${t.category || '-'} · ${t.pyeong ? Math.round(t.pyeong) + '평' : '평수 미상'} · 개업 ${t.month}`,
         created_by: user.id,
       }));
-      for (let i = 0; i < rows.length; i += 100) {
-        const { error } = await supabase.from('prospects').insert(rows.slice(i, i + 100));
-        if (error) throw new Error(error.message);
+      try {
+        for (let i = 0; i < rows.length; i += 100) {
+          const { error } = await supabase.from('prospects').insert(rows.slice(i, i + 100));
+          if (error) throw new Error(error.message);
+        }
+      } catch (e) {
+        // 타겟 등록 실패 시 빈 캠페인이 남지 않게 롤백 (campaign 삭제는 prospects CASCADE)
+        await supabase.from('prospect_campaigns').delete().eq('id', camp.id);
+        throw e;
       }
       toast.success(`'${u.name} ${u.verdict} 개척' 활동에 타겟 ${rows.length}곳을 등록했습니다. 거래처 홈 → 개척 모드에서 확인하세요.`);
     } catch (e) {
