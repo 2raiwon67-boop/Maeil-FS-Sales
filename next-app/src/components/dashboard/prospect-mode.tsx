@@ -93,7 +93,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView, readOnl
 
   // 쓰기 진입점 공통 가드 — RLS 에러 대신 친절한 안내
   const guardWrite = () => {
-    if (readOnly) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
+    if (readOnly) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return false; }
     return true;
   };
 

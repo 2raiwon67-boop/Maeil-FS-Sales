@@ -83,9 +83,9 @@ function useIsMobile() {
 
 export default function DashboardPage() {
   const { licenses, accounts, loading, error, setLicenses, setAccounts } = useDashboardData();
-  const { isHq, viewUnit } = useAuth();
+  const { isReadOnlyView, viewUnit } = useAuth();
   const { myManagerName } = useManager();
-  // 사업부 계정은 네비에서 선택한 지점의 데이터를 조회 전용으로 본다
+  // 사업부·관리자 계정은 네비에서 선택한 지점의 데이터를 본다 (다른 지점은 조회 전용)
   const businessUnit = viewUnit;
   const mobile = useIsMobile();
 
@@ -653,7 +653,7 @@ export default function DashboardPage() {
   };
 
   const onStatusChange = async (newStatus: string): Promise<boolean> => {
-    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
+    if (isReadOnlyView) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return false; }
     if (!selected || !businessUnit) return false;
     try {
       if (selected.type === 'license') {
@@ -686,7 +686,7 @@ export default function DashboardPage() {
   };
 
   const onMilkChange = async (newMilk: string): Promise<boolean> => {
-    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
+    if (isReadOnlyView) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return false; }
     if (!selected || selected.type !== 'license' || !businessUnit) return false;
     try {
       const lic = selected.item as License;
@@ -703,7 +703,7 @@ export default function DashboardPage() {
   };
 
   const onExpectedRevenueChange = async (value: number | null): Promise<boolean> => {
-    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
+    if (isReadOnlyView) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return false; }
     if (!selected || selected.type !== 'license' || !businessUnit) return false;
     try {
       const lic = selected.item as License;
@@ -875,7 +875,7 @@ export default function DashboardPage() {
               businessUnit={businessUnit}
               myManagerName={myManagerName}
               initialView={prospectView}
-              readOnly={isHq}
+              readOnly={isReadOnlyView}
             />
           </div>
         )}

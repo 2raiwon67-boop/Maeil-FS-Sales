@@ -18,7 +18,13 @@ export interface AuthContextValue {
   supabase: SupabaseClient;
   /** 사업부(본부 조회 계정) 여부 — 지점을 골라 열람하고 쓰기는 막힌다 */
   isHq: boolean;
-  /** 데이터 조회 기준 지점. 일반 사용자는 자기 소속, 사업부는 선택한 지점 */
+  /** 관리자 계정(app_metadata.is_admin) — 지점 소속을 유지한 채 전 지점 열람 가능 */
+  isAdminAccount: boolean;
+  /** 지점 드롭다운 노출 여부 (사업부 또는 관리자) */
+  canSwitchUnit: boolean;
+  /** 조회 전용 상태 — 사업부이거나, 관리자가 자기 지점이 아닌 곳을 보는 중 */
+  isReadOnlyView: boolean;
+  /** 데이터 조회 기준 지점. 일반 사용자는 자기 소속, 사업부·관리자는 선택한 지점 */
   viewUnit: string | null;
   setViewUnit: (unit: string) => void;
 }
@@ -32,6 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   // 사업부 계정이 보고 있는 지점. SSR·하이드레이션 불일치를 피해 localStorage는 effect에서 복원.
   const [hqUnit, setHqUnit] = useState<string>(BRANCH_UNITS[0]);
+  // 관리자가 열람 중인 다른 지점(null = 자기 지점). 세션 한정 — 재접속 시 자기 지점으로 복귀해
+  // "내 화면이 남의 지점에 멈춰 있는" 혼란을 막는다.
+  const [adminUnit, setAdminUnit] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const pathname = usePathname();
@@ -79,13 +88,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setViewUnit = useCallback((unit: string) => {
     if (!(BRANCH_UNITS as string[]).includes(unit)) return;
-    setHqUnit(unit);
-    try { localStorage.setItem(VIEW_UNIT_KEY, unit); } catch { /* ignore */ }
-  }, []);
+    const meta = user?.user_metadata as UserMetadata | undefined;
+    if (meta?.business_unit === HQ_UNIT) {
+      setHqUnit(unit);
+      try { localStorage.setItem(VIEW_UNIT_KEY, unit); } catch { /* ignore */ }
+    } else {
+      // 관리자: 자기 지점을 고르면 일반 모드(쓰기 가능)로 복귀
+      setAdminUnit(unit === meta?.business_unit ? null : unit);
+    }
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(() => {
     const metadata = user?.user_metadata as UserMetadata | undefined;
-    const isHq = metadata?.business_unit === HQ_UNIT;
+    const ownUnit = metadata?.business_unit ?? null;
+    const isHq = ownUnit === HQ_UNIT;
+    const isAdminAccount = user?.app_metadata?.is_admin === true;
+    const viewUnit = isHq ? hqUnit : (isAdminAccount && adminUnit ? adminUnit : ownUnit);
     return {
       user,
       metadata,
@@ -93,10 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       supabase,
       isHq,
-      viewUnit: isHq ? hqUnit : metadata?.business_unit ?? null,
+      isAdminAccount,
+      canSwitchUnit: isHq || isAdminAccount,
+      isReadOnlyView: isHq || (isAdminAccount && viewUnit !== ownUnit),
+      viewUnit,
       setViewUnit,
     };
-  }, [user, loading, signOut, supabase, hqUnit, setViewUnit]);
+  }, [user, loading, signOut, supabase, hqUnit, adminUnit, setViewUnit]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

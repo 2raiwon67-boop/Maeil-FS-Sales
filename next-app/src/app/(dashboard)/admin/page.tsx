@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { ShieldCheck, RefreshCw, Check, X, ArrowRightLeft, Trash2, Clock, Users, MapPin } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Check, X, ArrowRightLeft, Trash2, Clock, Users, MapPin, Crown } from 'lucide-react';
 import { PageHeader, headerBtn } from '@/components/layout/page-header';
 import { BUSINESS_UNITS } from '@/types';
 
@@ -15,6 +15,7 @@ interface UserRecord {
   full_name?: string;
   business_unit?: string;
   approved?: boolean;
+  is_admin?: boolean;
   created_at: string;
 }
 
@@ -56,16 +57,17 @@ export default function AdminPage() {
   };
 
   const callAction = async (
-    action: 'approve' | 'transfer' | 'reject' | 'delete',
+    action: 'approve' | 'transfer' | 'reject' | 'delete' | 'set_admin',
     user: UserRecord,
     businessUnit?: string,
+    isAdmin?: boolean,
   ) => {
     setBusy(user.id);
     try {
       const res = await fetch('/api/admin-users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Code': adminCode },
-        body: JSON.stringify({ action, userId: user.id, businessUnit }),
+        body: JSON.stringify({ action, userId: user.id, businessUnit, isAdmin }),
       });
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
@@ -76,6 +78,7 @@ export default function AdminPage() {
         transfer: '소속이 변경되었습니다',
         reject: '거절 및 계정 삭제 완료',
         delete: '계정이 삭제되었습니다',
+        set_admin: isAdmin ? '관리자로 지정했습니다 — 재로그인 후 전 지점 열람이 열립니다' : '관리자 지정을 해제했습니다',
       };
       toast.success(msg[action]);
       await loadUsers();
@@ -108,6 +111,14 @@ export default function AdminPage() {
   const handleDelete = (user: UserRecord) => {
     if (!confirm(`'${user.full_name || user.email}' 계정을 삭제하시겠습니까?\n\n퇴사 처리 시 해당 계정으로 더 이상 로그인할 수 없습니다.`)) return;
     callAction('delete', user);
+  };
+  const handleToggleAdmin = (user: UserRecord) => {
+    const next = !user.is_admin;
+    const q = next
+      ? `'${user.full_name || user.email}' 계정을 관리자로 지정하시겠습니까?\n\n지점 소속은 유지되고, 네비에서 다른 지점을 골라 '조회'할 수 있게 됩니다 (다른 지점 수정은 불가).`
+      : `'${user.full_name || user.email}' 계정의 관리자 지정을 해제하시겠습니까?`;
+    if (!confirm(q)) return;
+    callAction('set_admin', user, undefined, next);
   };
 
   if (!authenticated) {
@@ -196,6 +207,9 @@ export default function AdminPage() {
                       ) : (
                         <Badge className="bg-green-100 text-green-800">승인됨</Badge>
                       )}
+                      {user.is_admin && (
+                        <Badge className="bg-indigo-100 text-indigo-800"><Crown className="mr-0.5 h-3 w-3" />관리자</Badge>
+                      )}
                     </div>
                     <p className="truncate text-sm text-gray-500">{user.email}</p>
                     <p className="text-xs text-gray-400">
@@ -230,6 +244,9 @@ export default function AdminPage() {
                       <>
                         <Button size="sm" variant="outline" disabled={busy === user.id} onClick={() => handleTransfer(user)}>
                           <ArrowRightLeft className="h-3.5 w-3.5" />소속 변경
+                        </Button>
+                        <Button size="sm" variant="outline" disabled={busy === user.id} onClick={() => handleToggleAdmin(user)}>
+                          <Crown className="h-3.5 w-3.5" />{user.is_admin ? '관리자 해제' : '관리자 지정'}
                         </Button>
                         <Button size="sm" variant="destructive" disabled={busy === user.id} onClick={() => handleDelete(user)}>
                           <Trash2 className="h-3.5 w-3.5" />삭제

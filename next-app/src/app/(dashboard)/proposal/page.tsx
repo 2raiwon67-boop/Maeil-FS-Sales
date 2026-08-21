@@ -191,7 +191,7 @@ function resolveProductImage(name: string, files: string[]): string | null {
 // ════════════════════════════════════════════════════════════════════════════
 
 export default function ProposalPage() {
-  const { user, metadata, isHq, viewUnit } = useAuth();
+  const { user, metadata, isReadOnlyView, viewUnit } = useAuth();
   const supabase = createClient();
 
   // 제품 DB / 이미지
@@ -422,7 +422,7 @@ export default function ProposalPage() {
 
   const saveQuote = async (forceNew = false) => {
     if (!user) { toast.error('로그인이 필요합니다.'); return; }
-    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return; }
+    if (isReadOnlyView) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return; }
     const businessUnit = metadata?.business_unit;
     if (!businessUnit) { toast.error('소속 정보가 없습니다.'); return; }
 
@@ -496,7 +496,7 @@ export default function ProposalPage() {
   };
 
   const deleteQuote = async (id: string) => {
-    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return; }
+    if (isReadOnlyView) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return; }
     const businessUnit = metadata?.business_unit;
     if (!businessUnit) return;
     const { error } = await supabase.from('quotes').delete().eq('id', id).eq('business_unit', businessUnit);

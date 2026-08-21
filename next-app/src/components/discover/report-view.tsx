@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Sparkles, MapPin, RefreshCw, Target } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { sigunguMatches, LEGACY_TO_CURRENT } from '@/lib/regions';
 
 export interface ReportStore {
@@ -64,6 +65,7 @@ function matchUnit(sido: string, sgg: string, unit: string): boolean {
 }
 
 export function ReportView({ scope, stores }: Props) {
+  const { isReadOnlyView } = useAuth();
   const [popRows, setPopRows] = useState<PopRow[] | null>(null);
   const [popError, setPopError] = useState('');
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
@@ -379,14 +381,14 @@ export function ReportView({ scope, stores }: Props) {
   // ── 개척 활동 생성 — 현재 운영 중(개업 후 미폐업) 신규 매장만 타겟 (사용자 확정) ──
   async function createCampaign(u: UnitMetric) {
     if (creating) return;
+    // 사업부·타지점 열람 중 관리자 — 캠페인이 엉뚱한 소속으로 생기는 것 방지
+    if (isReadOnlyView) { toast.info('조회 전용 모드입니다 — 이 지점 데이터는 수정할 수 없습니다.'); return; }
     setCreating(u.name);
     try {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       const bu = user?.user_metadata?.business_unit;
       if (!user || !bu) throw new Error('로그인 정보를 확인할 수 없습니다');
-      // 사업부 소유로 캠페인이 생기면 지점에서 안 보인다 — 본부 계정은 열람만
-      if (bu === '사업부') { toast.info('사업부 계정은 조회 전용입니다.'); return; }
 
       // 타겟: 12개월 신규 & 운영 중(마지막 이벤트가 개업 — 재개업 포함, metrics와 동일 규칙) & 좌표 보유, 최대 60곳
       const byKey = new Map<string, { store: ReportStore; newMonth: string; closedMonth: string }>();

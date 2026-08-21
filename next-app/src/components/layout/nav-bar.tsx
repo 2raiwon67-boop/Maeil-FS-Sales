@@ -103,7 +103,7 @@ function LogoLockup() {
 
 export function NavBar() {
   const pathname = usePathname();
-  const { metadata, signOut, isHq, viewUnit, setViewUnit } = useAuth();
+  const { metadata, signOut, canSwitchUnit, viewUnit, setViewUnit } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -124,7 +124,7 @@ export function NavBar() {
 
           <div className="flex-1" />
 
-          {isHq ? (
+          {canSwitchUnit ? (
             <UnitSelector viewUnit={viewUnit} setViewUnit={setViewUnit} />
           ) : unit ? (
             <span
@@ -226,7 +226,7 @@ export function NavBar() {
           <LogoLockup />
           <div className="ml-auto flex items-center gap-2">
             <div id="nav-right-slot-mobile" className="flex items-center" />
-            {isHq ? (
+            {canSwitchUnit ? (
               <UnitSelector viewUnit={viewUnit} setViewUnit={setViewUnit} compact />
             ) : unit ? (
               <span

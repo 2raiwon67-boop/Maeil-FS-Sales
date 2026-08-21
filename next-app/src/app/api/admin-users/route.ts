@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
         full_name: u.user_metadata?.full_name || '',
         business_unit: u.user_metadata?.business_unit || '',
         approved: u.user_metadata?.approved,
+        is_admin: u.app_metadata?.is_admin === true,
         created_at: u.created_at,
         last_sign_in_at: u.last_sign_in_at,
       }))
@@ -87,12 +88,18 @@ export async function POST(req: NextRequest) {
       ...(finalBusinessUnit ? { business_unit: finalBusinessUnit } : {}),
     };
 
+    // app_metadata는 통째 교체될 수 있어 기존 값(is_admin 등)을 읽어 보존한다
+    const curRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+      headers: supabaseHeaders,
+    });
+    const curUser = curRes.ok ? await curRes.json() : null;
+
     const response = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
       method: 'PUT',
       headers: supabaseHeaders,
       body: JSON.stringify({
         user_metadata: updatedMeta,
-        app_metadata: { business_unit: finalBusinessUnit },
+        app_metadata: { ...(curUser?.app_metadata || {}), business_unit: finalBusinessUnit },
       }),
     });
     const data = await response.json();
@@ -167,12 +174,32 @@ export async function POST(req: NextRequest) {
       headers: supabaseHeaders,
       body: JSON.stringify({
         user_metadata: updatedMeta,
-        app_metadata: { business_unit: businessUnit },
+        app_metadata: { ...(getUser.app_metadata || {}), business_unit: businessUnit },
       }),
     });
     const putData = await putRes.json();
     if (!putRes.ok) return NextResponse.json(putData, { status: putRes.status, headers });
     return NextResponse.json({ success: true, message: '소속 변경 완료' }, { headers });
+  }
+
+  // 관리자 지정/해제 — is_admin이면 지점 소속을 유지한 채 전 지점 '조회'가 열린다(쓰기는 자기 지점만)
+  if (action === 'set_admin') {
+    const getRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+      headers: supabaseHeaders,
+    });
+    const getUser = await getRes.json();
+    if (!getRes.ok) return NextResponse.json(getUser, { status: getRes.status, headers });
+
+    const putRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: supabaseHeaders,
+      body: JSON.stringify({
+        app_metadata: { ...(getUser.app_metadata || {}), is_admin: body.isAdmin === true },
+      }),
+    });
+    const putData = await putRes.json();
+    if (!putRes.ok) return NextResponse.json(putData, { status: putRes.status, headers });
+    return NextResponse.json({ success: true, message: body.isAdmin ? '관리자로 지정했습니다' : '관리자 지정을 해제했습니다' }, { headers });
   }
 
   if (action === 'reject' || action === 'delete') {
