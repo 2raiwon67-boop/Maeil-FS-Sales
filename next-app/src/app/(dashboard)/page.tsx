@@ -83,9 +83,10 @@ function useIsMobile() {
 
 export default function DashboardPage() {
   const { licenses, accounts, loading, error, setLicenses, setAccounts } = useDashboardData();
-  const { metadata } = useAuth();
+  const { isHq, viewUnit } = useAuth();
   const { myManagerName } = useManager();
-  const businessUnit = metadata?.business_unit ?? null;
+  // 사업부 계정은 네비에서 선택한 지점의 데이터를 조회 전용으로 본다
+  const businessUnit = viewUnit;
   const mobile = useIsMobile();
 
   const mapElRef = useRef<HTMLDivElement>(null);
@@ -652,6 +653,7 @@ export default function DashboardPage() {
   };
 
   const onStatusChange = async (newStatus: string): Promise<boolean> => {
+    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
     if (!selected || !businessUnit) return false;
     try {
       if (selected.type === 'license') {
@@ -684,6 +686,7 @@ export default function DashboardPage() {
   };
 
   const onMilkChange = async (newMilk: string): Promise<boolean> => {
+    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
     if (!selected || selected.type !== 'license' || !businessUnit) return false;
     try {
       const lic = selected.item as License;
@@ -700,6 +703,7 @@ export default function DashboardPage() {
   };
 
   const onExpectedRevenueChange = async (value: number | null): Promise<boolean> => {
+    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
     if (!selected || selected.type !== 'license' || !businessUnit) return false;
     try {
       const lic = selected.item as License;
@@ -871,6 +875,7 @@ export default function DashboardPage() {
               businessUnit={businessUnit}
               myManagerName={myManagerName}
               initialView={prospectView}
+              readOnly={isHq}
             />
           </div>
         )}

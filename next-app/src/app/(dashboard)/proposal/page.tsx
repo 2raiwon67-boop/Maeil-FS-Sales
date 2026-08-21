@@ -191,7 +191,7 @@ function resolveProductImage(name: string, files: string[]): string | null {
 // ════════════════════════════════════════════════════════════════════════════
 
 export default function ProposalPage() {
-  const { user, metadata } = useAuth();
+  const { user, metadata, isHq, viewUnit } = useAuth();
   const supabase = createClient();
 
   // 제품 DB / 이미지
@@ -422,8 +422,9 @@ export default function ProposalPage() {
 
   const saveQuote = async (forceNew = false) => {
     if (!user) { toast.error('로그인이 필요합니다.'); return; }
+    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return; }
     const businessUnit = metadata?.business_unit;
-    if (!businessUnit) { toast.error('사업부 정보가 없습니다.'); return; }
+    if (!businessUnit) { toast.error('소속 정보가 없습니다.'); return; }
 
     setSavingQuote(true);
     try {
@@ -462,7 +463,7 @@ export default function ProposalPage() {
 
   const openQuotePicker = async () => {
     setQuotePickerOpen(true);
-    const businessUnit = metadata?.business_unit;
+    const businessUnit = viewUnit; // 사업부는 선택한 지점의 견적을 열람
     if (!businessUnit) return;
     const { data, error } = await supabase.from('quotes')
       .select('id, customer_name, created_by, total_amount, memo, created_at, updated_at')
@@ -474,8 +475,8 @@ export default function ProposalPage() {
   };
 
   const loadQuote = async (id: string) => {
-    const businessUnit = metadata?.business_unit;
-    if (!businessUnit) { toast.error('사업부 정보가 없습니다.'); return; }
+    const businessUnit = viewUnit;
+    if (!businessUnit) { toast.error('소속 정보가 없습니다.'); return; }
     const { data, error } = await supabase.from('quotes').select('*').eq('id', id).eq('business_unit', businessUnit).single();
     if (error || !data) { toast.error('불러오기 실패'); return; }
     setLoadedQuoteId(data.id);
@@ -495,6 +496,7 @@ export default function ProposalPage() {
   };
 
   const deleteQuote = async (id: string) => {
+    if (isHq) { toast.info('사업부 계정은 조회 전용입니다.'); return; }
     const businessUnit = metadata?.business_unit;
     if (!businessUnit) return;
     const { error } = await supabase.from('quotes').delete().eq('id', id).eq('business_unit', businessUnit);

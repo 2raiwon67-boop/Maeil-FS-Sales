@@ -1,5 +1,5 @@
 export const BUSINESS_UNITS = [
-  '수도권지역사업부',
+  '사업부',
   '경기북부FS/특수지점',
   '서울FS/특수지점',
   '경기남부FS/특수지점',
@@ -7,6 +7,10 @@ export const BUSINESS_UNITS = [
 ] as const;
 
 export type BusinessUnit = (typeof BUSINESS_UNITS)[number];
+
+// 사업부 = 본부 조회 계정. 데이터를 소유하지 않고 지점을 골라 열람만 한다(RLS is_hq).
+export const HQ_UNIT = '사업부';
+export const BRANCH_UNITS = BUSINESS_UNITS.filter((u) => u !== HQ_UNIT);
 
 // licenses 테이블 실제 스키마 (Supabase). 좌표(lat/lng)는 WGS84, 없는 행은 클라이언트 지오코딩.
 export interface License {

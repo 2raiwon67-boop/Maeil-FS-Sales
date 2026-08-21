@@ -385,6 +385,8 @@ export function ReportView({ scope, stores }: Props) {
       const { data: { user } } = await supabase.auth.getUser();
       const bu = user?.user_metadata?.business_unit;
       if (!user || !bu) throw new Error('로그인 정보를 확인할 수 없습니다');
+      // 사업부 소유로 캠페인이 생기면 지점에서 안 보인다 — 본부 계정은 열람만
+      if (bu === '사업부') { toast.info('사업부 계정은 조회 전용입니다.'); return; }
 
       // 타겟: 12개월 신규 & 운영 중(마지막 이벤트가 개업 — 재개업 포함, metrics와 동일 규칙) & 좌표 보유, 최대 60곳
       const byKey = new Map<string, { store: ReportStore; newMonth: string; closedMonth: string }>();

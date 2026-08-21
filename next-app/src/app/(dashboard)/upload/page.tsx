@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
-import { BUSINESS_UNITS } from '@/types';
+import { BRANCH_UNITS } from '@/types';
 import { PageHeader, headerBtn } from '@/components/layout/page-header';
 
 // ── 타입 정의 ──────────────────────────────────────────────────────────────────
@@ -862,6 +862,18 @@ export default function UploadPage() {
     : currentDbData.every((r) => checkedRows.has(r.id as string)));
   const totalPages = Math.ceil(dbTotal / PREVIEW_PAGE_SIZE);
 
+  // 사업부(본부 조회 계정)는 지점 데이터를 소유하지 않는다 — 데이터 관리는 지점·관리자 전용
+  if (!authLoading && !isAdmin && metadata?.business_unit === '사업부') {
+    return (
+      <div className="min-h-full bg-[#f6f7f9]">
+        <PageHeader />
+        <div className="mx-auto max-w-[1500px] px-6 py-16 text-center text-sm text-[#64748b]">
+          사업부 계정은 조회 전용이라 데이터 관리를 사용할 수 없습니다.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-full bg-[#f6f7f9]">
       <PageHeader
@@ -870,7 +882,7 @@ export default function UploadPage() {
             <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700"><Crown size={13} />관리자</span>
             <select value={adminTargetBU} onChange={(e) => handleAdminBranchChange(e.target.value)} className="rounded-lg border border-[#d6dbe3] px-2.5 py-1.5 text-xs text-[#334155] outline-none">
               <option value="">조회할 지점 선택</option>
-              {BUSINESS_UNITS.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
+              {BRANCH_UNITS.map((bu) => <option key={bu} value={bu}>{bu}</option>)}
             </select>
           </div>
         ) : undefined}

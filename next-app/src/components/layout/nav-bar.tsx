@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
+import { BRANCH_UNITS } from '@/types';
 import { SettingsModal } from '@/components/layout/settings-modal';
 import { NotificationBell } from '@/components/layout/notification-bell';
 
@@ -30,6 +31,60 @@ const NAV_ITEMS: { href: string; label: string; icon: LucideIcon }[] = [
 ];
 
 const NAVY = '#1B3F82';
+
+// 사업부(본부 조회 계정)용 지점 선택 — 일반 사용자의 소속 칩과 같은 자리에 뜬다
+function UnitSelector({
+  viewUnit,
+  setViewUnit,
+  compact,
+}: {
+  viewUnit: string | null;
+  setViewUnit: (u: string) => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-lg font-medium',
+          compact ? 'max-w-[140px] px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs',
+        )}
+        style={{ background: '#eef3fb', color: NAVY }}
+      >
+        <MapPin className={compact ? 'h-3 w-3 shrink-0' : 'h-3.5 w-3.5'} />
+        <span className="truncate">{viewUnit ?? '지점 선택'}</span>
+        <ChevronDown className={compact ? 'h-3 w-3 shrink-0' : 'h-3.5 w-3.5'} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-xl border border-[#e8ebf0] bg-white py-1 shadow-lg">
+            {BRANCH_UNITS.map((u) => (
+              <button
+                key={u}
+                type="button"
+                className={cn(
+                  'flex w-full items-center px-4 py-2 text-left text-sm hover:bg-gray-50',
+                  u === viewUnit ? 'font-semibold' : 'text-[#334155]',
+                )}
+                style={u === viewUnit ? { color: NAVY } : undefined}
+                onClick={() => {
+                  setViewUnit(u);
+                  setOpen(false);
+                }}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function LogoLockup() {
   return (
@@ -48,7 +103,7 @@ function LogoLockup() {
 
 export function NavBar() {
   const pathname = usePathname();
-  const { metadata, signOut } = useAuth();
+  const { metadata, signOut, isHq, viewUnit, setViewUnit } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -69,7 +124,9 @@ export function NavBar() {
 
           <div className="flex-1" />
 
-          {unit && (
+          {isHq ? (
+            <UnitSelector viewUnit={viewUnit} setViewUnit={setViewUnit} />
+          ) : unit ? (
             <span
               className="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium lg:inline-flex"
               style={{ background: '#eef3fb', color: NAVY }}
@@ -77,7 +134,7 @@ export function NavBar() {
               <MapPin className="h-3.5 w-3.5" />
               {unit}
             </span>
-          )}
+          ) : null}
 
           <NotificationBell />
 
@@ -169,7 +226,9 @@ export function NavBar() {
           <LogoLockup />
           <div className="ml-auto flex items-center gap-2">
             <div id="nav-right-slot-mobile" className="flex items-center" />
-            {unit && (
+            {isHq ? (
+              <UnitSelector viewUnit={viewUnit} setViewUnit={setViewUnit} compact />
+            ) : unit ? (
               <span
                 className="inline-flex max-w-[108px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
                 style={{ background: '#eef3fb', color: NAVY }}
@@ -177,7 +236,7 @@ export function NavBar() {
                 <MapPin className="h-3 w-3 shrink-0" />
                 <span className="truncate">{unit}</span>
               </span>
-            )}
+            ) : null}
             <NotificationBell />
           </div>
         </div>

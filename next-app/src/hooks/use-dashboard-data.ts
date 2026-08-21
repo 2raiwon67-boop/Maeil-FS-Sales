@@ -38,8 +38,9 @@ function writeCache<T>(key: string, data: T[]) {
 }
 
 export function useDashboardData(): DashboardData {
-  const { metadata } = useAuth();
-  const businessUnit = metadata?.business_unit ?? null;
+  // viewUnit: 일반 사용자는 자기 소속, 사업부 계정은 네비에서 선택한 지점
+  const { viewUnit } = useAuth();
+  const businessUnit = viewUnit;
   const supabase = createClient();
 
   const [licenses, setLicenses] = useState<License[]>([]);

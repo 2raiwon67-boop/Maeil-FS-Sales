@@ -6,8 +6,8 @@ import { createClient } from '@supabase/supabase-js';
 export const maxDuration = 60;
 
 // 서버 측 business_unit 화이트리스트 (클라이언트 값 신뢰 안 함)
+// '사업부'는 조회 전용 본부 계정이라 업로드 대상에서 제외
 const VALID_BUSINESS_UNITS = [
-  '수도권지역사업부',
   '경기북부FS/특수지점',
   '서울FS/특수지점',
   '경기남부FS/특수지점',

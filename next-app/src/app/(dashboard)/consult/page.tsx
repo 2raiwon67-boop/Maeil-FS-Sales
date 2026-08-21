@@ -390,8 +390,9 @@ export default function ConsultPage() {
   // ── 견적 초안 저장 (proposal의 quotes 포맷과 동일 → 견적서 "불러오기"로 픽업) ──
   const saveDraft = async () => {
     if (!user) { toast.error('로그인이 필요합니다.'); return; }
+    if (metadata?.business_unit === '사업부') { toast.info('사업부 계정은 조회 전용입니다.'); return; }
     const businessUnit = metadata?.business_unit;
-    if (!businessUnit) { toast.error('사업부 정보가 없습니다.'); return; }
+    if (!businessUnit) { toast.error('소속 정보가 없습니다.'); return; }
     if (basketProducts.length === 0) { toast.warning('담은 제품이 없습니다.'); return; }
 
     setSaving(true);

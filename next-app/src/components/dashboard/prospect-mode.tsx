@@ -81,13 +81,21 @@ const XLS_KEYS = {
   manager: ['담당'],
 };
 
-export function ProspectMode({ businessUnit, myManagerName, initialView }: {
+export function ProspectMode({ businessUnit, myManagerName, initialView, readOnly }: {
   businessUnit: string | null;
   myManagerName: string | null;
   /** 홈 지도에서 보던 시점 — 개척 지도가 그대로 이어받는다 (null이면 기본값) */
   initialView?: { lat: number; lng: number; zoom: number } | null;
+  /** 사업부(본부) 계정 — 다른 지점 데이터를 열람만, 쓰기는 RLS로도 막혀 있다 */
+  readOnly?: boolean;
 }) {
   const supabase = createClient();
+
+  // 쓰기 진입점 공통 가드 — RLS 에러 대신 친절한 안내
+  const guardWrite = () => {
+    if (readOnly) { toast.info('사업부 계정은 조회 전용입니다.'); return false; }
+    return true;
+  };
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignId, setCampaignId] = useState<string | null>(null);
@@ -224,6 +232,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
 
   // ── 활동 만들기 ──
   const saveCampaign = async () => {
+    if (!guardWrite()) return;
     const title = cTitle.trim();
     if (!title || !cStart || !cEnd) { toast.warning('활동명과 기간을 입력해주세요.'); return; }
     if (cEnd < cStart) { toast.warning('종료일이 시작일보다 빠릅니다.'); return; }
@@ -258,6 +267,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
   };
 
   const saveProspect = async () => {
+    if (!guardWrite()) return;
     const name = fName.trim(), addr = fAddr.trim(), manager = fManager.trim();
     if (!name || !addr || !manager) { toast.warning('거래처명·주소·담당자를 모두 입력해주세요.'); return; }
     if (!businessUnit || !campaign) return;
@@ -287,6 +297,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
 
   // ── 타겟 등록 (엑셀 일괄) ──
   const handleExcel = async (file: File) => {
+    if (!guardWrite()) return;
     if (!businessUnit || !campaign) return;
     setBulkProgress('파일 읽는 중…');
     try {
@@ -359,6 +370,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
 
   // ── 단계·가능성 변경 / 삭제 ──
   const patchRow = async (id: string, patch: Partial<Pick<Prospect, 'stage' | 'potential'>>) => {
+    if (!guardWrite()) return;
     const prev = rows;
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     const { error } = await supabase.from('prospects').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id);
@@ -366,6 +378,7 @@ export function ProspectMode({ businessUnit, myManagerName, initialView }: {
   };
 
   const deleteRow = async (id: string) => {
+    if (!guardWrite()) return;
     const { error } = await supabase.from('prospects').delete().eq('id', id);
     if (error) { toast.error('삭제 실패: ' + error.message); return; }
     setRows((rs) => rs.filter((r) => r.id !== id));

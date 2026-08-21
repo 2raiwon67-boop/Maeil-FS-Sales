@@ -4,6 +4,7 @@ import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket } from '@/lib/regions';
 import { loadNaverMaps, cachedGeocodeDetailed, cleanGeocodeQuery } from '@/lib/naver/loader';
@@ -502,6 +503,8 @@ function dedupeStoreEvents(rows: StoreRow[]): StoreRow[] {
 export default function DiscoverPage() {
   const router = useRouter();
   const supabase = createClient();
+  // 사업부 계정은 네비에서 고른 지점 기준으로 관할을 계산 (일반 사용자는 자기 소속)
+  const { viewUnit } = useAuth();
 
   // Map refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -1374,12 +1377,13 @@ export default function DiscoverPage() {
   // ─── INIT DASHBOARD ────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (!viewUnit) return; // 인증 로드 전 — viewUnit 확정 후 1회만 초기화
     async function init() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        const bu = user.user_metadata?.business_unit || '';
+        const bu = viewUnit || '';
         const { data: mgrs, error } = await supabase
           .from('managers')
           .select('region1, region2')
@@ -1415,7 +1419,7 @@ export default function DiscoverPage() {
     }
     init();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [viewUnit]);
 
   // ─── LOAD DASHBOARD DATA ───────────────────────────────────────────────────
 

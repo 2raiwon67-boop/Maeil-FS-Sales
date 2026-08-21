@@ -86,7 +86,7 @@ const BUSINESS_TYPE_CHIPS = [
 // ── 컴포넌트 ──────────────────────────────────────────────────────────────────
 
 export default function LicenseExportPage() {
-  const { user, metadata, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, viewUnit } = useAuth();
   const supabase = createClient();
 
   // 날짜
@@ -123,11 +123,11 @@ export default function LicenseExportPage() {
   const [truncatedWarning, setTruncatedWarning] = useState<string>('');
   const [searchError, setSearchError] = useState('');
 
-  // 유효한 business_unit 취득
+  // 유효한 business_unit 취득 — 사업부 계정은 네비에서 선택한 지점 기준
   const getBusinessUnit = useCallback(async (): Promise<string | null> => {
     if (isAdmin) return adminTargetBU || null;
-    return metadata?.business_unit ?? null;
-  }, [isAdmin, adminTargetBU, metadata]);
+    return viewUnit ?? null;
+  }, [isAdmin, adminTargetBU, viewUnit]);
 
   // ── 담당자 맵 로드 ────────────────────────────────────────────────────────
 
@@ -231,11 +231,11 @@ export default function LicenseExportPage() {
   useEffect(() => {
     if (authLoading) return;
     if (isAdmin) return; // 관리자는 수동으로 지점 선택
-    const bu = metadata?.business_unit;
+    const bu = viewUnit;
     if (!bu) return;
     loadManagerMap(bu);
     loadRegionChips(bu);
-  }, [authLoading, isAdmin, metadata, loadManagerMap, loadRegionChips]);
+  }, [authLoading, isAdmin, viewUnit, loadManagerMap, loadRegionChips]);
 
   // ── 관리자 지점 변경 ──────────────────────────────────────────────────────
 
