@@ -6,10 +6,11 @@
 // 데이터: 인구 = population_stats (법정동·월, RLS read) · 시장 = 부모(discover)가 가진 cachedStores 메모리
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Sparkles, MapPin, RefreshCw, Target } from 'lucide-react';
+import { Sparkles, MapPin, RefreshCw, Target, Filter } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { sigunguMatches, LEGACY_TO_CURRENT } from '@/lib/regions';
+import { isEligible, monthShift, classifyMomentum, annualChurnPct, pioneerRequirement, type Momentum } from '@/lib/report-model';
 
 export interface ReportStore {
   name: string;
@@ -52,6 +53,10 @@ interface UnitMetric {
   pop: number;
   popChg: number; // % (첫 관측월 대비)
   new12m: number;
+  newPrior12: number; // 직전 12개월(13~24개월 전) 신규 — 모멘텀 비교용
+  momentum: Momentum | null; // null = 직전 창 데이터 미도착(과거 24개월 병합 전)
+  closed12: number; // 최근 12개월 최종 폐업(재개업 제외)
+  churnPct: number; // 연 폐업률 — 인허가 폐업 기준 하한선
   operating: number;
   perCapita: number; // 1만명당 신규(12개월)
   popSeries: { month: string; pop: number }[];
@@ -73,6 +78,10 @@ export function ReportView({ scope, stores }: Props) {
   const [brief, setBrief] = useState('');
   const [briefLoading, setBriefLoading] = useState(false);
   const [creating, setCreating] = useState<string | null>(null);
+  // 적격 13업종 필터(기본 ON) — 무인점포·기타휴게 부풀림을 걷어낸 보수적 분모. lib/report-model 참조.
+  const [eligibleOnly, setEligibleOnly] = useState(true);
+  // 시군구별 거래처 수 — accounts 테이블이 비어 있어 ERP 실측을 수기 입력(기기별 localStorage 유지)
+  const [acctMap, setAcctMap] = useState<Record<string, number>>({});
   const quadRef = useRef<HTMLCanvasElement>(null);
   const lineRef = useRef<HTMLCanvasElement>(null);
   const netRef = useRef<HTMLCanvasElement>(null);
@@ -127,18 +136,40 @@ export function ReportView({ scope, stores }: Props) {
     return () => { dead = true; };
   }, [scope, units.length]);
 
+  // ── 거래처 수 수기 입력 복원 (localStorage — SSR 하이드레이션 회피로 setTimeout) ──
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { setAcctMap(JSON.parse(localStorage.getItem('fs_report_acct') || '{}')); } catch { /* 무시 */ }
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  function saveAcct(unit: string, raw: string) {
+    const n = Math.max(0, Math.floor(Number(raw) || 0));
+    setAcctMap((m) => {
+      const next = { ...m, [unit]: n };
+      if (!n) delete next[unit];
+      try { localStorage.setItem('fs_report_acct', JSON.stringify(next)); } catch { /* 무시 */ }
+      return next;
+    });
+  }
+
   // ── 지표 계산 ─────────────────────────────────────────────────────────────
   const metrics = useMemo(() => {
     if (!popRows || !popRows.length || !stores.length) return null;
+    // 적격 필터 — 모든 지표·사분면·판정·AI 분석이 같은 모수를 쓴다 (화면 간 숫자 일치 원칙)
+    const baseStores = eligibleOnly ? stores.filter((s) => isEligible(s.category)) : stores;
+    if (!baseStores.length) return null;
     const allMonths = [...new Set(popRows.map((r) => r.month))].sort();
     const firstM = allMonths[0];
     const lastM = allMonths[allMonths.length - 1];
     // 시장 최신 이벤트 월 기준 12개월 컷 (인구 월과 별개)
-    const storeMonths = [...new Set(stores.map((s) => s.month))].sort();
+    const storeMonths = [...new Set(baseStores.map((s) => s.month))].sort();
     const lastStoreM = storeMonths[storeMonths.length - 1] || lastM;
-    const cut = new Date(`${lastStoreM}-01`);
-    cut.setMonth(cut.getMonth() - 11);
-    const cut12 = `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, '0')}`;
+    const cut12 = monthShift(lastStoreM, -11);
+    const cut24 = monthShift(cut12, -12); // 직전 12개월 창 시작 (모멘텀 비교)
+    // 과거 24개월 병합 전(디스커버 2단계 로드)에는 직전 창이 비어 모멘텀이 전부 '가속'으로 왜곡 → 도착 전엔 숨김
+    const hasPrior = storeMonths[0] < cut12;
 
     const out: UnitMetric[] = [];
     for (const { sido, unit } of units) {
@@ -160,7 +191,7 @@ export function ReportView({ scope, stores }: Props) {
       if (!popFirst || !pop) continue;
       const popChg = +(((pop - popFirst) / popFirst) * 100).toFixed(1);
 
-      const uStores = stores.filter((s) => matchUnit(s.sido, s.sigungu, unit) || s.sigungu === unit);
+      const uStores = baseStores.filter((s) => matchUnit(s.sido, s.sigungu, unit) || s.sigungu === unit);
       // 운영 중 판정: 마지막 이벤트 기준 — 폐업 후 재개업(closed월 < new월)은 운영 중으로 본다
       const byKey = new Map<string, { hasNew: boolean; newMonth: string; closedMonth: string; dong: string }>();
       for (const s of uStores) {
@@ -170,16 +201,22 @@ export function ReportView({ scope, stores }: Props) {
         if (s.status === 'closed' && s.month > e.closedMonth) e.closedMonth = s.month;
         byKey.set(k, e);
       }
-      let new12m = 0, operating = 0;
+      let new12m = 0, newPrior12 = 0, closed12 = 0, operating = 0;
       const dongNew = new Map<string, number>();
       for (const e of byKey.values()) {
         if (e.hasNew && e.newMonth >= cut12) {
           new12m++;
           dongNew.set(e.dong, (dongNew.get(e.dong) || 0) + 1);
         }
+        // 직전 12개월 신규 (13~24개월 전) — 재개업으로 최근 창에 잡힌 매장은 최근에만 계수
+        if (e.hasNew && e.newMonth >= cut24 && e.newMonth < cut12) newPrior12++;
+        // 최근 12개월 최종 폐업 — 폐업 후 재개업(운영 중)은 제외
+        if (e.closedMonth >= cut12 && (!e.hasNew || e.closedMonth > e.newMonth)) closed12++;
         if (e.hasNew && e.newMonth >= e.closedMonth) operating++;
       }
       const perCapita = +((new12m / pop) * 10000).toFixed(1);
+      const churnPct = annualChurnPct(closed12, operating);
+      const momentum = hasPrior ? classifyMomentum(new12m, newPrior12) : null;
 
       // 월별 인허가 순증(신규-폐업) — 이벤트 월 기준
       const netByMonth = new Map<string, number>();
@@ -201,7 +238,7 @@ export function ReportView({ scope, stores }: Props) {
       const fmt = (d: { dong: string; chg: number | null }) => (d.chg === null ? `${d.dong} 신설` : `${d.dong} ${d.chg > 0 ? '+' : ''}${d.chg}%`);
       const dongNotes = [...ups.map(fmt), ...downs.map(fmt)].join(' · ');
 
-      out.push({ name: unit, sido, verdict: '관찰', pop, popChg, new12m, operating, perCapita, popSeries, netSeries, dongNotes, dongDetail });
+      out.push({ name: unit, sido, verdict: '관찰', pop, popChg, new12m, newPrior12, momentum, closed12, churnPct, operating, perCapita, popSeries, netSeries, dongNotes, dongDetail });
     }
     if (!out.length) return null;
 
@@ -214,8 +251,8 @@ export function ReportView({ scope, stores }: Props) {
       else u.verdict = '관찰';
     }
     out.sort((a, b) => b.popChg - a.popChg);
-    return { units: out, firstM, lastM, cut12, median };
-  }, [popRows, stores, units]);
+    return { units: out, firstM, lastM, cut12, median, hasPrior };
+  }, [popRows, stores, units, eligibleOnly]);
 
   // 선택이 없으면 첫 시군구로 — 렌더 시 파생 (effect 내 동기 setState 금지 규칙)
   const effectiveUnit = selectedUnit ?? metrics?.units[0]?.name ?? null;
@@ -349,7 +386,8 @@ export function ReportView({ scope, stores }: Props) {
 
   // ── AI 분석 (서버 캐시 — 같은 범위·월은 재생성 없음) ──────────────────────
   useEffect(() => {
-    if (!metrics || brief || briefLoading) return;
+    // hasPrior 대기: 과거 24개월 병합 전에 생성하면 모멘텀이 전부 '가속'인 채 캐시에 박제됨
+    if (!metrics || !metrics.hasPrior || brief || briefLoading) return;
     let dead = false;
     (async () => {
       setBriefLoading(true);
@@ -360,9 +398,11 @@ export function ReportView({ scope, stores }: Props) {
           body: JSON.stringify({
             scopeKey: metrics.units.map((u) => u.name).join(','),
             month: metrics.lastM,
+            mode: eligibleOnly ? '적격' : '전체',
             units: metrics.units.map((u) => ({
               name: u.name, label: u.verdict, popChg: u.popChg, pop: u.pop,
-              new12m: u.new12m, operating: u.operating, perCapita: u.perCapita, dongNotes: u.dongNotes,
+              new12m: u.new12m, newPrior12: u.newPrior12, momentum: u.momentum || '보합', churnPct: u.churnPct,
+              operating: u.operating, perCapita: u.perCapita, dongNotes: u.dongNotes,
             })),
           }),
         });
@@ -391,8 +431,10 @@ export function ReportView({ scope, stores }: Props) {
       if (!user || !bu) throw new Error('로그인 정보를 확인할 수 없습니다');
 
       // 타겟: 12개월 신규 & 운영 중(마지막 이벤트가 개업 — 재개업 포함, metrics와 동일 규칙) & 좌표 보유, 최대 60곳
+      // 적격 필터 상태를 그대로 따름 — 화면에 보이는 신규 수와 등록되는 타겟 수가 일치해야 한다
+      const srcStores = eligibleOnly ? stores.filter((s) => isEligible(s.category)) : stores;
       const byKey = new Map<string, { store: ReportStore; newMonth: string; closedMonth: string }>();
-      for (const s of stores) {
+      for (const s of srcStores) {
         if (!(matchUnit(s.sido, s.sigungu, u.name) || s.sigungu === u.name)) continue;
         const k = `${s.name}|${s.addrKey}`;
         const e = byKey.get(k) || { store: s, newMonth: '', closedMonth: '' };
@@ -484,6 +526,15 @@ export function ReportView({ scope, stores }: Props) {
         <div className="text-[13px] font-semibold text-slate-600">
           관할 시군구 기획보고서 <span className="font-normal text-slate-400">· 인구 {metrics.firstM}~{metrics.lastM} · 신규 개업 최근 12개월</span>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setEligibleOnly((v) => !v); setBrief(''); }}
+            className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold ring-1 transition-colors ${eligibleOnly ? 'bg-[#5856d6] text-white ring-[#5856d6]' : 'bg-white text-slate-500 ring-slate-200'}`}
+          >
+            <Filter size={11} className="mr-1 inline" />적격 업종만
+          </button>
+          <span className="text-[11px] text-slate-400">{eligibleOnly ? '무인점포·기타휴게 제외한 FS-적격 13업종' : '전체 수집 업종 (상권 규모용)'}</span>
+        </div>
       </div>
 
       {/* 한눈에 보이는 2컬럼(사용자 확정): 좌 = 요약·사분면·판정(스크롤) / 우 = 인구·순증 추이 + AI 분석 */}
@@ -528,7 +579,13 @@ export function ReportView({ scope, stores }: Props) {
               <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${VERDICT_STYLE[u.verdict].badge}`}>{u.verdict}</span>
               <span className="text-sm font-semibold text-slate-800">{u.name}</span>
               <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">
-                인구 {u.popChg > 0 ? '+' : ''}{u.popChg}%{u.popSeries.length < 40 ? ` (관측 ${u.popSeries.length}개월)` : ''} · 신규 {u.new12m}곳 · 운영 {u.operating}곳 · 1만명당 {u.perCapita}곳
+                인구 {u.popChg > 0 ? '+' : ''}{u.popChg}%{u.popSeries.length < 40 ? ` (관측 ${u.popSeries.length}개월)` : ''} · 신규 {u.new12m}곳
+                {u.momentum && (
+                  <span className={u.momentum === '가속' ? 'text-green-600' : u.momentum === '감속' ? 'text-red-500' : 'text-slate-400'}>
+                    {' '}({u.momentum === '가속' ? '▲' : u.momentum === '감속' ? '▼' : '−'} 직전 {u.newPrior12})
+                  </span>
+                )}
+                {' '}· 운영 {u.operating}곳 · 1만명당 {u.perCapita}곳
               </span>
               {(u.verdict === '선점' || u.verdict === '공략') && (
                 <button
@@ -584,6 +641,52 @@ export function ReportView({ scope, stores }: Props) {
           </div>
           <div className="relative mb-4 h-[200px] rounded-xl bg-white p-3 ring-1 ring-slate-100">
             <canvas ref={netRef} />
+          </div>
+
+          <div className="mb-1 text-[13px] font-semibold text-slate-700">
+            개척 요건 <span className="font-normal text-slate-400">— {sel.name} · {eligibleOnly ? '적격시장' : '전체 업종'} 실측 기반</span>
+          </div>
+          <div className="mb-4 rounded-xl bg-white px-4 py-3.5 ring-1 ring-slate-100">
+            <div className="mb-2.5 grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[11px] font-semibold text-slate-400">{eligibleOnly ? '적격시장' : '시장'} 운영</div>
+                <div className="mt-0.5 text-[15px] font-bold text-slate-800 tabular-nums">{sel.operating.toLocaleString()}곳</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-400">신규 / 폐업 (12개월)</div>
+                <div className="mt-0.5 text-[15px] font-bold text-slate-800 tabular-nums">{sel.new12m} / {sel.closed12}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-400">폐업률 (연)</div>
+                <div className="mt-0.5 text-[15px] font-bold text-slate-800 tabular-nums">{sel.churnPct}%</div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-slate-50 pt-2.5">
+              <label className="flex items-center gap-1.5 text-[12px] text-slate-500">
+                거래처 수
+                <input
+                  type="number" min={0} placeholder="ERP 기준"
+                  value={acctMap[sel.name] || ''}
+                  onChange={(e) => saveAcct(sel.name, e.target.value)}
+                  className="w-[76px] rounded-lg border border-slate-200 px-2 py-1 text-[12px] tabular-nums focus:border-[#5856d6] focus:outline-none"
+                />
+              </label>
+              {(acctMap[sel.name] || 0) > 0 ? (() => {
+                const req = pioneerRequirement(acctMap[sel.name], sel.churnPct, sel.new12m - sel.closed12, sel.operating);
+                return (
+                  <span className="text-[12px] text-slate-600">
+                    침투율 <b className="tabular-nums">{req.sharePct}%</b>
+                    {' '}· 이탈 상쇄선 <b className="tabular-nums text-amber-600">월 {req.offsetMonthly}곳</b>
+                    {' '}· 점유율 유지선 <b className="tabular-nums text-[#5856d6]">월 {req.keepMonthly}곳</b>
+                  </span>
+                );
+              })() : (
+                <span className="text-[11px] text-slate-400">거래처 수를 입력하면 침투율·월 개척 하한선을 계산합니다</span>
+              )}
+            </div>
+            <div className="mt-2 text-[11px] leading-relaxed text-slate-400">
+              ※ 폐업률은 인허가 폐업 기준 하한선 — 폐업 없이 거래만 끊는 이탈은 미포함. 상쇄선 = 거래처 수 유지, 유지선 = 시장 성장분까지 추격.
+            </div>
           </div>
         </>
       )}
