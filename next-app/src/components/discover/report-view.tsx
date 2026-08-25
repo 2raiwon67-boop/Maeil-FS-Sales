@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Sparkles, MapPin, RefreshCw, Target, Filter } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
-import { sigunguMatches, LEGACY_TO_CURRENT } from '@/lib/regions';
+import { sigunguMatches, LEGACY_TO_CURRENT, remapLegacyDongRows } from '@/lib/regions';
 import { isEligible, monthShift, classifyMomentum, annualChurnPct, pioneerRequirement, type Momentum } from '@/lib/report-model';
 
 export interface ReportStore {
@@ -114,7 +114,13 @@ export function ReportView({ scope, stores }: Props) {
             patterns.add(u);
             for (const cur of LEGACY_TO_CURRENT[`${sido}|${u}`] || []) patterns.add(cur);
           }
+          // 반대 방향: 관할이 새 구명이어도 과거 월 행은 옛 구명 — 승계 관계의 옛 구명도 조회
+          for (const [k, curs] of Object.entries(LEGACY_TO_CURRENT)) {
+            const [kSido, legacyName] = k.split('|');
+            if (kSido === sido && list.some((u) => curs.includes(u))) patterns.add(legacyName);
+          }
           const orExpr = [...patterns].map((u) => `sigungu.like.${u}%`).join(',');
+          const sidoRows: PopRow[] = [];
           for (let from = 0; ; from += 1000) {
             const { data, error } = await supabase
               .from('population_stats')
@@ -124,9 +130,11 @@ export function ReportView({ scope, stores }: Props) {
               .order('id')
               .range(from, from + 999);
             if (error) throw new Error(error.message);
-            all.push(...(data || []));
+            sidoRows.push(...(data || []));
             if (!data || data.length < 1000) break;
           }
+          // 옛 구명 행을 동 소속 기준으로 새 구명에 재배정 — 개편 구의 인구 시계열이 끊기지 않게
+          all.push(...remapLegacyDongRows(sidoRows, sido));
         }
         if (!dead) setPopRows(all);
       } catch (e) {
