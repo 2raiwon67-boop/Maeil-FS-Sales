@@ -218,13 +218,21 @@ function matchCategory(store: { category?: string | null; name?: string | null }
   return CAT_KW[cat]?.some(kw => haystack.includes(kw)) ?? false;
 }
 
-// '적격만' 스위치 = lib/report-model의 FS-적격 13업종 — 보고작성 뷰·보고서와 같은 측정 기준.
-// 무인점포·자판기가 몰린 '기타'·'기타 휴게음식점'을 걷어낸 보수적 분모(시장 규모·추이 측정용).
-// ※ 인허가 추출(public-license TARGET_CATEGORIES)은 별도의 '그물'이라 일부러 더 관대하다
-//   (실제 카페가 기타 계열로 등록되는 누락 방지) — 두 목록은 목적이 달라 일치시키지 않는다.
-//   측정은 여기(적격 하나로 통일), 방문 후보 수집은 그쪽. 스위치 OFF = 전체 수집 업종(상권 규모 관점).
+// '타겟만' 스위치 — 이름은 타겟만(현장 익숙한 명칭 유지)이지만 실제 필터는
+// lib/report-model의 FS-적격 13업종: 무인점포·자판기가 몰린 '기타'·'기타 휴게음식점'을
+// 걷어낸 측정 기준으로, 지역레포트 탭·보고서와 같은 숫자가 나온다 (2026-08 사용자 결정).
+// ※ 인허가 추출(public-license TARGET_CATEGORIES)은 누락 방지용 관대한 '그물'이라 별도 목록 유지.
+//
+// [백업] 이전 '타겟만' 화이트리스트 — 인허가 추출 기준과 동일한 관대 목록. 나중에 다시 쓸 수
+// 있어 보존한다 (복원 시 passesFilters의 isEligible을 이 Set.has 검사로 교체):
+// const TARGET_CATS = new Set([
+//   '한식', '기타 휴게음식점', '기타', '레스토랑', '키즈카페', '경양식',
+//   '커피숍', '까페', '다방', '전통찻집', '떡카페',
+//   '제과점영업', '과자점',
+//   '패밀리레스트랑',
+// ]);
 
-/** 업종 칩 + '적격만' 스위치 통합 판정. 매장 필터는 전부 이걸 거쳐야 화면 간 숫자가 일치한다. */
+/** 업종 칩 + '타겟만' 스위치 통합 판정. 매장 필터는 전부 이걸 거쳐야 화면 간 숫자가 일치한다. */
 function passesFilters(
   store: { category?: string | null; name?: string | null },
   cat: Category,
@@ -567,7 +575,7 @@ export default function DiscoverPage() {
   // 기간 조회 종료월 — null=단일 월(또는 전체). 설정 시 [selectedMonth..rangeTo] 범위로 집계.
   const [rangeTo, setRangeTo] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category>('all');
-  // '적격만' — FS-적격 13업종만 보기(report-model 공유). 기본 OFF(전체 = 상권 규모 모수)
+  // '타겟만'(라벨) = FS-적격 13업종 보기(report-model 공유). 기본 OFF(전체 = 상권 규모 모수)
   const [targetOnly, setTargetOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState('로딩 중...');
@@ -1139,7 +1147,7 @@ export default function DiscoverPage() {
     const agg = new Map<string, { new: number; closed: number }>();
     for (const s of cachedStoresRef.current) {
       if (!monthInSel(s.month, month, monthTo)) continue;
-      if (!passesFilters(s, 'all', targetOnlyRef.current)) continue; // '적격만' 반영 (동 채색도 면·KPI와 같은 모수)
+      if (!passesFilters(s, 'all', targetOnlyRef.current)) continue; // '타겟만' 반영 (동 채색도 면·KPI와 같은 모수)
       if (!sigunguBySido.has(s.sido)) sigunguBySido.set(s.sido, new Set());
       // 동 경계(geojson)는 옛 구명 기준 — 개편된 새 구명(검단구 등)은 옛 이름으로 정규화해 매칭
       const lsg = legacySigungu(s.sido, s.sigungu);
@@ -2419,7 +2427,7 @@ export default function DiscoverPage() {
   const DRILL_CAT_LABEL: Record<'cafe' | 'bakery' | 'restaurant', string> = { cafe: '카페', bakery: '베이커리', restaurant: '음식점' };
   const drillTopCategory = (() => {
     const counts: Record<'cafe' | 'bakery' | 'restaurant', number> = { cafe: 0, bakery: 0, restaurant: 0 };
-    drillScoped.forEach(s => { (['cafe', 'bakery', 'restaurant'] as const).forEach(c => { if (matchCategory(s, c)) counts[c]++; }); }); // drillScoped가 이미 적격만 필터를 통과한 집합
+    drillScoped.forEach(s => { (['cafe', 'bakery', 'restaurant'] as const).forEach(c => { if (matchCategory(s, c)) counts[c]++; }); }); // drillScoped가 이미 타겟만 필터를 통과한 집합
     const top = (['cafe', 'bakery', 'restaurant'] as const).reduce((a, b) => counts[b] > counts[a] ? b : a);
     return counts[top] > 0 ? { cat: top, count: counts[top] } : null;
   })();
@@ -2439,7 +2447,7 @@ export default function DiscoverPage() {
   const categoryOptions: DropdownOption[] = (['all', 'cafe', 'bakery', 'restaurant'] as Category[])
     .map(c => ({ key: c, label: CAT_LABEL[c], active: selectedCategory === c }));
 
-  // 업종 칩·'적격만' 변경 시 화면 전체를 같은 모수로 다시 그린다.
+  // 업종 칩·'타겟만' 변경 시 화면 전체를 같은 모수로 다시 그린다.
   // KPI/랭킹/시군구 면/월별 차트는 SnapRow에서 나오므로 재집계가 필수 —
   // 예전엔 업종 칩이 SnapRow를 안 건드려서 '카페'를 골라도 상단 숫자가 그대로였다.
   // 매장 행이 아직 없으면(초기 RPC 빠른 경로 구간) 집계를 건너뛴다. 로드가 끝나면
@@ -2558,14 +2566,14 @@ export default function DiscoverPage() {
         />
         <button
           onClick={toggleTargetOnly}
-          title="FS-적격 13업종만 — 무인점포·기타 휴게음식점 제외 (보고작성·보고서와 같은 측정 기준)"
+          title="FS-적격 13업종만 — 무인점포·기타 휴게음식점 제외 (지역레포트·보고서와 같은 측정 기준)"
           className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all max-md:h-10 max-md:px-3 max-md:text-[12px] ${
             targetOnly
               ? 'border-blue-600 bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]'
               : 'border-slate-200 bg-white text-slate-500 hover:border-blue-400 hover:text-blue-600'
           }`}
         >
-          <Target size={13} />적격만
+          <Target size={13} />타겟만
         </button>
         <MonthRangeDropdown
           monthList={monthList}
