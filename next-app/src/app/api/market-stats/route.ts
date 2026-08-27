@@ -456,10 +456,40 @@ export async function GET(req: NextRequest) {
     const detailData: Record<string, Record<string, { new: number; closed: number }>> = {};
     const storeRecords: any[] = [];
 
+    // ── 일괄 인허가(행사) 차단 ──────────────────────────────────────────────
+    // 같은 날 + 같은 주소에 상호 5개 이상 = 축제·행사장·일괄 개장·공유주방 호점 시그니처.
+    // 2026-08-27 실측: 이 패턴 161그룹 전수 확인 결과 전부 행사·팝업(동해무릉제 하루 22곳,
+    // 혁신도시상생마켓 19곳, 제이에이치키친 10~17호점 등) — 프랜차이즈·일반 상가는 이 패턴이 안 나옴.
+    // 행사 폐업도 종료일에 일괄로 잡히므로 신규·폐업 양쪽에 동일 규칙 적용.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function batchKey(item: any, mode: string): string | null {
+      const dateRaw = (mode === 'new' ? item.LCPMT_YMD : item.CLSBIZ_YMD || item.DCB_YMD)?.toString().replace(/\D/g, '') || '';
+      const addr = (item.ROAD_NM_ADDR || item.LOTNO_ADDR || '').toString().trim();
+      if (dateRaw.length < 8 || !addr) return null;
+      return `${mode}|${dateRaw}|${addr}`;
+    }
+    const batchNames = new Map<string, Set<string>>();
+    function scanBatches(results: { items: any[] }[], mode: string) {
+      results.forEach(({ items }) => items.forEach((item) => {
+        if (!isTarget(item)) return;
+        const k = batchKey(item, mode);
+        if (!k) return;
+        let s = batchNames.get(k);
+        if (!s) { s = new Set(); batchNames.set(k, s); }
+        const nm = getBizName(item);
+        if (nm) s.add(nm);
+      }));
+    }
+    scanBatches(newRes, 'new');
+    scanBatches(closedRes, 'closed');
+    const BATCH_MIN = 5;
+
     function tally(results: { items: any[] }[], mode: string) {
       results.forEach(({ items }) => {
         items.forEach((item) => {
           if (!isTarget(item)) return;
+          const bk = batchKey(item, mode);
+          if (bk && (batchNames.get(bk)?.size ?? 0) >= BATCH_MIN) return; // 일괄 인허가 그룹 제외
           const { sigungu: sg, month: mo } = extract(item, mode, sidoShort);
           if (!mo || !sg) return;
 
