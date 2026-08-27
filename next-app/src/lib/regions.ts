@@ -123,8 +123,8 @@ const GU_BY_DONG: Record<string, Record<string, string>> = {
   },
 };
 
-/** 부천시·고양시면 법정동으로 구를 붙여 '부천 원미구' 형태로, 그 외/미매핑 동은 원래 시군구 그대로. */
+/** 부천시·고양시면 법정동으로 구를 붙여 '부천시 소사구' 형태로, 그 외/미매핑 동은 원래 시군구 그대로. */
 export function refineSigungu(sigungu: string, dong: string | null | undefined): string {
   const gu = dong ? GU_BY_DONG[sigungu]?.[dong] : undefined;
-  return gu ? `${sigungu.replace(/시$/, '')} ${gu}` : sigungu;
+  return gu ? `${sigungu} ${gu}` : sigungu;
 }
