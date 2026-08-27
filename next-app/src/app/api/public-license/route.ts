@@ -57,6 +57,7 @@ const EXCLUDE_KEYWORDS = [
   '스터디카페', '스터디룸', '스터디센터', '스터디하우스',
   // 오리집 복합어(2026-08-27 사용자 확정) — '오리' 단독은 오리지널·오리진·오리엔탈·오리역 오탐이라 금지, 복합어만.
   '오리바베큐', '오리바비큐', '오리집', '오리고기', '오리탕', '오리백숙', '오리로스', '오리구이', '오리주물럭', '오리훈제', '유황오리', '토종오리', '오리명가',
+  '꽃게', '코다리', // 오탐 0 실측(2026-08-28). '한우'는 '한우리' 예외가 필요해 키워드가 아니라 필터 함수에서 별도 처리
   // 위탁급식·리테일 법인 직영(구내식당·사내카페·편의점·슈퍼 — 본사 직납). 기존 편의점·구내식당 차단과 같은 계열(시장분석과 동기화).
   '아워홈', '웰스토리', '현대그린푸드', '프레시웨이', '신세계푸드', '풀무원푸드', '동원홈푸드',
   '비지에프리테일', '지에스리테일', '코리아세븐', '미니스톱',
@@ -334,6 +335,8 @@ function applyBusinessLogic(items: NormItem[], regionList: string[]): NormItem[]
     if (EXCLUDE_KEYWORDS.some((kw) => it.business_name.includes(kw))) return false;
     // '국수'는 '한국수출입은행/한국수력…' 기관명 구내카페 오탐이 있어 예외를 두고 차단 (시장분석과 동일)
     if (it.business_name.includes('국수') && !it.business_name.includes('한국수')) return false;
+    // '한우'도 동일 패턴 — '한우리'(별개 고유명사: 한우리카페·한우리단팥빵·파리바게뜨 옥정한우리점)는 통과 (2026-08-28)
+    if (it.business_name.includes('한우') && !it.business_name.includes('한우리')) return false;
     if (it._rawCategory === '한식' && it._pyeong < 100) return false;
     const addrStr = (it.road_address || '') + ' ' + (it.address1 || '') + ' ' + (it.address2 || '');
     if (!regionVariants.some((variants) => variants.some((v) => addrStr.includes(v)))) return false;

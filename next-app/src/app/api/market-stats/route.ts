@@ -56,6 +56,7 @@ const EXCLUDE_KEYWORDS = [
   '비지에프리테일', '지에스리테일', '코리아세븐', '미니스톱',
   '빵굽는마을', '빵페스타', // 강릉 빵 축제(죽헌동 149·임영관) — 참가 베이커리가 행사장 주소로 일괄 인허가
   '보해명가', // 떡·한과 다지점 납품업체(법인명 그대로 5개 지점 등록) — 비타겟
+  '꽃게', '코다리', // 오탐 0 실측(2026-08-28). '한우'는 '한우리' 예외가 필요해 isTarget에서 별도 처리
 ];
 
 // 시설 주소 차단(2026-08-27, 사용자 확정) — 백화점·몰 지하 식품관 '행사 매대'는 자기 브랜드명으로 1~3주짜리
@@ -147,6 +148,8 @@ function isTarget(item: any): boolean {
   if (EXCLUDE_ADDR_KEYWORDS.some((kw) => addr.includes(kw))) return false;
   // '국수'는 '한국수출입은행/한국수력…' 같은 기관명 구내카페 오탐이 있어 예외를 두고 차단
   if (bizName.includes('국수') && !bizName.includes('한국수')) return false;
+  // '한우'도 동일 패턴 — '한우리'(별개 고유명사: 한우리카페·한우리단팥빵·파리바게뜨 옥정한우리점)는 통과 (2026-08-28)
+  if (bizName.includes('한우') && !bizName.includes('한우리')) return false;
   // 한식은 대량납품 가능한 대형(100평↑=330㎡↑)만 타겟 — 인허가추출 기준과 통일. 면적 결측도 제외.
   if (cat === '한식') {
     const areaM2 = parseFloat((item.LCTN_AREA || item.FCLT_TOTAL_SCL || '0').toString().replace(/,/g, '')) || 0;
