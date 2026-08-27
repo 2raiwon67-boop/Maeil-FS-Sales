@@ -18,6 +18,7 @@ const DOT: Record<string, string> = {
   license_new: '#16a34a',
   license_revisit: '#d97706',
   license_open: '#2563eb',
+  quality_audit: '#7c3aed', // 월간 시장 데이터 품질 점검(관리자 전용)
 };
 
 function timeAgo(iso: string): string {

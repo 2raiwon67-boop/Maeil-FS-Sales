@@ -80,6 +80,45 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
   }
   return { month, sigungu: sggs.length, skipped, saved, errors: errors.length ? errors.slice(0, 5) : undefined };
 }
+// ── 월간 데이터 품질 점검(매월 1일 KST) ─────────────────────────────────────
+// 블랙리스트를 통과해 새로 쌓이는 허수 패턴(한 주소 다상호=행사장, 한 상호 다주소=순회 팝업 법인)을
+// RPC market_quality_audit(최근 6개월 창)로 감지해 관리자 계정 헤더 벨에 통지한다.
+// 수동 스캔 요청 없이도 신종 허수가 한 달 안에 눈에 띄게 하는 장치(2026-08-27 대청소 후속).
+async function runQualityAudit(supabaseUrl: string, serviceKey: string, force = false) {
+  const kstNow = new Date(Date.now() + 9 * 3600 * 1000);
+  if (!force && kstNow.getUTCDate() !== 1) return { skipped: '매월 1일에만 실행' };
+  const sb = createClient(supabaseUrl, serviceKey);
+  const from = new Date(kstNow);
+  from.setUTCMonth(from.getUTCMonth() - 6);
+  const fromMonth = `${from.getUTCFullYear()}-${String(from.getUTCMonth() + 1).padStart(2, '0')}`;
+  const { data, error } = await sb.rpc('market_quality_audit', { p_from_month: fromMonth });
+  if (error) return { error: error.message };
+  const addrs = (data?.addrs ?? []) as { address: string; sigungu: string; names: number }[];
+  const names = (data?.names ?? []) as { name: string; addrs: number }[];
+  if (!addrs.length && !names.length) return { clean: true };
+
+  const { data: users, error: uErr } = await sb.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (uErr) return { error: uErr.message };
+  const admins = users.users.filter((u) => (u.app_metadata as Record<string, unknown>)?.is_admin === true);
+  if (!admins.length) return { admins: 0, addrs: addrs.length, names: names.length };
+
+  const month = `${kstNow.getUTCFullYear()}-${String(kstNow.getUTCMonth() + 1).padStart(2, '0')}`;
+  const top = addrs[0]
+    ? `${addrs[0].sigungu} ${addrs[0].address.slice(0, 22)}…(상호 ${addrs[0].names}개)`
+    : `${names[0].name}(주소 ${names[0].addrs}곳)`;
+  const payload = admins.map((u) => ({
+    user_id: u.id,
+    dedupe_key: `quality_audit_${month}`,
+    type: 'quality_audit',
+    title: '시장 데이터 품질 점검',
+    body: `허수 의심 주소 ${addrs.length}곳·상호 ${names.length}건. 예: ${top} — Claude에 '허수 재점검' 요청 권장`,
+    link: '/discover',
+    business_unit: ((u.app_metadata as Record<string, unknown>)?.business_unit as string) ?? null,
+  }));
+  await sb.from('notifications').upsert(payload, { onConflict: 'user_id,dedupe_key', ignoreDuplicates: true });
+  return { admins: admins.length, addrs: addrs.length, names: names.length };
+}
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
@@ -93,6 +132,19 @@ export async function GET(req: NextRequest) {
 
   if (!SUPABASE_URL || !SERVICE_KEY) {
     return NextResponse.json({ error: '환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY' }, { status: 500 });
+  }
+
+  // audit_only=1: 품질 점검만 실행(테스트·수동 트리거용) — 무거운 시장 갱신·인구 수집은 건너뜀
+  const auditOnly = req.nextUrl.searchParams.get('audit_only') === '1';
+  const auditForce = auditOnly || req.nextUrl.searchParams.get('audit') === '1';
+  if (auditOnly) {
+    let quality: unknown;
+    try {
+      quality = await runQualityAudit(SUPABASE_URL, SERVICE_KEY, true);
+    } catch (e) {
+      quality = { error: (e as Error).message };
+    }
+    return NextResponse.json({ quality });
   }
 
   const marketResult: Record<string, unknown> = {};
@@ -127,5 +179,13 @@ export async function GET(req: NextRequest) {
     population = { error: (e as Error).message };
   }
 
-  return NextResponse.json({ market: marketResult, population });
+  // 품질 점검 편승(매월 1일) — 실패해도 본 결과는 그대로 반환
+  let quality: unknown;
+  try {
+    quality = await runQualityAudit(SUPABASE_URL, SERVICE_KEY, auditForce);
+  } catch (e) {
+    quality = { error: (e as Error).message };
+  }
+
+  return NextResponse.json({ market: marketResult, population, quality });
 }
