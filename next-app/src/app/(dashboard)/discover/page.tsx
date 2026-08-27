@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
-import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket } from '@/lib/regions';
+import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket, refineSigungu } from '@/lib/regions';
 import { loadNaverMaps, cachedGeocodeDetailed, cleanGeocodeQuery } from '@/lib/naver/loader';
 import { isEligible } from '@/lib/report-model';
 import { toast } from 'sonner';
@@ -2274,10 +2274,12 @@ export default function DiscoverPage() {
       if (!passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > planLast) continue;
-      const key = `${s.sido}|${s.sigungu}`;
+      // 부천시·고양시는 법정동으로 구를 복원해 3개 구로 분해(연간 트렌드 전용, 2026-08-28 사용자 요청)
+      const sgg = refineSigungu(s.sigungu, s.dong);
+      const key = `${s.sido}|${sgg}`;
       let r = byRegion.get(key);
       if (!r) {
-        r = { sido: s.sido, sigungu: s.sigungu, years: planYearIdx.map(() => ({ n: 0, c: 0 })), big: 0 };
+        r = { sido: s.sido, sigungu: sgg, years: planYearIdx.map(() => ({ n: 0, c: 0 })), big: 0 };
         byRegion.set(key, r);
       }
       if (s.status === 'new') {
@@ -2312,7 +2314,7 @@ export default function DiscoverPage() {
       if (s.month < survFrom || s.month > survTo) continue;
       const k = `${s.name}|${s.addrKey}`;
       const prev = opened.get(k);
-      if (!prev || s.month < prev.month) opened.set(k, { month: s.month, region: `${s.sido}|${s.sigungu}` });
+      if (!prev || s.month < prev.month) opened.set(k, { month: s.month, region: `${s.sido}|${refineSigungu(s.sigungu, s.dong)}` });
     }
     const out = new Map<string, { n: number; dead: number }>();
     for (const [k, o] of opened) {
@@ -2374,7 +2376,7 @@ export default function DiscoverPage() {
     const [sd, sgg] = planOpenRegion.split('|');
     const byDong = new Map<string, { n: number; c: number }[]>();
     for (const s of cachedStores) {
-      if (s.sido !== sd || s.sigungu !== sgg || !passesFilters(s, selectedCategory, targetOnly)) continue;
+      if (s.sido !== sd || refineSigungu(s.sigungu, s.dong) !== sgg || !passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > planLast) continue;
       const key = s.dong || '기타';
