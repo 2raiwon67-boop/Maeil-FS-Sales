@@ -114,7 +114,8 @@ export function NavBar() {
   return (
     <>
       {/* 데스크톱 — 화이트 2단 셸바 */}
-      <nav className="sticky top-0 z-50 hidden h-[88px] flex-col border-b border-[#e8ebf0] bg-white md:flex">
+      {/* z-[700]: 벨 드롭다운 등 헤더 자식이 이 스태킹 컨텍스트에 갇히므로, discover 지도 오버레이(z-500~650)보다 높게. 모달(z-8999+)보다는 낮게 */}
+      <nav className="sticky top-0 z-[700] hidden h-[88px] flex-col border-b border-[#e8ebf0] bg-white md:flex">
         {/* 상단 유틸 행 */}
         <div className="flex h-12 items-center gap-4 px-5">
           <LogoLockup />
@@ -221,7 +222,7 @@ export function NavBar() {
 
       {/* 모바일 — 슬림 로고 바 (네비게이션은 하단 탭바가 담당) */}
       {/* PWA standalone은 상태바 아래로 콘텐츠가 파고든다(black-translucent) → 상단 안전영역만큼 밀어준다 */}
-      <header className="sticky top-0 z-40 border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
+      <header className="sticky top-0 z-[700] border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
         <div className="flex h-12 items-center gap-2 px-4">
           <LogoLockup />
           <div className="ml-auto flex items-center gap-2">
