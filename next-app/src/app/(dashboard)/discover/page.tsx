@@ -498,7 +498,37 @@ function dedupeStoreEvents(rows: StoreRow[]): StoreRow[] {
       out.push(row);
     }
   }
-  return out;
+  // ── 명의변경 재인허가 접기(2026-08-27 사용자 확정) ─────────────────────────
+  // 위 체인 정리 후에도 남는 '공백 뒤 재등장'은 전부 인허가일이 다른 재인허가였다(같은 인허가일의
+  // 재노출은 DB 실측 0건). 사장 교체는 상권 변화가 아니므로 매장(이름|주소지문)의 생애를 하나로 접는다:
+  // 최초 개업 1건 + 최종 폐업 1건. 최종 폐업은 최종 개업과 같은 달까지 인정(>=) — '개업 후 같은 달
+  // 폐업'(new_closed 생존편향 교정 수집)을 보존하기 위함. 최종 폐업보다 늦게 재개업해 영업 중이면
+  // 중간 폐업도 제거된다. 전국 실측 효과: 신규 -1,333 · 폐업 -1,224 (56개월 누적).
+  // ⚠️서버 RPC discover_market_agg가 같은 규칙을 SQL로 미러링 — 여기를 바꾸면 RPC도 같이 바꿀 것.
+  const life = new Map<string, { firstNew?: StoreRow; lastNewM?: string; lastClosed?: StoreRow; coord?: StoreRow }>();
+  const result: StoreRow[] = [];
+  for (const r of out) {
+    if (!r.addrKey) { result.push(r); continue; } // 주소지문 없으면 동일 매장 판정 불가 — 접지 않음
+    const k = `${r.name}|${r.addrKey}`;
+    let s = life.get(k);
+    if (!s) { s = {}; life.set(k, s); }
+    if (r.lat != null && r.lng != null && !s.coord) s.coord = r;
+    if (r.status === 'closed') {
+      if (!s.lastClosed || r.month > s.lastClosed.month) s.lastClosed = r;
+    } else {
+      if (!s.firstNew || r.month < s.firstNew.month) s.firstNew = r;
+      if (!s.lastNewM || r.month > s.lastNewM) s.lastNewM = r.month;
+    }
+  }
+  for (const s of life.values()) {
+    const keepClosed = s.lastClosed && (!s.lastNewM || s.lastClosed.month >= s.lastNewM) ? s.lastClosed : undefined;
+    for (const row of [s.firstNew, keepClosed]) {
+      if (!row) continue;
+      if ((row.lat == null || row.lng == null) && s.coord) { row.lat = s.coord.lat; row.lng = s.coord.lng; }
+      result.push(row);
+    }
+  }
+  return result;
 }
 
 // ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
