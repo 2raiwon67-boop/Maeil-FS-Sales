@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function StoreListPanel({ open, onClose, licenses, accounts, onOpenStore }: Props) {
-  const [tab, setTab] = useState<'license' | 'account'>('license');
+  const tab = 'license' as 'license' | 'account'; // 주요거래처 탭 제거 — 인허가 고정
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortBy>('default');
 
@@ -70,21 +70,7 @@ export function StoreListPanel({ open, onClose, licenses, accounts, onOpenStore 
           />
         </div>
 
-        <div className="flex gap-1 px-3 pt-2">
-          {(['license', 'account'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 rounded-lg py-1.5 text-[13px] font-medium ${
-                tab === t ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
-              }`}
-            >
-              {t === 'license' ? '인허가' : '주요거래처'} (
-              {t === 'license' ? licenses.length : accounts.length})
-            </button>
-          ))}
-        </div>
-
+        {/* 주요거래처 기능 미사용 결정(2026-09-01) — 탭 제거, 인허가 목록만 표시 (tab 상태는 'license' 고정) */}
         <div className="px-3 pt-2">
           <select
             value={sortBy}
