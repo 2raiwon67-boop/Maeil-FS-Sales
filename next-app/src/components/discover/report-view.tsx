@@ -120,18 +120,30 @@ export function ReportView({ scope, stores }: Props) {
             if (kSido === sido && list.some((u) => curs.includes(u))) patterns.add(legacyName);
           }
           const orExpr = [...patterns].map((u) => `sigungu.like.${u}%`).join(',');
+          // 총 행 수 먼저 구해 1000행 페이지를 병렬 요청 — 순차 드레인(페이지당 왕복 지연 합산)이
+          // 40페이지+에서 십수 초 걸리던 것을 한 왕복 수준으로 단축
+          const { count, error: cntErr } = await supabase
+            .from('population_stats')
+            .select('id', { count: 'exact', head: true })
+            .eq('sido', popSido)
+            .or(orExpr);
+          if (cntErr) throw new Error(cntErr.message);
+          const pages = Math.ceil((count ?? 0) / 1000);
+          const results = await Promise.all(
+            Array.from({ length: pages }, (_, p) =>
+              supabase
+                .from('population_stats')
+                .select('sigungu,dong,month,population')
+                .eq('sido', popSido)
+                .or(orExpr)
+                .order('id')
+                .range(p * 1000, p * 1000 + 999),
+            ),
+          );
           const sidoRows: PopRow[] = [];
-          for (let from = 0; ; from += 1000) {
-            const { data, error } = await supabase
-              .from('population_stats')
-              .select('sigungu,dong,month,population')
-              .eq('sido', popSido)
-              .or(orExpr)
-              .order('id')
-              .range(from, from + 999);
+          for (const { data, error } of results) {
             if (error) throw new Error(error.message);
             sidoRows.push(...(data || []));
-            if (!data || data.length < 1000) break;
           }
           // 옛 구명 행을 동 소속 기준으로 새 구명에 재배정 — 개편 구의 인구 시계열이 끊기지 않게
           all.push(...remapLegacyDongRows(sidoRows, sido));
