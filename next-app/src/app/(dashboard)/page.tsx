@@ -208,6 +208,7 @@ export default function DashboardPage() {
   // SDK 로드 + 지도 생성
   useEffect(() => {
     let cancelled = false;
+    let ro: ResizeObserver | null = null;
     loadNaverMaps()
       .then(() => {
         if (cancelled || !mapElRef.current || mapRef.current) return;
@@ -230,10 +231,11 @@ export default function DashboardPage() {
           selRingRef.current?.setMap(null);
           setSelected(null);
         });
-        // 이동·줌·fitBounds 모두에서 발화하는 bounds_changed를 디바운스해 시점 저장.
-        // ('idle'은 Naver 지도에 없는 이벤트라 발화하지 않음 — 실측 확인)
+        // 시점 저장은 사용자 조작(드래그·줌)에만 — bounds_changed는 레이아웃 변동으로
+        // 컨테이너 크기가 바뀔 때도 발화해, 밀린 중심이 재저장되며 로드마다 남쪽으로
+        // 드리프트했다(실측 37.758→37.711→37.650). 저장값 = 사용자가 의도한 시점 불변식.
         let saveTimer: ReturnType<typeof setTimeout> | null = null;
-        window.naver.maps.Event.addListener(mapRef.current, 'bounds_changed', () => {
+        const saveView = () => {
           if (saveTimer) clearTimeout(saveTimer);
           saveTimer = setTimeout(() => {
             const m = mapRef.current;
@@ -246,13 +248,28 @@ export default function DashboardPage() {
               );
             } catch { /* 저장 실패해도 동작엔 무해 */ }
           }, 400);
+        };
+        window.naver.maps.Event.addListener(mapRef.current, 'dragend', saveView);
+        window.naver.maps.Event.addListener(mapRef.current, 'zoom_changed', saveView);
+        // 컨테이너 크기 변동(초기 레이아웃 정착 포함) 시 저장된 중심을 재고정 — 드리프트 방지
+        ro = new ResizeObserver(() => {
+          const m = mapRef.current;
+          if (!m) return;
+          try {
+            const v = JSON.parse(localStorage.getItem('fs_home_viewport') || 'null');
+            if (v && Number.isFinite(v.lat) && Number.isFinite(v.lng)) {
+              m.setCenter(new window.naver.maps.LatLng(v.lat, v.lng));
+            }
+          } catch { /* ignore */ }
         });
+        if (mapElRef.current) ro.observe(mapElRef.current);
         setMapInstance(mapRef.current);
         setSdkReady(true);
       })
       .catch((e) => console.error('[dashboard] Naver SDK 로드 실패', e));
     return () => {
       cancelled = true;
+      ro?.disconnect();
     };
   }, []);
 
