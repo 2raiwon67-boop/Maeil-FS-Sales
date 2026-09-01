@@ -17,6 +17,25 @@ interface DashboardData {
   setAccounts: React.Dispatch<React.SetStateAction<Account[]>>;
 }
 
+// 구 정적사이트 시절의 죽은 캐시 제거 — origin이 같아 옛 키가 그대로 남아
+// (fs_visitlogs_v_* 하나가 8.7MB, 2026-09-01 실측) localStorage 10MB 한도를 채워
+// 지도 시점·SWR 캐시 등 새 저장이 조용히 실패했다. 현재 코드는 v2 키만 읽는다.
+if (typeof window !== 'undefined') {
+  try {
+    const dead: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) || '';
+      if (
+        k.startsWith('fs_visitlogs') ||
+        k === 'maeil_visitLogs' ||
+        (k.startsWith('fs_licenses_') && !k.startsWith('fs_licenses_v2_')) ||
+        (k.startsWith('fs_accounts_') && !k.startsWith('fs_accounts_v2_'))
+      ) dead.push(k);
+    }
+    dead.forEach((k) => localStorage.removeItem(k));
+  } catch { /* ignore */ }
+}
+
 function readCache<T>(key: string): T[] | null {
   try {
     const raw = localStorage.getItem(key);
