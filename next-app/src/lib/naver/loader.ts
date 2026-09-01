@@ -99,6 +99,23 @@ export function cleanGeocodeQuery(address: string): string {
 
 const FAIL_TTL_MS = 3 * 24 * 60 * 60 * 1000; // 무매칭 주소 재시도 유예 3일 (로컬 캐시 — 서버 공유 목록의 보조)
 
+// 지오코딩 캐시 상한 — 무한 축적되면 localStorage 10MB 한도를 채워 앱의 다른 저장
+// (지도 시점, 대시보드 SWR 캐시 등)까지 조용히 실패시킨다(2026-09-01 실측: 10.49MB 포화).
+// 좌표는 DB에 영구 저장되므로(license/market-geocode) 이 캐시는 세션 가속용 — 넘치면 전부 비워도 안전.
+const GEO_CACHE_CAP = 3000;
+function pruneGeoCache(force = false) {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('maeil_geo_')) keys.push(k);
+    }
+    if (force || keys.length > GEO_CACHE_CAP) keys.forEach((k) => localStorage.removeItem(k));
+  } catch { /* ignore */ }
+}
+// 모듈 로드 시 1회 정리 — 지오코딩을 안 쓰는 화면에서도 포화 상태를 해소해준다
+if (typeof window !== 'undefined') pruneGeoCache();
+
 /**
  * 캐시 적용 지오코딩 + 무매칭 여부 (localStorage, 키 prefix maeil_geo_).
  * noMatch=true는 "지오코더가 정상 응답했지만 매칭 주소가 없음" — 서버 공유 무매칭 목록의 수집 대상.
@@ -127,7 +144,12 @@ export async function cachedGeocodeDetailed(
       localStorage.setItem(failKey, String(Date.now()));
     }
   } catch {
-    /* quota exceeded — ignore */
+    // quota 초과 — 캐시 전부 비우고 1회 재시도 (다른 기능의 저장 공간도 함께 살린다)
+    pruneGeoCache(true);
+    try {
+      if (coords) localStorage.setItem(key, JSON.stringify(coords));
+      else if (noMatch) localStorage.setItem(failKey, String(Date.now()));
+    } catch { /* ignore */ }
   }
   return { coords, noMatch };
 }
