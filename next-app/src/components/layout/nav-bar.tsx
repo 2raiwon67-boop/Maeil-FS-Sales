@@ -89,8 +89,9 @@ function UnitSelector({
 function LogoLockup() {
   return (
     <Link href="/" className="flex items-center gap-2.5">
+      {/* width/height 명시 = 로드 전 자리 확보(레이아웃 이동 방지). 표시 크기는 클래스가 결정 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/assets/images/logo.png" alt="Maeil" className="h-[19px] w-auto" />
+      <img src="/assets/images/logo.png" alt="Maeil" width={181} height={80} className="h-[19px] w-auto" />
       <span
         className="text-[17px] font-medium leading-none tracking-[0.04em]"
         style={{ color: NAVY }}

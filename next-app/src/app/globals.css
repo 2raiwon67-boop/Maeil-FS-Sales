@@ -1,4 +1,5 @@
-@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+/* Pretendard는 layout.tsx의 <link>로 로드 — CSS @import는 앱 CSS 다운로드가 끝나야
+   폰트 CSS 요청이 시작되는 직렬 체인이라 첫 페인트를 수백 ms 늦춘다. */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";

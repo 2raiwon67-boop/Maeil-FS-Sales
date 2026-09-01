@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
+import dynamicImport from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
@@ -16,7 +17,11 @@ import {
   Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download,
   ClipboardList, Target, FileText,
 } from 'lucide-react';
-import { ReportView } from '@/components/discover/report-view';
+// 보고작성 뷰(717줄+chart.js)는 기본 탭이 아니므로 지연 로드 — discover 초기 번들에서 제외
+const ReportView = dynamicImport(
+  () => import('@/components/discover/report-view').then((m) => m.ReportView),
+  { ssr: false, loading: () => <div className="p-8 text-sm text-[#64748b]">보고서 모듈 로딩…</div> },
+);
 // MapLibre CSS는 반드시 정적 import (런타임 await import()는 Next에서 reject되어 지도 초기화가 중단됨)
 import 'maplibre-gl/dist/maplibre-gl.css';
 

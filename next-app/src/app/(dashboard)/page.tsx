@@ -242,6 +242,11 @@ export default function DashboardPage() {
       const naver = window.naver;
       const map = mapRef.current!;
 
+      // 이전 런의 마커 해제 — phase-1 조기 표시 때문에, 데이터 재검증(setLicenses)으로
+      // 이 이펙트가 재실행되면 구 마커가 ref에서 밀려나 지도에 고아로 남을 수 있다.
+      licMarkersRef.current.forEach((m) => m.setMap(null));
+      accMarkersRef.current.forEach((m) => m.setMap(null));
+
       const licNeedGeo = licenses.filter(
         (l) => !(parseFloat(String(l.lat)) && parseFloat(String(l.lng))) && l.road_address,
       );
@@ -249,6 +254,109 @@ export default function DashboardPage() {
       const total = licNeedGeo.length + accNeedGeo.length;
       const licCoords = new Map<string, { lat: number; lng: number }>();
       const accCoords = new Map<string, { lat: number; lng: number }>();
+
+      const keyMap = new Map<string, NaverMarker>();
+      const coordsById = new Map<string, { lat: number; lng: number }>();
+      const licMarkers: NaverMarker[] = [];
+      const licStops: LicenseStop[] = [];
+      const accMarkers: NaverMarker[] = [];
+      const accStops: AccountStop[] = [];
+
+      const addLicMarker = (l: (typeof licenses)[number]) => {
+        const lat = licCoords.get(l.id)?.lat ?? parseFloat(String(l.lat));
+        const lng = licCoords.get(l.id)?.lng ?? parseFloat(String(l.lng));
+        if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+        const status = (l.trade_status || '').toString().trim();
+        const icon = buildMarkerIcon(status, l, colorblind);
+        if (!icon) return;
+        const marker = new naver.maps.Marker({
+          position: new naver.maps.LatLng(lat, lng),
+          map: null,
+          icon,
+        }) as NaverMarker;
+        marker._id = l.id;
+        marker._item = l;
+        marker._origIconObj = icon;
+        marker._status = status;
+        marker._rank = l.priority || '';
+        marker._region = (l.address2 || '기타').trim();
+        marker._manager = (l.manager || '미지정').trim();
+        marker._milk = (l.milk_type || '').trim();
+        marker._name = l.business_name;
+        marker._lat = lat;
+        marker._lng = lng;
+        naver.maps.Event.addListener(marker, 'click', () => onMarkerClickRef.current(marker));
+        licMarkers.push(marker);
+        keyMap.set(cartKey(lat, lng), marker);
+        coordsById.set(l.id, { lat, lng });
+        licStops.push({
+          name: l.business_name,
+          address: l.road_address || '',
+          lat,
+          lng,
+          priority: l.priority || '',
+          status,
+        });
+      };
+
+      const addAccMarker = (a: (typeof accounts)[number]) => {
+        const c = accCoords.get(a.id);
+        if (!c) return;
+        const dealStatus = (a.trade_status || '').toString().trim();
+        const icon = buildAccountMarkerIcon(dealStatus);
+        const marker = new naver.maps.Marker({
+          position: new naver.maps.LatLng(c.lat, c.lng),
+          map: null,
+          icon,
+        }) as NaverMarker;
+        marker._id = a.id;
+        marker._item = a;
+        marker._origIconObj = icon;
+        marker._dealStatus = dealStatus;
+        marker._address = a.address || '';
+        marker._managerName = (a.manager_name || '').trim();
+        marker._name = a.business_name;
+        marker._lat = c.lat;
+        marker._lng = c.lng;
+        naver.maps.Event.addListener(marker, 'click', () => onMarkerClickRef.current(marker));
+        accMarkers.push(marker);
+        keyMap.set(cartKey(c.lat, c.lng), marker);
+        coordsById.set(a.id, { lat: c.lat, lng: c.lng });
+        accStops.push({
+          name: a.business_name,
+          address: a.address || '',
+          lat: c.lat,
+          lng: c.lng,
+          dealStatus,
+        });
+      };
+
+      const publish = (fit: boolean) => {
+        licMarkersRef.current = licMarkers;
+        accMarkersRef.current = accMarkers;
+        markerByKeyRef.current = keyMap;
+        coordsByIdRef.current = coordsById;
+        setLicenseStops([...licStops]);
+        setAccountStops([...accStops]);
+        applyFilters(filters);
+        if (fit) {
+          const all = [...licMarkers, ...accMarkers];
+          if (all.length > 0) {
+            const bounds = new naver.maps.LatLngBounds();
+            all.forEach((m) => bounds.extend(m.getPosition()));
+            map.fitBounds(bounds);
+          }
+        }
+      };
+
+      // 1단계: 좌표가 이미 있는 인허가는 지오코딩을 기다리지 않고 즉시 마커 표시.
+      // (기존에는 결측분 지오코딩이 전부 끝나야 마커가 한 번에 붙어, 그때까지 지도가 비어 있었다)
+      for (const l of licenses) {
+        if (!(parseFloat(String(l.lat)) && parseFloat(String(l.lng)))) continue;
+        addLicMarker(l);
+      }
+      const phase1Count = licMarkers.length;
+      if (phase1Count > 0) publish(true);
 
       // 지오코딩 성공분은 /api/license-geocode로 DB에도 저장(결측 행만) —
       // 첫 사용자가 채우면 이후 세션·사용자·기기는 재지오코딩 불필요 (discover와 동일 패턴).
@@ -282,14 +390,27 @@ export default function DashboardPage() {
 
       if (total > 0) setGeocoding({ done: 0, total });
       let done = 0;
-      for (const l of licNeedGeo) {
-        if (cancelled) { await flushSave(); await reportNoMatch(); return; }
+      const bump = () => {
+        done++;
+        if (done % 5 === 0 || done === total) setGeocoding({ done, total });
+      };
+
+      // 지오코딩 병렬화(동시 6): 기존 직렬 루프는 결측 1건당 왕복 지연이 그대로 합산돼
+      // 결측 수백 건이면 분 단위가 걸렸다. 총 호출 수는 동일(쿼터 영향 없음).
+      const runPool = async <T,>(items: T[], worker: (item: T) => Promise<void>) => {
+        let idx = 0;
+        await Promise.all(
+          Array.from({ length: Math.min(6, items.length) }, async () => {
+            while (idx < items.length && !cancelled) {
+              await worker(items[idx++]);
+            }
+          }),
+        );
+      };
+
+      await runPool(licNeedGeo, async (l) => {
         const q = cleanGeocodeQuery(l.road_address!);
-        if (noMatchSet.has(q)) {
-          done++;
-          if (done % 5 === 0 || done === total) setGeocoding({ done, total });
-          continue;
-        }
+        if (noMatchSet.has(q)) { bump(); return; }
         const { coords: c, noMatch } = await cachedGeocodeDetailed(q);
         if (noMatch) { noMatchSet.add(q); newNoMatch.add(q); }
         if (c) {
@@ -297,115 +418,31 @@ export default function DashboardPage() {
           pendingSave.push({ id: l.id, lat: c.lat, lng: c.lng });
           if (pendingSave.length >= 100) await flushSave();
         }
-        done++;
-        if (done % 5 === 0 || done === total) setGeocoding({ done, total });
-      }
+        bump();
+      });
       await flushSave();
-      for (const a of accNeedGeo) {
-        if (cancelled) { await reportNoMatch(); return; }
+      if (cancelled) { await reportNoMatch(); return; }
+
+      await runPool(accNeedGeo, async (a) => {
         const q = cleanGeocodeQuery(a.address!);
-        if (noMatchSet.has(q)) { done++; continue; }
+        if (noMatchSet.has(q)) { bump(); return; }
         const { coords: c, noMatch } = await cachedGeocodeDetailed(q);
         if (noMatch) { noMatchSet.add(q); newNoMatch.add(q); }
         if (c) accCoords.set(a.id, c);
-        done++;
-        if (done % 5 === 0 || done === total) setGeocoding({ done, total });
-      }
+        bump();
+      });
       await reportNoMatch();
       if (cancelled) return;
       setGeocoding(null);
 
-      const keyMap = new Map<string, NaverMarker>();
-      const coordsById = new Map<string, { lat: number; lng: number }>();
-      const licMarkers: NaverMarker[] = [];
-      const licStops: LicenseStop[] = [];
-      for (const l of licenses) {
-        const lat = licCoords.get(l.id)?.lat ?? parseFloat(String(l.lat));
-        const lng = licCoords.get(l.id)?.lng ?? parseFloat(String(l.lng));
-        if (!lat || !lng || isNaN(lat) || isNaN(lng)) continue;
-        const status = (l.trade_status || '').toString().trim();
-        const icon = buildMarkerIcon(status, l, colorblind);
-        if (!icon) continue;
-        const marker = new naver.maps.Marker({
-          position: new naver.maps.LatLng(lat, lng),
-          map: null,
-          icon,
-        }) as NaverMarker;
-        marker._id = l.id;
-        marker._item = l;
-        marker._origIconObj = icon;
-        marker._status = status;
-        marker._rank = l.priority || '';
-        marker._region = (l.address2 || '기타').trim();
-        marker._manager = (l.manager || '미지정').trim();
-        marker._milk = (l.milk_type || '').trim();
-        marker._name = l.business_name;
-        marker._lat = lat;
-        marker._lng = lng;
-        naver.maps.Event.addListener(marker, 'click', () => onMarkerClickRef.current(marker));
-        licMarkers.push(marker);
-        keyMap.set(cartKey(lat, lng), marker);
-        coordsById.set(l.id, { lat, lng });
-        licStops.push({
-          name: l.business_name,
-          address: l.road_address || '',
-          lat,
-          lng,
-          priority: l.priority || '',
-          status,
-        });
-      }
-
-      const accMarkers: NaverMarker[] = [];
-      const accStops: AccountStop[] = [];
-      for (const a of accounts) {
-        const c = accCoords.get(a.id);
-        if (!c) continue;
-        const dealStatus = (a.trade_status || '').toString().trim();
-        const icon = buildAccountMarkerIcon(dealStatus);
-        const marker = new naver.maps.Marker({
-          position: new naver.maps.LatLng(c.lat, c.lng),
-          map: null,
-          icon,
-        }) as NaverMarker;
-        marker._id = a.id;
-        marker._item = a;
-        marker._origIconObj = icon;
-        marker._dealStatus = dealStatus;
-        marker._address = a.address || '';
-        marker._managerName = (a.manager_name || '').trim();
-        marker._name = a.business_name;
-        marker._lat = c.lat;
-        marker._lng = c.lng;
-        naver.maps.Event.addListener(marker, 'click', () => onMarkerClickRef.current(marker));
-        accMarkers.push(marker);
-        keyMap.set(cartKey(c.lat, c.lng), marker);
-        coordsById.set(a.id, { lat: c.lat, lng: c.lng });
-        accStops.push({
-          name: a.business_name,
-          address: a.address || '',
-          lat: c.lat,
-          lng: c.lng,
-          dealStatus,
-        });
-      }
+      // 2단계: 지오코딩으로 좌표가 생긴 나머지 마커를 추가.
+      // 1단계에서 이미 화면을 잡았으면 지도 시점(fitBounds)은 다시 옮기지 않는다.
+      for (const l of licNeedGeo) addLicMarker(l);
+      for (const a of accounts) addAccMarker(a);
 
       if (cancelled) return;
-      licMarkersRef.current = licMarkers;
-      accMarkersRef.current = accMarkers;
-      markerByKeyRef.current = keyMap;
-      coordsByIdRef.current = coordsById;
-      setLicenseStops(licStops);
-      setAccountStops(accStops);
-      applyFilters(filters);
+      publish(phase1Count === 0);
       setBuilt(true);
-
-      const all = [...licMarkers, ...accMarkers];
-      if (all.length > 0) {
-        const bounds = new naver.maps.LatLngBounds();
-        all.forEach((m) => bounds.extend(m.getPosition()));
-        map.fitBounds(bounds);
-      }
     }
 
     build();
@@ -416,7 +453,9 @@ export default function DashboardPage() {
   }, [sdkReady, loading, licenses, accounts]);
 
   useEffect(() => {
-    if (built) applyFilters(filters);
+    // built 게이트 없이 항상 적용 — phase-1 조기 마커(지오코딩 진행 중)에도 필터가 듣도록.
+    // 마커가 아직 없으면 빈 배열 순회라 무해하고, built 전환 시에도 최신 필터로 재적용된다.
+    applyFilters(filters);
   }, [filters, built, applyFilters]);
 
   // 색각 보정 설정 로드 + 전역 변경(프로필▸설정) 구독 — 사이드바·설정 모달이 같은 값 공유
