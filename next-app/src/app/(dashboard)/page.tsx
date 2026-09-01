@@ -230,17 +230,22 @@ export default function DashboardPage() {
           selRingRef.current?.setMap(null);
           setSelected(null);
         });
-        // 이동·줌이 멈출 때마다 시점 저장 (idle = 지도 조작 종료 시점)
-        window.naver.maps.Event.addListener(mapRef.current, 'idle', () => {
-          const m = mapRef.current;
-          if (!m) return;
-          const c = m.getCenter();
-          try {
-            localStorage.setItem(
-              'fs_home_viewport',
-              JSON.stringify({ lat: c.lat(), lng: c.lng(), zoom: m.getZoom() }),
-            );
-          } catch { /* 저장 실패해도 동작엔 무해 */ }
+        // 이동·줌·fitBounds 모두에서 발화하는 bounds_changed를 디바운스해 시점 저장.
+        // ('idle'은 Naver 지도에 없는 이벤트라 발화하지 않음 — 실측 확인)
+        let saveTimer: ReturnType<typeof setTimeout> | null = null;
+        window.naver.maps.Event.addListener(mapRef.current, 'bounds_changed', () => {
+          if (saveTimer) clearTimeout(saveTimer);
+          saveTimer = setTimeout(() => {
+            const m = mapRef.current;
+            if (!m) return;
+            const c = m.getCenter();
+            try {
+              localStorage.setItem(
+                'fs_home_viewport',
+                JSON.stringify({ lat: c.lat(), lng: c.lng(), zoom: m.getZoom() }),
+              );
+            } catch { /* 저장 실패해도 동작엔 무해 */ }
+          }, 400);
         });
         setMapInstance(mapRef.current);
         setSdkReady(true);
