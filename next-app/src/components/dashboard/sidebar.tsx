@@ -42,7 +42,9 @@ function DropdownCard({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+    // shrink-0: 부모가 flex 스크롤 컨테이너라, 이게 없으면 내용이 길 때 카드가 압축돼
+    // 행이 잘린다(스크롤 대신 찌그러짐)
+    <div className="shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between px-3.5 py-2.5 text-left"
@@ -138,7 +140,7 @@ export function DashboardSidebar({
           </DropdownCard>
 
           {/* 담당자 · 지역 */}
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <div className="shrink-0 overflow-hidden rounded-xl border border-gray-200 bg-white">
             <div className="flex items-center justify-between border-b border-gray-100 px-3.5 py-2.5">
               <span className="text-[13px] font-semibold text-gray-800">담당자 · 지역</span>
               <button onClick={onReset} className="text-xs text-blue-600 hover:underline">
@@ -186,7 +188,7 @@ export function DashboardSidebar({
           {/* 색각 보정 모드 */}
           <button
             onClick={onToggleColorblind}
-            className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3.5 py-2.5"
+            className="flex shrink-0 items-center justify-between rounded-xl border border-gray-200 bg-white px-3.5 py-2.5"
           >
             <span className="text-[13px] font-semibold text-gray-800">색각 보정 모드</span>
             <span
