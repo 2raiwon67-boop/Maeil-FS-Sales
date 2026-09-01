@@ -4,9 +4,7 @@ import { useState } from 'react';
 import {
   STATUS_ITEMS,
   MILK_ITEMS,
-  ACCOUNT_ITEMS,
   type FilterState,
-  type SidebarTab,
   type SidebarCounts,
 } from '@/lib/dashboard/filters';
 
@@ -15,22 +13,14 @@ interface SidebarProps {
   counts: SidebarCounts;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  onTab: (tab: SidebarTab) => void;
   onStatus: (key: string) => void;
   onMilk: (key: string) => void;
-  onAccount: (key: string) => void;
   onRegion: (key: string) => void;
   onManager: (key: string) => void;
   onReset: () => void;
   colorblind: boolean;
   onToggleColorblind: () => void;
 }
-
-const TABS: [SidebarTab, string][] = [
-  ['all', '전체'],
-  ['license', '인허가'],
-  ['account', '주요거래처'],
-];
 
 function Dot({ color }: { color: string }) {
   return (
@@ -101,19 +91,14 @@ export function DashboardSidebar({
   counts,
   collapsed,
   onToggleCollapse,
-  onTab,
   onStatus,
   onMilk,
-  onAccount,
   onRegion,
   onManager,
   onReset,
   colorblind,
   onToggleColorblind,
 }: SidebarProps) {
-  const showLicense = filters.tab !== 'account';
-  const showAccount = filters.tab !== 'license';
-
   return (
     <>
       {/* 지도 위 오버레이 — 접어도 지도는 리사이즈되지 않는다 (시장분석 패널과 동일 패턴) */}
@@ -123,68 +108,34 @@ export function DashboardSidebar({
         }`}
       >
         <div className="min-h-0 flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-          {/* 탭 */}
-          <div className="flex gap-1 rounded-xl bg-gray-200/70 p-1">
-            {TABS.map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => onTab(key)}
-                className={`flex-1 rounded-lg py-1.5 text-[13px] font-medium transition-colors ${
-                  filters.tab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
+          {/* 주요거래처 기능 미사용 결정(2026-09-01)으로 탭·주요거래처 현황 제거 — 인허가만 표시 */}
           {/* 인허가 현황 */}
-          {showLicense && (
-            <DropdownCard title="인허가 현황">
-              {STATUS_ITEMS.map((it) => (
-                <FilterRow
-                  key={it.key}
-                  active={filters.status.has(it.key)}
-                  color={it.color}
-                  label={it.label}
-                  count={counts.status[it.key] ?? 0}
-                  onClick={() => onStatus(it.key)}
-                />
-              ))}
-            </DropdownCard>
-          )}
+          <DropdownCard title="인허가 현황">
+            {STATUS_ITEMS.map((it) => (
+              <FilterRow
+                key={it.key}
+                active={filters.status.has(it.key)}
+                color={it.color}
+                label={it.label}
+                count={counts.status[it.key] ?? 0}
+                onClick={() => onStatus(it.key)}
+              />
+            ))}
+          </DropdownCard>
 
           {/* 사용우유 */}
-          {showLicense && (
-            <DropdownCard title="사용우유 (인허가)">
-              {MILK_ITEMS.map((it) => (
-                <FilterRow
-                  key={it.key}
-                  active={filters.milk.has(it.key)}
-                  color={it.color}
-                  label={it.key}
-                  count={counts.milk[it.key] ?? 0}
-                  onClick={() => onMilk(it.key)}
-                />
-              ))}
-            </DropdownCard>
-          )}
-
-          {/* 주요거래처 현황 */}
-          {showAccount && (
-            <DropdownCard title="주요거래처 현황">
-              {ACCOUNT_ITEMS.map((it) => (
-                <FilterRow
-                  key={it.key}
-                  active={filters.account.has(it.key)}
-                  color={it.color}
-                  label={it.label}
-                  count={counts.account[it.key] ?? 0}
-                  onClick={() => onAccount(it.key)}
-                />
-              ))}
-            </DropdownCard>
-          )}
+          <DropdownCard title="사용우유 (인허가)">
+            {MILK_ITEMS.map((it) => (
+              <FilterRow
+                key={it.key}
+                active={filters.milk.has(it.key)}
+                color={it.color}
+                label={it.key}
+                count={counts.milk[it.key] ?? 0}
+                onClick={() => onMilk(it.key)}
+              />
+            ))}
+          </DropdownCard>
 
           {/* 담당자 · 지역 */}
           <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">

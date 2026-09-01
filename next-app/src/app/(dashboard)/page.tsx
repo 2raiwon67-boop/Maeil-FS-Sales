@@ -25,7 +25,6 @@ import {
   accountMarkerVisible,
   toggleInSet,
   type FilterState,
-  type SidebarTab,
 } from '@/lib/dashboard/filters';
 import { cartKey, type CartStop, type Coord, type RouteStop } from '@/lib/dashboard/route';
 import {
@@ -537,11 +536,9 @@ export default function DashboardPage() {
   // 토글 → 전역 설정에 기록(이벤트 발행). 구독 effect가 상태를 갱신해 마커 재색칠.
   const toggleColorblind = () => setColorblindSetting(!colorblind);
 
-  // ── 필터 토글 ──
-  const setTab = (tab: SidebarTab) => setFilters((f) => ({ ...f, tab }));
+  // ── 필터 토글 ── (주요거래처 기능 미사용 결정으로 탭·거래상태 토글 제거, filters.tab은 'all' 고정)
   const toggleStatus = (k: string) => setFilters((f) => ({ ...f, status: toggleInSet(f.status, k) }));
   const toggleMilk = (k: string) => setFilters((f) => ({ ...f, milk: toggleInSet(f.milk, k) }));
-  const toggleAccount = (k: string) => setFilters((f) => ({ ...f, account: toggleInSet(f.account, k) }));
   const toggleRegion = (k: string) => setFilters((f) => ({ ...f, region: toggleInSet(f.region, k) }));
   const toggleManager = (k: string) => setFilters((f) => ({ ...f, manager: toggleInSet(f.manager, k) }));
   const resetFilters = () =>
@@ -932,10 +929,8 @@ export default function DashboardPage() {
         counts={counts}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed((c) => !c)}
-        onTab={setTab}
         onStatus={toggleStatus}
         onMilk={toggleMilk}
-        onAccount={toggleAccount}
         onRegion={toggleRegion}
         onManager={toggleManager}
         onReset={resetFilters}
