@@ -41,9 +41,10 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 colorblind ? 'bg-blue-600' : 'bg-gray-300'
               }`}
             >
+              {/* left-0 기준점 필수 — 없으면 absolute 정적 위치가 어긋나 원이 알약 밖으로 빠져나간다 */}
               <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                  colorblind ? 'translate-x-5' : 'translate-x-0.5'
+                className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  colorblind ? 'translate-x-[22px]' : 'translate-x-0.5'
                 }`}
               />
             </span>
