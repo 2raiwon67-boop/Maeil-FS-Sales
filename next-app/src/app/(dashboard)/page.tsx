@@ -91,6 +91,9 @@ export default function DashboardPage() {
 
   const mapElRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMap | null>(null);
+  // 페이지 진입 시점에 저장된 지도 시점이 있었는지 — true면 fitBounds 생략(카메라 점프 방지).
+  // idle 저장과 분리: 초기화 때 한 번만 판정해야 최초 방문의 fitBounds가 유지된다.
+  const hasSavedViewRef = useRef(false);
   const [mapInstance, setMapInstance] = useState<NaverMap | null>(null);
   const licMarkersRef = useRef<NaverMarker[]>([]);
   const accMarkersRef = useRef<NaverMarker[]>([]);
@@ -208,13 +211,36 @@ export default function DashboardPage() {
     loadNaverMaps()
       .then(() => {
         if (cancelled || !mapElRef.current || mapRef.current) return;
+        // 마지막 지도 시점 복원 — 재방문 시 지도가 처음부터 그 자리로 떠서
+        // 마커 부착 시 fitBounds 순간이동("뚝" 끊김)이 발생하지 않는다.
+        let savedView: { lat: number; lng: number; zoom: number } | null = null;
+        try {
+          const raw = JSON.parse(localStorage.getItem('fs_home_viewport') || 'null');
+          if (raw && Number.isFinite(raw.lat) && Number.isFinite(raw.lng) && Number.isFinite(raw.zoom)) savedView = raw;
+        } catch { savedView = null; }
+        hasSavedViewRef.current = !!savedView;
         mapRef.current = new window.naver.maps.Map(mapElRef.current, {
-          center: new window.naver.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
-          zoom: DEFAULT_ZOOM,
+          center: new window.naver.maps.LatLng(
+            savedView?.lat ?? DEFAULT_CENTER.lat,
+            savedView?.lng ?? DEFAULT_CENTER.lng,
+          ),
+          zoom: savedView?.zoom ?? DEFAULT_ZOOM,
         });
         window.naver.maps.Event.addListener(mapRef.current, 'click', () => {
           selRingRef.current?.setMap(null);
           setSelected(null);
+        });
+        // 이동·줌이 멈출 때마다 시점 저장 (idle = 지도 조작 종료 시점)
+        window.naver.maps.Event.addListener(mapRef.current, 'idle', () => {
+          const m = mapRef.current;
+          if (!m) return;
+          const c = m.getCenter();
+          try {
+            localStorage.setItem(
+              'fs_home_viewport',
+              JSON.stringify({ lat: c.lat(), lng: c.lng(), zoom: m.getZoom() }),
+            );
+          } catch { /* 저장 실패해도 동작엔 무해 */ }
         });
         setMapInstance(mapRef.current);
         setSdkReady(true);
@@ -339,7 +365,9 @@ export default function DashboardPage() {
         setLicenseStops([...licStops]);
         setAccountStops([...accStops]);
         applyFilters(filters);
-        if (fit) {
+        // 저장된 시점을 복원해 뜬 경우 fitBounds 생략 — 마커가 제자리에 바로 박히고
+        // 시점 순간이동으로 인한 화면 끊김이 없다. 최초 방문(저장 시점 없음)만 전체 맞춤.
+        if (fit && !hasSavedViewRef.current) {
           const all = [...licMarkers, ...accMarkers];
           if (all.length > 0) {
             const bounds = new naver.maps.LatLngBounds();
