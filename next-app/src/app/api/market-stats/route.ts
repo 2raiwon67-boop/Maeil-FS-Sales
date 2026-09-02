@@ -247,7 +247,8 @@ function extract(item: any, mode: string, expectedSido: string) {
     if (addrSido && addrSido !== expectedSido) return { sigungu: '', month: '' };
   }
 
-  const sigungu = tokens[1] || '';
+  // 세종은 시군구가 없어 주소 2번째 토큰이 읍면동 → 시군구 폴리곤·집계 단위와 맞추려 '세종시'로 고정(읍면동은 dong 컬럼에 남음)
+  const sigungu = toShort(tokens[0] || '') === '세종' ? '세종시' : (tokens[1] || '');
   const raw = (mode === 'new' ? item.LCPMT_YMD : item.CLSBIZ_YMD || item.DCB_YMD)?.toString().replace(/\D/g, '') || '';
   const month = raw.length >= 6 ? `${raw.slice(0, 4)}-${raw.slice(4, 6)}` : '';
 
@@ -261,7 +262,9 @@ function extractCoords(item: any): { lat: number | null; lng: number | null } {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     const x = parseFloat(item.CRD_INFO_X);
     const y = parseFloat(item.CRD_INFO_Y);
-    if (Number.isFinite(x) && Number.isFinite(y) && x > 0 && y > 0) {
+    // Y는 음수 허용 — 중부원점(위도 38°, y_0=500000)에서 위도 33.5° 이남(서귀포·제주시 남부)은 Y<0.
+    // `y > 0` 조건 때문에 제주 좌표 70%가 버려졌었음(2026-09-02 실측). 범위 검증은 변환 후 아래에서.
+    if (Number.isFinite(x) && Number.isFinite(y) && x > 0) {
       try {
         [lng, lat] = proj4(EPSG5174, 'EPSG:4326', [x, y]);
       } catch {
