@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import {
-  FileText, Store, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
+  FileText, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
   UploadCloud, Plus, ChevronLeft, ChevronRight, Search, AlertTriangle,
   Package,
 } from 'lucide-react';
@@ -105,27 +105,7 @@ const UPLOAD_TYPES: Record<string, UploadTypeCfg> = {
     requiredCol: 'business_name', dateFields: ['permit_date', 'appsheet_date'], numericFields: ['lat', 'lng'],
     mode: 'add_new_only', deduplicateField: 'business_name',
   },
-  accounts: {
-    label: '주요거래처', table: 'accounts', editable: true,
-    columns: [
-      { key: 'seq_no', label: 'NO' },
-      { key: 'store_code', label: '사업장코드명' },
-      { key: 'customer_level', label: '고객레벨2' },
-      { key: 'account_id', label: '거래처ID' },
-      { key: 'business_name', label: '거래처명' },
-      { key: 'trade_status', label: '거래상태' },
-      { key: 'manager_name', label: '담당자명' },
-      { key: 'address', label: '주소' },
-    ],
-    templateHeaders: ['NO', '사업부', '사업장', '지점', '사업장코드명', '고객레벨2', '거래처ID', '거래처명', '거래상태', '주요거래처 여부', '담당자명', '주소', '도/광역시', '시/군/구', '면/동'],
-    sampleRow: ['1', '경기북부', '포천', '포천지점', 'K11P001', 'A', 'C00001', '행복카페', '거래', 'Y', '홍길동', '경기도 포천시 소흘읍 죽엽산로 1', '경기도', '포천시', '소흘읍'],
-    columnMap: {
-      'NO': 'seq_no', '사업장코드명': 'store_code', '고객레벨2': 'customer_level', '거래처ID': 'account_id',
-      '거래처명': 'business_name', '거래상태': 'trade_status', '담당자명': 'manager_name', '주소': 'address',
-    },
-    requiredCol: 'business_name', dateFields: [], numericFields: [],
-    mode: 'add_new_only', deduplicateField: 'account_id',
-  },
+  // 주요거래처(accounts) 탭은 기능 미사용 결정(2026-09-02)으로 제거 — 테이블·API는 유지
   recipes: {
     label: '레시피 데이터', table: 'recipes', editable: false, scrollAll: true, noBusinessUnit: true,
     previewColumns: [
@@ -946,7 +926,7 @@ export default function UploadPage() {
 
         {/* 유형 탭 — 모바일은 2열 균등 그리드 (불규칙 줄바꿈 방지) */}
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef1f5] p-1 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&>*]:justify-center">
-          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['products', Package, '상품 관리'], ['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
+          {([['licenses', FileText, '인허가 데이터'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['products', Package, '상품 관리'], ['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
             <button key={t} onClick={() => selectType(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${selectedType === t ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}>
               <Icon size={15} />{label}
             </button>
