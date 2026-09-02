@@ -142,6 +142,7 @@ const UPLOAD_TYPES: Record<string, UploadTypeCfg> = {
       { key: 'description', label: '제품 상세 내용' },
       { key: 'usage', label: '사용용도' },
       { key: 'expiry', label: '소비기한' },
+      { key: 'image_url', label: '이미지' }, // Storage 업로드 셀(그리드에서 특수 렌더)
     ],
     requiredCol: 'name', dateFields: [], numericFields: [],
   },
@@ -689,6 +690,29 @@ export default function UploadPage() {
     });
   };
 
+  // 상품 이미지 업로드 — 브라우저에서 긴 변 640px WebP로 축소 후 Storage 저장(원본 폰 사진 수 MB → 수십 KB).
+  // 키는 상품 id(신규 행은 임시 uuid) — 같은 키 재업로드(교체) 시 브라우저 캐시 회피용 ?v= 부여.
+  const uploadProductImage = async (rowIdx: number, file: File) => {
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 640 / Math.max(bmp.width, bmp.height));
+      const w = Math.round(bmp.width * scale), h = Math.round(bmp.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d')!.drawImage(bmp, 0, 0, w, h);
+      const blob = await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('이미지 변환 실패'))), 'image/webp', 0.85));
+      const row = currentDbData[rowIdx];
+      const key = `${(row?.id as string) || crypto.randomUUID()}.webp`;
+      const { error } = await supabase.storage.from('product-images').upload(key, blob, { contentType: 'image/webp', upsert: true, cacheControl: '31536000' });
+      if (error) throw error;
+      const { data } = supabase.storage.from('product-images').getPublicUrl(key);
+      updateCell(rowIdx, 'image_url', `${data.publicUrl}?v=${Date.now()}`);
+      toast.success(`이미지 업로드 완료 (${Math.round(blob.size / 1024)}KB) — '변경사항 저장'을 눌러야 반영됩니다`);
+    } catch (e) {
+      toast.error('이미지 업로드 실패: ' + (e as Error).message);
+    }
+  };
+
   const addEditableRow = () => {
     const c = UPLOAD_TYPES[selectedType];
     const empty: Row = {};
@@ -724,6 +748,7 @@ export default function UploadPage() {
           description: row.description ? String(row.description).trim() : null,
           usage: row.usage ? String(row.usage).trim() : null,
           expiry: row.expiry ? String(row.expiry).trim() : null,
+          image_url: row.image_url ? String(row.image_url).trim() : null,
           sort_order: idx + 1, // 그리드 순서 = 견적서·상담 표시 순서
           uploaded_by: userData.user.id, uploaded_at: now,
         }));
@@ -1155,7 +1180,21 @@ export default function UploadPage() {
                               {deleteMode && <td className="px-2 py-1 text-center"><input type="checkbox" checked={checkedRows.has(rowKey)} onChange={() => toggleCheck(rowKey)} /></td>}
                               {dbCols.map((c) => (
                                 <td key={c.key} className="px-1.5 py-1">
-                                  {cfg.editable && !deleteMode ? (
+                                  {cfg.editable && !deleteMode && c.key === 'image_url' ? (
+                                    <div className="flex items-center gap-2 whitespace-nowrap">
+                                      {row.image_url ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={String(row.image_url)} alt="" className="h-9 w-9 rounded border border-gray-200 object-cover" />
+                                      ) : (
+                                        <span className="text-[#94a3b8]">없음</span>
+                                      )}
+                                      <label className="cursor-pointer font-medium text-[#2563eb] hover:underline">
+                                        {row.image_url ? '교체' : '업로드'}
+                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadProductImage(ri, f); e.target.value = ''; }} />
+                                      </label>
+                                      {row.image_url && <button type="button" onClick={() => updateCell(ri, 'image_url', '')} className="text-red-500 hover:underline">삭제</button>}
+                                    </div>
+                                  ) : cfg.editable && !deleteMode ? (
                                     <input value={fmtCell(row[c.key])} onChange={(e) => updateCell(ri, c.key, e.target.value)} className="w-full rounded bg-transparent px-1 py-0.5 outline-none focus:bg-blue-50" />
                                   ) : (
                                     <span className="block max-w-[200px] truncate px-1" title={fmtCell(row[c.key])}>{fmtCell(row[c.key])}</span>

@@ -11,12 +11,14 @@ export interface ProductRow {
   desc: string;
   usage: string;
   expiryDate: string;
+  /** Supabase Storage(product-images) 공개 URL — 없으면 null (호출측이 로컬 폴백 가능) */
+  imageUrl: string | null;
 }
 
 export async function loadProducts(supabase: SupabaseClient): Promise<ProductRow[]> {
   const { data, error } = await supabase
     .from('products')
-    .select('name, pack_qty, description, usage, expiry, sort_order')
+    .select('name, pack_qty, description, usage, expiry, sort_order, image_url')
     .order('sort_order', { ascending: true })
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
@@ -28,5 +30,6 @@ export async function loadProducts(supabase: SupabaseClient): Promise<ProductRow
       desc: (r.description ?? '').toString().trim(),
       usage: (r.usage ?? '').toString().trim(),
       expiryDate: (r.expiry ?? '').toString().trim(),
+      imageUrl: r.image_url ? String(r.image_url) : null,
     }));
 }

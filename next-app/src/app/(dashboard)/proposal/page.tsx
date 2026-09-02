@@ -227,7 +227,8 @@ export default function ProposalPage() {
           spec: r.spec,
           price: 0,
           taxFree: false,
-          imageUrl: resolveProductImage(r.name, files),
+          // DB(Storage) 이미지 우선, 없으면 로컬 assets 폴백(이관 전 파일·예외 매핑)
+          imageUrl: r.imageUrl ?? resolveProductImage(r.name, files),
           maxDc: 0,
           desc: r.desc,
           usage: r.usage,
