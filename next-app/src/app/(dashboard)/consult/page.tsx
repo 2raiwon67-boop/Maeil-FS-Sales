@@ -18,10 +18,9 @@ import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
 import { resolveRecipeProducts, deriveFlavors } from '@/lib/recipe-product';
 import { PageHeader, headerBtn } from '@/components/layout/page-header';
+import { loadProducts } from '@/lib/products';
 
-// proposal과 동일한 제품 DB 시트 — 담기 시 SKU 스펙·설명 자동 채움 + AI 분석 API 입력
-const PRODUCT_DB_SHEETS_URL =
-  'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=1802773439';
+// 제품 DB는 proposal과 같은 Supabase products 테이블(lib/products.ts) — 담기 시 SKU 스펙·설명 자동 채움 + AI 분석 API 입력
 
 const BASKET_STORAGE_KEY = 'consult_basket_v1';
 const RATE_LIMIT_MS = 3000;
@@ -104,30 +103,6 @@ interface AiRecipe {
   reason?: string;
 }
 
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-  const result: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const cols: string[] = [];
-    let cur = '', inQ = false;
-    for (let j = 0; j < line.length; j++) {
-      const ch = line[j];
-      if (ch === '"') inQ = !inQ;
-      else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-      else cur += ch;
-    }
-    cols.push(cur);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
-    result.push(obj);
-  }
-  return result;
-}
-
 // AI 분석 description은 강조용 HTML을 담아 옴 — 화이트리스트만 남기고 제거 (proposal과 동일)
 function sanitizeAnalysisHtml(input: string): string {
   if (!input) return '';
@@ -195,16 +170,13 @@ export default function ConsultPage() {
       setLoading(false);
 
       try {
-        const res = await fetch(PRODUCT_DB_SHEETS_URL);
-        if (res.ok) {
-          const rows = parseCSV(await res.text()).filter((r) => r['품명']);
-          setProducts(new Map(rows.map((r) => [r['품명'].trim(), {
-            spec: r['내입량'] ? r['내입량'].trim() + '개입' : '',
-            desc: (r['제품 상세 내용'] || '').trim(),
-            usage: (r['사용용도'] || '').trim(),
-            expiryDate: (r['소비기한'] || '').trim(),
-          }])));
-        }
+        const rows = await loadProducts(createClient());
+        setProducts(new Map(rows.map((r) => [r.name, {
+          spec: r.spec,
+          desc: r.desc,
+          usage: r.usage,
+          expiryDate: r.expiryDate,
+        }])));
       } catch { /* 제품 DB 없이도 브라우징은 동작 — 저장 시점에 재확인 */ }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

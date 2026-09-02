@@ -10,11 +10,11 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
 import { PageHeader, headerBtn } from '@/components/layout/page-header';
+import { loadProducts } from '@/lib/products';
 
 // ── 상수 ──────────────────────────────────────────────────────────────────────
 
-const PRODUCT_DB_SHEETS_URL =
-  'https://docs.google.com/spreadsheets/d/1JnLQVr3JGqZPyvQ6bf8TSl0dNN6_oI05YH7d9zSgsKI/export?format=csv&gid=1802773439';
+// 제품 DB는 Supabase products 테이블(2026-09-02 구글시트에서 이관) — lib/products.ts 공통 로더
 // 상품 이미지는 구 GitHub Pages가 아니라 배포 도메인의 로컬 public에서 서빙(도메인 비종속).
 // 상품 이미지 76장(640px WebP)은 next-app/public/assets/images에 존재 — Pages 비활성화·주소 변경에도 안전.
 const PRODUCT_IMAGE_BASE = '/assets/images/';
@@ -127,30 +127,6 @@ function newRowId(): string {
   return `row-${_rowSeq}`;
 }
 
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-  const result: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const cols: string[] = [];
-    let cur = '', inQ = false;
-    for (let j = 0; j < line.length; j++) {
-      const ch = line[j];
-      if (ch === '"') inQ = !inQ;
-      else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-      else cur += ch;
-    }
-    cols.push(cur);
-    const obj: Record<string, string> = {};
-    headers.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
-    result.push(obj);
-  }
-  return result;
-}
-
 function rowCost(item: QuoteItem): number {
   const dcAmount = item.factoryPrice * (item.dcRate / 100);
   const supply = item.factoryPrice - dcAmount;
@@ -243,26 +219,20 @@ export default function ProposalPage() {
       } catch { /* ignore */ }
       setImageFiles(files);
 
-      // 제품 DB
+      // 제품 DB — Supabase products (편집: 데이터 관리 ▸ 상품 관리)
       try {
-        const res = await fetch(PRODUCT_DB_SHEETS_URL);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const csv = await res.text();
-        const rows = parseCSV(csv).filter((r) => r['품명'] && r['품명'].trim());
-        const db: Product[] = rows.map((r) => {
-          const name = r['품명'].trim();
-          return {
-            name,
-            spec: r['내입량'] ? r['내입량'].trim() + '개입' : '',
-            price: 0,
-            taxFree: false,
-            imageUrl: resolveProductImage(name, files),
-            maxDc: 0,
-            desc: (r['제품 상세 내용'] || '').trim(),
-            usage: (r['사용용도'] || '').trim(),
-            expiryDate: (r['소비기한'] || '').trim(),
-          };
-        });
+        const rows = await loadProducts(createClient());
+        const db: Product[] = rows.map((r) => ({
+          name: r.name,
+          spec: r.spec,
+          price: 0,
+          taxFree: false,
+          imageUrl: resolveProductImage(r.name, files),
+          maxDc: 0,
+          desc: r.desc,
+          usage: r.usage,
+          expiryDate: r.expiryDate,
+        }));
         setProductDB(db);
       } catch (e) {
         console.warn('제품 DB 로드 실패:', (e as Error).message);

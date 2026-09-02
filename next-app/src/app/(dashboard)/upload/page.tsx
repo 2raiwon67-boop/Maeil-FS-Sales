@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import {
   FileText, Store, Users, BookOpen, Crown, Download, RefreshCw, Trash2, X,
   UploadCloud, Plus, ChevronLeft, ChevronRight, Search, AlertTriangle,
+  Package,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
@@ -151,6 +152,18 @@ const UPLOAD_TYPES: Record<string, UploadTypeCfg> = {
       '지역1': 'region1', '지역2': 'region2', '지역3': 'region3', '담당자': 'manager_name', '이메일': 'email',
     },
     requiredCol: 'manager_name', dateFields: [], numericFields: [],
+  },
+  products: {
+    // 견적서·메뉴 상담 제품 DB — 전사 공용(business_unit 없음). 구글시트에서 이관(2026-09-02)
+    label: '상품 관리', table: 'products', editable: true, noBusinessUnit: true,
+    columns: [
+      { key: 'name', label: '품명' },
+      { key: 'pack_qty', label: '내입량' },
+      { key: 'description', label: '제품 상세 내용' },
+      { key: 'usage', label: '사용용도' },
+      { key: 'expiry', label: '소비기한' },
+    ],
+    requiredCol: 'name', dateFields: [], numericFields: [],
   },
 };
 
@@ -319,6 +332,7 @@ export default function UploadPage() {
       if (bu) query = query.eq('business_unit', bu);
       if (c.table === 'licenses') query = query.order('permit_date', { ascending: false, nullsFirst: false });
       else if (c.table === 'recipes') query = query.order('name', { ascending: true });
+      else if (c.table === 'products') query = query.order('sort_order', { ascending: true });
 
       if (c.editable) {
         query = query.limit(1000);
@@ -704,19 +718,57 @@ export default function UploadPage() {
 
   const saveEditableData = async () => {
     const c = UPLOAD_TYPES[selectedType];
-    const bu = getBusinessUnit();
-    if (!bu) { toast.error('소속 정보가 없습니다.'); return; }
+    // 전사 공용 테이블(products 등)은 소속 무관 — business_unit 조건 없이 전체 행을 교체한다
+    const bu = c.noBusinessUnit ? null : getBusinessUnit();
+    if (!c.noBusinessUnit && !bu) { toast.error('소속 정보가 없습니다.'); return; }
     const toSave = currentDbData.filter((row) => (c.columns ?? []).some((col) => row[col.key] && String(row[col.key]).trim()));
     if (toSave.length === 0) { toast('저장할 데이터가 없습니다.'); return; }
+    if (c.requiredCol) {
+      const missing = toSave.filter((row) => !row[c.requiredCol!] || !String(row[c.requiredCol!]).trim()).length;
+      if (missing > 0) { toast.error(`필수 항목(${(c.columns ?? []).find((col) => col.key === c.requiredCol)?.label ?? c.requiredCol})이 비어 있는 행이 ${missing}건 있습니다.`); return; }
+    }
     try {
       const { data: userData, error: authErr } = await supabase.auth.getUser();
       if (authErr || !userData?.user) throw new Error('로그인 정보를 가져올 수 없습니다.');
       const now = new Date().toISOString();
 
+      // products: 품명이 unique라 아래 '삽입-우선 교체'(같은 이름 잠시 공존)를 쓸 수 없다.
+      // 대신 품명 기준 upsert(기존 행은 제자리 갱신, 새 행은 추가) 후 그리드에 없는 품명만 제거 — 유실 0.
+      if (c.table === 'products') {
+        const names = toSave.map((row) => String(row.name).trim());
+        const dup = names.find((n, i) => names.indexOf(n) !== i);
+        if (dup) throw new Error(`품명이 중복됩니다: "${dup}" — 품명은 고유해야 합니다.`);
+        const rows = toSave.map((row, idx) => ({
+          name: names[idx],
+          pack_qty: row.pack_qty ? String(row.pack_qty).trim() : null,
+          description: row.description ? String(row.description).trim() : null,
+          usage: row.usage ? String(row.usage).trim() : null,
+          expiry: row.expiry ? String(row.expiry).trim() : null,
+          sort_order: idx + 1, // 그리드 순서 = 견적서·상담 표시 순서
+          uploaded_by: userData.user.id, uploaded_at: now,
+        }));
+        const { error: upErr } = await supabase.from(c.table).upsert(rows, { onConflict: 'name' });
+        if (upErr) throw new Error('저장 실패(기존 데이터는 보존됨): ' + upErr.message);
+        // 그리드에서 사라진(이름 변경·삭제된) 품목 정리
+        const { data: all, error: allErr } = await supabase.from(c.table).select('id,name');
+        if (allErr) throw new Error('새 데이터는 저장됐으나 정리 조회 실패: ' + allErr.message);
+        const keep = new Set(names);
+        const stale = (all ?? []).filter((r) => !keep.has(String((r as Row).name))).map((r) => (r as Row).id as string);
+        if (stale.length) {
+          const { error: delErr } = await supabase.from(c.table).delete().in('id', stale);
+          if (delErr) throw new Error('새 데이터는 저장됐으나 옛 품목 정리 실패: ' + delErr.message);
+        }
+        toast.success(`✅ ${c.label} ${rows.length}건 저장 완료!`);
+        await loadCurrentData();
+        return;
+      }
+
       // 안전 교체(insert-first): 기존 데이터를 지우기 前에 새 데이터를 먼저 넣는다.
       // 과거엔 delete→insert 순서라 insert가 한 번이라도 실패하면 이미 지운 데이터가
       // 통째로 유실됐다(담당자 전멸 사고). 이제는 삽입이 성공한 뒤에만 기존 행을 지운다.
-      const { data: existing, error: exErr } = await supabase.from(c.table).select('id').eq('business_unit', bu);
+      let existingQuery = supabase.from(c.table).select('id');
+      if (bu) existingQuery = existingQuery.eq('business_unit', bu);
+      const { data: existing, error: exErr } = await existingQuery;
       if (exErr) throw new Error('기존 데이터 확인 실패: ' + exErr.message);
       const oldIds = (existing ?? []).map((r) => (r as Row).id).filter(Boolean) as string[];
 
@@ -724,7 +776,9 @@ export default function UploadPage() {
       const rows = toSave.map((row) => {
         const rest: Row = { ...row };
         delete rest.id;
-        return { ...rest, business_unit: bu, uploaded_by: userData.user.id, uploaded_at: now };
+        const base: Row = { ...rest, uploaded_by: userData.user.id, uploaded_at: now };
+        if (bu) base.business_unit = bu;
+        return base;
       });
       const BATCH = 500;
       const newIds: string[] = [];
@@ -892,7 +946,7 @@ export default function UploadPage() {
 
         {/* 유형 탭 — 모바일은 2열 균등 그리드 (불규칙 줄바꿈 방지) */}
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef1f5] p-1 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&>*]:justify-center">
-          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
+          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ['products', Package, '상품 관리'], ...(isAdmin ? [['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
             <button key={t} onClick={() => selectType(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${selectedType === t ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}>
               <Icon size={15} />{label}
             </button>
