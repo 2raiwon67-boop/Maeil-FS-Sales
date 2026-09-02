@@ -49,6 +49,10 @@ export default function RootLayout({
     >
       <head>
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+        {/* Supabase(REST·Auth·Storage 이미지/PDF) 사전 연결 — 첫 데이터·이미지 요청의 DNS/TLS 왕복 절감 */}
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
+        )}
         {/* dynamic-subset: 페이지에 실제 쓰인 유니코드 블록만 내려받음(전체 세트 대비 수십 KB 수준).
             globals.css의 @import 직렬 체인 대신 문서 head에서 앱 CSS와 병렬 로드. */}
         <link

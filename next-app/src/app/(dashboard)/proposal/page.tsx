@@ -174,10 +174,36 @@ export default function ProposalPage() {
   const [productDB, setProductDB] = useState<Product[]>([]);
   const [imageFiles, setImageFiles] = useState<string[]>([]);
 
+  // DB(Storage) 이미지 우선 — 상품 관리 탭에서 올린 이미지가 피커·A4 카드에 바로 반영되도록.
+  // DB에 없는 품명(AI 추천 등)만 로컬 assets 매칭으로 폴백.
   const findProductImage = useCallback(
-    (name: string): string | null => resolveProductImage(name, imageFiles),
-    [imageFiles],
+    (name: string): string | null => {
+      const t = name.trim();
+      const fromDb = productDB.find((p) => p.name === t)?.imageUrl;
+      return fromDb ?? resolveProductImage(t, imageFiles);
+    },
+    [productDB, imageFiles],
   );
+
+  // 이미지 선로딩: 제품 DB가 오면 유휴 시간에 전 상품 이미지(80장×~14KB)를 브라우저 캐시에 미리 받아둔다.
+  // 피커·A4 카드·추천 목록이 열릴 때 네트워크 대기 없이 즉시 표시(Storage 응답은 1년 캐시).
+  useEffect(() => {
+    if (productDB.length === 0) return;
+    const urls = productDB.map((p) => p.imageUrl).filter((u): u is string => !!u);
+    let cancelled = false;
+    const warm = () => {
+      if (cancelled) return;
+      urls.forEach((u) => { const im = new Image(); im.decoding = 'async'; im.src = u; });
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    const idleId = w.requestIdleCallback ? w.requestIdleCallback(warm, { timeout: 2000 }) : null;
+    const timer = idleId === null ? setTimeout(warm, 800) : null;
+    return () => {
+      cancelled = true;
+      if (idleId !== null) w.cancelIdleCallback?.(idleId);
+      if (timer) clearTimeout(timer);
+    };
+  }, [productDB]);
 
   // 견적 항목
   const [items, setItems] = useState<QuoteItem[]>([]);
@@ -596,7 +622,7 @@ export default function ProposalPage() {
                               className="flex items-center gap-3 rounded-xl border border-[#eef1f5] p-2.5 text-left hover:bg-[#f5f9ff]">
                               <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#eef2f7]">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                {imgUrl ? <img src={imgUrl} alt={item.name} className="h-full w-full object-cover" /> : <LayoutGrid size={18} className="text-[#9aa7b6]" />}
+                                {imgUrl ? <img src={imgUrl} alt={item.name} decoding="async" className="h-full w-full object-cover" /> : <LayoutGrid size={18} className="text-[#9aa7b6]" />}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-xs font-medium text-[#0f172a]">{item.name}</div>
@@ -719,7 +745,7 @@ export default function ProposalPage() {
                           <div key={it.id} className="flex break-inside-avoid gap-3.5 rounded-xl border border-[#e8ebf0] p-3">
                             <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f4f6fa]">
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              {img ? <img src={img} alt={it.name} className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <LayoutGrid size={26} className="text-[#9aa7b6]" />}
+                              {img ? <img src={img} alt={it.name} decoding="async" className="h-full w-full object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} /> : <LayoutGrid size={26} className="text-[#9aa7b6]" />}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-baseline justify-between gap-3">
@@ -774,7 +800,7 @@ export default function ProposalPage() {
                     <div className="flex h-[90px] w-full items-center justify-center overflow-hidden rounded-lg bg-white">
                       {img ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={img} alt={p.name} loading="lazy" className="h-full w-full object-contain" />
+                        <img src={img} alt={p.name} loading="lazy" decoding="async" className="h-full w-full object-contain" />
                       ) : <LayoutGrid size={22} className="text-[#9aa7b6]" />}
                     </div>
                     <div className="line-clamp-2 text-center text-[11px] font-medium text-[#0f172a]">{p.name}</div>
