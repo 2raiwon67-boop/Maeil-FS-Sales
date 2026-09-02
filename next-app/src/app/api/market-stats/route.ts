@@ -114,16 +114,29 @@ const SIDO_SHORT: Record<string, string> = {
   전라남도: '전라남도', 전남: '전라남도',
   경상북도: '경상북도', 경북: '경상북도',
   경상남도: '경상남도', 경남: '경상남도',
+  // 2026-07 광주+전남 행정통합 — 공공 API 주소가 '전남광주통합특별시 …'로 소급 변경됨(실측 2026-09-02).
+  // DB·화면은 기존 '광주'/'전라남도' 구분을 유지: 시군구가 광주 5개 구면 광주, 그 외는 전남 (extract()·sidoOfAddress 참고)
+  전남광주통합특별시: '전남광주통합특별시',
 };
+const MERGED_SIDO = '전남광주통합특별시';
+const GWANGJU_GUS = new Set(['동구', '서구', '남구', '북구', '광산구']);
 
 function toShort(sido: string | null | undefined): string {
   return SIDO_SHORT[sido?.trim() ?? ''] || sido?.trim() || '';
 }
 
+/** 주소 토큰(시도, 시군구) → DB용 시도. 통합시는 시군구로 광주/전남을 가른다 */
+function sidoOfAddress(sidoToken: string, sigunguToken: string): string {
+  const s = toShort(sidoToken);
+  if (s !== MERGED_SIDO) return s;
+  return GWANGJU_GUS.has(sigunguToken) ? '광주' : '전라남도';
+}
+
 // 공공 API LOTNO_ADDR::LIKE용 검색어 — 특별자치도 개명(강원 2023-06, 전북 2024-01)으로
 // 주소가 '강원특별자치도…'라 '강원도' LIKE는 0건. 개명 전후 주소를 모두 substring으로 잡는
 // 짧은 형태를 쓴다. 타 시도 주소에 우연히 포함돼도 extract()의 expectedSido 검증이 걸러냄.
-const SIDO_LIKE: Record<string, string> = { 강원도: '강원', 전라북도: '전북' };
+// 광주·전남은 통합시 명칭으로 조회(구 명칭 LIKE는 0건) — 시도 구분은 extract()가 시군구로 판정
+const SIDO_LIKE: Record<string, string> = { 강원도: '강원', 전라북도: '전북', 광주: MERGED_SIDO, 전라남도: MERGED_SIDO };
 function toLike(sidoShort: string): string {
   return SIDO_LIKE[sidoShort] || sidoShort;
 }
@@ -230,7 +243,7 @@ function extract(item: any, mode: string, expectedSido: string) {
   const tokens = addr.split(' ').filter(Boolean);
 
   if (expectedSido) {
-    const addrSido = toShort(tokens[0] || '');
+    const addrSido = sidoOfAddress(tokens[0] || '', tokens[1] || '');
     if (addrSido && addrSido !== expectedSido) return { sigungu: '', month: '' };
   }
 

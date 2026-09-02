@@ -6,7 +6,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const maxDuration = 60;
 
-const ALLOWED_SIDOS = ['경기도', '서울', '인천'];
+// 전국 17개 시도 — ?sidos=세종,제주 로 부분 실행 가능(쉼표 구분). 2026-09 전국 확장
+const ALL_SIDOS = ['경기도', '서울', '인천', '강원도', '부산', '대구', '광주', '대전', '울산', '세종', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -29,9 +30,15 @@ export async function GET(req: NextRequest) {
 
   const results: Record<string, unknown> = {};
 
-  for (const sido of ALLOWED_SIDOS) {
+  // ?sidos=A,B (부분) · ?start=YYYYMM&end=YYYYMM (명시 창, 없으면 months) — maxDuration 60s라 대량은 창을 좁혀 여러 번 호출
+  const sp = req.nextUrl.searchParams;
+  const reqSidos = (sp.get('sidos') || '').split(',').map((s) => s.trim()).filter((s) => ALL_SIDOS.includes(s));
+  const sidos = reqSidos.length ? reqSidos : ALL_SIDOS;
+  const win = sp.get('start') && sp.get('end') ? `start=${sp.get('start')}&end=${sp.get('end')}` : `months=${months}`;
+
+  for (const sido of sidos) {
     try {
-      const url = `${base}/api/market-stats?sido=${encodeURIComponent(sido)}&months=${months}&save=true`;
+      const url = `${base}/api/market-stats?sido=${encodeURIComponent(sido)}&${win}&save=true`;
       const r = await fetch(url, { headers: { Authorization: auth || '' } });
       const json = await r.json();
       results[sido] = json.saved ?? { error: json.error };

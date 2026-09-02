@@ -10,7 +10,15 @@ export const maxDuration = 300;
 //   행안부 공표가 매월 2일 09시 이후라 월초 며칠은 빈 응답 → 다음날 자동 재시도).
 
 const MOIS_BASE = 'https://apis.data.go.kr/1741000/stdgPpltnHhStus/selectStdgPpltnHhStus';
-const SIDO_CODES = ['1100000000', '2800000000', '4100000000', '5100000000']; // 서울·인천·경기·강원
+// 전국 17개 시도 (행안부 법정동 코드 앞 2자리 — 강원 51·전북 52는 특별자치도 출범 후 코드)
+const SIDO_CODES = [
+  '1100000000', '2600000000', '2700000000', '2800000000', '2900000000', '3000000000', '3100000000', '3600000000',
+  '4100000000', '4300000000', '4400000000', '4600000000', '4700000000', '4800000000', '5000000000', '5100000000', '5200000000',
+  '1200000000', // 전남광주통합특별시(2026-07 통합) — 구 코드(29·46)가 빈 응답이면 이 코드로 수집됨
+]; // 서울·부산·대구·인천·광주·대전·울산·세종·경기·충북·충남·전남·경북·경남·제주·강원·전북(+통합시)
+
+// 시장 데이터 야간 갱신 대상 — market-stats의 sido 표기(SIDO_SHORT 기준). 2026-09 전국 확장.
+const MARKET_SIDOS = ['서울', '경기도', '인천', '강원도', '부산', '대구', '광주', '대전', '울산', '세종', '충청북도', '충청남도', '전라북도', '전라남도', '경상북도', '경상남도', '제주'];
 
 interface MoisRow {
   stdgCd: string; stdgNm: string; sggNm: string; ctpvNm: string;
@@ -157,18 +165,21 @@ export async function GET(req: NextRequest) {
       ? `http://${reqHost}`
       : `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL || 'maeilfs-sales.vercel.app'}`;
 
-    await Promise.all(
-      ['경기도', '서울', '인천', '강원도'].map(async (sido) => {
-        try {
-          const url = `${base}/api/market-stats?sido=${encodeURIComponent(sido)}&months=2&save=true`;
-          const r = await fetch(url, { headers: { Authorization: authHeader || '' } });
-          const j = await r.json();
-          marketResult[sido] = j.saved ?? { error: j.error };
-        } catch (e) {
-          marketResult[sido] = { error: (e as Error).message };
-        }
-      }),
-    );
+    // 17개 시도를 6개씩 병렬 — 한꺼번에 띄우면 공공 API 부하·maxDuration(300s) 초과 위험
+    for (let i = 0; i < MARKET_SIDOS.length; i += 6) {
+      await Promise.all(
+        MARKET_SIDOS.slice(i, i + 6).map(async (sido) => {
+          try {
+            const url = `${base}/api/market-stats?sido=${encodeURIComponent(sido)}&months=2&save=true`;
+            const r = await fetch(url, { headers: { Authorization: authHeader || '' } });
+            const j = await r.json();
+            marketResult[sido] = j.saved ?? { error: j.error };
+          } catch (e) {
+            marketResult[sido] = { error: (e as Error).message };
+          }
+        }),
+      );
+    }
   } catch {}
 
   // 인구 월 편승 — 실패해도 시장 갱신 결과는 그대로 반환
