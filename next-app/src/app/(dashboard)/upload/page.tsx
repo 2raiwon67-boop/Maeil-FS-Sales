@@ -1192,7 +1192,7 @@ export default function UploadPage() {
                                         {row.image_url ? '교체' : '업로드'}
                                         <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadProductImage(ri, f); e.target.value = ''; }} />
                                       </label>
-                                      {row.image_url && <button type="button" onClick={() => updateCell(ri, 'image_url', '')} className="text-red-500 hover:underline">삭제</button>}
+                                      {!!row.image_url && <button type="button" onClick={() => updateCell(ri, 'image_url', '')} className="text-red-500 hover:underline">삭제</button>}
                                     </div>
                                   ) : cfg.editable && !deleteMode ? (
                                     <input value={fmtCell(row[c.key])} onChange={(e) => updateCell(ri, c.key, e.target.value)} className="w-full rounded bg-transparent px-1 py-0.5 outline-none focus:bg-blue-50" />
