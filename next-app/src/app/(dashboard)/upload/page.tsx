@@ -946,7 +946,7 @@ export default function UploadPage() {
 
         {/* 유형 탭 — 모바일은 2열 균등 그리드 (불규칙 줄바꿈 방지) */}
         <div className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-[#eef1f5] p-1 max-md:grid max-md:w-full max-md:grid-cols-2 max-md:[&>*]:justify-center">
-          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ['products', Package, '상품 관리'], ...(isAdmin ? [['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
+          {([['licenses', FileText, '인허가 데이터'], ['accounts', Store, '주요거래처'], ['managers', Users, '담당자관리'], ...(isAdmin ? [['products', Package, '상품 관리'], ['recipes', BookOpen, '레시피 데이터']] : [])] as [string, typeof FileText, string][]).map(([t, Icon, label]) => (
             <button key={t} onClick={() => selectType(t)} className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${selectedType === t ? 'bg-white text-[#0f172a] shadow-sm' : 'text-[#64748b] hover:text-[#0f172a]'}`}>
               <Icon size={15} />{label}
             </button>
