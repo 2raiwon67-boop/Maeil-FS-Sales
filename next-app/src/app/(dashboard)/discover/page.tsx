@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import dynamicImport from 'next/dynamic';
@@ -15,7 +15,7 @@ import {
   Map as MapIcon, RefreshCw, X, Search,
   Inbox, Clock, Star, TrendingUp, ChevronDown, ChevronLeft, ChevronRight,
   Check, MapPin, CalendarDays, Tag, Play, Pause, Layers, Box, ExternalLink, Download,
-  ClipboardList, Target, FileText,
+  ClipboardList, Target, FileText, Store,
 } from 'lucide-react';
 // 보고작성 뷰(717줄+chart.js)는 기본 탭이 아니므로 지연 로드 — discover 초기 번들에서 제외
 const ReportView = dynamicImport(
@@ -95,6 +95,99 @@ interface DongAgg {
   net: number;
 }
 
+// ─── 상권 모드 ───────────────────────────────────────────────────────────────
+// 소진공 상가(상권)정보 시군구 요약(RPC commercial_sigungu_summary) = 재고, 인허가 최근 12개월 = 흐름.
+// 종합 점수 = 스코프(현재 화면에 로드된 시군구) 안의 백분위 가중합 — 절대값이 아니라 '지금 보는 지역들 중 상대 순위'.
+interface CommercialRow {
+  sido: string; sigungu: string; total: number;
+  cafe: number; bakery: number; icecream: number; restaurant: number; pub: number;
+  retail: number; service: number; office: number; education: number; medical: number; leisure: number;
+  pop: number; adongs: number;
+}
+interface CommercialScore extends CommercialRow {
+  stock: number;     // FS 재고 = 카페+제과+빙수 (소진공 영업 중 기준)
+  new12: number;     // 최근 12개월 FS 적격 개업
+  closed12: number;  // 〃 폐업
+  openRate: number;  // new12/stock ×100
+  netRate: number;   // (new12-closed12)/stock ×100
+  density: number;   // 카페 / 인구 1만명
+  pScale: number; pDensity: number; pOpen: number; pNet: number; // 백분위 0~1
+  score: number;     // 0~100
+  rank: number;      // 1 = 최고
+}
+interface AdongTop { adong_nm: string; total: number; cafe: number; restaurant: number; office: number; education: number }
+const COMM_W = { scale: 0.35, density: 0.15, open: 0.25, net: 0.25 } as const;
+const COMM_COLORS = { scale: '#2a78d6', density: '#1baf7a', open: '#eb6834', net: '#4a3aa7' } as const;
+const COMM_LABEL = { scale: '규모', density: '밀도', open: '개업률', net: '순증률' } as const;
+function percentiles(vals: number[]): number[] {
+  const n = vals.length;
+  if (n <= 1) return vals.map(() => 1);
+  return vals.map(v => vals.filter(x => x < v).length / (n - 1));
+}
+function computeCommercialScores(rows: CommercialRow[], stores: StoreRow[]): CommercialScore[] {
+  if (!rows.length || !stores.length) return [];
+  // 스코프 = 현재 로드된 매장 데이터의 (시도|시군구) — 상권 행 중 스코프에 속한 것만 채점
+  const byKey = new Map(rows.map(r => [`${r.sido}|${r.sigungu}`, r]));
+  const resolve = new Map<string, CommercialRow | null>();
+  const flow = new Map<CommercialRow, { n: number; c: number }>();
+  const months = [...new Set(stores.map(s => s.month))].sort();
+  const from = months[Math.max(0, months.length - 12)];
+  for (const s of stores) {
+    const key = `${s.sido}|${s.sigungu}`;
+    let r = resolve.get(key);
+    if (r === undefined) {
+      r = byKey.get(key) ?? rows.find(x => x.sido === s.sido && sigunguMatches(s.sido, s.sigungu, x.sigungu)) ?? null;
+      resolve.set(key, r);
+    }
+    if (!r) continue;
+    let f = flow.get(r);
+    if (!f) { f = { n: 0, c: 0 }; flow.set(r, f); }
+    if (s.month < from || !isEligible(s.category)) continue;
+    if (s.status === 'new') f.n++; else f.c++;
+  }
+  const scoped = rows.filter(r => flow.has(r));
+  if (!scoped.length) return [];
+  const base = scoped.map(r => {
+    const f = flow.get(r)!;
+    const stock = r.cafe + r.bakery + r.icecream;
+    return {
+      ...r, stock, new12: f.n, closed12: f.c,
+      openRate: stock ? f.n / stock * 100 : 0,
+      netRate: stock ? (f.n - f.c) / stock * 100 : 0,
+      density: r.pop > 0 ? r.cafe / r.pop * 10000 : 0,
+    };
+  });
+  const pScale = percentiles(base.map(b => b.stock));
+  const pDensity = percentiles(base.map(b => b.density));
+  const pOpen = percentiles(base.map(b => b.openRate));
+  const pNet = percentiles(base.map(b => b.netRate));
+  const scored = base.map((b, i) => {
+    const damp = Math.min(1, b.stock / 300); // 소규모(재고<300) 지역은 비율 지표를 감쇠 — 분모 작아 튀는 것 방지
+    const p = { pScale: pScale[i], pDensity: pDensity[i], pOpen: pOpen[i] * damp, pNet: pNet[i] * damp };
+    const score = Math.round(100 * (COMM_W.scale * p.pScale + COMM_W.density * p.pDensity + COMM_W.open * p.pOpen + COMM_W.net * p.pNet));
+    return { ...b, ...p, score, rank: 0 };
+  }).sort((a, b) => b.score - a.score || b.stock - a.stock);
+  scored.forEach((s, i) => { s.rank = i + 1; });
+  return scored;
+}
+// 면 채색 표현식 — 기본(순증 tone)과 상권(종합 점수 파랑 램프)을 모드에 따라 교체
+const FS_TONE = ['coalesce', ['feature-state', 'tone'], 'none'];
+const FS_T = ['coalesce', ['feature-state', 't'], 0];
+const FS_CSCORE = ['coalesce', ['feature-state', 'cscore'], -1];
+const MUNI_FILL_TONE_COLOR = [
+  'case',
+  ['==', FS_TONE, 'pos'], ['interpolate', ['linear'], FS_T, 0, '#bbf7d0', 1, '#15803d'],
+  ['==', FS_TONE, 'neg'], ['interpolate', ['linear'], FS_T, 0, '#fecaca', 1, '#b91c1c'],
+  ['==', FS_TONE, 'zero'], '#94a3b8',
+  'rgba(148,163,184,0.18)',
+];
+const MUNI_FILL_SCORE_COLOR = [
+  'case',
+  ['<', FS_CSCORE, 0], 'rgba(148,163,184,0.18)',
+  ['interpolate', ['linear'], FS_CSCORE, 0, '#cde2fb', 35, '#86b6ef', 65, '#2a78d6', 100, '#0d366b'],
+];
+const MUNI_FILL_SCORE_OPACITY = ['case', ['<', FS_CSCORE, 0], 0.15, 0.78];
+
 type ViewMode = 'map' | 'plan' | 'report'; // 랭킹 뷰는 2026-08-20 제거 — 지역레포트가 대체(사용 빈도 0 확인)
 
 // 운영계획 뷰 — (시도|시군구)×연도 집계 행. years/nets 인덱스 0~N-1 = 데이터 바닥 연도(2022)~현재(오래된 순)
@@ -105,7 +198,7 @@ interface PlanRegion {
   big: number; // 최근년 신규 중 100평+ 대형
   nets: number[];
 }
-type DisplayMode = 'area' | 'points' | 'heat' | 'd3';
+type DisplayMode = 'area' | 'points' | 'heat' | 'd3' | 'commercial';
 type RegionMode = 'branch' | 'sido';
 type DrillTab = 'all' | 'new' | 'closed' | 'big';
 type Category = 'all' | 'cafe' | 'bakery' | 'restaurant';
@@ -582,6 +675,11 @@ export default function DiscoverPage() {
   const [sigunguSidoMap, setSigunguSidoMap] = useState<Record<string, string>>({});
   const [cachedSnaps, setCachedSnaps] = useState<SnapRow[]>([]);
   const [cachedStores, setCachedStores] = useState<StoreRow[]>([]);
+  // 상권 모드 — RPC 결과 1회 로드(세션 캐시), 점수는 스코프 매장과 함께 렌더 시 계산
+  const [commercialRows, setCommercialRows] = useState<CommercialRow[] | null>(null);
+  const commercialLoadedRef = useRef(false);
+  const commercialScoresRef = useRef<CommercialScore[]>([]);
+  const [drillAdong, setDrillAdong] = useState<AdongTop[] | null>(null); // 드릴다운 행정동 카페 상위 (null=미로드)
   const [cachedRegionsArr, setCachedRegionsArr] = useState<RegionData[]>([]);
 
   // UI state
@@ -655,6 +753,7 @@ export default function DiscoverPage() {
   const geocodeRunRef = useRef(0);
   const selectedDongRef = useRef<string | null>(null);
   const drillRegionRef = useRef<string>('');
+  const drillSidoRef = useRef<string>(''); // 상권 모드 행정동 상위 RPC용 시도
   const displayModeRef = useRef<DisplayMode>('points');
   const colorblindRef = useRef(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -842,20 +941,12 @@ export default function DiscoverPage() {
 
       mapInstance.addSource('munis', { type: 'geojson', data: geoData, promoteId: 'code' });
 
-      const tone = ['coalesce', ['feature-state', 'tone'], 'none'];
-      const t    = ['coalesce', ['feature-state', 't'], 0];
       mapInstance.addLayer({
-        // 줌 10.5부터는 dong-fill(읍면동 그라데이션)이 대체 — 서로 안 겹치게 maxzoom으로 분리
+        // 줌 10.5부터는 dong-fill(읍면동 그라데이션)이 대체 — 서로 안 겹치게 maxzoom으로 분리 (상권 모드는 전 줌)
         id: 'muni-fill', type: 'fill', source: 'munis', maxzoom: 10.5,
         paint: {
-          'fill-color': [
-            'case',
-            ['==', tone, 'pos'], ['interpolate', ['linear'], t, 0, '#bbf7d0', 1, '#15803d'],
-            ['==', tone, 'neg'], ['interpolate', ['linear'], t, 0, '#fecaca', 1, '#b91c1c'],
-            ['==', tone, 'zero'], '#94a3b8',
-            'rgba(148,163,184,0.18)',
-          ],
-          'fill-opacity': ['case', ['==', tone, 'none'], 0.25, 0.72],
+          'fill-color': MUNI_FILL_TONE_COLOR,
+          'fill-opacity': ['case', ['==', FS_TONE, 'none'], 0.25, 0.72],
         },
       });
       mapInstance.addLayer({
@@ -907,7 +998,12 @@ export default function DiscoverPage() {
           mapInstance.setFeatureState({ source: 'munis', id: f.id }, { hover: true });
         }
         const netStr = (st.net ?? 0) > 0 ? `+${st.net}` : String(st.net ?? 0);
-        const html = `<div style="background:rgba(15,23,42,0.96);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 20px rgba(0,0,0,0.28);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, st.name || f.properties.name, scopeSidosRef.current.length > 1)}</div><div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div></div>`;
+        const body = displayModeRef.current === 'commercial'
+          ? ((st.cscore ?? -1) >= 0
+              ? `<div style="color:#cbd5e1;font-size:11px">종합 <b style="color:#fff">${st.cscore}점</b> · ${st.crank}위 / ${commercialScoresRef.current.length}</div><div style="color:#cbd5e1;font-size:11px">재고 ${(st.cstock || 0).toLocaleString()} (카페 ${(st.ccafe || 0).toLocaleString()}) · 개업률 ${(st.copen || 0).toFixed(1)}%</div>`
+              : `<div style="color:#94a3b8;font-size:11px">상권 데이터 수집 전</div>`)
+          : `<div style="color:#cbd5e1;font-size:11px">신규 ${st.nnew || 0} · 폐업 ${st.closed || 0} · 순증 ${netStr}</div>`;
+        const html = `<div style="background:rgba(15,23,42,0.96);color:#fff;border-radius:10px;padding:8px 13px;font-size:12px;border:1px solid rgba(255,255,255,0.08);box-shadow:0 6px 20px rgba(0,0,0,0.28);white-space:nowrap"><div style="font-weight:700;font-size:13px;margin-bottom:2px">${regionLabel(st.sido, st.name || f.properties.name, scopeSidosRef.current.length > 1)}</div>${body}</div>`;
 
         if (!mapPopupRef.current) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1011,6 +1107,7 @@ export default function DiscoverPage() {
     });
     const s3 = mapInstance.getSource('muni3d');
     if (s3) s3.setData({ type: 'FeatureCollection', features: d3feats });
+    if (commercialScoresRef.current.length) applyCommercialFillState();
 
     // 지점 자동 안착 — 새로 연 화면(세션 저장 시점 없음)에서 최초 1회, 담당 구역 전체가 들어오게.
     // 담당 시군구 목록에서 계산하므로 지점(경기북부/남부/서울/…)마다 별도 좌표표가 필요 없다.
@@ -1382,20 +1479,25 @@ export default function DiscoverPage() {
       mapInstance.setLayoutProperty('muni-extrusion', 'visibility', is3d ? 'visible' : 'none');
     }
 
-    // 입체 모드에선 평면 면을 숨기고(블록만), 그 외엔 모드별로 면 색 농도 조절
+    // 입체 모드에선 평면 면을 숨기고(블록만), 그 외엔 모드별로 면 색 농도 조절.
+    // 상권 모드는 면 색 자체를 종합 점수 램프로 교체하고 전 줌에서 시군구 면 유지(동 채색은 순증 지표라 숨김)
+    const isCommercial = mode === 'commercial';
     if (mapInstance.getLayer('muni-fill')) {
       mapInstance.setLayoutProperty('muni-fill', 'visibility', is3d ? 'none' : 'visible');
+      mapInstance.setLayerZoomRange('muni-fill', 0, isCommercial ? 24 : 10.5);
       if (!is3d) {
+        mapInstance.setPaintProperty('muni-fill', 'fill-color', isCommercial ? MUNI_FILL_SCORE_COLOR : MUNI_FILL_TONE_COLOR);
         mapInstance.setPaintProperty('muni-fill', 'fill-opacity',
-          mode === 'area'
+          isCommercial ? MUNI_FILL_SCORE_OPACITY
+          : mode === 'area'
             ? ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.25, 0.72]
             : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38]);
       }
     }
     // 동 그라데이션 — muni-fill과 동일한 모드별 농도, 줌 10.5~11.3 구간 페이드인은 유지
     if (mapInstance.getLayer('dong-fill')) {
-      mapInstance.setLayoutProperty('dong-fill', 'visibility', is3d ? 'none' : 'visible');
-      if (!is3d) {
+      mapInstance.setLayoutProperty('dong-fill', 'visibility', is3d || isCommercial ? 'none' : 'visible');
+      if (!is3d && !isCommercial) {
         const maxOpacity = mode === 'area'
           ? ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.25, 0.72]
           : ['case', ['==', ['coalesce', ['feature-state', 'tone'], 'none'], 'none'], 0.12, 0.38];
@@ -1405,9 +1507,58 @@ export default function DiscoverPage() {
     updateDongFillState();
   }
 
+  // 상권 모드 면 채색 — 시군구 폴리곤에 종합 점수를 feature-state(cscore…)로 싣는다. 순증 tone과 공존(키가 다름)
+  function applyCommercialFillState() {
+    const mapInstance = mapRef.current;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const geo = geoDataRef.current as { features: any[] } | null;
+    if (!mapInstance || !geo || !geoLayerReadyRef.current || !mapInstance.getSource('munis')) return;
+    const scores = commercialScoresRef.current;
+    const byKey = new Map(scores.map(s => [`${s.sido}|${s.sigungu}`, s]));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    geo.features.forEach((f: any) => {
+      const name: string = f.properties.name;
+      const fSido = sidoFromCode(f.properties.code);
+      const dataName = NAME_ALIAS[`${fSido}|${name}`] || name;
+      let sc = byKey.get(`${fSido}|${dataName}`);
+      if (!sc) {
+        const curNames = LEGACY_TO_CURRENT[`${fSido}|${dataName}`];
+        if (curNames) sc = curNames.map(nm => byKey.get(`${fSido}|${nm}`)).find(Boolean);
+      }
+      if (!sc) sc = scores.find(s => s.sido === fSido && s.sigungu.endsWith('시') && name.startsWith(s.sigungu)); // 고양시덕양구 → 고양시
+      mapInstance.setFeatureState(
+        { source: 'munis', id: String(f.properties.code) },
+        sc ? { cscore: sc.score, crank: sc.rank, cstock: sc.stock, ccafe: sc.cafe, copen: sc.openRate } : { cscore: -1 },
+      );
+    });
+  }
+
+  async function loadCommercialRows() {
+    if (commercialLoadedRef.current) return;
+    commercialLoadedRef.current = true;
+    const { data, error } = await supabase.rpc('commercial_sigungu_summary');
+    if (error) {
+      commercialLoadedRef.current = false;
+      toast.error('상권 데이터를 불러오지 못했습니다');
+      return;
+    }
+    setCommercialRows((data || []) as CommercialRow[]);
+  }
+
+  async function loadDrillAdong(sido: string, sigungu: string) {
+    const { data, error } = await supabase.rpc('commercial_adong_top', { p_sido: sido, p_sigungu: sigungu, p_limit: 8 });
+    if (drillRegionRef.current !== sigungu) return; // 그 사이 다른 지역을 열었으면 폐기
+    setDrillAdong(error ? [] : ((data || []) as AdongTop[]));
+  }
+
   function handleSetDisplayMode(mode: DisplayMode) {
     setDisplayMode(mode);
     displayModeRef.current = mode;
+    if (mode === 'commercial') {
+      void loadCommercialRows();
+      applyCommercialFillState(); // 이미 계산된 점수가 있으면 즉시 채색
+      if (drillRegionRef.current && drillAdong === null) void loadDrillAdong(drillSidoRef.current, drillRegionRef.current);
+    }
     updateStoreLayer();
     // 입체 모드는 지도를 기울여(pitch) 3D로, 벗어나면 평면으로 복귀
     const map = mapRef.current;
@@ -2058,6 +2209,9 @@ export default function DiscoverPage() {
     setDrillStores(rows);
     setPanelOpen(true);
     void loadDrillDetails(rows); // 주소·인허가일 지연 로드 (컬럼 다이어트 보완)
+    drillSidoRef.current = sd;
+    setDrillAdong(null);
+    if (displayModeRef.current === 'commercial') void loadDrillAdong(sd, sigungu);
     if (hadDongFilter) updateStoreLayer();
     if (trendChartRef.current) { trendChartRef.current.destroy(); trendChartRef.current = null; }
   }
@@ -2239,6 +2393,17 @@ export default function DiscoverPage() {
   }, [loading]);
 
   // ─── RENDER ────────────────────────────────────────────────────────────────
+
+  // 상권 종합 점수(스코프 상대) — 훅이라 loading 조기 return보다 앞에 위치
+  const commercialScores = useMemo(
+    () => (commercialRows ? computeCommercialScores(commercialRows, cachedStores) : []),
+    [commercialRows, cachedStores],
+  );
+  useEffect(() => {
+    commercialScoresRef.current = commercialScores;
+    if (displayModeRef.current === 'commercial') applyCommercialFillState();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [commercialScores]);
 
   if (loading) {
     return (
@@ -2477,6 +2642,18 @@ export default function DiscoverPage() {
 
   const topNewRegions = [...cachedRegionsArr].sort((a, b) => b.new - a.new).slice(0, 6);
 
+  // 상권 모드 — KPI 합계, 드릴다운 지역의 점수 (점수 자체는 loading 조기 return 앞에서 useMemo)
+  const commercialKpi = (() => {
+    const total = commercialScores.reduce((a, r) => a + r.total, 0);
+    const cafe = commercialScores.reduce((a, r) => a + r.cafe, 0);
+    const dessert = commercialScores.reduce((a, r) => a + r.bakery + r.icecream, 0);
+    const pop = commercialScores.reduce((a, r) => a + r.pop, 0);
+    return { total, cafe, dessert, density: pop > 0 ? (cafe / pop * 10000).toFixed(1) : '—' };
+  })();
+  const drillCommercial = currentDrillRegion
+    ? commercialScores.find(r => (!drillSido || r.sido === drillSido) && sigunguMatches(r.sido, r.sigungu, currentDrillRegion)) ?? null
+    : null;
+
   // 여러 시도를 함께 보는 경우(내 지점에 시도가 2개+)만 라벨에 시도 접두
   const multiSido = regionMode === 'branch' && Object.keys(sidoSigunguMap).length > 1;
   const regionValue = regionMode === 'branch' ? '내 지점' : (regionSido ?? '내 지점');
@@ -2631,13 +2808,13 @@ export default function DiscoverPage() {
           <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">
             <span className="hidden text-[10px] font-medium text-slate-400 sm:inline">표시</span>
             <div className="inline-flex rounded-lg border border-slate-200 bg-white p-[3px]">
-              {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체']] as [DisplayMode, string][]).map(([m, label]) => (
+              {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체'], ['commercial', '상권']] as [DisplayMode, string][]).map(([m, label]) => (
                 <button
                   key={m}
                   onClick={() => handleSetDisplayMode(m)}
                   className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors max-md:h-10 max-md:px-3 max-md:text-[12px] ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
                 >
-                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{m === 'd3' && <Box size={12} />}{label}
+                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{m === 'd3' && <Box size={12} />}{m === 'commercial' && <Store size={12} />}{label}
                 </button>
               ))}
             </div>
@@ -2690,6 +2867,52 @@ export default function DiscoverPage() {
       {viewMode === 'map' && (
         <div className={`absolute bottom-0 left-0 top-0 z-[400] flex transition-transform duration-300 ease-[cubic-bezier(.4,0,.2,1)] ${dockOpen ? 'translate-x-0' : '-translate-x-[212px]'}`}>
           <aside className="flex w-[212px] flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-white p-3 shadow-[4px_0_18px_rgba(15,23,42,.06)] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+            {displayMode === 'commercial' ? (
+              /* ── 상권 모드: 재고 KPI + 종합 점수 순위 ── */
+              !commercialRows ? (
+                <div className="py-10 text-center text-[11px] text-slate-400">상권 데이터 불러오는 중…</div>
+              ) : commercialScores.length === 0 ? (
+                <div className="rounded-lg bg-slate-50 px-3 py-4 text-[11px] leading-relaxed text-slate-500">
+                  이 지역은 <b className="text-slate-700">상권 데이터 수집 전</b>입니다.<br />현재 수집 범위: 경기북부 관할 시군구
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">전체 상가</div><div className="text-lg font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.total.toLocaleString()}</div></div>
+                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페</div><div className="text-lg font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.scale }}>{commercialKpi.cafe.toLocaleString()}</div></div>
+                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">제과·빙수</div><div className="text-lg font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.dessert.toLocaleString()}</div></div>
+                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페/1만명</div><div className="text-lg font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.density }}>{commercialKpi.density}</div></div>
+                  </div>
+                  <div className="min-h-0 flex-1">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-slate-500">상권 종합 점수</span>
+                      <span className="text-[9px] text-slate-400">{commercialScores.length}개 지역 상대</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {commercialScores.slice(0, 8).map((r, i) => (
+                        <button
+                          key={r.sido + r.sigungu}
+                          onClick={() => openDrilldown(r.sigungu, r.sido)}
+                          className="flex flex-col gap-1 rounded-lg px-1.5 py-1 text-left transition-colors hover:bg-slate-50"
+                        >
+                          <span className="flex items-center gap-2">
+                            <span className={`flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded-[5px] text-[10px] font-semibold ${i < 2 ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{i + 1}</span>
+                            <span className="flex-1 truncate text-xs text-slate-800">{regionLabel(r.sido, r.sigungu, multiSido)}</span>
+                            <span className="text-xs font-bold tabular-nums text-slate-800">{r.score}</span>
+                          </span>
+                          {/* 4색 구성 막대 — 폭 = 각 항목의 점수 기여(합 = 종합 점수) */}
+                          <span className="ml-[26px] flex h-[5px] gap-[2px] overflow-hidden rounded-full bg-slate-100">
+                            {([['scale', r.pScale * COMM_W.scale], ['density', r.pDensity * COMM_W.density], ['open', r.pOpen * COMM_W.open], ['net', r.pNet * COMM_W.net]] as [keyof typeof COMM_COLORS, number][]).map(([k, v]) => (
+                              <span key={k} style={{ width: `${v * 100}%`, background: COMM_COLORS[k] }} />
+                            ))}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )
+            ) : (<>
             {/* KPI 카드 */}
             <div className="grid grid-cols-2 gap-1.5">
               <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">신규</div><div className="text-lg font-extrabold leading-tight text-green-600 tabular-nums">{kpiNew}</div></div>
@@ -2719,9 +2942,17 @@ export default function DiscoverPage() {
                 ))}
               </div>
             </div>
+            </>)}
             {/* 범례 — 표시 모드에 맞춤 */}
             <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-100 pt-2.5 text-[10px] font-medium text-slate-500">
-              {displayMode === 'area' ? (
+              {displayMode === 'commercial' ? (
+                <>
+                  <span className="inline-flex w-full items-center gap-1.5"><span className="h-2 w-10 rounded-sm" style={{ background: 'linear-gradient(90deg,#cde2fb,#2a78d6,#0d366b)' }} />종합 점수 낮음 → 높음</span>
+                  {(Object.keys(COMM_COLORS) as (keyof typeof COMM_COLORS)[]).map(k => (
+                    <span key={k} className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full" style={{ background: COMM_COLORS[k] }} />{COMM_LABEL[k]} {Math.round(COMM_W[k] * 100)}%</span>
+                  ))}
+                </>
+              ) : displayMode === 'area' ? (
                 <>
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#34c759' }} />순증</span>
                   <span className="inline-flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: '#ff3b30' }} />순감</span>
@@ -2827,6 +3058,91 @@ export default function DiscoverPage() {
           </button>
           <span className="text-[17px] font-extrabold text-slate-900 flex-1 tracking-[-0.025em]">{drillTitle}</span>
         </div>
+
+        {/* 상권 모드 — 종합 점수 구성 · 재고 vs 흐름 · 업종 구성 · 행정동 카페 상위 */}
+        {displayMode === 'commercial' && (
+          drillCommercial ? (
+            <div className="flex-shrink-0 border-b border-slate-200 bg-white px-5 py-3">
+              <div className="flex items-end gap-3">
+                <div>
+                  <div className="text-[9px] font-semibold uppercase tracking-[.1em] text-slate-400">상권 종합</div>
+                  <div className="text-[34px] font-extrabold leading-none text-slate-900">{drillCommercial.score}<span className="ml-0.5 text-sm font-semibold text-slate-400">점</span></div>
+                </div>
+                <div className="pb-1 text-xs text-slate-500"><b className="text-slate-800">{drillCommercial.rank}위</b> / {commercialScores.length}개 지역</div>
+              </div>
+              <div className="mt-2.5 flex flex-col gap-1">
+                {([['scale', drillCommercial.pScale], ['density', drillCommercial.pDensity], ['open', drillCommercial.pOpen], ['net', drillCommercial.pNet]] as [keyof typeof COMM_COLORS, number][]).map(([k, p]) => (
+                  <div key={k} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-10 text-slate-500">{COMM_LABEL[k]}</span>
+                    <span className="h-[6px] flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full" style={{ width: `${Math.round(p * 100)}%`, background: COMM_COLORS[k] }} /></span>
+                    <span className="w-14 text-right tabular-nums text-slate-500">상위 {Math.round((1 - p) * 100)}%</span>
+                    <span className="w-8 text-right font-semibold tabular-nums text-slate-800">{Math.round(p * COMM_W[k] * 100)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 grid grid-cols-4 gap-1.5">
+                {([['재고', drillCommercial.stock.toLocaleString(), '카페+제과+빙수'], ['개업 12M', String(drillCommercial.new12), `${drillCommercial.openRate.toFixed(1)}%`], ['폐업 12M', String(drillCommercial.closed12), `${drillCommercial.stock ? (drillCommercial.closed12 / drillCommercial.stock * 100).toFixed(1) : '0.0'}%`], ['순증률', `${drillCommercial.netRate > 0 ? '+' : ''}${drillCommercial.netRate.toFixed(1)}%`, '인구 ' + (drillCommercial.pop ? (drillCommercial.pop / 10000).toFixed(1) + '만' : '—')]] as [string, string, string][]).map(([l, v, s]) => (
+                  <div key={l} className="rounded-lg bg-slate-50 px-2 py-1.5">
+                    <div className="text-[9px] font-semibold text-slate-400">{l}</div>
+                    <div className="text-sm font-extrabold leading-tight tabular-nums text-slate-800">{v}</div>
+                    <div className="text-[9px] text-slate-400">{s}</div>
+                  </div>
+                ))}
+              </div>
+              {/* 업종 구성 — 전체 상가 기준 */}
+              {(() => {
+                const c = drillCommercial;
+                const groups: [string, number, string][] = [
+                  ['카페·디저트', c.cafe + c.bakery + c.icecream, COMM_COLORS.scale],
+                  ['음식·주점', c.restaurant + c.pub, '#eb6834'],
+                  ['소매', c.retail, '#1baf7a'],
+                  ['생활서비스', c.service, '#eda100'],
+                  ['업무·교육·의료', c.office + c.education + c.medical, '#e87ba4'],
+                  ['여가·기타', Math.max(0, c.total - (c.cafe + c.bakery + c.icecream + c.restaurant + c.pub + c.retail + c.service + c.office + c.education + c.medical)), '#a8a7a1'],
+                ];
+                const tot = Math.max(1, c.total);
+                return (
+                  <div className="mt-3">
+                    <div className="mb-1 flex items-center justify-between text-[10px] text-slate-500"><span className="font-semibold">업종 구성</span><span>상가 {c.total.toLocaleString()} · 행정동 {c.adongs}</span></div>
+                    <div className="flex h-[8px] gap-[2px] overflow-hidden rounded-full">
+                      {groups.map(([l, v, col]) => v > 0 && <span key={l} title={`${l} ${v.toLocaleString()}`} style={{ width: `${v / tot * 100}%`, background: col }} />)}
+                    </div>
+                    <div className="mt-1.5 grid grid-cols-3 gap-x-2 gap-y-0.5 text-[10px] text-slate-600">
+                      {groups.map(([l, v, col]) => (
+                        <span key={l} className="inline-flex items-center gap-1 truncate"><span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: col }} />{l} <span className="tabular-nums text-slate-400">{Math.round(v / tot * 100)}%</span></span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* 행정동 카페 상위 */}
+              <div className="mt-3">
+                <div className="mb-1 text-[10px] font-semibold text-slate-500">행정동 카페 상위</div>
+                {drillAdong === null ? (
+                  <div className="py-2 text-[11px] text-slate-400">불러오는 중…</div>
+                ) : drillAdong.length === 0 ? (
+                  <div className="py-2 text-[11px] text-slate-400">행정동 데이터 없음</div>
+                ) : (() => {
+                  const mx = Math.max(1, ...drillAdong.map(a => a.cafe));
+                  return (
+                    <div className="flex flex-col gap-1">
+                      {drillAdong.map(a => (
+                        <div key={a.adong_nm} className="flex items-center gap-2 text-[11px]">
+                          <span className="w-[72px] truncate text-slate-700">{a.adong_nm}</span>
+                          <span className="h-[6px] flex-1 overflow-hidden rounded-full bg-slate-100"><span className="block h-full rounded-full" style={{ width: `${a.cafe / mx * 100}%`, background: COMM_COLORS.scale }} /></span>
+                          <span className="w-8 text-right font-semibold tabular-nums text-slate-800">{a.cafe}</span>
+                          <span className="w-12 text-right tabular-nums text-slate-400">/ {a.total.toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : commercialRows && (
+            <div className="flex-shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-[11px] text-slate-500">이 지역은 상권 데이터 수집 전입니다 (현재 경기북부 관할만 수집)</div>
+          )
+        )}
 
         {/* Drill summary */}
         {drillSummary && (
