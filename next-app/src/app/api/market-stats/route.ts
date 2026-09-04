@@ -12,8 +12,10 @@ const ENDPOINTS: Record<string, string> = {
   bakeries: 'https://apis.data.go.kr/1741000/bakeries/info',
 };
 
+// 편의점 브랜드 표기 변형 — 대소문자·띄어쓰기 무시. 'cu'는 영문 단어 일부(Cuba·cupid·Curd)를 피하려고 앞뒤 영문자 없는 경우만.
+const CONVENIENCE_RE = /지에스\s?25|gs\s?25|이마트\s?24|세븐\s?일레븐|미니스톱|씨유|편의점|(^|[^a-z])cu(?![a-z])/i;
 const EXCLUDE_KEYWORDS = [
-  '편의점', 'GS25', 'CU', '세븐일레븐', '이마트24', '찐빵', '육회', '고기', '홍어', '참치', '씨유', '포차', '한끼',
+  '편의점', 'GS25', 'GS 25', '지에스25', '지에스 25', 'CU', '세븐일레븐', '세븐 일레븐', '이마트24', '이마트 24', '찐빵', '육회', '고기', '홍어', '참치', '씨유', '포차', '한끼',
   'PC', '피시', '게임', '당구', '만화', '노래', '제육', '곰탕', '설렁탕', '설농탕', '칼국수', '숯불', '베트남', '동남아', '쌀국수', '조건부', '펍',
   '무인', '자판기', '아이스크림', '밀키트', '한시적', '피씨', '핫도그', '분식', '떡볶이', '치킨', '튀김', '어묵', '오뎅', '브뤼셀프라이', '피자', '7080라이브',
   '구내식당', '급식', '장례', '매점', '휴게소', '반점', '고로케', '초밥', '써브웨이', '홍콩반점', '삼겹', '갈비', '찜', '밥상', '롯데리아', '맥도날드', '버거킹', '맘스터치',
@@ -158,6 +160,7 @@ function isTarget(item: any): boolean {
   if (EXCLUDE_CATEGORIES.includes(cat)) return false; // 업종 우선 차단
   const bizName = getBizName(item);
   if (EXCLUDE_KEYWORDS.some((kw) => bizName.includes(kw))) return false;
+  if (CONVENIENCE_RE.test(bizName)) return false; // 편의점 — 'gs25'·'cu용인점'·'지에스 25' 등 표기 변형(2026-09-04 646행 누락 실측)
   const addr = (item.ROAD_NM_ADDR || item.LOTNO_ADDR || '').toString();
   if (EXCLUDE_ADDR_KEYWORDS.some((kw) => addr.includes(kw))) return false;
   // '국수'는 '한국수출입은행/한국수력…' 같은 기관명 구내카페 오탐이 있어 예외를 두고 차단
