@@ -323,6 +323,30 @@ function normalize(item: RawItem, typeCode: string): NormItem {
   };
 }
 
+// ─── 상호로 거르는 비타겟 음식점 (2026-09-04 전국 점검, 사용자 확정) ────────────────
+// 업태가 '기타'·'경양식'으로 등록돼 업태 차단을 통과한 음식점들. 한 줄이 한 유형이고, 대소문자는 무시한다.
+// · 한식·탕·고기는 100평(330㎡) 이상이면 대량 납품 여지가 있어 남긴다 — 업태 '한식' 규칙과 같은 기준.
+// · 대형 버거·피자 체인, 주점, 연회·행사, 푸드트럭은 입점 접점이 있어 일부러 넣지 않았다.
+// · 오탐 방지: '한우리'(고유명사), '베이커리' 안의 '커리', '에스프레소바' 안의 '소바', '타코야끼'(이미 차단)는 제외.
+const NON_TARGET_NAME_RULES: { label: string; re: RegExp; keepIfLarge?: boolean }[] = [
+  { label: '치킨 브랜드', re: /bbq|비비큐|bhc|비에이치씨|교촌|굽네|페리카나|네네치|멕시카나|처갓집|자담치|지코바|호식이|60계|또래오래|깐부|노랑통/i },
+  { label: '한식·탕·고기(100평 미만)', keepIfLarge: true,
+    re: /추어탕|장어(?!린|울)|매운탕|알탕|해물|조개|전복|대게|아귀|복어|물회|쌈밥|한정식|보리밥|육개장|닭갈비|막국수|냉면|수제비|순두부|두부집|두부마을|불고기|생선구이|주물럭|석쇠|한우(?!리)/i },
+  { label: '중식', re: /짬뽕|짜장|중화요리|중국집|딤섬|훠궈|마라탕/i },
+  { label: '일식', re: /텐동|규동|오마카세|(?<!프레|프레쏘|프레소 )소바|모밀|메밀|스키야키|사시미|돈부리/i },
+  { label: '아시아 음식', re: /태국|타이푸드|인도요리|인도음식|인도커리|(?<!베이)커리|카레|케밥|터키|멕시칸|타코(?!야)|부리또|팟타이|나시고랭/i },
+];
+
+/** 상호가 비타겟 음식점 규칙에 걸리는가. areaM2는 100평 예외 판정용(모르면 0). */
+function isNonTargetName(bizName: string, areaM2: number): boolean {
+  for (const rule of NON_TARGET_NAME_RULES) {
+    if (!rule.re.test(bizName)) continue;
+    if (rule.keepIfLarge && areaM2 >= 330) continue; // 100평 이상 한식은 유지
+    return true;
+  }
+  return false;
+}
+
 function applyBusinessLogic(items: NormItem[], regionList: string[]): NormItem[] {
   const regionVariants = regionList.map((r) => {
     const parts = r.split(' ');
@@ -337,6 +361,7 @@ function applyBusinessLogic(items: NormItem[], regionList: string[]): NormItem[]
     if (!TARGET_CATEGORIES.includes(it._rawCategory)) return false;
     if (EXCLUDE_KEYWORDS.some((kw) => it.business_name.includes(kw))) return false;
     if (CONVENIENCE_RE.test(it.business_name)) return false; // 편의점 표기 변형(gs25·cu○○점·지에스 25) — market-stats와 동기화(2026-09-04)
+    if (isNonTargetName(it.business_name, it._pyeong * 3.3)) return false; // 치킨 브랜드·한식(100평 미만)·중식·일식·아시아 — market-stats와 동기화(2026-09-04)
     // '국수'는 '한국수출입은행/한국수력…' 기관명 구내카페 오탐이 있어 예외를 두고 차단 (시장분석과 동일)
     if (it.business_name.includes('국수') && !it.business_name.includes('한국수')) return false;
     // '한우'도 동일 패턴 — '한우리'(별개 고유명사: 한우리카페·한우리단팥빵·파리바게뜨 옥정한우리점)는 통과 (2026-08-28)
