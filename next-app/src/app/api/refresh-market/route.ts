@@ -52,7 +52,14 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
   // 시군구 leaf 목록 (구가 있는 시는 본청 제외) — DB 의존 없이 매회 API에서 재수집
   const sggs: { cd: string; name: string }[] = [];
   for (const sido of SIDO_CODES) {
-    const items = await moisCall(apiKey, { lv: '2', stdgCd: sido, srchFrYm: ym, srchToYm: ym });
+    // 시도 하나가 NODATA(광주 29·전남 46은 통합 후 빈 응답)여도 나머지는 계속 — 예전엔 여기서 throw 돼 전체가 실패했음(2026-09-04)
+    let items: MoisRow[] = [];
+    try {
+      items = await moisCall(apiKey, { lv: '2', stdgCd: sido, srchFrYm: ym, srchToYm: ym });
+    } catch (e) {
+      if (!String((e as Error).message).includes('NODATA')) throw e;
+      continue;
+    }
     const names = items.map((i) => i.sggNm);
     for (const i of items) {
       if (!names.some((n) => n !== i.sggNm && n.startsWith(i.sggNm + ' '))) sggs.push({ cd: i.stdgCd, name: i.sggNm });
