@@ -84,6 +84,7 @@ interface StoreRow {
   lng: number | null;
   dong: string;    // 서버 파생 컬럼(법정동) — 동별 채색·집계용
   addrKey: string; // 주소 지문(md5 8자, 서버 파생) — 중복제거·지연 로드 매칭용
+  gu: string | null; // 일반시 행정구(서버 파생, 주소 파싱) — 연간 트렌드 구 분해용
   address?: string | null;      // 지연 로드 (undefined=미로드, null=조회했으나 없음)
   license_date?: string | null; // 〃
 }
@@ -1706,7 +1707,7 @@ export default function DiscoverPage() {
       // PostgREST max-rows(≈1000) 캡 때문에 .order('id')+.range() 페이지네이션 필수.
       // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
       // 컬럼 다이어트: 지도·집계에 필요한 최소 컬럼만 (주소·인허가일은 드릴다운 열 때 지연 로드)
-      const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,dong,addr_key';
+      const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,dong,addr_key,gu';
       const PAGE = 1000;
       // 전체 수집분(2022-01~) 로드 — 지도 마커·집계에 과거치 노출 + 3년 관측 확보(2026-08-13)
       const minMonth = DATA_MIN_MONTH;
@@ -1817,7 +1818,7 @@ export default function DiscoverPage() {
             status: r.status === 'closed' ? 'closed' : 'new',
             category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
             lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
-            dong: r.dong || '기타', addrKey: r.addr_key || '',
+            dong: r.dong || '기타', addrKey: r.addr_key || '', gu: r.gu || null,
           }),
         ))
       )).flat();
@@ -2450,8 +2451,8 @@ export default function DiscoverPage() {
       if (!passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > planLast) continue;
-      // 부천시·고양시는 법정동으로 구를 복원해 3개 구로 분해(연간 트렌드 전용, 2026-08-28 사용자 요청)
-      const sgg = refineSigungu(s.sigungu, s.dong);
+      // 일반시(수원·성남·고양·청주…)는 행정구로 분해 — 담당자 설정(지역3)이 구 단위인 지점과 맞춤(연간 트렌드 전용)
+      const sgg = refineSigungu(s.sigungu, s.dong, s.gu);
       const key = `${s.sido}|${sgg}`;
       let r = byRegion.get(key);
       if (!r) {
@@ -2490,7 +2491,7 @@ export default function DiscoverPage() {
       if (s.month < survFrom || s.month > survTo) continue;
       const k = `${s.name}|${s.addrKey}`;
       const prev = opened.get(k);
-      if (!prev || s.month < prev.month) opened.set(k, { month: s.month, region: `${s.sido}|${refineSigungu(s.sigungu, s.dong)}` });
+      if (!prev || s.month < prev.month) opened.set(k, { month: s.month, region: `${s.sido}|${refineSigungu(s.sigungu, s.dong, s.gu)}` });
     }
     const out = new Map<string, { n: number; dead: number }>();
     for (const [k, o] of opened) {
@@ -2552,7 +2553,7 @@ export default function DiscoverPage() {
     const [sd, sgg] = planOpenRegion.split('|');
     const byDong = new Map<string, { n: number; c: number }[]>();
     for (const s of cachedStores) {
-      if (s.sido !== sd || refineSigungu(s.sigungu, s.dong) !== sgg || !passesFilters(s, selectedCategory, targetOnly)) continue;
+      if (s.sido !== sd || refineSigungu(s.sigungu, s.dong, s.gu) !== sgg || !passesFilters(s, selectedCategory, targetOnly)) continue;
       const yi = Number(s.month.slice(0, 4)) - planYear0;
       if (yi < 0 || yi > planLast) continue;
       const key = s.dong || '기타';

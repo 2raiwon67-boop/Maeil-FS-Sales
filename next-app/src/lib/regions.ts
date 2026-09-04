@@ -123,8 +123,10 @@ const GU_BY_DONG: Record<string, Record<string, string>> = {
   },
 };
 
-/** 부천시·고양시면 법정동으로 구를 붙여 '부천시 소사구' 형태로, 그 외/미매핑 동은 원래 시군구 그대로. */
-export function refineSigungu(sigungu: string, dong: string | null | undefined): string {
-  const gu = dong ? GU_BY_DONG[sigungu]?.[dong] : undefined;
-  return gu ? `${sigungu} ${gu}` : sigungu;
+/** 일반시 아래 행정구를 붙여 '수원시 영통구' 형태로. 1순위 DB 파생 컬럼 gu(주소 파싱, 전국 공통 — 2026-09-04),
+ *  2순위 부천·고양 법정동 표(gu 없는 옛 캐시/결측 주소 보완). 둘 다 없으면 원래 시군구 그대로. */
+export function refineSigungu(sigungu: string, dong: string | null | undefined, gu?: string | null): string {
+  if (gu && sigungu.endsWith('시')) return `${sigungu} ${gu}`;
+  const g = dong ? GU_BY_DONG[sigungu]?.[dong] : undefined;
+  return g ? `${sigungu} ${g}` : sigungu;
 }
