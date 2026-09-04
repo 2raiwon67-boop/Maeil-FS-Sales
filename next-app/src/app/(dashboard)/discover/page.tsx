@@ -2909,7 +2909,7 @@ export default function DiscoverPage() {
                 <div className="py-10 text-center text-[11px] text-slate-400">상권 데이터 불러오는 중…</div>
               ) : commercialScores.length === 0 ? (
                 <div className="rounded-lg bg-slate-50 px-3 py-4 text-[11px] leading-relaxed text-slate-500">
-                  이 지역은 <b className="text-slate-700">상권 데이터 수집 전</b>입니다.<br />현재 수집 범위: 경기북부 관할 시군구
+                  이 지역은 <b className="text-slate-700">상권 데이터가 없습니다</b>.<br />소진공 상가정보에 집계된 시군구만 표시됩니다
                 </div>
               ) : (
                 <>
@@ -3176,7 +3176,7 @@ export default function DiscoverPage() {
               </div>
             </div>
           ) : commercialRows && (
-            <div className="flex-shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-[11px] text-slate-500">이 지역은 상권 데이터 수집 전입니다 (현재 경기북부 관할만 수집)</div>
+            <div className="flex-shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-2.5 text-[11px] text-slate-500">이 지역은 소진공 상권 데이터가 없습니다</div>
           )
         )}
 

@@ -155,6 +155,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ quality });
   }
 
+  // 인구는 시장 갱신보다 먼저 — 시장 갱신(17개 시도)이 maxDuration 300s를 넘기면 함수가 끊겨
+  // 뒤에 둔 인구 수집이 영영 안 돌던 문제(2026-09-04: 4개 시도 외 인구 결측 실측). 인구는 1~2분이면 끝난다.
+  // population_only=1: 인구만 수집(수동 백필·테스트용).
+  let population: unknown;
+  try {
+    population = await refreshPopulation(SUPABASE_URL, SERVICE_KEY);
+  } catch (e) {
+    population = { error: (e as Error).message };
+  }
+  if (req.nextUrl.searchParams.get('population_only') === '1') {
+    return NextResponse.json({ population });
+  }
+
   const marketResult: Record<string, unknown> = {};
   try {
     // ⚠️ req host 사용 금지: Vercel cron은 "배포 전용 URL"로 들어오는데, 그 호스트로 내부 재호출하면
@@ -181,14 +194,6 @@ export async function GET(req: NextRequest) {
       );
     }
   } catch {}
-
-  // 인구 월 편승 — 실패해도 시장 갱신 결과는 그대로 반환
-  let population: unknown;
-  try {
-    population = await refreshPopulation(SUPABASE_URL, SERVICE_KEY);
-  } catch (e) {
-    population = { error: (e as Error).message };
-  }
 
   // 품질 점검 편승(매월 1일) — 실패해도 본 결과는 그대로 반환
   let quality: unknown;
