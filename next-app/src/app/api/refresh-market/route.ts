@@ -50,7 +50,7 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
   // 실패분이 영원히 결손됨(체커 지적) — 시군구 단위로 존재 여부를 검사해 빠진 곳만 수집.
 
   // 시군구 leaf 목록 (구가 있는 시는 본청 제외) — DB 의존 없이 매회 API에서 재수집
-  const sggs: { cd: string; name: string }[] = [];
+  const sggs: { cd: string; name: string; sido: string }[] = [];
   for (const sido of SIDO_CODES) {
     // 시도 하나가 NODATA(광주 29·전남 46은 통합 후 빈 응답)여도 나머지는 계속 — 예전엔 여기서 throw 돼 전체가 실패했음(2026-09-04)
     let items: MoisRow[] = [];
@@ -62,7 +62,7 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
     }
     const names = items.map((i) => i.sggNm);
     for (const i of items) {
-      if (!names.some((n) => n !== i.sggNm && n.startsWith(i.sggNm + ' '))) sggs.push({ cd: i.stdgCd, name: i.sggNm || i.ctpvNm });
+      if (!names.some((n) => n !== i.sggNm && n.startsWith(i.sggNm + ' '))) sggs.push({ cd: i.stdgCd, name: i.sggNm || i.ctpvNm, sido: i.ctpvNm });
     }
   }
   if (sggs.length === 0) return { month, saved: 0, note: '미공표(빈 응답) — 익일 재시도' };
@@ -74,9 +74,10 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
     await Promise.all(sggs.slice(i, i + 8).map(async (sgg) => {
       try {
         // 이 시군구의 해당 월 데이터가 이미 있으면 스킵 (멱등 — 시군구 단위)
+        // 시도까지 같이 봐야 한다 — 시군구명만 보면 대구 중구가 인천 중구 때문에 '이미 있음'으로 건너뛰어 결손됐음(2026-09-04 실측: 대구 4/9·울산 1/5)
         const { count } = await sb.from('population_stats')
           .select('id', { count: 'exact', head: true })
-          .eq('month', month).eq('sigungu', sgg.name);
+          .eq('month', month).eq('sido', sgg.sido).eq('sigungu', sgg.name);
         if (count && count > 0) { skipped++; return; }
         const rows = await moisCall(apiKey, { lv: '3', stdgCd: sgg.cd, srchFrYm: ym, srchToYm: ym });
         const recs = rows.filter((r) => r.stdgNm && r.totNmprCnt).map((r) => ({
