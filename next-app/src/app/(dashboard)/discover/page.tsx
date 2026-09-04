@@ -2580,9 +2580,44 @@ export default function DiscoverPage() {
       o['생존율 표본(개업 수)'] = planSurvival.get(`${r.sido}|${r.sigungu}`)?.n ?? 0;
       return o;
     });
+    // 시트 2 — 전 지역 × 법정동 분해 (본 표 행 클릭 패널과 같은 문법). 지역 순서는 시트 1과 동일, 동은 최근년 순증 내림차순.
+    const dongAgg = new Map<string, Map<string, { years: { n: number; c: number }[]; big: number }>>();
+    for (const st of cachedStores) {
+      if (!passesFilters(st, selectedCategory, targetOnly)) continue;
+      const yi = Number(st.month.slice(0, 4)) - planYear0;
+      if (yi < 0 || yi > planLast) continue;
+      const rk = `${st.sido}|${refineSigungu(st.sigungu, st.dong, st.gu)}`;
+      let byDong = dongAgg.get(rk);
+      if (!byDong) { byDong = new Map(); dongAgg.set(rk, byDong); }
+      const dk = st.dong || '기타';
+      let d = byDong.get(dk);
+      if (!d) { d = { years: planYearIdx.map(() => ({ n: 0, c: 0 })), big: 0 }; byDong.set(dk, d); }
+      if (st.status === 'new') { d.years[yi].n++; if (yi === planLast && (st.pyeong || 0) >= 100) d.big++; } else d.years[yi].c++;
+    }
+    const dongRows: Record<string, string | number>[] = [];
+    for (const r of planSorted) {
+      const byDong = dongAgg.get(`${r.sido}|${r.sigungu}`);
+      if (!byDong) continue;
+      const list = [...byDong.entries()].map(([dong, d]) => ({ dong, ...d, nets: d.years.map(y => y.n - y.c) }))
+        .sort((a, b) => b.nets[planLast] - a.nets[planLast] || a.dong.localeCompare(b.dong, 'ko'));
+      for (const d of list) {
+        const o: Record<string, string | number> = { 시도: r.sido, 시군구: r.sigungu, 동: d.dong };
+        d.years.forEach((y, yi) => {
+          o[`${planYearLabel(yi)} 신규`] = y.n;
+          o[`${planYearLabel(yi)} 폐업`] = y.c;
+          o[`${planYearLabel(yi)} 순증`] = d.nets[yi];
+        });
+        o[`${planYearLabel(planLast)} 100평+`] = d.big;
+        dongRows.push(o);
+      }
+    }
     const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 8 }, { wch: 14 }, ...Array(rows.length ? Object.keys(rows[0]).length - 2 : 0).fill({ wch: 9 })];
+    const ws2 = XLSX.utils.json_to_sheet(dongRows);
+    ws2['!cols'] = [{ wch: 8 }, { wch: 14 }, { wch: 12 }, ...Array(dongRows.length ? Object.keys(dongRows[0]).length - 3 : 0).fill({ wch: 9 })];
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, '운영계획');
+    XLSX.utils.book_append_sheet(wb, ws, '지역별');
+    XLSX.utils.book_append_sheet(wb, ws2, '동별');
     XLSX.writeFile(wb, `운영계획_지역트렌드_${planYear0 + planLast}.xlsx`);
     toast.success('엑셀 파일을 내려받았습니다');
   };
