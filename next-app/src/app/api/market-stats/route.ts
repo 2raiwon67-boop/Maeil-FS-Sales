@@ -258,7 +258,40 @@ function extract(item: any, mode: string, expectedSido: string) {
   return { sigungu, month };
 }
 
-function extractCoords(item: any): { lat: number | null; lng: number | null } {
+// ─── 시도별 좌표 허용 범위 ───────────────────────────────────────────────────
+// 공공데이터 원본 좌표가 가끔 엉뚱한 시도에 찍혀 들어온다 (2026-09-04 실측: 울릉군 카페가 강원 고성에,
+// 아산시 매장이 경기 북부에). "한국 안이면 통과" 검사로는 못 거르므로, 그 시도에 있을 수 있는
+// 위도·경도 범위를 벗어나면 좌표를 버린다 → NULL로 저장되고 나중에 클라이언트 지오코딩이 채운다.
+// 범위는 실제 경계보다 0.1~0.2도 넉넉하게 잡았고, 섬(백령도·울릉도·독도·가거도·제주 부속섬)도 들어간다.
+// 키는 DB에 저장되는 시도 약칭(SIDO_SHORT 결과). 표에 없는 시도는 검사하지 않고 통과.
+const SIDO_BOUNDS: Record<string, { latMin: number; latMax: number; lngMin: number; lngMax: number }> = {
+  서울:     { latMin: 37.40, latMax: 37.75, lngMin: 126.75, lngMax: 127.20 },
+  인천:     { latMin: 37.00, latMax: 38.05, lngMin: 124.55, lngMax: 126.85 }, // 백령도 포함
+  경기도:   { latMin: 36.85, latMax: 38.35, lngMin: 126.35, lngMax: 127.90 },
+  강원도:   { latMin: 37.00, latMax: 38.65, lngMin: 127.05, lngMax: 129.45 },
+  충청북도: { latMin: 35.95, latMax: 37.30, lngMin: 127.20, lngMax: 128.65 },
+  충청남도: { latMin: 35.95, latMax: 37.10, lngMin: 125.90, lngMax: 127.65 },
+  대전:     { latMin: 36.15, latMax: 36.55, lngMin: 127.20, lngMax: 127.60 },
+  세종:     { latMin: 36.40, latMax: 36.80, lngMin: 127.10, lngMax: 127.45 },
+  전라북도: { latMin: 35.25, latMax: 36.20, lngMin: 125.90, lngMax: 127.95 },
+  전라남도: { latMin: 33.90, latMax: 35.55, lngMin: 125.00, lngMax: 127.90 }, // 가거도 포함
+  광주:     { latMin: 35.00, latMax: 35.35, lngMin: 126.60, lngMax: 127.05 },
+  경상북도: { latMin: 35.50, latMax: 37.60, lngMin: 127.80, lngMax: 131.95 }, // 울릉도·독도 포함
+  대구:     { latMin: 35.60, latMax: 36.35, lngMin: 128.30, lngMax: 128.90 }, // 군위군 포함
+  경상남도: { latMin: 34.50, latMax: 35.95, lngMin: 127.55, lngMax: 129.30 },
+  부산:     { latMin: 34.95, latMax: 35.45, lngMin: 128.75, lngMax: 129.35 },
+  울산:     { latMin: 35.30, latMax: 35.75, lngMin: 128.95, lngMax: 129.50 },
+  제주:     { latMin: 33.05, latMax: 34.05, lngMin: 126.10, lngMax: 127.05 },
+};
+
+/** 좌표가 해당 시도의 허용 범위 안에 있는가. 범위가 정의되지 않은 시도는 true. */
+function isInsideSido(sidoShort: string, lat: number, lng: number): boolean {
+  const b = SIDO_BOUNDS[sidoShort];
+  if (!b) return true;
+  return lat >= b.latMin && lat <= b.latMax && lng >= b.lngMin && lng <= b.lngMax;
+}
+
+function extractCoords(item: any, sidoShort = ''): { lat: number | null; lng: number | null } {
   let lat = parseFloat(item.LAT_EPSG4326 ?? item.WGS84_LAT);
   let lng = parseFloat(item.LOT_EPSG4326 ?? item.LOT_EPST4326 ?? item.WGS84_LOT);
 
@@ -277,7 +310,8 @@ function extractCoords(item: any): { lat: number | null; lng: number | null } {
   }
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: null, lng: null };
-  if (lat < 33 || lat > 39 || lng < 124 || lng > 132) return { lat: null, lng: null };
+  if (lat < 33 || lat > 39 || lng < 124 || lng > 132) return { lat: null, lng: null }; // 1차: 한국 밖
+  if (!isInsideSido(sidoShort, lat, lng)) return { lat: null, lng: null };            // 2차: 다른 시도에 찍힌 원본 오류
   return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
 }
 
@@ -533,7 +567,7 @@ export async function GET(req: NextRequest) {
           if (!name) return;
           const areaM2 = parseFloat((item.LCTN_AREA || item.FCLT_TOTAL_SCL || '0').toString().replace(/,/g, '')) || 0;
           const dateRaw = (mode === 'new' ? item.LCPMT_YMD : item.CLSBIZ_YMD || item.DCB_YMD)?.toString().replace(/\D/g, '') || '';
-          const { lat, lng } = extractCoords(item);
+          const { lat, lng } = extractCoords(item, sidoShort);
           storeRecords.push({
             sido: sidoShort,
             sigungu: sg,
