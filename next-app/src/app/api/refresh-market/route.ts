@@ -62,7 +62,7 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
     }
     const names = items.map((i) => i.sggNm);
     for (const i of items) {
-      if (!names.some((n) => n !== i.sggNm && n.startsWith(i.sggNm + ' '))) sggs.push({ cd: i.stdgCd, name: i.sggNm });
+      if (!names.some((n) => n !== i.sggNm && n.startsWith(i.sggNm + ' '))) sggs.push({ cd: i.stdgCd, name: i.sggNm || i.ctpvNm });
     }
   }
   if (sggs.length === 0) return { month, saved: 0, note: '미공표(빈 응답) — 익일 재시도' };
@@ -80,7 +80,8 @@ async function refreshPopulation(supabaseUrl: string, serviceKey: string) {
         if (count && count > 0) { skipped++; return; }
         const rows = await moisCall(apiKey, { lv: '3', stdgCd: sgg.cd, srchFrYm: ym, srchToYm: ym });
         const recs = rows.filter((r) => r.stdgNm && r.totNmprCnt).map((r) => ({
-          stdg_cd: r.stdgCd, sido: r.ctpvNm, sigungu: r.sggNm, dong: r.stdgNm,
+          // 세종은 시군구 단계가 없어 sggNm이 비어 온다 → 시도명을 넣어 not-null 제약을 지킨다(뷰에서 '세종시'로 표기)
+          stdg_cd: r.stdgCd, sido: r.ctpvNm, sigungu: r.sggNm || r.ctpvNm, dong: r.stdgNm,
           month, population: Number(r.totNmprCnt), households: Number(r.hhCnt) || null,
         }));
         if (recs.length) {
