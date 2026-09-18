@@ -696,14 +696,9 @@ export default function DiscoverPage() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('points');
   const [colorblind, setColorblind] = useState(false); // 색각보정 (홈/설정모달과 fs_colorblind 공유)
   const [playing, setPlaying] = useState(false);
-  const [dockOpen, setDockOpen] = useState(true);
-  const [timelineOpen, setTimelineOpen] = useState(true); // 타임랩스 바 접기(지도 시야 확보용)
+  const [dockOpen, setDockOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false); // 타임랩스 바 접기(지도 시야 확보용)
 
-  // 모바일(협폭)에선 인사이트 독이 지도 절반을 가리므로 기본 접힘 (핸들로 언제든 펼침)
-  useEffect(() => {
-    const t = setTimeout(() => { if (window.innerWidth < 768) setDockOpen(false); }, 0);
-    return () => clearTimeout(t);
-  }, []);
   useEffect(() => {
     const t = setTimeout(() => setNavSearchSlot(document.getElementById('nav-search-slot')), 0);
     return () => clearTimeout(t);
@@ -2727,7 +2722,7 @@ export default function DiscoverPage() {
   };
 
 
-  // 뷰 토글 + 새로고침 — 지도 모드에선 지도 위 플로팅, 그 외 뷰에선 필터 바 라인에 배치(세로 공간 확보, 사용자 확정)
+  // 화면 전환과 새로고침은 모든 뷰에서 상단 필터 바에 고정한다.
   const viewToggle = (
     <>
       <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
@@ -2839,43 +2834,8 @@ export default function DiscoverPage() {
           onSelectRange={handleRangeSelect}
         />
 
-        {/* 표시 모드 — 면 / 점 / 히트맵 */}
-        {viewMode === 'map' && (
-          <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">
-            <span className="hidden text-[10px] font-medium text-slate-400 sm:inline">표시</span>
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-[3px]">
-              {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체'], ['commercial', '상권']] as [DisplayMode, string][]).map(([m, label]) => (
-                <button
-                  key={m}
-                  onClick={() => handleSetDisplayMode(m)}
-                  className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors max-md:h-10 max-md:px-3 max-md:text-[12px] ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
-                >
-                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{m === 'd3' && <Box size={12} />}{m === 'commercial' && <Store size={12} />}{label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 랭킹·운영계획·지역보고에선 뷰 토글이 이 라인으로 — 본문 위 플로팅 제거로 세로 공간 확보 */}
-        {viewMode !== 'map' && (
-          <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">
-            {viewToggle}
-          </div>
-        )}
+        <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">{viewToggle}</div>
       </div>
-
-      {/* 모바일 KPI 스트립 — 인사이트 독이 접혀 있어도 핵심 4개 수치는 항상 보이게 (지도는 안 가림) */}
-      {viewMode === 'map' && (
-        <div className="flex shrink-0 items-center justify-between gap-1 border-b border-slate-200 bg-white px-3 py-1.5 md:hidden">
-          {([['신규', kpiNew, 'text-green-600'], ['폐업', kpiClosed, 'text-red-600'], ['순증', kpiNet, 'text-blue-600'], ['성장률', kpiRate, 'text-amber-600']] as [string, string | number, string][]).map(([label, value, tone]) => (
-            <div key={label} className="flex flex-1 flex-col items-center leading-tight">
-              <span className="text-[9px] font-semibold text-slate-400">{label}</span>
-              <span className={`text-[15px] font-extrabold tabular-nums ${tone}`}>{value}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── MAP AREA ── */}
       <div className="relative flex-1 overflow-hidden">
@@ -2892,17 +2852,35 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* ── TOP-RIGHT CONTROLS — 지도 모드에서만 플로팅 (다른 뷰에선 필터 바 라인에 있음) ── */}
-      {viewMode === 'map' && (
-        <div className="absolute top-3 right-3 z-[600] flex items-center gap-1.5">
-          {viewToggle}
-        </div>
-      )}
+        {/* 표시 모드 — 면 / 점 / 히트맵 */}
+        {viewMode === 'map' && (
+          <div className="absolute right-3 top-3 z-[450] rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm">
+            <div className="flex rounded-lg bg-white">
+              {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체'], ['commercial', '상권']] as [DisplayMode, string][]).map(([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => handleSetDisplayMode(m)}
+                  className={`inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-[11px] font-medium transition-colors max-md:h-10 max-md:px-3 max-md:text-[12px] ${displayMode === m ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  {m === 'heat' && <Layers size={12} />}{m === 'points' && <MapPin size={12} />}{m === 'd3' && <Box size={12} />}{m === 'commercial' && <Store size={12} />}{label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
 
       {/* ── LEFT INSIGHT DOCK (overlay · 지도 모드 전용) ── */}
       {viewMode === 'map' && (
-        <div className={`absolute bottom-0 left-0 top-0 z-[400] flex transition-transform duration-300 ease-[cubic-bezier(.4,0,.2,1)] ${dockOpen ? 'translate-x-0' : '-translate-x-[212px]'}`}>
-          <aside className="flex w-[212px] flex-col gap-3 overflow-y-auto border-r border-slate-200 bg-white p-3 shadow-[4px_0_18px_rgba(15,23,42,.06)] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+        <div className="absolute left-3 top-3 z-[400] max-lg:top-16">
+          <aside aria-label="시장 요약" className="flex max-h-[calc(100dvh-320px)] w-[340px] max-w-[calc(100vw-24px)] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_4px_20px_rgba(15,23,42,.08)] backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-xs font-semibold text-slate-700">시장 요약</span>
+              <button onClick={() => setDockOpen(o => !o)} aria-expanded={dockOpen}
+                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-blue-600">
+                {dockOpen ? '순위 접기' : '지역 순위 보기'}<ChevronDown size={13} className={`transition-transform ${dockOpen ? 'rotate-180' : ''}`} />
+              </button>
+            </div>
             {displayMode === 'commercial' ? (
               /* ── 상권 모드: 재고 KPI + 종합 점수 순위 ── */
               !commercialRows ? (
@@ -2913,13 +2891,13 @@ export default function DiscoverPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">전체 상가</div><div className="text-lg font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.total.toLocaleString()}</div></div>
-                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페</div><div className="text-lg font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.scale }}>{commercialKpi.cafe.toLocaleString()}</div></div>
-                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">제과·빙수</div><div className="text-lg font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.dessert.toLocaleString()}</div></div>
-                    <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페/1만명</div><div className="text-lg font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.density }}>{commercialKpi.density}</div></div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">전체 상가</div><div className="text-sm font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.total.toLocaleString()}</div></div>
+                    <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페</div><div className="text-sm font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.scale }}>{commercialKpi.cafe.toLocaleString()}</div></div>
+                    <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">제과·빙수</div><div className="text-sm font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.dessert.toLocaleString()}</div></div>
+                    <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페/1만명</div><div className="text-sm font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.density }}>{commercialKpi.density}</div></div>
                   </div>
-                  <div className="min-h-0 flex-1">
+                  <div hidden={!dockOpen} className="min-h-0 shrink-0 border-t border-slate-100 pt-3">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-[11px] font-semibold text-slate-500">상권 종합 점수</span>
                       <span className="text-[9px] text-slate-400">{commercialScores.length}개 지역 상대</span>
@@ -2950,14 +2928,14 @@ export default function DiscoverPage() {
               )
             ) : (<>
             {/* KPI 카드 */}
-            <div className="grid grid-cols-2 gap-1.5">
-              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">신규</div><div className="text-lg font-extrabold leading-tight text-green-600 tabular-nums">{kpiNew}</div></div>
-              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">폐업</div><div className="text-lg font-extrabold leading-tight text-red-600 tabular-nums">{kpiClosed}</div></div>
-              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">순증</div><div className="text-lg font-extrabold leading-tight text-blue-600 tabular-nums">{kpiNet}</div></div>
-              <div className="rounded-lg bg-slate-50 px-2.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">성장률</div><div className="text-lg font-extrabold leading-tight text-amber-600 tabular-nums">{kpiRate}</div></div>
+            <div className="grid grid-cols-4 gap-1.5">
+              <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">신규</div><div className="text-sm font-extrabold leading-tight text-green-600 tabular-nums">{kpiNew}</div></div>
+              <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">폐업</div><div className="text-sm font-extrabold leading-tight text-red-600 tabular-nums">{kpiClosed}</div></div>
+              <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">순증</div><div className="text-sm font-extrabold leading-tight text-blue-600 tabular-nums">{kpiNet}</div></div>
+              <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">성장률</div><div className="text-sm font-extrabold leading-tight text-amber-600 tabular-nums">{kpiRate}</div></div>
             </div>
             {/* 신규 상위 상권 */}
-            <div className="min-h-0 flex-1">
+            <div hidden={!dockOpen} className="min-h-0 shrink-0 border-t border-slate-100 pt-3">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-slate-500">신규 상위 상권</span>
                 <TrendingUp size={14} className="text-green-600" />
@@ -2979,8 +2957,12 @@ export default function DiscoverPage() {
               </div>
             </div>
             </>)}
-            {/* 범례 — 표시 모드에 맞춤 */}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-100 pt-2.5 text-[10px] font-medium text-slate-500">
+          </aside>
+        </div>
+      )}
+      {/* 범례 — 요약 카드가 접혀 있어도 표시 */}
+      {viewMode === 'map' && (
+            <div className={`absolute ${timelineOpen ? 'bottom-28' : 'bottom-16'} left-3 z-[400] flex max-w-[calc(100%-72px)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-slate-200/70 bg-white/90 px-3 py-2 text-[10px] font-medium text-slate-500 shadow-sm md:max-w-[300px]`}>
               {displayMode === 'commercial' ? (
                 <>
                   <span className="inline-flex w-full items-center gap-1.5"><span className="h-2 w-10 rounded-sm" style={{ background: 'linear-gradient(90deg,#cde2fb,#2a78d6,#0d366b)' }} />종합 점수 낮음 → 높음</span>
@@ -3011,22 +2993,12 @@ export default function DiscoverPage() {
                 </>
               )}
             </div>
-          </aside>
-          {/* 접기/펼치기 핸들 */}
-          <button
-            onClick={() => setDockOpen(o => !o)}
-            title={dockOpen ? '패널 접기' : '패널 펼치기'}
-            className="my-auto flex h-11 w-[18px] items-center justify-center rounded-r-lg border border-l-0 border-slate-200 bg-white text-slate-500 shadow-sm transition-colors hover:text-blue-600"
-          >
-            {dockOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
-          </button>
-        </div>
       )}
 
       {/* ── TIMELAPSE 재생 바 ── (저프로파일 · 접기 토글로 지도 시야 확보) */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-3 left-3 right-14 z-[450] md:left-[232px]">
-          <div className="mx-auto flex w-fit max-w-full items-center gap-2 rounded-full border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95">
+        <div className="absolute bottom-3 left-3 right-14 z-[450]">
+          <div className="mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95">
             {/* 재생/일시정지 토글 — 항상 노출 */}
             <button
               onClick={handleTogglePlay}
@@ -3035,20 +3007,26 @@ export default function DiscoverPage() {
             >
               {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
             </button>
+            <button aria-label="이전 월" disabled={!monthList.length || (!!selectedMonth && monthList.indexOf(selectedMonth) <= 0)}
+              onClick={() => { stopPlay(); handleMonthSelect(monthList[selectedMonth ? Math.max(0, Math.min(monthList.length - 1, monthList.indexOf(selectedMonth) - 1)) : monthList.length - 1]); }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronLeft size={14} /></button>
             {/* 현재 월 — 항상 노출 */}
             <span className="min-w-[40px] flex-shrink-0 text-center text-xs font-bold tabular-nums text-blue-600">
               {selectedMonth ? (rangeTo ? `${selectedMonth.slice(2).replace('-', '.')}~${rangeTo.slice(2).replace('-', '.')}` : selectedMonth.slice(2).replace('-', '.')) : '전체'}
               {playing && <span className="ml-0.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-blue-500 align-middle" />}
             </span>
+            <button aria-label="다음 월" disabled={!monthList.length || (!!selectedMonth && monthList.indexOf(selectedMonth) >= monthList.length - 1)}
+              onClick={() => { stopPlay(); handleMonthSelect(monthList[selectedMonth ? Math.max(0, Math.min(monthList.length - 1, monthList.indexOf(selectedMonth) + 1)) : 0]); }}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronRight size={14} /></button>
             {/* 슬라이더 본체 — 접으면 숨김 */}
             {timelineOpen && (
-              <div className="flex min-w-0 items-center gap-2 pl-1">
+              <div id="market-month-slider" className="order-last flex w-full min-w-0 items-center gap-2 border-t border-slate-100 px-2 pt-2 pb-1">
                 <span className="hidden flex-shrink-0 text-[10px] tabular-nums text-slate-400 sm:inline">{monthList[0]?.slice(2).replace('-', '.')}</span>
                 <input
                   type="range" min={0} max={monthList.length - 1} step={1}
                   value={selectedMonth ? monthList.indexOf(selectedMonth) : 0}
                   onChange={(e) => { stopPlay(); handleMonthSelect(monthList[Number(e.target.value)]); }}
-                  className="w-[180px] max-w-full accent-blue-600 sm:w-[240px]"
+                  className="min-w-0 flex-1 w-[180px] accent-blue-600 sm:w-[240px]"
                   aria-label="월 타임라인"
                 />
                 <span className="hidden flex-shrink-0 text-[10px] tabular-nums text-slate-400 sm:inline">{monthList[monthList.length - 1]?.slice(2).replace('-', '.')}</span>
@@ -3066,9 +3044,11 @@ export default function DiscoverPage() {
             <button
               onClick={() => setTimelineOpen(o => !o)}
               title={timelineOpen ? '타임라인 접기' : '타임라인 펼치기'}
+              aria-expanded={timelineOpen}
+              aria-controls="market-month-slider"
               className="flex h-7 w-6 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
             >
-              {timelineOpen ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+              <ChevronDown size={15} className={timelineOpen ? 'rotate-180' : ''} />
             </button>
           </div>
         </div>
