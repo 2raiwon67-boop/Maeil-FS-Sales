@@ -1,5 +1,8 @@
 'use client';
 
+import { createRequestLimiter } from '@/lib/async-limit';
+import { Popover } from '@base-ui/react/popover';
+
 import { Fragment, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
@@ -383,33 +386,31 @@ function FilterDropdown({
 }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen(o => !o)}
+    <Popover.Root open={open} onOpenChange={setOpen}>
+      <Popover.Trigger
         className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors max-md:h-10 ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
       >
         <span className="text-slate-400">{icon}</span>
         {value}
         <ChevronDown size={13} className="text-slate-400" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[610]" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-[620] mt-1.5 max-h-[280px] min-w-[150px] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner sideOffset={6} align="start" collisionPadding={8} positionMethod="fixed" className="z-[750]">
+          <Popover.Popup aria-label={value} className="max-h-[min(280px,var(--available-height))] min-w-[150px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
             {options.map(o => (
               <button
                 key={o.key}
                 onClick={() => { onSelect(o.key); setOpen(false); }}
-                className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition-colors ${o.active ? 'font-semibold text-blue-700 bg-blue-50/60' : 'text-slate-600 hover:bg-slate-50'}`}
+                className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition-colors max-md:min-h-11 ${o.active ? 'font-semibold text-blue-700 bg-blue-50/60' : 'text-slate-600 hover:bg-slate-50'}`}
               >
                 {o.label}
                 {o.active && <Check size={13} className="flex-shrink-0 text-blue-600" />}
               </button>
             ))}
-          </div>
-        </>
-      )}
-    </div>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -436,7 +437,6 @@ function MonthRangeDropdown({
     setTab(rangeTo ? 'range' : 'single');
     setFrom(selectedMonth || monthList[Math.max(0, monthList.length - 3)]);
     setTo(rangeTo || last);
-    setOpen(true);
   };
   const applyRange = (f: string, t: string) => {
     if (f > t) [f, t] = [t, f]; // 시작·종료가 뒤바뀌면 자동 교정
@@ -450,19 +450,17 @@ function MonthRangeDropdown({
     { label: '올해', from: `${last?.slice(0, 4)}-01` },
   ];
   return (
-    <div className="relative">
-      <button
-        onClick={() => (open ? setOpen(false) : openPanel())}
+    <Popover.Root open={open} onOpenChange={nextOpen => { if (nextOpen) openPanel(); setOpen(nextOpen); }}>
+      <Popover.Trigger
         className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 text-xs font-medium transition-colors max-md:h-10 ${open ? 'border-blue-500 text-blue-600 bg-blue-50/50' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
       >
         <span className="text-slate-400"><CalendarDays size={14} /></span>
         {label}
         <ChevronDown size={13} className="text-slate-400" />
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-[610]" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-[620] mt-1.5 w-[248px] rounded-xl border border-slate-200 bg-white shadow-lg">
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Positioner sideOffset={6} align="start" collisionPadding={8} positionMethod="fixed" className="z-[750]">
+          <Popover.Popup aria-label="조회 기간" className="max-h-[var(--available-height)] w-[248px] max-w-[calc(100vw-16px)] overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
             <div className="m-2 grid grid-cols-2 rounded-lg bg-slate-100 p-0.5 text-[12px] font-medium">
               {([['single', '개별 월'], ['range', '기간 지정']] as const).map(([t, l]) => (
                 <button key={t} onClick={() => setTab(t)} className={`h-7 rounded-md transition-all ${tab === t ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{l}</button>
@@ -474,7 +472,7 @@ function MonthRangeDropdown({
                   <button
                     key={o.key}
                     onClick={() => { onSelectSingle(o.key === '__all' ? null : o.key); setOpen(false); }}
-                    className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition-colors ${o.active ? 'font-semibold text-blue-700 bg-blue-50/60' : 'text-slate-600 hover:bg-slate-50'}`}
+                    className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs transition-colors max-md:min-h-11 ${o.active ? 'font-semibold text-blue-700 bg-blue-50/60' : 'text-slate-600 hover:bg-slate-50'}`}
                   >
                     {o.label}
                     {o.active && <Check size={13} className="flex-shrink-0 text-blue-600" />}
@@ -517,10 +515,10 @@ function MonthRangeDropdown({
                 </button>
               </div>
             )}
-          </div>
-        </>
-      )}
-    </div>
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
@@ -642,7 +640,7 @@ export default function DiscoverPage() {
   const router = useRouter();
   const supabase = createClient();
   // 사업부 계정은 네비에서 고른 지점 기준으로 관할을 계산 (일반 사용자는 자기 소속)
-  const { viewUnit } = useAuth();
+  const { viewUnit, user } = useAuth();
 
   // Map refs
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -1568,18 +1566,19 @@ export default function DiscoverPage() {
   // ─── INIT DASHBOARD ────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!viewUnit) return; // 인증 로드 전 — viewUnit 확정 후 1회만 초기화
+    if (!viewUnit || !user) return;
+    let cancelled = false;
+    const loadRun = loadRunRef;
+    ++loadRun.current;
     async function init() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
         const bu = viewUnit || '';
         const { data: mgrs, error } = await supabase
           .from('managers')
           .select('region1, region2')
           .eq('business_unit', bu)
           .neq('region2', '지점장');
+        if (cancelled) return;
         if (error) throw error;
 
         const rows = mgrs || [];
@@ -1598,19 +1597,22 @@ export default function DiscoverPage() {
         setSigunguSidoMap(newSigunguSidoMap);
         sigunguSidoMapRef.current = newSigunguSidoMap;
 
-        // Load initial data
+        // Mount the map as soon as its region is known; records stream in afterwards.
+        setLoading(false);
         await loadDashboardData('branch', null, newSidoSigunguMap, newSigunguSidoMap);
       } catch (e) {
+        if (cancelled) return;
         console.error('[discover] init error', e);
         setLastSync('초기화 실패');
         toast.error('초기화에 실패했습니다');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     init();
+    return () => { cancelled = true; ++loadRun.current; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewUnit]);
+  }, [viewUnit, user?.id]);
 
   // ─── LOAD DASHBOARD DATA ───────────────────────────────────────────────────
 
@@ -1690,6 +1692,7 @@ export default function DiscoverPage() {
     setRefreshing(true);
     setLastSync('로딩 중...');
     const runId = ++loadRunRef.current; // 이 로드가 최신인지 판별 (지역 연속 전환 대비)
+    let sourceStatsReady = false;
     let statsShown = false; // 빠른 통계 경로(RPC)가 KPI/랭킹을 이미 렌더했는지
     mapCenteredRef.current = false;
     // 행정동 경계 스코프 갱신 (줌인 시 이 시도들 경계를 로드) — 스코프 바뀌면 재로드
@@ -1728,9 +1731,10 @@ export default function DiscoverPage() {
         Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(g => allow.add(`${s}|${g}`)));
         return rows.filter(r => allow.has(`${r.sido}|${r.sigungu}`));
       };
-      if (!cachedRows) try {
+      // Run summary and map downloads together; late summary must not overwrite source data.
+      void (async () => { if (!cachedRows) try {
         const { data: aggData, error: aggErr } = await supabase.rpc('discover_market_agg', { p_min_month: minMonth });
-        if (!aggErr && Array.isArray(aggData) && loadRunRef.current === runId) {
+        if (!aggErr && Array.isArray(aggData) && loadRunRef.current === runId && !sourceStatsReady) {
           const snapsFast = scopeSnaps((aggData as Array<{ sido: string; sigungu: string; month: string; new_count: number; closed_count: number }>)
             .map(r => ({ sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: r.new_count, closed_count: r.closed_count, updated_at: '' })));
           if (snapsFast.length) {
@@ -1745,16 +1749,16 @@ export default function DiscoverPage() {
             else Object.entries(sSigunguMap).forEach(([s, list]) => list.forEach(g => { upMap[g] = s; }));
             setSigunguSidoMap(upMap); sigunguSidoMapRef.current = upMap;
             applyFiltersInternal(snapsFast, selectedMonthRef.current, rangeToRef.current, mode, sido, sSigunguMap);
-            setRefreshing(false);
             statsShown = true;
           }
         }
-      } catch { /* RPC 실패 → 아래 원본 경로가 이어서 렌더 */ }
+      } catch { /* RPC 실패 → 아래 원본 경로가 이어서 렌더 */ } })();
 
       // 점진 렌더 — 페이지가 도착하는 만큼 지도 점을 미리 찍는다(전체 완료를 기다리지 않음).
       // KPI/랭킹 등 통계는 부분값으로 깜빡이지 않게 여기서 건드리지 않고, 단계 완료 시 finishRows가 확정.
       const arrived: StoreRow[] = [];
       let loadFailed = false; // 페이지 로드 실패 흔적 — 불완전한 결과를 세션 캐시에 남기지 않기 위한 플래그
+      const requestPage = createRequestLimiter(4);
       let lastPaint = 0;
       const paintPartial = () => {
         if (loadRunRef.current !== runId) return; // 더 최신 로드가 시작됨 — 화면 덮어쓰기 금지
@@ -1779,19 +1783,20 @@ export default function DiscoverPage() {
           paintPartial();
           return rows.length;
         };
-        const { count } = await applyFilters(supabase.from('market_store_records').select('id', { count: 'exact', head: true }));
+        const { count } = await requestPage(async () => applyFilters(supabase.from('market_store_records').select('id', { count: 'exact', head: true })));
         if (count != null && count >= 0) {
-          const pages = Math.min(Math.max(1, Math.ceil(count / PAGE)), 120);
-          await Promise.all(
-            Array.from({ length: pages }, (_, i) =>
-              applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(i * PAGE, i * PAGE + PAGE - 1)
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .then(({ data, error }: any) => onPage(data, error)))
-          );
+          const pages = Math.max(1, Math.ceil(count / PAGE));
+          await Promise.all(Array.from({ length: pages }, (_, i) => requestPage(async () => {
+            if (loadRunRef.current !== runId) return;
+            const { data, error } = await applyFilters(supabase.from('market_store_records').select(storeCols))
+              .order('id').range(i * PAGE, i * PAGE + PAGE - 1);
+            onPage(data, error);
+          })));
           return acc;
         }
-        for (let from = 0; from < 200000; from += PAGE) { // 폴백: 순차 드레인
-          const { data, error } = await applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(from, from + PAGE - 1);
+        for (let from = 0; ; from += PAGE) { // count 실패 시 끝 페이지까지 읽는다.
+          if (loadRunRef.current !== runId) break;
+          const { data, error } = await requestPage(async () => applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(from, from + PAGE - 1));
           if (error) { onPage(null, error); break; }
           if (onPage(data, null) < PAGE) break;
         }
@@ -1823,6 +1828,7 @@ export default function DiscoverPage() {
         if (loadRunRef.current !== runId) return; // 더 최신 로드가 시작됨 — 화면 덮어쓰기 금지
         // 반복 노출 중복 제거(dedupeStoreEvents 주석 참고) — KPI/랭킹/동별/드릴다운/지도 점이
         // 전부 이 배열에서 파생되므로 여기 한 곳에서 걸러야 화면 간 숫자가 일치한다.
+        sourceStatsReady = true;
         const storeRows = dedupeStoreEvents(raw);
         setCachedStores(storeRows);
         cachedStoresRef.current = storeRows;
@@ -1862,22 +1868,27 @@ export default function DiscoverPage() {
       } else {
         // 1단계: 최근 12개월 먼저 렌더 → 2단계: 과거 24개월 병합 재렌더
         let raw = await loadPhase(recentMin);
+        if (loadRunRef.current !== runId) return;
         finishRows(raw);
         const older = await loadPhase(minMonth, recentMin);
+        if (loadRunRef.current !== runId) return;
         if (older.length) { raw = raw.concat(older); finishRows(raw); }
         // 완전한 결과만 기억 — 실패 흔적이 있거나 빈 결과면 캐시하지 않고 다음 방문 때 재조회
         if (!loadFailed && raw.length) storeCacheRef.current.set(cacheKey, raw);
       }
+      if (loadRunRef.current !== runId) return;
       void runGeocodeBackfill(minMonth); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
       // "갱신 시각"은 행 전체 대신 최신 1건만 조회 (updated_at 컬럼 다이어트 대체)
       void supabase.from('market_store_records').select('updated_at')
         .order('updated_at', { ascending: false }).limit(1).then(({ data }) => {
+          if (loadRunRef.current !== runId) return;
           const t = data?.[0]?.updated_at;
           setLastSync(t ? `갱신 ${new Date(t).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}` : '데이터 없음');
         });
 
     } catch (e) {
+      if (loadRunRef.current !== runId) return;
       console.error('[discover] load error', e);
       // 빠른 통계 경로가 이미 KPI/랭킹을 렌더했으면(지도 원본만 실패) 통계는 유효 → 오류 표기 억제
       if (!statsShown) {
@@ -2730,7 +2741,7 @@ export default function DiscoverPage() {
           <button
             key={m}
             onClick={() => handleSetViewMode(m)}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-3 max-md:text-[12px] ${viewMode === m ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full px-[15px] text-xs font-semibold whitespace-nowrap transition-all max-md:h-10 max-md:gap-1 max-md:px-2 max-md:text-[11px] ${viewMode === m ? 'bg-blue-600 text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]' : 'text-slate-500 hover:text-slate-900'}`}
           >
             <Icon size={14} />{label}
           </button>
@@ -2740,7 +2751,7 @@ export default function DiscoverPage() {
         disabled={refreshing}
         onClick={() => loadDashboardData(regionMode, regionSido)}
         title={lastSync}
-        className="inline-flex h-[34px] w-[34px] items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm max-md:h-[30px] max-md:w-[30px] transition-all hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
+        className="inline-flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm max-md:h-11 max-md:w-11 transition-colors hover:border-blue-500 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-35"
       >
         <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
       </button>
@@ -2801,8 +2812,9 @@ export default function DiscoverPage() {
         document.body,
       )}
 
+      <div className="flex shrink-0 items-center justify-between gap-1 border-b border-slate-100 bg-white px-2 py-1 md:hidden">{viewToggle}</div>
       {/* ── HEADS-UP FILTER BAR ── 모바일은 한 줄 가로 스크롤(줄바꿈 시 좌우 불균형 방지) */}
-      <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:[scrollbar-width:none] md:flex-wrap">
+      <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-2 max-md:py-1.5 max-md:[scrollbar-width:none] md:flex-wrap">
         <FilterDropdown
           icon={<MapPin size={14} />}
           value={regionValue}
@@ -2834,7 +2846,7 @@ export default function DiscoverPage() {
           onSelectRange={handleRangeSelect}
         />
 
-        <div className="inline-flex shrink-0 items-center gap-1.5 md:ml-auto">{viewToggle}</div>
+        <div className="hidden shrink-0 items-center gap-1.5 md:ml-auto md:inline-flex">{viewToggle}</div>
       </div>
 
       {/* ── MAP AREA ── */}
@@ -2854,7 +2866,7 @@ export default function DiscoverPage() {
 
         {/* 표시 모드 — 면 / 점 / 히트맵 */}
         {viewMode === 'map' && (
-          <div className="absolute right-3 top-3 z-[450] rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm">
+          <div className="absolute right-3 top-3 z-[450] max-md:hidden rounded-xl border border-slate-200 bg-white/95 p-1.5 shadow-sm">
             <div className="flex rounded-lg bg-white">
               {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체'], ['commercial', '상권']] as [DisplayMode, string][]).map(([m, label]) => (
                 <button
@@ -2870,17 +2882,30 @@ export default function DiscoverPage() {
         )}
 
 
+      {viewMode === 'map' && (
+        <details className="mobile-glass absolute right-2 top-2 z-[450] rounded-xl border border-slate-200 bg-white shadow-sm md:hidden">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-3 text-xs font-semibold [&::-webkit-details-marker]:hidden"><Layers size={14} />지도 표시<ChevronDown size={12} /></summary>
+          <div className="flex flex-col gap-1 p-1">
+            {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체'], ['commercial', '상권']] as [DisplayMode, string][]).map(([m, label]) => (
+              <button key={m} aria-pressed={displayMode === m} className={`min-h-11 rounded-lg px-3 text-left text-xs ${displayMode === m ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-600'}`}
+                onClick={event => { handleSetDisplayMode(m); event.currentTarget.closest('details')?.removeAttribute('open'); }}>{label}</button>
+            ))}
+          </div>
+        </details>
+      )}
+
       {/* ── LEFT INSIGHT DOCK (overlay · 지도 모드 전용) ── */}
       {viewMode === 'map' && (
-        <div className="absolute left-3 top-3 z-[400] max-lg:top-16">
-          <aside aria-label="시장 요약" className="flex max-h-[calc(100dvh-320px)] w-[340px] max-w-[calc(100vw-24px)] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_4px_20px_rgba(15,23,42,.08)] backdrop-blur-sm">
-            <div className="flex items-center justify-between gap-4">
-              <span className="text-xs font-semibold text-slate-700">시장 요약</span>
+        <div className="absolute left-3 top-3 z-[400] max-lg:top-16 max-md:left-2 max-md:top-2">
+          <aside aria-label="시장 요약" className={`flex ${dockOpen ? '' : 'mobile-glass max-md:w-auto max-md:p-0'} ${timelineOpen ? 'max-md:max-h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h)-248px)]' : 'max-md:max-h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h)-200px)]'} max-h-[calc(100dvh-320px)] w-[340px] max-w-[calc(100vw-24px)] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_4px_20px_rgba(15,23,42,.08)] backdrop-blur-sm max-md:backdrop-blur-none`}>
+            <div className={`flex items-center justify-between gap-4 ${dockOpen ? 'max-md:pr-28' : ''}`}>
+              <span className="text-xs font-semibold text-slate-700 max-md:hidden">시장 요약</span>
               <button onClick={() => setDockOpen(o => !o)} aria-expanded={dockOpen}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-blue-600">
-                {dockOpen ? '순위 접기' : '지역 순위 보기'}<ChevronDown size={13} className={`transition-transform ${dockOpen ? 'rotate-180' : ''}`} />
+                className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-blue-600 max-md:min-h-11 max-md:px-3">
+                {dockOpen ? '요약 접기' : '요약·순위'}<ChevronDown size={13} className={`transition-transform ${dockOpen ? 'rotate-180' : ''}`} />
               </button>
             </div>
+            <div className={`contents ${dockOpen ? '' : 'max-md:hidden'}`}>
             {displayMode === 'commercial' ? (
               /* ── 상권 모드: 재고 KPI + 종합 점수 순위 ── */
               !commercialRows ? (
@@ -2891,7 +2916,7 @@ export default function DiscoverPage() {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-4 gap-1.5">
+                  <div className={`grid grid-cols-4 gap-1.5 ${dockOpen ? '' : 'max-md:hidden'}`}>
                     <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">전체 상가</div><div className="text-sm font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.total.toLocaleString()}</div></div>
                     <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">카페</div><div className="text-sm font-extrabold leading-tight tabular-nums" style={{ color: COMM_COLORS.scale }}>{commercialKpi.cafe.toLocaleString()}</div></div>
                     <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">제과·빙수</div><div className="text-sm font-extrabold leading-tight text-slate-800 tabular-nums">{commercialKpi.dessert.toLocaleString()}</div></div>
@@ -2928,7 +2953,7 @@ export default function DiscoverPage() {
               )
             ) : (<>
             {/* KPI 카드 */}
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className={`grid grid-cols-4 gap-1.5 ${dockOpen ? '' : 'max-md:hidden'}`}>
               <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">신규</div><div className="text-sm font-extrabold leading-tight text-green-600 tabular-nums">{kpiNew}</div></div>
               <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">폐업</div><div className="text-sm font-extrabold leading-tight text-red-600 tabular-nums">{kpiClosed}</div></div>
               <div className="rounded-lg bg-slate-50 px-1.5 py-2"><div className="text-[9px] font-semibold uppercase tracking-[.05em] text-slate-400">순증</div><div className="text-sm font-extrabold leading-tight text-blue-600 tabular-nums">{kpiNet}</div></div>
@@ -2942,7 +2967,7 @@ export default function DiscoverPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 {topNewRegions.length === 0 ? (
-                  <div className="py-6 text-center text-[11px] text-slate-300">데이터 없음</div>
+                  <div className="py-6 text-center text-[11px] text-slate-400">{refreshing ? '매장 불러오는 중...' : '데이터 없음'}</div>
                 ) : topNewRegions.map((r, i) => (
                   <button
                     key={r.sido + r.region}
@@ -2957,12 +2982,13 @@ export default function DiscoverPage() {
               </div>
             </div>
             </>)}
+            </div>
           </aside>
         </div>
       )}
       {/* 범례 — 요약 카드가 접혀 있어도 표시 */}
       {viewMode === 'map' && (
-            <div className={`absolute ${timelineOpen ? 'bottom-28' : 'bottom-16'} left-3 z-[400] flex max-w-[calc(100%-72px)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-slate-200/70 bg-white/90 px-3 py-2 text-[10px] font-medium text-slate-500 shadow-sm md:max-w-[300px]`}>
+            <div className={`absolute ${timelineOpen ? 'bottom-28 max-md:bottom-32' : 'bottom-16 max-md:bottom-20'} ${dockOpen ? 'max-md:hidden' : ''} pointer-events-none left-3 z-[400] flex max-w-[calc(100%-72px)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-slate-200/70 bg-white/90 px-3 py-2 text-[10px] font-medium text-slate-500 shadow-sm md:max-w-[300px]`}>
               {displayMode === 'commercial' ? (
                 <>
                   <span className="inline-flex w-full items-center gap-1.5"><span className="h-2 w-10 rounded-sm" style={{ background: 'linear-gradient(90deg,#cde2fb,#2a78d6,#0d366b)' }} />종합 점수 낮음 → 높음</span>
@@ -2997,19 +3023,19 @@ export default function DiscoverPage() {
 
       {/* ── TIMELAPSE 재생 바 ── (저프로파일 · 접기 토글로 지도 시야 확보) */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-3 left-3 right-14 z-[450]">
-          <div className="mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95">
+        <div className="absolute bottom-3 left-3 right-14 z-[450] max-md:bottom-2 max-md:left-2 max-md:right-2">
+          <div className="mobile-glass mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95 max-md:gap-1 max-md:px-1 max-md:py-1 max-md:backdrop-blur-none">
             {/* 재생/일시정지 토글 — 항상 노출 */}
             <button
               onClick={handleTogglePlay}
               title={playing ? '일시정지' : '월별 재생'}
-              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-colors ${playing ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
+              className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-colors max-md:h-11 max-md:w-11 ${playing ? 'bg-blue-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
               {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
             </button>
             <button aria-label="이전 월" disabled={!monthList.length || (!!selectedMonth && monthList.indexOf(selectedMonth) <= 0)}
               onClick={() => { stopPlay(); handleMonthSelect(monthList[selectedMonth ? Math.max(0, Math.min(monthList.length - 1, monthList.indexOf(selectedMonth) - 1)) : monthList.length - 1]); }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronLeft size={14} /></button>
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30 max-md:h-11 max-md:w-11"><ChevronLeft size={14} /></button>
             {/* 현재 월 — 항상 노출 */}
             <span className="min-w-[40px] flex-shrink-0 text-center text-xs font-bold tabular-nums text-blue-600">
               {selectedMonth ? (rangeTo ? `${selectedMonth.slice(2).replace('-', '.')}~${rangeTo.slice(2).replace('-', '.')}` : selectedMonth.slice(2).replace('-', '.')) : '전체'}
@@ -3017,7 +3043,7 @@ export default function DiscoverPage() {
             </span>
             <button aria-label="다음 월" disabled={!monthList.length || (!!selectedMonth && monthList.indexOf(selectedMonth) >= monthList.length - 1)}
               onClick={() => { stopPlay(); handleMonthSelect(monthList[selectedMonth ? Math.max(0, Math.min(monthList.length - 1, monthList.indexOf(selectedMonth) + 1)) : 0]); }}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30"><ChevronRight size={14} /></button>
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 disabled:opacity-30 max-md:h-11 max-md:w-11"><ChevronRight size={14} /></button>
             {/* 슬라이더 본체 — 접으면 숨김 */}
             {timelineOpen && (
               <div id="market-month-slider" className="order-last flex w-full min-w-0 items-center gap-2 border-t border-slate-100 px-2 pt-2 pb-1">
@@ -3026,7 +3052,7 @@ export default function DiscoverPage() {
                   type="range" min={0} max={monthList.length - 1} step={1}
                   value={selectedMonth ? monthList.indexOf(selectedMonth) : 0}
                   onChange={(e) => { stopPlay(); handleMonthSelect(monthList[Number(e.target.value)]); }}
-                  className="min-w-0 flex-1 w-[180px] accent-blue-600 sm:w-[240px]"
+                  className="min-w-0 flex-1 w-[180px] accent-blue-600 sm:w-[240px] max-md:h-8"
                   aria-label="월 타임라인"
                 />
                 <span className="hidden flex-shrink-0 text-[10px] tabular-nums text-slate-400 sm:inline">{monthList[monthList.length - 1]?.slice(2).replace('-', '.')}</span>
@@ -3046,7 +3072,7 @@ export default function DiscoverPage() {
               title={timelineOpen ? '타임라인 접기' : '타임라인 펼치기'}
               aria-expanded={timelineOpen}
               aria-controls="market-month-slider"
-              className="flex h-7 w-6 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              className="flex h-7 w-6 flex-shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 max-md:h-11 max-md:w-11"
             >
               <ChevronDown size={15} className={timelineOpen ? 'rotate-180' : ''} />
             </button>
@@ -3063,7 +3089,7 @@ export default function DiscoverPage() {
       />
 
       {/* ── SLIDE PANEL ── */}
-      <div className={`absolute top-0 right-0 w-[440px] max-w-full h-full bg-white border-l border-slate-200 shadow-[-6px_0_32px_rgba(15,23,42,.1)] z-[500] flex flex-col overflow-hidden transition-transform duration-300 ease-[cubic-bezier(.4,0,.2,1)] max-sm:w-full ${panelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div inert={!panelOpen || viewMode !== 'map'} aria-hidden={!panelOpen || viewMode !== 'map'} className={`absolute top-0 right-0 w-[440px] max-w-full h-full bg-white border-l border-slate-200 shadow-[-6px_0_32px_rgba(15,23,42,.1)] z-[500] flex flex-col overflow-hidden transition-transform duration-150 motion-reduce:transition-none ease-[cubic-bezier(.4,0,.2,1)] max-sm:w-full ${panelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 flex-shrink-0 bg-slate-50">
           <button

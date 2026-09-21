@@ -29,10 +29,10 @@ export function MobileTabBar() {
   return (
     <>
       {profileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={() => setProfileOpen(false)} />
+        <div className="fixed inset-0 z-[800] bg-black/40 md:hidden" onClick={() => setProfileOpen(false)} />
       )}
       {profileOpen && (
-        <div className="fixed bottom-[calc(var(--app-tabbar-h)+0.5rem)] left-4 right-4 z-50 rounded-2xl bg-white p-4 shadow-xl md:hidden">
+        <div className="fixed bottom-[calc(var(--app-tabbar-h)+0.5rem)] left-4 right-4 z-[810] rounded-2xl bg-white p-4 shadow-xl md:hidden">
           <p className="mb-3 text-center font-semibold">
             {metadata?.full_name
               ? metadata.business_unit
@@ -57,7 +57,7 @@ export function MobileTabBar() {
       )}
 
       {/* 안전영역은 --safe-bottom 한 곳에서만 정의한다(globals.css) — main의 pb-[--app-tabbar-h]와 같은 값을 써야 어긋나지 않는다 */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-white pb-[var(--safe-bottom)] md:hidden">
+      <div className="mobile-glass fixed bottom-0 left-0 right-0 z-50 flex h-[var(--app-tabbar-h)] items-center justify-around border-t bg-white pb-[var(--safe-bottom)] md:hidden">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = pathname === tab.href;
@@ -65,9 +65,11 @@ export function MobileTabBar() {
             <Link
               key={tab.href}
               href={tab.href}
+              aria-current={active ? 'page' : undefined}
+              onClick={() => setProfileOpen(false)}
               className={cn(
-                'flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors',
-                active ? 'text-blue-600' : 'text-gray-500',
+                'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-[11px] leading-4 transition-colors duration-100 active:bg-blue-50',
+                active ? 'text-blue-700 font-semibold' : 'text-slate-600',
               )}
             >
               <Icon className="h-5 w-5" />
@@ -77,8 +79,9 @@ export function MobileTabBar() {
         })}
 
         <button
-          className="flex flex-1 flex-col items-center gap-0.5 py-2 text-xs text-gray-500"
+          className="flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1 text-[11px] leading-4 text-slate-600 active:bg-blue-50"
           onClick={() => setProfileOpen(!profileOpen)}
+          aria-expanded={profileOpen}
         >
           <User className="h-5 w-5" />
           <span>프로필</span>

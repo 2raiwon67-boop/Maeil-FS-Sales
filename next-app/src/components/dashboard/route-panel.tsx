@@ -296,7 +296,9 @@ export function RoutePanel({
     <>
       {open && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={onClose} />}
       <aside
-        className={`fixed right-0 top-[var(--app-header-h)] z-50 flex h-[calc(100dvh-var(--app-header-h))] w-[330px] max-w-[88vw] flex-col bg-white shadow-2xl transition-transform duration-300 md:top-[88px] md:h-[calc(100dvh-88px)] ${
+        inert={!open}
+        aria-hidden={!open}
+        className={`fixed right-0 top-[var(--app-header-h)] z-50 flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] w-[330px] max-w-[88vw] flex-col bg-white shadow-2xl transition-transform duration-150 motion-reduce:transition-none md:top-[88px] md:h-[calc(100dvh-88px)] ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
       >

@@ -2,7 +2,7 @@
 
 import { createContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import type { User, SupabaseClient } from '@supabase/supabase-js';
 import { HQ_UNIT, BRANCH_UNITS } from '@/types';
 import type { UserMetadata } from '@/types';
@@ -43,7 +43,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [adminUnit, setAdminUnit] = useState<string | null>(null);
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -56,15 +55,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     const getUser = async () => {
       const { data: { user }, error } = await supabase.auth.getUser();
+      if (cancelled) return;
       // 세션 만료(JWT expired)·무효인데 localStorage 잔존 세션 때문에 '로그인된 듯한'
       // 유령 상태가 되면 모든 RLS 조회가 조용히 빈 값이 됨 — 정리 후 재로그인 유도.
       // 네트워크 일시 오류(status 0 등)는 로그아웃 사유가 아니므로 제외.
       const authDead = !user && (!error || error.status === 401 || error.status === 403 || /expired|invalid/i.test(error.message));
-      if (authDead && pathname !== '/login') {
+      if (authDead && window.location.pathname !== '/login') {
+        setUser(null);
+        setLoading(false);
         await supabase.auth.signOut({ scope: 'local' });
-        router.replace('/login');
+        if (!cancelled) router.replace('/login');
         return;
       }
       setUser(user);
@@ -77,9 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
     });
 
-    return () => subscription.unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, pathname]);
+    return () => { cancelled = true; subscription.unsubscribe(); };
+  }, [supabase, router]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();

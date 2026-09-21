@@ -105,8 +105,10 @@ export function DashboardSidebar({
     <>
       {/* 지도 위 오버레이 — 접어도 지도는 리사이즈되지 않는다 (시장분석 패널과 동일 패턴) */}
       <aside
-        className={`absolute inset-y-0 left-0 z-30 flex flex-col border-r border-gray-200 bg-gray-50 shadow-xl transition-all duration-200 ${
-          collapsed ? 'w-0 overflow-hidden shadow-none' : 'w-[300px]'
+        inert={collapsed}
+        aria-hidden={collapsed}
+        className={`absolute inset-y-0 left-0 z-30 flex w-[min(300px,calc(100vw-48px))] flex-col border-r border-gray-200 bg-gray-50 shadow-xl transition-transform duration-150 motion-reduce:transition-none ${
+          collapsed ? '-translate-x-full pointer-events-none shadow-none' : 'translate-x-0'
         }`}
       >
         <div className="min-h-0 flex-1 overflow-y-auto p-3 flex flex-col gap-3">
@@ -212,8 +214,9 @@ export function DashboardSidebar({
         onClick={onToggleCollapse}
         title="사이드바 접기/펼치기"
         // 모바일은 손잡이를 넓힌다 — px-1(폭 14px)로는 엄지로 집기 어렵다
-        className="absolute top-1/2 z-40 -translate-y-1/2 rounded-r-lg border border-l-0 border-gray-200 bg-white px-1 py-4 text-gray-500 shadow transition-all hover:bg-gray-50 max-md:px-2.5 max-md:py-6"
-        style={{ left: collapsed ? 0 : 300 }}
+        className="absolute top-1/2 z-40 -translate-y-1/2 rounded-r-lg border border-l-0 border-gray-200 bg-white px-1 py-4 text-gray-500 shadow transition-[left] duration-150 motion-reduce:transition-none hover:bg-gray-50 max-md:px-2.5 max-md:py-4"
+        aria-expanded={!collapsed}
+        style={{ left: collapsed ? 0 : 'min(300px, calc(100vw - 48px))' }}
       >
         {collapsed ? '›' : '‹'}
       </button>

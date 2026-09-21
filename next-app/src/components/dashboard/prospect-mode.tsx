@@ -417,8 +417,8 @@ export function ProspectMode({ businessUnit, myManagerName, initialView, readOnl
     <div className="relative flex h-full w-full flex-col bg-[#f6f7f9] md:flex-row">
       {/* ── 패널 — 모바일: 바텀시트(지도 전체화면 위), PC: 좌측 고정 ── */}
       <div
-        className={`flex min-h-0 flex-col overflow-hidden max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:rounded-t-2xl max-md:bg-white max-md:shadow-[0_-8px_28px_rgba(15,23,42,0.18)] max-md:transition-all max-md:duration-300 md:w-[300px] md:flex-none md:border-r md:border-[#e8ebf0] ${
-          sheetOpen ? 'max-md:h-[62dvh]' : 'max-md:h-[58px]'
+        className={`flex min-h-0 flex-col overflow-hidden max-md:absolute max-md:inset-x-0 max-md:bottom-0 max-md:z-20 max-md:rounded-t-2xl max-md:bg-white max-md:shadow-[0_-8px_28px_rgba(15,23,42,0.18)]  md:w-[300px] md:flex-none md:border-r md:border-[#e8ebf0] ${
+          sheetOpen ? 'max-md:h-[min(62dvh,calc(100%-12px))]' : 'max-md:h-[58px]'
         }`}
       >
         {/* 모바일 시트 핸들 — 접힌 상태에선 요약 한 줄 */}

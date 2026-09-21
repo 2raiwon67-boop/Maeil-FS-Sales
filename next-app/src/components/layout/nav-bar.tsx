@@ -50,9 +50,11 @@ function UnitSelector({
         onClick={() => setOpen((o) => !o)}
         className={cn(
           'inline-flex items-center gap-1.5 rounded-lg font-medium',
-          compact ? 'max-w-[140px] px-2 py-1 text-[11px]' : 'px-2.5 py-1.5 text-xs',
+          compact ? 'h-11 max-w-[64px] min-[390px]:max-w-[112px] px-1.5 text-[11px]' : 'px-2.5 py-1.5 text-xs',
         )}
         style={{ background: '#eef3fb', color: NAVY }}
+        aria-label={`조회 지점: ${viewUnit ?? '지점 선택'}`}
+        aria-expanded={open}
       >
         <MapPin className={compact ? 'h-3 w-3 shrink-0' : 'h-3.5 w-3.5'} />
         <span className="truncate">{viewUnit ?? '지점 선택'}</span>
@@ -88,7 +90,7 @@ function UnitSelector({
 
 function LogoLockup() {
   return (
-    <Link href="/" className="flex items-center gap-2.5">
+    <Link href="/" className="flex shrink-0 items-center gap-2.5">
       {/* width/height 명시 = 로드 전 자리 확보(레이아웃 이동 방지). 표시 크기는 클래스가 결정 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/assets/images/logo.png" alt="Maeil" width={181} height={80} className="h-[19px] w-auto" />
@@ -223,16 +225,16 @@ export function NavBar() {
 
       {/* 모바일 — 슬림 로고 바 (네비게이션은 하단 탭바가 담당) */}
       {/* PWA standalone은 상태바 아래로 콘텐츠가 파고든다(black-translucent) → 상단 안전영역만큼 밀어준다 */}
-      <header className="sticky top-0 z-[700] border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
-        <div className="flex h-12 items-center gap-2 px-4">
+      <header className="mobile-glass sticky top-0 z-[700] h-[var(--app-header-h)] shrink-0 border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
+        <div className="flex h-12 items-center gap-2 px-3">
           <LogoLockup />
-          <div className="ml-auto flex items-center gap-2">
-            <div id="nav-right-slot-mobile" className="flex items-center" />
+          <div className="ml-auto flex min-w-0 items-center gap-1.5">
+            <div id="nav-right-slot-mobile" className="flex shrink-0 items-center" />
             {canSwitchUnit ? (
               <UnitSelector viewUnit={viewUnit} setViewUnit={setViewUnit} compact />
             ) : unit ? (
               <span
-                className="inline-flex max-w-[108px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
+                className="hidden min-[430px]:inline-flex max-w-[108px] items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium"
                 style={{ background: '#eef3fb', color: NAVY }}
               >
                 <MapPin className="h-3 w-3 shrink-0" />

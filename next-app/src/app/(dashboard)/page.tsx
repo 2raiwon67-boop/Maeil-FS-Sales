@@ -106,7 +106,7 @@ export default function DashboardPage() {
   const [authFail, setAuthFail] = useState(false);
 
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [view, setView] = useState<'map' | 'dashboard' | 'prospect'>('map');
   const [colorblind, setColorblind] = useState(false);
 
@@ -121,9 +121,9 @@ export default function DashboardPage() {
     return () => clearTimeout(t);
   }, []);
 
-  // 모바일(협폭)에선 300px 필터 사이드바가 지도를 대부분 가리므로 기본 접힘
+  // 모바일은 첫 렌더부터 접힘 — 마운트 직후 패널이 닫히는 애니메이션 방지.
   useEffect(() => {
-    const t = setTimeout(() => { if (window.innerWidth < 768) setCollapsed(true); }, 0);
+    const t = setTimeout(() => { if (window.innerWidth >= 768) setCollapsed(false); }, 0);
     return () => clearTimeout(t);
   }, []);
 
@@ -907,11 +907,13 @@ export default function DashboardPage() {
     <button
       onClick={toggleProspect}
       aria-pressed={view === 'prospect'}
+      aria-label="개척 모드"
       // 모바일 헤더에서 실측 86×20 — 세로 패딩으로 터치 영역만 44px로 넓힌다(보이는 크기 동일)
       className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px] font-medium transition-colors max-md:-my-3 max-md:py-3"
       style={{ color: view === 'prospect' ? '#1B3F82' : '#64748b' }}
     >
-      개척 모드
+      <span className="max-[389px]:hidden">개척 모드</span>
+      <span className="min-[390px]:hidden">개척</span>
       <span className={`relative h-[18px] w-8 rounded-full transition-colors ${view === 'prospect' ? 'bg-[#1B3F82]' : 'bg-[#cbd5e1]'}`}>
         <span className={`absolute top-0.5 h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${view === 'prospect' ? 'left-[16px]' : 'left-0.5'}`} />
       </span>
@@ -1054,7 +1056,7 @@ export default function DashboardPage() {
 
         {/* 지도/통계 토글 (통계 오버레이 z-20 위에 떠야 다시 지도로 전환 가능) — 개척 모드에선 숨김 */}
         {view !== 'prospect' && (
-        <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/5">
+        <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/5 mobile-glass">
           {view === 'map' && (
             <button
               onClick={() => setMobileSearchOpen((o) => !o)}
@@ -1180,7 +1182,7 @@ export default function DashboardPage() {
 
         {/* 로딩 / 지오코딩 / 에러 */}
         {(loading || geocoding) && (
-          <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-black/75 px-5 py-2.5 text-sm text-white shadow-lg">
+          <div className="pointer-events-none absolute bottom-2 left-3 z-20 max-w-[calc(100%-24px)] rounded-lg bg-slate-900/85 px-3 py-1.5 text-xs text-white shadow-sm">
             {loading ? '데이터를 불러오는 중...' : `좌표 변환 중... (${geocoding!.done}/${geocoding!.total})`}
           </div>
         )}

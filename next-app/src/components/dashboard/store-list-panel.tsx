@@ -52,7 +52,9 @@ export function StoreListPanel({ open, onClose, licenses, accounts, onOpenStore 
     <>
       {open && <div className="fixed inset-0 z-40 bg-black/30 md:hidden" onClick={onClose} />}
       <aside
-        className={`fixed left-0 top-[var(--app-header-h)] z-50 flex h-[calc(100dvh-var(--app-header-h))] w-full flex-col bg-white shadow-2xl transition-transform duration-300 md:top-[88px] md:h-[calc(100dvh-88px)] md:w-[340px] ${
+        inert={!open}
+        aria-hidden={!open}
+        className={`fixed left-0 top-[var(--app-header-h)] z-50 flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] w-full flex-col bg-white shadow-2xl transition-transform duration-150 motion-reduce:transition-none md:top-[88px] md:h-[calc(100dvh-88px)] md:w-[340px] ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
