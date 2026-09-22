@@ -61,7 +61,7 @@ export default function RootLayout({
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-dynamic-subset.min.css"
         />
       </head>
-      <body className="flex min-h-full flex-col">
+      <body className="flex min-h-dvh flex-col">
         <AuthProvider>{children}</AuthProvider>
         <Toaster richColors position="top-center" />
         <PwaRegister />

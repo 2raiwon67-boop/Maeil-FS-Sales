@@ -225,6 +225,11 @@ export default function DashboardPage() {
             savedView?.lng ?? DEFAULT_CENTER.lng,
           ),
           zoom: savedView?.zoom ?? DEFAULT_ZOOM,
+          ...(window.innerWidth < 768 ? {
+            logoControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
+            mapDataControlOptions: { position: window.naver.maps.Position.TOP_LEFT },
+            scaleControlOptions: { position: window.naver.maps.Position.TOP_RIGHT },
+          } : {}),
         });
         window.naver.maps.Event.addListener(mapRef.current, 'click', () => {
           selRingRef.current?.setMap(null);
@@ -921,7 +926,7 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="relative flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] w-full md:h-[calc(100dvh-88px)]">
+    <div className="map-screen relative flex w-full">
       {navSlots.pc && createPortal(prospectSwitch, navSlots.pc)}
       {navSlots.mobile && createPortal(prospectSwitch, navSlots.mobile)}
 
@@ -948,7 +953,7 @@ export default function DashboardPage() {
 
         {/* 통계 오버레이 */}
         {view === 'dashboard' && (
-          <div className="absolute inset-0 z-20">
+          <div className="map-content-overlay absolute inset-0 z-20">
             <DashboardCharts licenses={licenses} />
           </div>
         )}
@@ -956,7 +961,7 @@ export default function DashboardPage() {
         {/* 개척 모드 오버레이 — 독립 화면(자체 지도·목록·통계), 기존 지도 로직 무접촉.
             보던 지도 시점(중심·줌)을 그대로 이어받는다. */}
         {view === 'prospect' && (
-          <div className="absolute inset-0 z-20">
+          <div className="map-content-overlay absolute inset-0 z-20">
             <ProspectMode
               businessUnit={businessUnit}
               myManagerName={myManagerName}
@@ -1056,7 +1061,7 @@ export default function DashboardPage() {
 
         {/* 지도/통계 토글 (통계 오버레이 z-20 위에 떠야 다시 지도로 전환 가능) — 개척 모드에선 숨김 */}
         {view !== 'prospect' && (
-        <div className="absolute left-1/2 top-3 z-30 flex -translate-x-1/2 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/5 mobile-glass">
+        <div className="map-toolbar absolute left-1/2 top-3 z-30 flex -translate-x-1/2 gap-1 rounded-xl bg-white/95 p-1 shadow-lg ring-1 ring-black/5 mobile-glass">
           {view === 'map' && (
             <button
               onClick={() => setMobileSearchOpen((o) => !o)}
@@ -1087,7 +1092,7 @@ export default function DashboardPage() {
           <div
             className={
               mobile
-                ? 'absolute bottom-6 left-1/2 z-20 w-[min(420px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10'
+                ? 'map-focus-card absolute bottom-6 left-1/2 z-20 w-[min(420px,calc(100%-2rem))] -translate-x-1/2 rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/10'
                 // 데스크탑은 거래처 마커 상세와 동일 위치(우측 상단 340px 카드) — 2026-08-18 사용자 확정
                 : 'absolute right-3 top-3 z-30 w-[340px] rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-black/5'
             }
@@ -1143,7 +1148,7 @@ export default function DashboardPage() {
 
         {/* 플로팅 액션 버튼 (목록 / 영업동선 / 내 일정) */}
         {view === 'map' && (
-          <div className="absolute bottom-6 right-4 z-10 flex flex-col items-end gap-2">
+          <div className="map-actions absolute bottom-6 right-4 z-10 flex flex-col items-end gap-2">
             <button
               onClick={() => setListOpen((o) => !o)}
               className="rounded-full bg-white px-4 py-2.5 text-sm font-bold text-gray-700 shadow-lg ring-1 ring-black/5"
@@ -1182,12 +1187,12 @@ export default function DashboardPage() {
 
         {/* 로딩 / 지오코딩 / 에러 */}
         {(loading || geocoding) && (
-          <div className="pointer-events-none absolute bottom-2 left-3 z-20 max-w-[calc(100%-24px)] rounded-lg bg-slate-900/85 px-3 py-1.5 text-xs text-white shadow-sm">
+          <div className="map-loading-status pointer-events-none absolute bottom-2 left-3 z-20 max-w-[calc(100%-24px)] rounded-lg bg-slate-900/85 px-3 py-1.5 text-xs text-white shadow-sm">
             {loading ? '데이터를 불러오는 중...' : `좌표 변환 중... (${geocoding!.done}/${geocoding!.total})`}
           </div>
         )}
         {error && (
-          <div className="absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-red-600 px-5 py-2.5 text-sm text-white shadow-lg">
+          <div className="map-loading-status absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-red-600 px-5 py-2.5 text-sm text-white shadow-lg">
             데이터 로드 실패: {error}
           </div>
         )}

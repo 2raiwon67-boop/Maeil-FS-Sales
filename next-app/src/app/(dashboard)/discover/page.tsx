@@ -2414,7 +2414,7 @@ export default function DiscoverPage() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
+      <div className="map-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
           <p className="text-slate-500 text-sm">시장 분석 데이터 불러오는 중...</p>
@@ -2736,7 +2736,7 @@ export default function DiscoverPage() {
   // 화면 전환과 새로고침은 모든 뷰에서 상단 필터 바에 고정한다.
   const viewToggle = (
     <>
-      <div className="flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
+      <div className="market-view-toggle flex gap-0.5 rounded-full border border-slate-200 bg-white p-[3px] shadow-sm">
         {([['map', MapIcon, '지도'], ['plan', ClipboardList, '연간 트렌드'], ['report', FileText, '지역레포트']] as [ViewMode, typeof MapIcon, string][]).map(([m, Icon, label]) => (
           <button
             key={m}
@@ -2759,7 +2759,7 @@ export default function DiscoverPage() {
   );
 
   return (
-    <div className="flex h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h))] flex-col overflow-hidden md:h-[calc(100dvh-88px)]">
+    <div className="map-screen flex flex-col overflow-hidden">
 
       {/* 상단 네비 검색 슬롯 — 시장 매장 즉시 검색 (슬롯 자체가 모바일에선 숨김) */}
       {navSearchSlot && createPortal(
@@ -2814,7 +2814,7 @@ export default function DiscoverPage() {
 
       <div className="flex shrink-0 items-center justify-between gap-1 border-b border-slate-100 bg-white px-2 py-1 md:hidden">{viewToggle}</div>
       {/* ── HEADS-UP FILTER BAR ── 모바일은 한 줄 가로 스크롤(줄바꿈 시 좌우 불균형 방지) */}
-      <div className="relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-2 max-md:py-1.5 max-md:[scrollbar-width:none] md:flex-wrap">
+      <div className="market-filter-bar relative z-[630] flex flex-shrink-0 items-center gap-2 border-b border-slate-200 bg-white px-4 py-2.5 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-2 max-md:py-1.5 max-md:[scrollbar-width:none] md:flex-wrap">
         <FilterDropdown
           icon={<MapPin size={14} />}
           value={regionValue}
@@ -2883,7 +2883,7 @@ export default function DiscoverPage() {
 
 
       {viewMode === 'map' && (
-        <details className="mobile-glass absolute right-2 top-2 z-[450] rounded-xl border border-slate-200 bg-white shadow-sm md:hidden">
+        <details className="map-display-control mobile-glass absolute right-2 top-2 z-[450] rounded-xl border border-slate-200 bg-white shadow-sm md:hidden">
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 px-3 text-xs font-semibold [&::-webkit-details-marker]:hidden"><Layers size={14} />지도 표시<ChevronDown size={12} /></summary>
           <div className="flex flex-col gap-1 p-1">
             {([['area', '면'], ['points', '점'], ['heat', '히트맵'], ['d3', '입체'], ['commercial', '상권']] as [DisplayMode, string][]).map(([m, label]) => (
@@ -2897,7 +2897,7 @@ export default function DiscoverPage() {
       {/* ── LEFT INSIGHT DOCK (overlay · 지도 모드 전용) ── */}
       {viewMode === 'map' && (
         <div className="absolute left-3 top-3 z-[400] max-lg:top-16 max-md:left-2 max-md:top-2">
-          <aside aria-label="시장 요약" className={`flex ${dockOpen ? '' : 'mobile-glass max-md:w-auto max-md:p-0'} ${timelineOpen ? 'max-md:max-h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h)-248px)]' : 'max-md:max-h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h)-200px)]'} max-h-[calc(100dvh-320px)] w-[340px] max-w-[calc(100vw-24px)] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_4px_20px_rgba(15,23,42,.08)] backdrop-blur-sm max-md:backdrop-blur-none`}>
+          <aside aria-label="시장 요약" className={`flex ${dockOpen ? '' : 'map-summary-collapsed mobile-glass max-md:w-auto max-md:p-0'} ${timelineOpen ? 'max-md:max-h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h)-248px)]' : 'max-md:max-h-[calc(100dvh-var(--app-header-h)-var(--app-tabbar-h)-200px)]'} max-h-[calc(100dvh-320px)] w-[340px] max-w-[calc(100vw-24px)] flex-col gap-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-[0_4px_20px_rgba(15,23,42,.08)] backdrop-blur-sm max-md:backdrop-blur-none`}>
             <div className={`flex items-center justify-between gap-4 ${dockOpen ? 'max-md:pr-28' : ''}`}>
               <span className="text-xs font-semibold text-slate-700 max-md:hidden">시장 요약</span>
               <button onClick={() => setDockOpen(o => !o)} aria-expanded={dockOpen}
@@ -2988,7 +2988,7 @@ export default function DiscoverPage() {
       )}
       {/* 범례 — 요약 카드가 접혀 있어도 표시 */}
       {viewMode === 'map' && (
-            <div className={`absolute ${timelineOpen ? 'bottom-28 max-md:bottom-32' : 'bottom-16 max-md:bottom-20'} ${dockOpen ? 'max-md:hidden' : ''} pointer-events-none left-3 z-[400] flex max-w-[calc(100%-72px)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-slate-200/70 bg-white/90 px-3 py-2 text-[10px] font-medium text-slate-500 shadow-sm md:max-w-[300px]`}>
+            <div data-expanded={timelineOpen} className={`map-legend absolute ${timelineOpen ? 'bottom-28 max-md:bottom-32' : 'bottom-16 max-md:bottom-20'} ${dockOpen ? 'max-md:hidden' : ''} pointer-events-none left-3 z-[400] flex max-w-[calc(100%-72px)] flex-wrap gap-x-3 gap-y-1 rounded-lg border border-slate-200/70 bg-white/90 px-3 py-2 text-[10px] font-medium text-slate-500 shadow-sm md:max-w-[300px]`}>
               {displayMode === 'commercial' ? (
                 <>
                   <span className="inline-flex w-full items-center gap-1.5"><span className="h-2 w-10 rounded-sm" style={{ background: 'linear-gradient(90deg,#cde2fb,#2a78d6,#0d366b)' }} />종합 점수 낮음 → 높음</span>
@@ -3023,8 +3023,8 @@ export default function DiscoverPage() {
 
       {/* ── TIMELAPSE 재생 바 ── (저프로파일 · 접기 토글로 지도 시야 확보) */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-3 left-3 right-14 z-[450] max-md:bottom-2 max-md:left-2 max-md:right-2">
-          <div className="mobile-glass mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95 max-md:gap-1 max-md:px-1 max-md:py-1 max-md:backdrop-blur-none">
+        <div className="map-timeline-position absolute bottom-3 left-3 right-14 z-[450] max-md:bottom-2 max-md:left-2 max-md:right-2">
+          <div className="map-timeline mobile-glass mx-auto flex w-fit max-w-full flex-wrap justify-center items-center gap-2 rounded-2xl border border-slate-200/70 bg-white/75 px-2 py-1.5 shadow-[0_4px_18px_rgba(15,23,42,.08)] backdrop-blur transition-colors hover:bg-white/95 max-md:gap-1 max-md:px-1 max-md:py-1 max-md:backdrop-blur-none">
             {/* 재생/일시정지 토글 — 항상 노출 */}
             <button
               onClick={handleTogglePlay}
@@ -3085,11 +3085,11 @@ export default function DiscoverPage() {
       <div
         aria-hidden={!panelOpen}
         onClick={closePanel}
-        className={`absolute inset-0 bg-slate-900/30 z-[499] transition-opacity duration-300 ${panelOpen && viewMode === 'map' ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        className={`map-content-overlay absolute inset-0 bg-slate-900/30 z-[499] transition-opacity duration-300 ${panelOpen && viewMode === 'map' ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
       />
 
       {/* ── SLIDE PANEL ── */}
-      <div inert={!panelOpen || viewMode !== 'map'} aria-hidden={!panelOpen || viewMode !== 'map'} className={`absolute top-0 right-0 w-[440px] max-w-full h-full bg-white border-l border-slate-200 shadow-[-6px_0_32px_rgba(15,23,42,.1)] z-[500] flex flex-col overflow-hidden transition-transform duration-150 motion-reduce:transition-none ease-[cubic-bezier(.4,0,.2,1)] max-sm:w-full ${panelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+      <div inert={!panelOpen || viewMode !== 'map'} aria-hidden={!panelOpen || viewMode !== 'map'} className={`map-content-overlay absolute top-0 right-0 w-[440px] max-w-full h-full bg-white border-l border-slate-200 shadow-[-6px_0_32px_rgba(15,23,42,.1)] z-[500] flex flex-col overflow-hidden transition-transform duration-150 motion-reduce:transition-none ease-[cubic-bezier(.4,0,.2,1)] max-sm:w-full ${panelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Header */}
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200 flex-shrink-0 bg-slate-50">
           <button
@@ -3366,7 +3366,7 @@ export default function DiscoverPage() {
 
       {/* ── 운영계획 뷰 — 요약 카드(위) + 지역×연도 정렬 표(아래), 머리글 없이 컴팩트 ── */}
       {viewMode === 'plan' && (
-        <div className="absolute inset-0 z-[300] flex flex-col overflow-hidden bg-slate-50">
+        <div className="map-content-overlay absolute inset-0 z-[300] flex flex-col overflow-hidden bg-slate-50">
           {/* 슬림 툴바 — 캡션 + 엑셀 (우측 여백은 top-right 토글 오버레이 회피) */}
           <div className="flex flex-shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-2">
             <div className="text-[12px] font-semibold text-slate-600">지역 × 연도 신규·폐업·순증 + 신규 2년 생존율</div>
@@ -3563,7 +3563,7 @@ export default function DiscoverPage() {
       {/* ── 보고작성 뷰 — 시군구 기회 보고서 (인구×개업 사분면 + 동 주석 + AI 분석) ──
           z-[510]: 드릴다운 패널(z-500)보다 위 — 잔존 패널이 보고서를 덮지 않게. 상단 토글(z-600)보다는 아래. */}
       {viewMode === 'report' && (
-        <div className="absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-1">
+        <div className="map-content-overlay absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-1">
           <ReportView scope={sidoSigunguMap} stores={cachedStores} />
         </div>
       )}

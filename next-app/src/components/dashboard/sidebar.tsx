@@ -107,7 +107,7 @@ export function DashboardSidebar({
       <aside
         inert={collapsed}
         aria-hidden={collapsed}
-        className={`absolute inset-y-0 left-0 z-30 flex w-[min(300px,calc(100vw-48px))] flex-col border-r border-gray-200 bg-gray-50 shadow-xl transition-transform duration-150 motion-reduce:transition-none ${
+        className={`map-content-overlay absolute inset-y-0 left-0 z-30 flex w-[min(300px,calc(100vw-48px))] flex-col border-r border-gray-200 bg-gray-50 shadow-xl transition-transform duration-150 motion-reduce:transition-none ${
           collapsed ? '-translate-x-full pointer-events-none shadow-none' : 'translate-x-0'
         }`}
       >

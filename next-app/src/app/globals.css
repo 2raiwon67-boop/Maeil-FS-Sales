@@ -55,12 +55,11 @@
      iOS는 viewport-fit=cover가 있어야 env(safe-area-inset-*)이 0이 아닌 값을 준다
      (layout.tsx의 viewport.viewportFit). 노치·홈 인디케이터가 없는 기기·브라우저에선
      inset이 0이라 예전 값과 동일하게 동작한다.
-     하드코딩(3rem/4rem)을 쓰면 안 되는 이유: 탭바 실측 높이는 55px이고, 안전영역이
-     붙으면 89px까지 늘어난다 — 하단 콘텐츠가 탭바에 가려진다. */
+     하단 메뉴와 콘텐츠는 같은 높이 변수를 써서 안전영역을 중복 확보하지 않는다. */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --app-header-h: calc(3rem + var(--safe-top));    /* 모바일 상단 로고바 h-12 + 상태바 */
-  --app-tabbar-h: calc(3.5rem + var(--safe-bottom)); /* 하단 탭바(실측 55px) + 홈 인디케이터 */
+  --app-tabbar-h: calc(3rem + 6px + var(--safe-bottom)); /* 48px 메뉴 + 6px 간격 + 홈 제스처 */
 
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -200,8 +199,110 @@
   display: none;
 }
 
-/* 모바일: 시장분석 지도 줌 버튼 숨김 — 하단 타임랩스 바와 겹치고 핀치 줌으로 충분 */
+.map-screen {
+  --map-bottom-inset: 0px;
+  height: calc(100dvh - 88px);
+}
+
+.map-content-overlay {
+  bottom: var(--map-bottom-inset, 0px);
+  height: auto;
+}
+
+/* 모바일 지도는 화면 끝까지, 조작부는 하단 메뉴 위까지. */
 @media (max-width: 767px) {
+  .map-screen {
+    --map-bottom-inset: var(--app-tabbar-h);
+    height: calc(100dvh - var(--app-header-h));
+  }
+  .map-screen .maplibregl-ctrl-bottom-right,
+  .map-screen .maplibregl-ctrl-bottom-left {
+    bottom: var(--map-bottom-inset);
+  }
+
+  .map-toolbar {
+    top: 6px;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 8%);
+  }
+  .map-toolbar > button {
+    min-height: 30px;
+    height: 30px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+  /* A slim visible button keeps an extra invisible touch margin. */
+  .map-toolbar > button,
+  .map-actions > button,
+  .map-summary-collapsed button,
+  .map-display-control > summary,
+  .map-timeline > button,
+  .market-view-toggle > button,
+  .market-filter-bar > button {
+    position: relative;
+  }
+  .map-toolbar > button::after,
+  .map-actions > button::after,
+  .map-summary-collapsed button::after,
+  .map-display-control > summary::after,
+  .map-timeline > button::after,
+  .market-view-toggle > button::after,
+  .market-filter-bar > button::after {
+    content: '';
+    position: absolute;
+    inset: -6px 0;
+  }
+  .map-toolbar > button::after { inset-block: -7px; }
+  .map-actions {
+    right: 8px;
+    bottom: calc(var(--map-bottom-inset) + 8px);
+    flex-direction: row;
+    gap: 6px;
+  }
+  .map-actions > button {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgb(15 23 42 / 10%);
+  }
+  .map-focus-card, .map-loading-status {
+    bottom: calc(var(--map-bottom-inset) + 52px);
+  }
+  .market-view-toggle { padding: 2px; }
+  .market-view-toggle > button,
+  .market-filter-bar > button {
+    height: 32px;
+  }
+  .map-display-control,
+  .map-summary-collapsed {
+    border-radius: 10px;
+  }
+  .map-summary-collapsed { overflow: visible; }
+  .map-display-control > summary,
+  .map-summary-collapsed button {
+    min-height: 32px;
+    height: 32px;
+    padding-inline: 10px;
+  }
+  .map-timeline-position {
+    bottom: calc(var(--map-bottom-inset) + 8px);
+  }
+  .map-timeline {
+    gap: 2px;
+    padding: 2px;
+    border-radius: 12px;
+  }
+  .map-timeline > button { height: 32px; width: 40px; }
+  .map-legend {
+    bottom: calc(var(--map-bottom-inset) + 56px);
+    padding: 4px 8px;
+  }
+  .map-legend[data-expanded='true'] {
+    bottom: calc(var(--map-bottom-inset) + 112px);
+  }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group {
     display: none;
   }

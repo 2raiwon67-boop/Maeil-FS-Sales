@@ -56,8 +56,9 @@ export function MobileTabBar() {
         </div>
       )}
 
-      {/* 안전영역은 --safe-bottom 한 곳에서만 정의한다(globals.css) — main의 pb-[--app-tabbar-h]와 같은 값을 써야 어긋나지 않는다 */}
-      <div className="mobile-glass fixed bottom-0 left-0 right-0 z-50 flex h-[var(--app-tabbar-h)] items-center justify-around border-t bg-white pb-[var(--safe-bottom)] md:hidden">
+      {/* 홈 제스처 영역은 투명하게 남겨 지도가 이어 보이게 한다. */}
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-50 h-[var(--app-tabbar-h)] px-2 pb-[calc(var(--safe-bottom)+6px)] md:hidden">
+      <nav aria-label="하단 메뉴" className="mobile-glass pointer-events-auto relative flex h-12 items-center justify-around rounded-2xl border border-slate-200/70 bg-white">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = pathname === tab.href;
@@ -72,7 +73,7 @@ export function MobileTabBar() {
                 active ? 'text-blue-700 font-semibold' : 'text-slate-600',
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-[18px] w-[18px]" />
               <span>{tab.label}</span>
             </Link>
           );
@@ -83,9 +84,10 @@ export function MobileTabBar() {
           onClick={() => setProfileOpen(!profileOpen)}
           aria-expanded={profileOpen}
         >
-          <User className="h-5 w-5" />
+          <User className="h-[18px] w-[18px]" />
           <span>프로필</span>
         </button>
+      </nav>
       </div>
 
       {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}

@@ -1,3 +1,6 @@
+'use client';
+
+import { usePathname } from 'next/navigation';
 import { NavBar } from '@/components/layout/nav-bar';
 import { MobileTabBar } from '@/components/layout/mobile-tab-bar';
 
@@ -6,11 +9,13 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const mapScreen = pathname === '/' || pathname === '/discover';
   return (
     <>
       <NavBar />
-      {/* 하단 여백은 탭바 실제 높이(안전영역 포함)와 묶는다 — pb-16 고정값은 홈 인디케이터 기기에서 모자랐다 */}
-      <main className="flex-1 pb-[var(--app-tabbar-h)] md:pb-0">{children}</main>
+      {/* 지도는 홈 인디케이터까지 이어지고, 일반 문서는 탭바 공간을 따로 확보한다. */}
+      <main className={mapScreen ? 'min-h-0 flex-1' : 'flex-1 pb-[var(--app-tabbar-h)] md:pb-0'}>{children}</main>
       <MobileTabBar />
     </>
   );
