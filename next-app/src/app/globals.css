@@ -213,15 +213,26 @@
   /* Keep glass limited to small controls so map panning stays inexpensive. */
   .mobile-glass {
     background: #fff;
+    isolation: isolate;
     box-shadow: inset 0 1px 0 rgb(255 255 255 / 90%), 0 2px 12px rgb(15 23 42 / 6%);
   }
 
   @supports (-webkit-touch-callout: none) and (backdrop-filter: blur(10px)) {
     .mobile-glass {
+      background: transparent;
+      border-color: rgb(203 213 225 / 65%);
+    }
+    /* Blur a separate layer: filtering the header itself traps fixed menu backdrops. */
+    .mobile-glass::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      border-radius: inherit;
       background: linear-gradient(140deg, rgb(255 255 255 / 94%), rgb(245 248 255 / 88%));
       -webkit-backdrop-filter: blur(10px) saturate(120%);
       backdrop-filter: blur(10px) saturate(120%);
-      border-color: rgb(203 213 225 / 65%);
     }
   }
 }
@@ -231,6 +242,9 @@
     background: #fff;
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
+  }
+  .mobile-glass::before {
+    display: none;
   }
 }
 
