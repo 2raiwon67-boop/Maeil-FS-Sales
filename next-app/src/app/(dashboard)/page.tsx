@@ -15,6 +15,8 @@ import {
   type NaverMarker,
 } from '@/lib/naver/loader';
 import { buildMarkerIcon, buildCartMarkerIcon, buildAccountMarkerIcon, buildSelectionRingIcon } from '@/lib/dashboard/markers';
+import { buildInBatches, syncViewportMarkers } from '@/lib/dashboard/marker-viewport';
+import { observeMapSize } from '@/lib/map-resize';
 import { DEFAULT_CENTER, DEFAULT_ZOOM } from '@/lib/dashboard/constants';
 import {
   emptyFilters,
@@ -88,6 +90,7 @@ export default function DashboardPage() {
   const businessUnit = viewUnit;
   const mobile = useIsMobile();
 
+  const mapAreaRef = useRef<HTMLDivElement>(null);
   const mapElRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<NaverMap | null>(null);
   // 페이지 진입 시점에 저장된 지도 시점이 있었는지 — true면 fitBounds 생략(카메라 점프 방지).
@@ -104,8 +107,10 @@ export default function DashboardPage() {
   const [geocoding, setGeocoding] = useState<{ done: number; total: number } | null>(null);
   const [built, setBuilt] = useState(false);
   const [authFail, setAuthFail] = useState(false);
+  const authFailRef = useRef(false);
 
   const [filters, setFilters] = useState<FilterState>(emptyFilters);
+  const filtersRef = useRef(filters);
   const [collapsed, setCollapsed] = useState(true);
   const [view, setView] = useState<'map' | 'dashboard' | 'prospect'>('map');
   const [colorblind, setColorblind] = useState(false);
@@ -202,15 +207,27 @@ export default function DashboardPage() {
     };
   });
 
-  useEffect(() => onNaverAuthFailure(() => setAuthFail(true)), []);
+  useEffect(() => onNaverAuthFailure(() => {
+    authFailRef.current = true;
+    setAuthFail(true);
+  }), []);
+
+  const applyFilters = useCallback((f: FilterState) => {
+    filtersRef.current = f;
+    const map = mapRef.current;
+    if (!map || authFailRef.current) return;
+    syncViewportMarkers(map, licMarkersRef.current, (m) => licenseMarkerVisible(m, f));
+    syncViewportMarkers(map, accMarkersRef.current, (m) => accountMarkerVisible(m, f));
+  }, []);
 
   // SDK 로드 + 지도 생성
   useEffect(() => {
     let cancelled = false;
-    let ro: ResizeObserver | null = null;
+    let stopResize: (() => void) | undefined;
+    let saveTimer: ReturnType<typeof setTimeout> | undefined;
     loadNaverMaps()
       .then(() => {
-        if (cancelled || !mapElRef.current || mapRef.current) return;
+        if (cancelled || !mapElRef.current || !mapAreaRef.current || mapRef.current) return;
         // 마지막 지도 시점 복원 — 재방문 시 지도가 처음부터 그 자리로 떠서
         // 마커 부착 시 fitBounds 순간이동("뚝" 끊김)이 발생하지 않는다.
         let savedView: { lat: number; lng: number; zoom: number } | null = null;
@@ -238,7 +255,6 @@ export default function DashboardPage() {
         // 시점 저장은 사용자 조작(드래그·줌)에만 — bounds_changed는 레이아웃 변동으로
         // 컨테이너 크기가 바뀔 때도 발화해, 밀린 중심이 재저장되며 로드마다 남쪽으로
         // 드리프트했다(실측 37.758→37.711→37.650). 저장값 = 사용자가 의도한 시점 불변식.
-        let saveTimer: ReturnType<typeof setTimeout> | null = null;
         const saveView = () => {
           if (saveTimer) clearTimeout(saveTimer);
           saveTimer = setTimeout(() => {
@@ -255,34 +271,31 @@ export default function DashboardPage() {
         };
         window.naver.maps.Event.addListener(mapRef.current, 'dragend', saveView);
         window.naver.maps.Event.addListener(mapRef.current, 'zoom_changed', saveView);
-        // 컨테이너 크기 변동(초기 레이아웃 정착 포함) 시 저장된 중심을 재고정 — 드리프트 방지
-        ro = new ResizeObserver(() => {
+        window.naver.maps.Event.addListener(mapRef.current, 'idle', () => applyFilters(filtersRef.current));
+        // Match the SDK canvas to its container after launch/resume. Preserve the
+        // current center, not an older localStorage value while the user pans.
+        // setSize writes inline pixels on the SDK element. Observe its fluid
+        // parent so those pixels cannot freeze subsequent viewport changes.
+        stopResize = observeMapSize(mapAreaRef.current, (width, height) => {
           const m = mapRef.current;
-          if (!m) return;
-          try {
-            const v = JSON.parse(localStorage.getItem('fs_home_viewport') || 'null');
-            if (v && Number.isFinite(v.lat) && Number.isFinite(v.lng)) {
-              m.setCenter(new window.naver.maps.LatLng(v.lat, v.lng));
-            }
-          } catch { /* ignore */ }
+          if (!m || authFailRef.current) return;
+          const center = m.getCenter();
+          m.setSize({ width, height });
+          m.setCenter(center);
+          applyFilters(filtersRef.current);
         });
-        if (mapElRef.current) ro.observe(mapElRef.current);
         setMapInstance(mapRef.current);
         setSdkReady(true);
       })
       .catch((e) => console.error('[dashboard] Naver SDK 로드 실패', e));
     return () => {
       cancelled = true;
-      ro?.disconnect();
+      stopResize?.();
+      clearTimeout(saveTimer);
+      mapRef.current?.destroy();
+      mapRef.current = null;
     };
-  }, []);
-
-  const applyFilters = useCallback((f: FilterState) => {
-    const map = mapRef.current;
-    if (!map) return;
-    licMarkersRef.current.forEach((m) => m.setMap(licenseMarkerVisible(m, f) ? map : null));
-    accMarkersRef.current.forEach((m) => m.setMap(accountMarkerVisible(m, f) ? map : null));
-  }, []);
+  }, [applyFilters]);
 
   // 데이터+SDK 준비되면 좌표 보강 후 마커 생성
   useEffect(() => {
@@ -390,7 +403,6 @@ export default function DashboardPage() {
         coordsByIdRef.current = coordsById;
         setLicenseStops([...licStops]);
         setAccountStops([...accStops]);
-        applyFilters(filters);
         // 저장된 시점을 복원해 뜬 경우 fitBounds 생략 — 마커가 제자리에 바로 박히고
         // 시점 순간이동으로 인한 화면 끊김이 없다. 최초 방문(저장 시점 없음)만 전체 맞춤.
         if (fit && !hasSavedViewRef.current) {
@@ -401,14 +413,15 @@ export default function DashboardPage() {
             map.fitBounds(bounds);
           }
         }
+        applyFilters(filtersRef.current);
       };
 
       // 1단계: 좌표가 이미 있는 인허가는 지오코딩을 기다리지 않고 즉시 마커 표시.
       // (기존에는 결측분 지오코딩이 전부 끝나야 마커가 한 번에 붙어, 그때까지 지도가 비어 있었다)
-      for (const l of licenses) {
-        if (!(parseFloat(String(l.lat)) && parseFloat(String(l.lng)))) continue;
-        addLicMarker(l);
-      }
+      await buildInBatches(licenses, (l) => {
+        if (parseFloat(String(l.lat)) && parseFloat(String(l.lng))) addLicMarker(l);
+      }, () => cancelled);
+      if (cancelled) return;
       const phase1Count = licMarkers.length;
       if (phase1Count > 0) publish(true);
 
@@ -491,8 +504,8 @@ export default function DashboardPage() {
 
       // 2단계: 지오코딩으로 좌표가 생긴 나머지 마커를 추가.
       // 1단계에서 이미 화면을 잡았으면 지도 시점(fitBounds)은 다시 옮기지 않는다.
-      for (const l of licNeedGeo) addLicMarker(l);
-      for (const a of accounts) addAccMarker(a);
+      await buildInBatches(licNeedGeo, addLicMarker, () => cancelled);
+      await buildInBatches(accounts, addAccMarker, () => cancelled);
 
       if (cancelled) return;
       publish(phase1Count === 0);
@@ -946,7 +959,7 @@ export default function DashboardPage() {
       />
       )}
 
-      <div className="relative flex-1">
+      <div ref={mapAreaRef} className="relative min-h-0 min-w-0 flex-1">
         {/* isolate: 네이버 SDK가 저작권·축척 컨트롤에 자체 z-index를 주기 때문에
             스택 컨텍스트를 끊지 않으면 앱 패널(z-50) 위로 올라와 내용을 가린다 */}
         <div ref={mapElRef} className="isolate h-full w-full" />

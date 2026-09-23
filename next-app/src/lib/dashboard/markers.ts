@@ -23,7 +23,8 @@ function isNewPermit(permitDate?: string): boolean {
     parseInt(dateStr.substring(4, 6)) - 1,
     parseInt(dateStr.substring(6, 8)),
   );
-  return Math.ceil(Math.abs(Date.now() - d.getTime()) / 86400000) >= NEW_PERMIT_DAYS;
+  const ageDays = (Date.now() - d.getTime()) / 86400000;
+  return ageDays >= 0 && ageDays < NEW_PERMIT_DAYS;
 }
 
 /** 인허가 마커 아이콘. DROP 등 색상 없으면 null 반환. */

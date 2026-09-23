@@ -59,6 +59,8 @@ function isOtherMilk(milk: string): boolean {
 export function licenseMarkerVisible(m: NaverMarker, f: FilterState): boolean {
   if (f.tab === 'account') return false;
   const status = m._status || '';
+  // A changed status must stay hidden when the viewport is refreshed on idle.
+  if (status === 'DROP') return false;
   if (f.rank !== 'all' && m._rank !== f.rank) return false;
   if (f.status.size > 0 && !f.status.has(status)) return false;
   if (f.region.size > 0 && !f.region.has(m._region || '기타')) return false;

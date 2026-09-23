@@ -200,6 +200,8 @@ export interface NaverLatLng {
 }
 export interface NaverLatLngBounds {
   extend: (latlng: NaverLatLng) => void;
+  getSW: () => NaverLatLng;
+  getNE: () => NaverLatLng;
 }
 export interface NaverPointerEvent {
   coord: NaverLatLng;
@@ -211,9 +213,13 @@ export interface NaverMap {
   panTo: (latlng: NaverLatLng) => void;
   fitBounds: (bounds: NaverLatLngBounds) => void;
   getCenter: () => NaverLatLng;
+  getBounds: () => NaverLatLngBounds;
+  setSize: (size: { width: number; height: number }) => void;
+  destroy: () => void;
 }
 export interface NaverMarker {
   setMap: (map: NaverMap | null) => void;
+  getMap: () => NaverMap | null;
   setIcon: (icon: unknown) => void;
   getIcon: () => unknown;
   getPosition: () => NaverLatLng;

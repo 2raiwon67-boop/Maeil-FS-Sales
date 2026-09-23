@@ -225,7 +225,7 @@ export function NavBar() {
 
       {/* 모바일 — 슬림 로고 바 (네비게이션은 하단 탭바가 담당) */}
       {/* PWA standalone은 상태바 아래로 콘텐츠가 파고든다(black-translucent) → 상단 안전영역만큼 밀어준다 */}
-      <header className="mobile-glass sticky top-0 z-[700] h-[var(--app-header-h)] shrink-0 border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
+      <header className="sticky top-0 z-[700] h-[var(--app-header-h)] shrink-0 border-b border-[#e8ebf0] bg-white pt-[var(--safe-top)] md:hidden">
         <div className="flex h-12 items-center gap-2 px-3">
           <LogoLockup />
           <div className="ml-auto flex min-w-0 items-center gap-1.5">

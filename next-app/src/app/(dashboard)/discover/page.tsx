@@ -1,5 +1,7 @@
 'use client';
 
+import { observeMapSize } from '@/lib/map-resize';
+
 import { createRequestLimiter } from '@/lib/async-limit';
 import { Popover } from '@base-ui/react/popover';
 
@@ -813,6 +815,7 @@ export default function DiscoverPage() {
     // (mapRef로 1회 생성만 보장 — 재실행돼도 이미 만들어졌으면 skip)
     if (!mapContainerRef.current || mapRef.current) return;
     let destroyed = false;
+    let stopResize: (() => void) | undefined;
 
     async function initMap() {
       const maplibregl = (await import('maplibre-gl')).default;
@@ -872,11 +875,11 @@ export default function DiscoverPage() {
           pendingMapRenderRef.current();
           pendingMapRenderRef.current = null;
         }
-        // 일부 환경에서 첫 프레임이 안 그려져 흰 화면으로 남는 문제 → 강제 resize로 페인트 유발
-        [80, 350, 900].forEach(ms => setTimeout(() => { try { mapInstance.resize(); } catch { /* noop */ } }, ms));
+        mapInstance.resize();
       });
 
       mapRef.current = mapInstance;
+      stopResize = observeMapSize(mapContainerRef.current, () => mapInstance.resize());
     }
 
     initMap().catch((e) => {
@@ -885,6 +888,7 @@ export default function DiscoverPage() {
     });
     return () => {
       destroyed = true;
+      stopResize?.();
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
