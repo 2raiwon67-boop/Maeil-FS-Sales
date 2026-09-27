@@ -1,4 +1,7 @@
 {
+  "regions": [
+    "syd1"
+  ],
   "crons": [
     {
       "path": "/api/send-license-alert",

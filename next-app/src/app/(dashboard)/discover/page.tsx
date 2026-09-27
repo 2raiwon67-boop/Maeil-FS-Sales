@@ -1,6 +1,7 @@
 'use client';
 
 import { observeMapSize } from '@/lib/map-resize';
+import { markPerformance } from '@/lib/performance-diagnostics';
 
 import { createRequestLimiter } from '@/lib/async-limit';
 import { Popover } from '@base-ui/react/popover';
@@ -14,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket, refineSigungu } from '@/lib/regions';
 import { loadNaverMaps, cachedGeocodeDetailed, cleanGeocodeQuery } from '@/lib/naver/loader';
+import { computeCommercialScores, COMM_W, COMM_COLORS, COMM_LABEL, type CommercialRow, type CommercialScore, type AdongTop } from '@/lib/commercial-score';
 import { isEligible } from '@/lib/report-model';
 import { toast } from 'sonner';
 import {
@@ -104,78 +106,6 @@ interface DongAgg {
 // ─── 상권 모드 ───────────────────────────────────────────────────────────────
 // 소진공 상가(상권)정보 시군구 요약(RPC commercial_sigungu_summary) = 재고, 인허가 최근 12개월 = 흐름.
 // 종합 점수 = 스코프(현재 화면에 로드된 시군구) 안의 백분위 가중합 — 절대값이 아니라 '지금 보는 지역들 중 상대 순위'.
-interface CommercialRow {
-  sido: string; sigungu: string; total: number;
-  cafe: number; bakery: number; icecream: number; restaurant: number; pub: number;
-  retail: number; service: number; office: number; education: number; medical: number; leisure: number;
-  pop: number; adongs: number;
-}
-interface CommercialScore extends CommercialRow {
-  stock: number;     // FS 재고 = 카페+제과+빙수 (소진공 영업 중 기준)
-  new12: number;     // 최근 12개월 FS 적격 개업
-  closed12: number;  // 〃 폐업
-  openRate: number;  // new12/stock ×100
-  netRate: number;   // (new12-closed12)/stock ×100
-  density: number;   // 카페 / 인구 1만명
-  pScale: number; pDensity: number; pOpen: number; pNet: number; // 백분위 0~1
-  score: number;     // 0~100
-  rank: number;      // 1 = 최고
-}
-interface AdongTop { adong_nm: string; total: number; cafe: number; restaurant: number; office: number; education: number }
-const COMM_W = { scale: 0.35, density: 0.15, open: 0.25, net: 0.25 } as const;
-const COMM_COLORS = { scale: '#2a78d6', density: '#1baf7a', open: '#eb6834', net: '#4a3aa7' } as const;
-const COMM_LABEL = { scale: '규모', density: '밀도', open: '개업률', net: '순증률' } as const;
-function percentiles(vals: number[]): number[] {
-  const n = vals.length;
-  if (n <= 1) return vals.map(() => 1);
-  return vals.map(v => vals.filter(x => x < v).length / (n - 1));
-}
-function computeCommercialScores(rows: CommercialRow[], stores: StoreRow[]): CommercialScore[] {
-  if (!rows.length || !stores.length) return [];
-  // 스코프 = 현재 로드된 매장 데이터의 (시도|시군구) — 상권 행 중 스코프에 속한 것만 채점
-  const byKey = new Map(rows.map(r => [`${r.sido}|${r.sigungu}`, r]));
-  const resolve = new Map<string, CommercialRow | null>();
-  const flow = new Map<CommercialRow, { n: number; c: number }>();
-  const months = [...new Set(stores.map(s => s.month))].sort();
-  const from = months[Math.max(0, months.length - 12)];
-  for (const s of stores) {
-    const key = `${s.sido}|${s.sigungu}`;
-    let r = resolve.get(key);
-    if (r === undefined) {
-      r = byKey.get(key) ?? rows.find(x => x.sido === s.sido && sigunguMatches(s.sido, s.sigungu, x.sigungu)) ?? null;
-      resolve.set(key, r);
-    }
-    if (!r) continue;
-    let f = flow.get(r);
-    if (!f) { f = { n: 0, c: 0 }; flow.set(r, f); }
-    if (s.month < from || !isEligible(s.category)) continue;
-    if (s.status === 'new') f.n++; else f.c++;
-  }
-  const scoped = rows.filter(r => flow.has(r));
-  if (!scoped.length) return [];
-  const base = scoped.map(r => {
-    const f = flow.get(r)!;
-    const stock = r.cafe + r.bakery + r.icecream;
-    return {
-      ...r, stock, new12: f.n, closed12: f.c,
-      openRate: stock ? f.n / stock * 100 : 0,
-      netRate: stock ? (f.n - f.c) / stock * 100 : 0,
-      density: r.pop > 0 ? r.cafe / r.pop * 10000 : 0,
-    };
-  });
-  const pScale = percentiles(base.map(b => b.stock));
-  const pDensity = percentiles(base.map(b => b.density));
-  const pOpen = percentiles(base.map(b => b.openRate));
-  const pNet = percentiles(base.map(b => b.netRate));
-  const scored = base.map((b, i) => {
-    const damp = Math.min(1, b.stock / 300); // 소규모(재고<300) 지역은 비율 지표를 감쇠 — 분모 작아 튀는 것 방지
-    const p = { pScale: pScale[i], pDensity: pDensity[i], pOpen: pOpen[i] * damp, pNet: pNet[i] * damp };
-    const score = Math.round(100 * (COMM_W.scale * p.pScale + COMM_W.density * p.pDensity + COMM_W.open * p.pOpen + COMM_W.net * p.pNet));
-    return { ...b, ...p, score, rank: 0 };
-  }).sort((a, b) => b.score - a.score || b.stock - a.stock);
-  scored.forEach((s, i) => { s.rank = i + 1; });
-  return scored;
-}
 // 면 채색 표현식 — 기본(순증 tone)과 상권(종합 점수 파랑 램프)을 모드에 따라 교체
 const FS_TONE = ['coalesce', ['feature-state', 'tone'], 'none'];
 const FS_T = ['coalesce', ['feature-state', 't'], 0];
@@ -676,6 +606,8 @@ export default function DiscoverPage() {
   const [sigunguSidoMap, setSigunguSidoMap] = useState<Record<string, string>>({});
   const [cachedSnaps, setCachedSnaps] = useState<SnapRow[]>([]);
   const [cachedStores, setCachedStores] = useState<StoreRow[]>([]);
+  const [recordsComplete, setRecordsComplete] = useState(false);
+
   // 상권 모드 — RPC 결과 1회 로드(세션 캐시), 점수는 스코프 매장과 함께 렌더 시 계산
   const [commercialRows, setCommercialRows] = useState<CommercialRow[] | null>(null);
   const commercialLoadedRef = useRef(false);
@@ -705,6 +637,9 @@ export default function DiscoverPage() {
   }, []);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
+  const reportScope = useMemo(() => regionMode === 'sido' && regionSido
+    ? { [regionSido]: [...new Set(cachedStores.filter(s => s.sido === regionSido).map(s => s.sigungu))].sort() }
+    : sidoSigunguMap, [regionMode, regionSido, cachedStores, sidoSigunguMap]);
   // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
   const [selectedMonth, setSelectedMonth] = useState<string | null>(() => { const ml = getMonthList(); return ml[ml.length - 1] ?? null; });
   // 기간 조회 종료월 — null=단일 월(또는 전체). 설정 시 [selectedMonth..rangeTo] 범위로 집계.
@@ -858,6 +793,7 @@ export default function DiscoverPage() {
       mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
       mapInstance.on('load', () => {
+        markPerformance('mapReadyMs');
         setMapError(null);
         // Localize labels to Korean
         const field = ['coalesce', ['get', 'name:ko'], ['get', 'name:latin'], ['get', 'name']];
@@ -1694,6 +1630,7 @@ export default function DiscoverPage() {
     sguSidoMap: Record<string, string> = sigunguSidoMap,
   ) => {
     setRefreshing(true);
+    setRecordsComplete(false);
     setLastSync('로딩 중...');
     const runId = ++loadRunRef.current; // 이 로드가 최신인지 판별 (지역 연속 전환 대비)
     let sourceStatsReady = false;
@@ -1706,11 +1643,8 @@ export default function DiscoverPage() {
     try {
       // 단일 소스: market_store_records만 읽고, 독/KPI/랭킹/면/차트/드릴다운 전부 이 데이터로 집계.
       // (예전엔 독은 market_snapshots 집계·드릴다운은 store_records라 숫자가 어긋났음 → 통일)
-      // PostgREST max-rows(≈1000) 캡 때문에 .order('id')+.range() 페이지네이션 필수.
       // 좌표 없는 레코드도 포함 — 집계는 전건 기준. 점/히트맵만 buildStoreFeatures에서 좌표 필터.
       // 컬럼 다이어트: 지도·집계에 필요한 최소 컬럼만 (주소·인허가일은 드릴다운 열 때 지연 로드)
-      const storeCols = 'name,sigungu,month,status,category,pyeong,lat,lng,dong,addr_key,gu';
-      const PAGE = 1000;
       // 전체 수집분(2022-01~) 로드 — 지도 마커·집계에 과거치 노출 + 3년 관측 확보(2026-08-13)
       const minMonth = DATA_MIN_MONTH;
       const recentMin = monthsAgoStr(11); // 우선 로딩 창(최근 12개월) — 첫 지도를 ⅓ 용량으로
@@ -1737,7 +1671,7 @@ export default function DiscoverPage() {
       };
       // Run summary and map downloads together; late summary must not overwrite source data.
       void (async () => { if (!cachedRows) try {
-        const { data: aggData, error: aggErr } = await supabase.rpc('discover_market_agg', { p_min_month: minMonth });
+        const { data: aggData, error: aggErr } = await supabase.rpc('discover_market_agg', { p_min_month: minMonth, p_sidos: scopeSidosRef.current });
         if (!aggErr && Array.isArray(aggData) && loadRunRef.current === runId && !sourceStatsReady) {
           const snapsFast = scopeSnaps((aggData as Array<{ sido: string; sigungu: string; month: string; new_count: number; closed_count: number }>)
             .map(r => ({ sido: r.sido, sigungu: r.sigungu, month: r.month, new_count: r.new_count, closed_count: r.closed_count, updated_at: '' })));
@@ -1758,11 +1692,11 @@ export default function DiscoverPage() {
         }
       } catch { /* RPC 실패 → 아래 원본 경로가 이어서 렌더 */ } })();
 
-      // 점진 렌더 — 페이지가 도착하는 만큼 지도 점을 미리 찍는다(전체 완료를 기다리지 않음).
+      // 점진 렌더 — 조각이 도착하는 만큼 지도 점을 미리 찍는다(전체 완료를 기다리지 않음).
       // KPI/랭킹 등 통계는 부분값으로 깜빡이지 않게 여기서 건드리지 않고, 단계 완료 시 finishRows가 확정.
       const arrived: StoreRow[] = [];
-      let loadFailed = false; // 페이지 로드 실패 흔적 — 불완전한 결과를 세션 캐시에 남기지 않기 위한 플래그
-      const requestPage = createRequestLimiter(4);
+      let loadFailed = false; // 조각 로드 실패 흔적 — 불완전한 결과를 세션 캐시에 남기지 않기 위한 플래그
+      const requestChunk = createRequestLimiter(6);
       let lastPaint = 0;
       const paintPartial = () => {
         if (loadRunRef.current !== runId) return; // 더 최신 로드가 시작됨 — 화면 덮어쓰기 금지
@@ -1773,58 +1707,52 @@ export default function DiscoverPage() {
         updateStoreLayer();
       };
 
-      // 총건수를 먼저 구해 페이지를 병렬로 로드(3년치=대량이라 순차면 느림). count 불가 시 순차 폴백.
-      // 각 페이지는 도착 즉시 StoreRow로 변환·누적하고 paintPartial로 점을 찍는다.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const loadScoped = async (applyFilters: (q: any) => any, toRow: (r: any) => StoreRow) => {
-        const acc: StoreRow[] = [];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const onPage = (data: any[] | null, error: any): number => {
-          if (error) { console.warn('[discover] 매장 페이지 로드 실패', error); loadFailed = true; return 0; }
-          const rows = (data || []).map(toRow);
-          acc.push(...rows);
-          arrived.push(...rows);
-          paintPartial();
-          return rows.length;
-        };
-        const { count } = await requestPage(async () => applyFilters(supabase.from('market_store_records').select('id', { count: 'exact', head: true })));
-        if (count != null && count >= 0) {
-          const pages = Math.max(1, Math.ceil(count / PAGE));
-          await Promise.all(Array.from({ length: pages }, (_, i) => requestPage(async () => {
-            if (loadRunRef.current !== runId) return;
-            const { data, error } = await applyFilters(supabase.from('market_store_records').select(storeCols))
-              .order('id').range(i * PAGE, i * PAGE + PAGE - 1);
-            onPage(data, error);
-          })));
-          return acc;
-        }
-        for (let from = 0; ; from += PAGE) { // count 실패 시 끝 페이지까지 읽는다.
-          if (loadRunRef.current !== runId) break;
-          const { data, error } = await requestPage(async () => applyFilters(supabase.from('market_store_records').select(storeCols)).order('id').range(from, from + PAGE - 1));
-          if (error) { onPage(null, error); break; }
-          if (onPage(data, null) < PAGE) break;
-        }
-        return acc;
+      // 매장 행은 DB 함수 discover_rows가 (시도·시군구·월 범위) 조각을 열 단위 JSON 한 덩어리로 준다.
+      // 1,000행 페이지 방식은 경기도 3년치에 80여 회 왕복(한국↔시드니 DB, 회당 0.5~1초)이라 20초 걸렸음.
+      type ColRows = {
+        n: number; sigungu: string[]; name: string[]; month: string[]; status: string[];
+        category: (string | null)[]; pyeong: (number | string | null)[]; lat: (number | string | null)[];
+        lng: (number | string | null)[]; dong: (string | null)[]; addr_key: (string | null)[]; gu: (string | null)[];
       };
-      // 시도별 스코프 — sido 컬럼은 전송하지 않고 클라에서 주입 (조회 조건에 이미 있으므로)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const scopes: Array<[string, (q: any) => any]> = mode === 'sido' && sido
-        ? [[sido, (q: any) => q.eq('sido', sido)]]
-        : Object.entries(sSigunguMap).map(([s, list]) => [s, (q: any) => q.eq('sido', s).in('sigungu', list)]);
+      const loadChunk = (sidoName: string, sigungus: string[] | null, from: string, to?: string) => requestChunk(async (): Promise<StoreRow[]> => {
+        if (loadRunRef.current !== runId) return [];
+        const { data, error } = await supabase.rpc('discover_rows', { p_sido: sidoName, p_sigungus: sigungus, p_from: from, p_to: to ?? null });
+        if (error || !data) { console.warn('[discover] 매장 로드 실패', error); loadFailed = true; return []; }
+        const c = data as ColRows;
+        const rows: StoreRow[] = new Array(c.n);
+        for (let i = 0; i < c.n; i++) {
+          rows[i] = {
+            name: c.name[i], sido: sidoName, sigungu: c.sigungu[i], month: c.month[i],
+            status: c.status[i] === 'closed' ? 'closed' : 'new',
+            category: c.category[i], pyeong: c.pyeong[i] != null ? Number(c.pyeong[i]) : null,
+            lat: c.lat[i] != null ? Number(c.lat[i]) : null, lng: c.lng[i] != null ? Number(c.lng[i]) : null,
+            dong: c.dong[i] || '기타', addrKey: c.addr_key[i] || '', gu: c.gu[i] || null,
+          };
+          arrived.push(rows[i]);
+        }
+        paintPartial();
+        return rows;
+      });
+      // 월 범위를 연 단위로 쪼개 병렬 요청 — 한 조각이 커지면 DB 응답(TTFB)이 길어지므로
+      const yearWindows = (from: string, to?: string): Array<[string, string | undefined]> => {
+        const out: Array<[string, string | undefined]> = [];
+        const end = to ?? monthsAgoStr(-1);
+        let cur = from;
+        for (let y = Number(from.slice(0, 4)) + 1; ; y++) {
+          const next = `${y}-01`;
+          if (next >= end) { out.push([cur, to]); break; }
+          out.push([cur, next]);
+          cur = next;
+        }
+        return out;
+      };
+      // 시도별 스코프 — sido는 전송하지 않고 클라에서 주입 (조회 조건에 이미 있으므로)
+      const scopes: Array<[string, string[] | null]> = mode === 'sido' && sido
+        ? [[sido, null]]
+        : Object.entries(sSigunguMap);
 
       const loadPhase = async (from: string, to?: string): Promise<StoreRow[]> => (await Promise.all(
-        scopes.map(([s, filter]) => loadScoped(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (q: any) => { const b = filter(q).gte('month', from); return to ? b.lt('month', to) : b; },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (r: any): StoreRow => ({
-            name: r.name, sido: s, sigungu: r.sigungu, month: r.month,
-            status: r.status === 'closed' ? 'closed' : 'new',
-            category: r.category, pyeong: r.pyeong != null ? Number(r.pyeong) : null,
-            lat: r.lat != null ? Number(r.lat) : null, lng: r.lng != null ? Number(r.lng) : null,
-            dong: r.dong || '기타', addrKey: r.addr_key || '', gu: r.gu || null,
-          }),
-        ))
+        scopes.flatMap(([s, list]) => yearWindows(from, to).map(([f, t]) => loadChunk(s, list, f, t))),
       )).flat();
 
       // 화면 반영 — 1·2단계 로딩이 같은 경로를 재사용
@@ -1835,6 +1763,7 @@ export default function DiscoverPage() {
         sourceStatsReady = true;
         const storeRows = dedupeStoreEvents(raw);
         setCachedStores(storeRows);
+        markPerformance('dataReadyMs');
         cachedStoresRef.current = storeRows;
 
         // 선택 월에 데이터가 없으면(월초 야간수집 前·수집 지연 등) 데이터가 있는 최신 월로 폴백
@@ -1881,6 +1810,7 @@ export default function DiscoverPage() {
         if (!loadFailed && raw.length) storeCacheRef.current.set(cacheKey, raw);
       }
       if (loadRunRef.current !== runId) return;
+      setRecordsComplete(!loadFailed);
       void runGeocodeBackfill(minMonth); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
       // "갱신 시각"은 행 전체 대신 최신 1건만 조회 (updated_at 컬럼 다이어트 대체)
@@ -2235,22 +2165,16 @@ export default function DiscoverPage() {
     const sd = need[0].sido;
     const sgs = [...new Set(need.map(r => r.sigungu))];
     const region = drillRegionRef.current;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const acc: any[] = [];
-    for (let from = 0; from < 20000; from += 1000) {
-      const { data, error } = await supabase.from('market_store_records')
-        .select('name,status,month,addr_key,address,license_date')
-        .eq('sido', sd).in('sigungu', sgs).order('id').range(from, from + 999);
-      if (error || !data) break;
-      acc.push(...data);
-      if (data.length < 1000) break;
-    }
+    const { data, error } = await supabase.rpc('discover_row_details', { p_sido: sd, p_sigungus: sgs });
+    if (error || !data) return;
     if (drillRegionRef.current !== region) return; // 로드 중 다른 지역으로 전환됨
-    const detail = new Map(acc.map(d => [`${d.name}|${d.addr_key}|${d.status}|${d.month}`, d]));
+    const c = data as { name: string[]; status: string[]; month: string[]; addr_key: (string | null)[]; address: (string | null)[]; license_date: (string | null)[] };
+    const detail = new Map<string, number>();
+    c.name.forEach((n, i) => detail.set(`${n}|${c.addr_key[i] || ''}|${c.status[i] === 'closed' ? 'closed' : 'new'}|${c.month[i]}`, i));
     for (const r of rows) {
-      const d = detail.get(`${r.name}|${r.addrKey}|${r.status}|${r.month}`);
-      r.address = d?.address ?? null;
-      r.license_date = d?.license_date ?? null;
+      const i = detail.get(`${r.name}|${r.addrKey}|${r.status}|${r.month}`);
+      r.address = i != null ? c.address[i] : null;
+      r.license_date = i != null ? c.license_date[i] : null;
     }
     setDrillStores([...rows]);
   }
@@ -3568,7 +3492,7 @@ export default function DiscoverPage() {
           z-[510]: 드릴다운 패널(z-500)보다 위 — 잔존 패널이 보고서를 덮지 않게. 상단 토글(z-600)보다는 아래. */}
       {viewMode === 'report' && (
         <div className="map-content-overlay absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-1">
-          <ReportView scope={sidoSigunguMap} stores={cachedStores} />
+          <ReportView key={JSON.stringify(reportScope)} scope={reportScope} stores={cachedStores} complete={recordsComplete} />
         </div>
       )}
       </div>

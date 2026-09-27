@@ -33,6 +33,16 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString('ko-KR');
 }
 
+// 벨은 데스크톱·모바일 헤더에 한 개씩 마운트된다 — 조회 요청은 하나를 공유(서버가 매 조회마다 알림을 동기화·기록함)
+let inflight: Promise<{ items: Notif[]; unread: number } | null> | null = null;
+function fetchNotifications() {
+  inflight ??= fetch('/api/notifications')
+    .then((res) => (res.ok ? res.json() : null))
+    .catch(() => null)
+    .finally(() => { inflight = null; });
+  return inflight;
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<Notif[]>([]);
@@ -42,16 +52,10 @@ export function NotificationBell() {
   useEffect(() => {
     let active = true;
     (async () => {
-      try {
-        const res = await fetch('/api/notifications');
-        if (!res.ok || !active) return;
-        const d = await res.json();
-        if (!active) return;
-        setItems(d.items || []);
-        setUnread(d.unread || 0);
-      } catch {
-        // 무시 — 알림은 부가 기능
-      }
+      const d = await fetchNotifications(); // 실패는 null — 알림은 부가 기능
+      if (!d || !active) return;
+      setItems(d.items || []);
+      setUnread(d.unread || 0);
     })();
     return () => {
       active = false;
