@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getColorblind, setColorblind, onColorblindChange } from '@/lib/settings';
+import { PerformanceDiagnosticsPanel } from '@/components/performance-diagnostics-panel';
 
 export function SettingsModal({ onClose }: { onClose: () => void }) {
   // 모달은 사용자가 연 뒤에만 렌더되므로(SSR 영향 없음) lazy init으로 현재 값 반영
@@ -19,7 +20,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl bg-white shadow-2xl"
+        className="max-h-[85dvh] w-full max-w-sm overflow-y-auto rounded-2xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
@@ -27,6 +28,7 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-2xl leading-none text-gray-400 hover:text-gray-600">
             ×
           </button>
+          <PerformanceDiagnosticsPanel />
         </div>
         <div className="px-5 py-4">
           <button onClick={toggle} className="flex w-full items-center justify-between py-2 text-left">

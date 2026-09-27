@@ -1,6 +1,7 @@
 'use client';
 
 import { observeMapSize } from '@/lib/map-resize';
+import { markPerformance } from '@/lib/performance-diagnostics';
 
 import { createRequestLimiter } from '@/lib/async-limit';
 import { Popover } from '@base-ui/react/popover';
@@ -14,6 +15,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { getColorblind, onColorblindChange } from '@/lib/settings';
 import { LEGACY_TO_CURRENT, legacySigungu, sigunguMatches, geoBucket, refineSigungu } from '@/lib/regions';
 import { loadNaverMaps, cachedGeocodeDetailed, cleanGeocodeQuery } from '@/lib/naver/loader';
+import { computeCommercialScores, COMM_W, COMM_COLORS, COMM_LABEL, type CommercialRow, type CommercialScore, type AdongTop } from '@/lib/commercial-score';
 import { isEligible } from '@/lib/report-model';
 import { toast } from 'sonner';
 import {
@@ -104,78 +106,6 @@ interface DongAgg {
 // ─── 상권 모드 ───────────────────────────────────────────────────────────────
 // 소진공 상가(상권)정보 시군구 요약(RPC commercial_sigungu_summary) = 재고, 인허가 최근 12개월 = 흐름.
 // 종합 점수 = 스코프(현재 화면에 로드된 시군구) 안의 백분위 가중합 — 절대값이 아니라 '지금 보는 지역들 중 상대 순위'.
-interface CommercialRow {
-  sido: string; sigungu: string; total: number;
-  cafe: number; bakery: number; icecream: number; restaurant: number; pub: number;
-  retail: number; service: number; office: number; education: number; medical: number; leisure: number;
-  pop: number; adongs: number;
-}
-interface CommercialScore extends CommercialRow {
-  stock: number;     // FS 재고 = 카페+제과+빙수 (소진공 영업 중 기준)
-  new12: number;     // 최근 12개월 FS 적격 개업
-  closed12: number;  // 〃 폐업
-  openRate: number;  // new12/stock ×100
-  netRate: number;   // (new12-closed12)/stock ×100
-  density: number;   // 카페 / 인구 1만명
-  pScale: number; pDensity: number; pOpen: number; pNet: number; // 백분위 0~1
-  score: number;     // 0~100
-  rank: number;      // 1 = 최고
-}
-interface AdongTop { adong_nm: string; total: number; cafe: number; restaurant: number; office: number; education: number }
-const COMM_W = { scale: 0.35, density: 0.15, open: 0.25, net: 0.25 } as const;
-const COMM_COLORS = { scale: '#2a78d6', density: '#1baf7a', open: '#eb6834', net: '#4a3aa7' } as const;
-const COMM_LABEL = { scale: '규모', density: '밀도', open: '개업률', net: '순증률' } as const;
-function percentiles(vals: number[]): number[] {
-  const n = vals.length;
-  if (n <= 1) return vals.map(() => 1);
-  return vals.map(v => vals.filter(x => x < v).length / (n - 1));
-}
-function computeCommercialScores(rows: CommercialRow[], stores: StoreRow[]): CommercialScore[] {
-  if (!rows.length || !stores.length) return [];
-  // 스코프 = 현재 로드된 매장 데이터의 (시도|시군구) — 상권 행 중 스코프에 속한 것만 채점
-  const byKey = new Map(rows.map(r => [`${r.sido}|${r.sigungu}`, r]));
-  const resolve = new Map<string, CommercialRow | null>();
-  const flow = new Map<CommercialRow, { n: number; c: number }>();
-  const months = [...new Set(stores.map(s => s.month))].sort();
-  const from = months[Math.max(0, months.length - 12)];
-  for (const s of stores) {
-    const key = `${s.sido}|${s.sigungu}`;
-    let r = resolve.get(key);
-    if (r === undefined) {
-      r = byKey.get(key) ?? rows.find(x => x.sido === s.sido && sigunguMatches(s.sido, s.sigungu, x.sigungu)) ?? null;
-      resolve.set(key, r);
-    }
-    if (!r) continue;
-    let f = flow.get(r);
-    if (!f) { f = { n: 0, c: 0 }; flow.set(r, f); }
-    if (s.month < from || !isEligible(s.category)) continue;
-    if (s.status === 'new') f.n++; else f.c++;
-  }
-  const scoped = rows.filter(r => flow.has(r));
-  if (!scoped.length) return [];
-  const base = scoped.map(r => {
-    const f = flow.get(r)!;
-    const stock = r.cafe + r.bakery + r.icecream;
-    return {
-      ...r, stock, new12: f.n, closed12: f.c,
-      openRate: stock ? f.n / stock * 100 : 0,
-      netRate: stock ? (f.n - f.c) / stock * 100 : 0,
-      density: r.pop > 0 ? r.cafe / r.pop * 10000 : 0,
-    };
-  });
-  const pScale = percentiles(base.map(b => b.stock));
-  const pDensity = percentiles(base.map(b => b.density));
-  const pOpen = percentiles(base.map(b => b.openRate));
-  const pNet = percentiles(base.map(b => b.netRate));
-  const scored = base.map((b, i) => {
-    const damp = Math.min(1, b.stock / 300); // 소규모(재고<300) 지역은 비율 지표를 감쇠 — 분모 작아 튀는 것 방지
-    const p = { pScale: pScale[i], pDensity: pDensity[i], pOpen: pOpen[i] * damp, pNet: pNet[i] * damp };
-    const score = Math.round(100 * (COMM_W.scale * p.pScale + COMM_W.density * p.pDensity + COMM_W.open * p.pOpen + COMM_W.net * p.pNet));
-    return { ...b, ...p, score, rank: 0 };
-  }).sort((a, b) => b.score - a.score || b.stock - a.stock);
-  scored.forEach((s, i) => { s.rank = i + 1; });
-  return scored;
-}
 // 면 채색 표현식 — 기본(순증 tone)과 상권(종합 점수 파랑 램프)을 모드에 따라 교체
 const FS_TONE = ['coalesce', ['feature-state', 'tone'], 'none'];
 const FS_T = ['coalesce', ['feature-state', 't'], 0];
@@ -676,6 +606,8 @@ export default function DiscoverPage() {
   const [sigunguSidoMap, setSigunguSidoMap] = useState<Record<string, string>>({});
   const [cachedSnaps, setCachedSnaps] = useState<SnapRow[]>([]);
   const [cachedStores, setCachedStores] = useState<StoreRow[]>([]);
+  const [recordsComplete, setRecordsComplete] = useState(false);
+
   // 상권 모드 — RPC 결과 1회 로드(세션 캐시), 점수는 스코프 매장과 함께 렌더 시 계산
   const [commercialRows, setCommercialRows] = useState<CommercialRow[] | null>(null);
   const commercialLoadedRef = useRef(false);
@@ -705,6 +637,9 @@ export default function DiscoverPage() {
   }, []);
   const [regionMode, setRegionModeState] = useState<RegionMode>('branch');
   const [regionSido, setRegionSido] = useState<string | null>(null);
+  const reportScope = useMemo(() => regionMode === 'sido' && regionSido
+    ? { [regionSido]: [...new Set(cachedStores.filter(s => s.sido === regionSido).map(s => s.sigungu))].sort() }
+    : sidoSigunguMap, [regionMode, regionSido, cachedStores, sidoSigunguMap]);
   // 기본값=최신 월(3년치 전체 점이 한 번에 찍히는 부담·혼잡 방지). '전체 월'은 드롭다운에서 선택.
   const [selectedMonth, setSelectedMonth] = useState<string | null>(() => { const ml = getMonthList(); return ml[ml.length - 1] ?? null; });
   // 기간 조회 종료월 — null=단일 월(또는 전체). 설정 시 [selectedMonth..rangeTo] 범위로 집계.
@@ -858,6 +793,7 @@ export default function DiscoverPage() {
       mapInstance.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
 
       mapInstance.on('load', () => {
+        markPerformance('mapReadyMs');
         setMapError(null);
         // Localize labels to Korean
         const field = ['coalesce', ['get', 'name:ko'], ['get', 'name:latin'], ['get', 'name']];
@@ -1694,6 +1630,7 @@ export default function DiscoverPage() {
     sguSidoMap: Record<string, string> = sigunguSidoMap,
   ) => {
     setRefreshing(true);
+    setRecordsComplete(false);
     setLastSync('로딩 중...');
     const runId = ++loadRunRef.current; // 이 로드가 최신인지 판별 (지역 연속 전환 대비)
     let sourceStatsReady = false;
@@ -1826,6 +1763,7 @@ export default function DiscoverPage() {
         sourceStatsReady = true;
         const storeRows = dedupeStoreEvents(raw);
         setCachedStores(storeRows);
+        if (!loadFailed) markPerformance('dataReadyMs');
         cachedStoresRef.current = storeRows;
 
         // 선택 월에 데이터가 없으면(월초 야간수집 前·수집 지연 등) 데이터가 있는 최신 월로 폴백
@@ -1872,6 +1810,7 @@ export default function DiscoverPage() {
         if (!loadFailed && raw.length) storeCacheRef.current.set(cacheKey, raw);
       }
       if (loadRunRef.current !== runId) return;
+      setRecordsComplete(!loadFailed);
       void runGeocodeBackfill(minMonth); // 좌표 결측분 백그라운드 지오코딩(신규 인허가 등)
 
       // "갱신 시각"은 행 전체 대신 최신 1건만 조회 (updated_at 컬럼 다이어트 대체)
@@ -3553,7 +3492,7 @@ export default function DiscoverPage() {
           z-[510]: 드릴다운 패널(z-500)보다 위 — 잔존 패널이 보고서를 덮지 않게. 상단 토글(z-600)보다는 아래. */}
       {viewMode === 'report' && (
         <div className="map-content-overlay absolute inset-0 z-[510] overflow-y-auto bg-slate-50 pt-1">
-          <ReportView scope={sidoSigunguMap} stores={cachedStores} />
+          <ReportView key={JSON.stringify(reportScope)} scope={reportScope} stores={cachedStores} complete={recordsComplete} />
         </div>
       )}
       </div>

@@ -1,4 +1,5 @@
 'use client';
+import { markPerformance } from '@/lib/performance-diagnostics';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -84,6 +85,7 @@ function useIsMobile() {
 
 export default function DashboardPage() {
   const { licenses, accounts, loading, error, setLicenses, setAccounts } = useDashboardData();
+  useEffect(() => { if (!loading && !error) markPerformance('dataReadyMs'); }, [loading, error]);
   const { isReadOnlyView, viewUnit } = useAuth();
   const { myManagerName } = useManager();
   // 사업부·관리자 계정은 네비에서 선택한 지점의 데이터를 본다 (다른 지점은 조회 전용)
@@ -285,6 +287,7 @@ export default function DashboardPage() {
           applyFilters(filtersRef.current);
         });
         setMapInstance(mapRef.current);
+        markPerformance('mapReadyMs');
         setSdkReady(true);
       })
       .catch((e) => console.error('[dashboard] Naver SDK 로드 실패', e));

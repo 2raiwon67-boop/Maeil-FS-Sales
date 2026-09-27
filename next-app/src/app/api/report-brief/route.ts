@@ -12,7 +12,7 @@ export const maxDuration = 30;
 interface UnitMetric {
   name: string;
   label: string;       // 선점|공략|방어|관찰
-  popChg: number;      // 인구 증감 % (4년)
+  popChg: number;      // 인구 증감 % (관측기간)
   pop: number;         // 최신 인구
   new12m: number;      // 12개월 신규 개업
   newPrior12?: number; // 직전 12개월 신규 (모멘텀 비교)
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   const bu = String(user.user_metadata?.business_unit || '');
   const scopeSorted = String(scopeKey).split(',').map((s) => s.trim()).sort().join(',');
   // v2: 모멘텀·폐업률 추가 + 업종 모드 분리 — 구 캐시(v1 키)와 자연 분리
-  const cacheKey = `__report_brief_${createHash('sha256').update(`${bu}|${scopeSorted}|${month}|${mode}|v2`).digest('hex')}`;
+  const cacheKey = `__report_brief_${createHash('sha256').update(`${bu}|${scopeSorted}|${month}|${mode}|v3`).digest('hex')}`;
   const sb = createServiceClient(SUPABASE_URL, SERVICE_KEY);
   const { data: cached } = await sb.from('naver_cache').select('local_data').eq('store_name', cacheKey).maybeSingle();
   if (cached?.local_data?.text) {
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     const mom = ['가속', '감속', '보합'].includes(String(u.momentum)) && Number.isFinite(u.newPrior12)
       ? ` · 신규 모멘텀 ${u.momentum}(직전12개월 ${u.newPrior12}곳→최근 ${u.new12m}곳)` : '';
     const churn = Number.isFinite(u.churnPct) ? ` · 연 폐업률 ${u.churnPct}%` : '';
-    return `- ${u.name} [판정 ${u.label}] 인구 ${u.pop.toLocaleString()}명(4년 ${u.popChg > 0 ? '+' : ''}${u.popChg}%) · 12개월 신규 ${u.new12m}곳${mom} · 운영 중 ${u.operating}곳${churn} · 1만명당 신규 ${u.perCapita}곳${u.dongNotes ? ` · 주요 동: ${u.dongNotes}` : ''}`;
+    return `- ${u.name} [판정 ${u.label}] 인구 ${u.pop.toLocaleString()}명(관측기간 ${u.popChg > 0 ? '+' : ''}${u.popChg}%) · 12개월 신규 ${u.new12m}곳${mom} · 운영 중 ${u.operating}곳${churn} · 1만명당 신규 ${u.perCapita}곳${u.dongNotes ? ` · 주요 동: ${u.dongNotes}` : ''}`;
   }).join('\n');
 
   const modeLine = mode === '적격'
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     : '업종 범위: 전체 수집 업종(무인점포 등 포함 — 상권 규모 관점).';
 
   const prompt = `당신은 식자재 B2B 영업(카페·베이커리 대상 유제품 납품) 조직의 상권 분석가다.
-아래는 관할 시군구별 지표다 (기준: 최근 4년 주민등록 인구 변화 + 최근 12개월 개업).
+아래는 관할 시군구별 지표다 (기준: 최근 관측기간 주민등록 인구 변화 + 최근 12개월 개업).
 ${modeLine}
 
 ${lines}

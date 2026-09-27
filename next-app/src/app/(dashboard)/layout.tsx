@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import { NavBar } from '@/components/layout/nav-bar';
 import { MobileTabBar } from '@/components/layout/mobile-tab-bar';
+import { PerformanceMonitor } from '@/components/performance-monitor';
 
 export default function DashboardLayout({
   children,
@@ -13,6 +14,7 @@ export default function DashboardLayout({
   const mapScreen = pathname === '/' || pathname === '/discover';
   return (
     <div className={mapScreen ? 'dashboard-shell dashboard-map-shell' : 'dashboard-shell'}>
+      <PerformanceMonitor />
       <NavBar />
       {/* 지도는 홈 인디케이터까지 이어지고, 일반 문서는 탭바 공간을 따로 확보한다. */}
       <main className={mapScreen ? 'min-h-0 flex-1' : 'flex-1 pb-[var(--app-tabbar-h)] md:pb-0'}>{children}</main>

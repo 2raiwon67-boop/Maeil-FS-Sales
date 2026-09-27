@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { sigunguMatches, LEGACY_TO_CURRENT, remapLegacyDongRows } from '@/lib/regions';
 import { isEligible, monthShift, classifyMomentum, annualChurnPct, pioneerRequirement, type Momentum } from '@/lib/report-model';
+import { createRequestLimiter } from '@/lib/async-limit';
+import { RegionalPriorityPanel, type PriorityPopulation } from './regional-priority-panel';
 
 export interface ReportStore {
   name: string;
@@ -29,11 +31,16 @@ export interface ReportStore {
 interface Props {
   scope: Record<string, string[]>; // discover 시도(서울·인천·경기도·강원도) → 시군구 목록 (managers 관할)
   stores: ReportStore[];
+  complete: boolean;
 }
 
 // discover 시도 표기 → population_stats(행안부 ctpvNm) 표기
 const POP_SIDO: Record<string, string> = {
   서울: '서울특별시', 인천: '인천광역시', 경기도: '경기도', 강원도: '강원특별자치도',
+  부산: '부산광역시', 대구: '대구광역시', 대전: '대전광역시', 울산: '울산광역시',
+  세종: '세종특별자치시', 충청북도: '충청북도', 충청남도: '충청남도',
+  전라북도: '전북특별자치도', 전라남도: '전남광주통합특별시', 광주: '전남광주통합특별시',
+  경상북도: '경상북도', 경상남도: '경상남도', 제주: '제주특별자치도',
 };
 
 type Verdict = '선점' | '공략' | '방어' | '관찰';
@@ -44,7 +51,7 @@ const VERDICT_STYLE: Record<Verdict, { badge: string; dot: string }> = {
   관찰: { badge: 'bg-slate-100 text-slate-500', dot: '#94a3b8' },
 };
 
-interface PopRow { sigungu: string; dong: string; month: string; population: number }
+type PopRow = PriorityPopulation;
 
 interface UnitMetric {
   name: string;
@@ -69,7 +76,7 @@ function matchUnit(sido: string, sgg: string, unit: string): boolean {
   return sgg === unit || sgg.startsWith(unit + ' ') || sigunguMatches(sido, sgg, unit);
 }
 
-export function ReportView({ scope, stores }: Props) {
+export function ReportView({ scope, stores, complete }: Props) {
   const { isReadOnlyView } = useAuth();
   const [popRows, setPopRows] = useState<PopRow[] | null>(null);
   const [popError, setPopError] = useState('');
@@ -104,6 +111,7 @@ export function ReportView({ scope, stores }: Props) {
     (async () => {
       try {
         const supabase = createClient();
+        const limit = createRequestLimiter(4);
         const all: PopRow[] = [];
         for (const [sido, list] of Object.entries(scope)) {
           const popSido = POP_SIDO[sido];
@@ -130,20 +138,20 @@ export function ReportView({ scope, stores }: Props) {
           if (cntErr) throw new Error(cntErr.message);
           const pages = Math.ceil((count ?? 0) / 1000);
           const results = await Promise.all(
-            Array.from({ length: pages }, (_, p) =>
+            Array.from({ length: pages }, (_, p) => limit(async () =>
               supabase
                 .from('population_stats')
                 .select('sigungu,dong,month,population')
                 .eq('sido', popSido)
                 .or(orExpr)
                 .order('id')
-                .range(p * 1000, p * 1000 + 999),
+                .range(p * 1000, p * 1000 + 999)),
             ),
           );
           const sidoRows: PopRow[] = [];
           for (const { data, error } of results) {
             if (error) throw new Error(error.message);
-            sidoRows.push(...(data || []));
+            sidoRows.push(...(data || []).map(r => ({ ...r, sido })));
           }
           // 옛 구명 행을 동 소속 기준으로 새 구명에 재배정 — 개편 구의 인구 시계열이 끊기지 않게
           all.push(...remapLegacyDongRows(sidoRows, sido));
@@ -189,11 +197,11 @@ export function ReportView({ scope, stores }: Props) {
     const cut12 = monthShift(lastStoreM, -11);
     const cut24 = monthShift(cut12, -12); // 직전 12개월 창 시작 (모멘텀 비교)
     // 과거 24개월 병합 전(디스커버 2단계 로드)에는 직전 창이 비어 모멘텀이 전부 '가속'으로 왜곡 → 도착 전엔 숨김
-    const hasPrior = storeMonths[0] < cut12;
+    const hasPrior = complete && storeMonths[0] <= cut24;
 
     const out: UnitMetric[] = [];
     for (const { sido, unit } of units) {
-      const uPop = popRows.filter((r) => matchUnit(sido, r.sigungu, unit));
+      const uPop = popRows.filter((r) => r.sido === sido && matchUnit(sido, r.sigungu, unit));
       if (!uPop.length) continue;
       const byMonth = new Map<string, number>();
       for (const r of uPop) byMonth.set(r.month, (byMonth.get(r.month) || 0) + r.population);
@@ -211,7 +219,7 @@ export function ReportView({ scope, stores }: Props) {
       if (!popFirst || !pop) continue;
       const popChg = +(((pop - popFirst) / popFirst) * 100).toFixed(1);
 
-      const uStores = baseStores.filter((s) => matchUnit(s.sido, s.sigungu, unit) || s.sigungu === unit);
+      const uStores = baseStores.filter((s) => s.sido === sido && matchUnit(sido, s.sigungu, unit));
       // 운영 중 판정: 마지막 이벤트 기준 — 폐업 후 재개업(closed월 < new월)은 운영 중으로 본다
       const byKey = new Map<string, { hasNew: boolean; newMonth: string; closedMonth: string; dong: string }>();
       for (const s of uStores) {
@@ -272,10 +280,10 @@ export function ReportView({ scope, stores }: Props) {
     }
     out.sort((a, b) => b.popChg - a.popChg);
     return { units: out, firstM, lastM, cut12, median, hasPrior };
-  }, [popRows, stores, units, eligibleOnly]);
+  }, [popRows, stores, units, eligibleOnly, complete]);
 
   // 선택이 없으면 첫 시군구로 — 렌더 시 파생 (effect 내 동기 setState 금지 규칙)
-  const effectiveUnit = selectedUnit ?? metrics?.units[0]?.name ?? null;
+  const effectiveUnit = selectedUnit ?? (metrics?.units[0] ? `${metrics.units[0].sido}|${metrics.units[0].name}` : null);
 
   // ── 차트 (chart.js 지연 로드) ─────────────────────────────────────────────
   useEffect(() => {
@@ -325,7 +333,7 @@ export function ReportView({ scope, stores }: Props) {
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          onClick: (_e, els) => { if (els.length) setSelectedUnit(us[els[0].index].name); },
+          onClick: (_e, els) => { if (els.length) setSelectedUnit(`${us[els[0].index].sido}|${us[els[0].index].name}`); },
           plugins: {
             legend: { display: false },
             tooltip: { callbacks: { label: (t) => `${us[t.dataIndex].name}: 인구 ${us[t.dataIndex].popChg > 0 ? '+' : ''}${us[t.dataIndex].popChg}% · 1만명당 신규 ${us[t.dataIndex].perCapita}곳 · 운영 ${us[t.dataIndex].operating}곳` } },
@@ -343,7 +351,7 @@ export function ReportView({ scope, stores }: Props) {
 
   useEffect(() => {
     if (!metrics || !effectiveUnit || !lineRef.current) return;
-    const u = metrics.units.find((x) => x.name === effectiveUnit);
+    const u = metrics.units.find((x) => `${x.sido}|${x.name}` === effectiveUnit);
     if (!u) return;
     let chart: { destroy: () => void } | null = null;
     let dead = false;
@@ -370,7 +378,7 @@ export function ReportView({ scope, stores }: Props) {
   // 선택 시군구 인허가 순증 추이 (막대 — 양수 초록, 음수 빨강)
   useEffect(() => {
     if (!metrics || !effectiveUnit || !netRef.current) return;
-    const u = metrics.units.find((x) => x.name === effectiveUnit);
+    const u = metrics.units.find((x) => `${x.sido}|${x.name}` === effectiveUnit);
     if (!u) return;
     let chart: { destroy: () => void } | null = null;
     let dead = false;
@@ -416,11 +424,11 @@ export function ReportView({ scope, stores }: Props) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            scopeKey: metrics.units.map((u) => u.name).join(','),
+            scopeKey: metrics.units.map((u) => `${u.sido} ${u.name}`).join(','),
             month: metrics.lastM,
             mode: eligibleOnly ? '적격' : '전체',
             units: metrics.units.map((u) => ({
-              name: u.name, label: u.verdict, popChg: u.popChg, pop: u.pop,
+              name: `${u.sido} ${u.name}`, label: u.verdict, popChg: u.popChg, pop: u.pop,
               new12m: u.new12m, newPrior12: u.newPrior12, momentum: u.momentum || '보합', churnPct: u.churnPct,
               operating: u.operating, perCapita: u.perCapita, dongNotes: u.dongNotes,
             })),
@@ -455,7 +463,7 @@ export function ReportView({ scope, stores }: Props) {
       const srcStores = eligibleOnly ? stores.filter((s) => isEligible(s.category)) : stores;
       const byKey = new Map<string, { store: ReportStore; newMonth: string; closedMonth: string }>();
       for (const s of srcStores) {
-        if (!(matchUnit(s.sido, s.sigungu, u.name) || s.sigungu === u.name)) continue;
+        if (s.sido !== u.sido || !matchUnit(u.sido, s.sigungu, u.name)) continue;
         const k = `${s.name}|${s.addrKey}`;
         const e = byKey.get(k) || { store: s, newMonth: '', closedMonth: '' };
         if (s.status === 'new' && s.month > e.newMonth) { e.newMonth = s.month; e.store = s; }
@@ -516,19 +524,24 @@ export function ReportView({ scope, stores }: Props) {
   }
 
   // ── 렌더 ─────────────────────────────────────────────────────────────────
-  if (popError) return <div className="p-8 text-center text-sm text-red-500">인구 데이터 로드 실패: {popError}</div>;
+  const priorityPanel = <RegionalPriorityPanel units={units} population={popRows ?? []}
+    stores={eligibleOnly ? stores.filter(s => s.status === 'closed' || isEligible(s.category)) : stores}
+    complete={complete && popRows !== null && !popError} />;
+  if (popError) return <div className="p-4">{priorityPanel}<p className="text-sm text-red-500">인구 데이터 로드 실패: {popError}</p></div>;
   if (!metrics) {
     // popRows 로드가 끝났는데 지표가 없으면 관할 매칭 실패 — 스피너를 영원히 돌리지 않고 안내
     if (popRows !== null && stores.length > 0) {
       return (
-        <div className="p-10 text-center text-sm text-slate-400">
+        <div className="p-4 text-sm text-slate-400">
+          {priorityPanel}
           관할 시군구의 인구 데이터가 없습니다.<br />
           <span className="text-xs">담당자관리의 지역명과 인구 통계 지역명이 일치하는지 확인해 주세요.</span>
         </div>
       );
     }
     return (
-      <div className="flex h-full items-center justify-center gap-2 text-sm text-slate-400">
+      <div className="p-4 text-sm text-slate-400">
+        {priorityPanel}
         <RefreshCw size={15} className="animate-spin" />
         {popRows === null ? '인구 데이터 불러오는 중…' : '시장 데이터 대기 중…'}
       </div>
@@ -538,10 +551,11 @@ export function ReportView({ scope, stores }: Props) {
   const totalPop = metrics.units.reduce((s, u) => s + u.pop, 0);
   const totalNew = metrics.units.reduce((s, u) => s + u.new12m, 0);
   const cnt = (v: Verdict) => metrics.units.filter((u) => u.verdict === v).length;
-  const sel = metrics.units.find((x) => x.name === effectiveUnit);
+  const sel = metrics.units.find((x) => `${x.sido}|${x.name}` === effectiveUnit);
 
   return (
     <div className="w-full px-4 pb-10 pt-3">
+      {priorityPanel}
       <div className="mb-3 flex items-baseline justify-between gap-3 flex-wrap">
         <div className="text-[13px] font-semibold text-slate-600">
           관할 시군구 기획보고서 <span className="font-normal text-slate-400">· 인구 {metrics.firstM}~{metrics.lastM} · 신규 개업 최근 12개월</span>
@@ -594,8 +608,8 @@ export function ReportView({ scope, stores }: Props) {
       <div className="mb-1 text-[13px] font-semibold text-slate-700">시군구별 판정 <span className="font-normal text-slate-400">— 행 클릭: 동 상세 + 우측 추이 전환</span></div>
       <div className="flex max-h-[340px] flex-col gap-1.5 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-[4px] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb]:bg-slate-200">
         {metrics.units.map((u) => (
-          <div key={u.name} className="rounded-xl bg-white ring-1 ring-slate-100">
-            <div className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5" onClick={() => { setOpenDong(openDong === u.name ? null : u.name); setSelectedUnit(u.name); }}>
+          <div key={`${u.sido}|${u.name}`} className="rounded-xl bg-white ring-1 ring-slate-100">
+            <div className="flex cursor-pointer items-center gap-2.5 px-3.5 py-2.5" onClick={() => { setOpenDong(openDong === `${u.sido}|${u.name}` ? null : `${u.sido}|${u.name}`); setSelectedUnit(`${u.sido}|${u.name}`); }}>
               <span className={`shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold ${VERDICT_STYLE[u.verdict].badge}`}>{u.verdict}</span>
               <span className="text-sm font-semibold text-slate-800">{u.name}</span>
               <span className="min-w-0 flex-1 truncate text-[12px] text-slate-500">
@@ -617,7 +631,7 @@ export function ReportView({ scope, stores }: Props) {
                 </button>
               )}
             </div>
-            {openDong === u.name && (
+            {openDong === `${u.sido}|${u.name}` && (
               <div className="border-t border-slate-50 px-3.5 py-2.5">
                 {u.dongNotes && (
                   <div className="mb-2 rounded-lg bg-slate-50 px-3 py-2 text-[12px] text-slate-600">
